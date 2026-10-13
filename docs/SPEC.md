@@ -73,9 +73,10 @@ Funnel is a free and open source (AGPL-3.0), self-hosted web app for triaging an
 ## 4. Architecture
 
 - **One process.** SvelteKit on Bun (server rendering on first load, client takeover afterwards). The sync loop runs as a background task in the same process. No queue, no Redis, no worker service.
-- **Two SQLite files** (`bun:sqlite`):
-  - `mirror.db`: disposable cache of GitHub data (section 6).
-  - `state.db`: durable state (section 7). It is the only file that needs a backup.
+- **One SQLite file** (`bun:sqlite`, `funnel.db`) with three table namespaces:
+  - `mirror_github_*`: disposable cache of GitHub data (section 6).
+  - `state_*`: Funnel-owned durable state (section 7).
+  - `auth_*`: Better Auth-owned durable state (sections 7, 8). Only `state_*` and `auth_*` need a backup; `mirror_github_*` is rebuilt by re-sync.
 - **Live updates** to open browsers via server-sent events (SSE). No WebSocket server. SSE requirements on Bun:
   - Responses use `Content-Type: text/event-stream`, `Cache-Control: no-cache, no-transform` and `X-Accel-Buffering: no`, and are never compressed.
   - Chunks are written as `TextEncoder`-encoded bytes, and the stream's `cancel()` handler releases the connection's resources.
@@ -122,19 +123,20 @@ Multiple assignees are allowed, GitHub-native, with no enforcement. "Assigned to
 
 ## 6. Mirror and sync
 
-### 6.1 What the mirror stores (`mirror.db`)
+### 6.1 What the mirror stores (`mirror_github_*`)
 
-- Issues: title, body, state and close reason, labels, assignees, author, timestamps, milestone name
-- Issue comments
-- Each repo's label set
-- Logins and avatar URLs that appear on mirrored issues
-- The FTS5 full-text index over titles, bodies and comments
+- `mirror_github_issue`: title, body, state and close reason, labels, assignees, author, timestamps, milestone name
+- `mirror_github_comment`: issue comments
+- `mirror_github_repo` + `mirror_github_repo_label`: each repo and its label set
+- `mirror_github_issue_label`, `mirror_github_issue_assignee`: label assignments and assignees
+- `mirror_github_user`: logins and avatar URLs that appear on mirrored issues
+- `mirror_github_issue_fts`: the FTS5 full-text index over titles, bodies and comments
 
 **Not mirrored:** PRs as first-class objects, **linked-PR summaries** (see section 3.2), reviews, diffs, CI checks, commits, discussions, Projects, reactions, attachments, timeline events.
 
 **History window:** all open issues plus issues closed within `sync.history_days` (default 90). Older closed issues are not mirrored. A Funnel URL for one shows "Not synced, open on GitHub". Nothing already mirrored is pruned by age. A reopened old issue comes back through polling.
 
-**Schema versioning:** a single version number. If the file's number differs from the running version, Funnel deletes `mirror.db` and re-syncs. There is no migration code for the mirror. The first sync shows progress per repo, and a repo is usable as soon as its open issues are loaded.
+**Mirror rebuild:** there is no migration code and no version tracking for the mirror. A breaking mirror schema change truncates all `mirror_github_*` tables (never `state_*` / `auth_*`) and re-syncs. The first sync shows progress per repo, and a repo is usable as soon as its open issues are loaded.
 
 ### 6.2 Sync mechanics
 
@@ -157,19 +159,19 @@ Multiple assignees are allowed, GitHub-native, with no enforcement. "Assigned to
   - **Secondary limits still apply to 304s** (about 900 REST points per minute, plus concurrency limits). Funnel therefore staggers the per-repo polls instead of firing them together, and caps concurrent requests to GitHub.
 - **Repo changes:** archived repos stay in the mirror and the UI hides write controls for them. A repo the App can no longer access is treated as degraded and its data is kept, unmodified, until the operator removes it from the config. Removing a repo from the config purges its data at the next start.
 
-## 7. Durable state (`state.db`)
+## 7. Durable state (`state_*`, `auth_*`)
 
-Forward-only SQL migrations run at startup. Contents:
+Forward-only SQL migrations run at startup for `state_*` and `auth_*` only. Contents:
 
-- **Pending intake submissions:** `id`, `title`, `body`, optional `source`, `created_at`. A decision deletes the row immediately. Nothing is kept afterwards, and there is no undo.
-- **Better Auth tables:** users, accounts, sessions, and stored GitHub tokens.
+- **Pending intake submissions** (`state_intake_submission`): `id`, `title`, `body`, optional `source`, `created_at`. A decision deletes the row immediately. Nothing is kept afterwards, and there is no undo.
+- **Better Auth tables** (`auth_user`, `auth_account`, `auth_session`, `auth_verification`): users, accounts, sessions, and stored GitHub tokens. Column names are `camelCase` as imposed by Better Auth; the drizzle adapter is given the explicit mapping (`user: authUser`, ...).
 
-Backup guidance for operators: back up `state.db` only. Treat `mirror.db` as a cache.
+Backup guidance for operators: back up `funnel.db` (only `state_*` / `auth_*` matter). Treat `mirror_github_*` as a cache: truncate and re-sync to rebuild.
 
 ## 8. Authentication and permissions
 
 - **GitHub App**, installed on each org. Funnel itself has no roles.
-- **Login:** GitHub only, through **Better Auth** with its GitHub provider. **Any GitHub user who can sign in gets access.** Sessions are server-side, with the user-to-server token stored in `state.db`. Sessions expire after `session.idle_days` (default 30) of inactivity, and logout deletes the session.
+- **Login:** GitHub only, through **Better Auth** with its GitHub provider. **Any GitHub user who can sign in gets access.** Sessions are server-side (`auth_session`, `auth_account`), with the user-to-server token stored in `auth_account`. Sessions expire after `session.idle_days` (default 30) of inactivity, and logout deletes the session.
 - **Token refresh (required):** GitHub App user-to-server tokens are short-lived. Funnel refreshes them with the stored refresh token before a write whenever the access token is expired or about to expire, and a failed refresh sends the user back to login. If Better Auth doesn't do this for the GitHub provider, Funnel implements the refresh step itself.
 - **Encryption at rest (required):** access and refresh tokens are stored encrypted with a key derived from `FUNNEL_SECRET`. If Better Auth can't do this natively, Funnel encrypts the token fields before they reach the database. Changing `FUNNEL_SECRET` makes stored tokens unreadable and signs everyone out, which is acceptable because sessions are disposable.
 - **Reads:** instance-wide. Everyone signed in sees everything in the mirror (see section 15, known risks).
@@ -333,12 +335,12 @@ Only github.com is tested. GHES and GHE.com are best-effort through the two host
 ## 14. Tech stack, tooling and release
 
 - **Runtime and framework:** Bun, SvelteKit (Svelte 5), TypeScript. The build uses the official **`svelte-adapter-bun`**, and the production server runs under Bun (`bun ./build/index.js`, wrapped as `bun run start`). A Bun-specific adapter is deliberately not used.
-- **Data:** `bun:sqlite` with FTS5. Plain SQL migrations for `state.db`.
-  - FTS5 is compiled into `bun:sqlite` and needs no `loadExtension()` call. Use an external-content FTS5 table over the issue and comment tables, to avoid storing the text twice.
+- **Data:** `bun:sqlite` with FTS5 in a single `funnel.db`. Plain SQL migrations for `state_*` / `auth_*`; `mirror_github_*` tables have no migrations and are rebuilt by truncating and re-syncing.
+  - FTS5 is compiled into `bun:sqlite` and needs no `loadExtension()` call. Use an external-content FTS5 table (`mirror_github_issue_fts`) over `mirror_github_issue` and `mirror_github_comment`, to avoid storing the text twice.
   - **macOS:** `bun:sqlite` uses Apple's SQLite build by default, which cannot load extensions. FTS5 doesn't need loading, but if a given macOS SQLite build turns out to lack it, point Bun at a Homebrew build with `Database.setCustomSQLite("/path/to/libsqlite3.dylib")` before the first database is opened. This is a no-op on other systems. The README documents it for contributors.
   - Funnel runs a one-time FTS5 self-check at startup and fails with a clear message if FTS5 is unavailable (an implementation note, not a user-facing feature).
 - **GitHub:** Octokit (REST and GraphQL).
-- **Auth:** Better Auth with the GitHub provider. Better Auth documents a built-in Bun SQLite adapter (`bun:sqlite`), which is what `state.db` uses.
+- **Auth:** Better Auth with the GitHub provider. Better Auth documents a built-in Bun SQLite adapter (`bun:sqlite`), which is what `funnel.db` uses for `auth_*`.
 - **UI:** bits-ui (unstyled), plain CSS with design tokens, no component library.
 - **Tooling:** `bun test`, oxlint, oxfmt.
 - **Contributor setup:** every contributor creates a GitHub App and a test org (the `/setup` page does most of it). There is no fake GitHub. Tests that touch GitHub need network and secrets, so CI can't run them for pull requests from forks. Keep pure logic (label-conflict resolution, filter-to-SQL, sort order) in plain functions so it can be tested offline.

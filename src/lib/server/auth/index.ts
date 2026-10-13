@@ -7,7 +7,12 @@ import {
   GITHUB_CLIENT_SECRET,
 } from "$app/env/private";
 import { db } from "#lib/server/db/index.js";
-import { account, session, user, verification } from "#lib/server/db/schema.js";
+import {
+  authAccount,
+  authSession,
+  authUser,
+  authVerification,
+} from "#lib/server/db/schema.js";
 
 // SPEC section 11: `session.idle_days`, default 30. Hardcoded until
 // `funnel.config.yaml` exists; then read it from config instead.
@@ -24,7 +29,12 @@ export const auth = betterAuth({
   baseURL: FUNNEL_URL,
   database: drizzleAdapter(db, {
     provider: "sqlite",
-    schema: { user, session, account, verification },
+    schema: {
+      user: authUser,
+      session: authSession,
+      account: authAccount,
+      verification: authVerification,
+    },
   }),
   socialProviders: {
     github: {
