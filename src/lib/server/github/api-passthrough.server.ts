@@ -11,6 +11,7 @@
  * for batched sync hydration, not per-request serving.
  */
 import type { InstallationOctokit } from "./app.server";
+import { getConfig } from "#/lib/server/config.js";
 import {
   etagMatches,
   getCache,
@@ -43,10 +44,17 @@ function header(
   return headers[name] ?? headers[name.toLowerCase()] ?? null;
 }
 
-/** `<https://api.github.com/...>` -> `</api/...>` so clients stay inside Funnel. */
-export function rewriteLink(link: string | null): string | null {
+/**
+ * Rewrite upstream pagination links onto the Funnel mirror:
+ * `<https://api.github.com/...>` (or `<https://acme.ghe.com/api/v3/...>`)
+ * -> `</api/...>` so clients stay inside Funnel.
+ */
+export function rewriteLink(
+  link: string | null,
+  apiUrl: string,
+): string | null {
   if (!link) return null;
-  return link.replaceAll("https://api.github.com/", "/api/");
+  return link.replaceAll(apiUrl.replace(/\/$/, "") + "/", "/api/");
 }
 
 function clientHeaders(
@@ -127,6 +135,7 @@ export async function passthrough(
   clientEtag: string | null,
   options: PassthroughOptions = {},
 ): Promise<PassthroughResult> {
+  const { github: hosts } = await getConfig();
   const key = cacheKey(installationId, upstreamPath, clientQuery);
   const cached = getCache(key);
   const now = Date.now();
@@ -171,7 +180,7 @@ export async function passthrough(
     const entry: CacheEntry = {
       etag,
       lastModified,
-      link: rewriteLink(header(res.headers, "link")),
+      link: rewriteLink(header(res.headers, "link"), hosts.api_url),
       body,
       fetchedAt: now,
       rateLimit: header(res.headers, "x-ratelimit-limit"),

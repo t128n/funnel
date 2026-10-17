@@ -1,11 +1,14 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { clearPassthroughCache } from "../src/lib/server/github/api-passthrough.server.ts";
-import { GET as getIssues } from "../src/routes/api/repos/[owner]/[repo]/issues/+server.ts";
-import { GET as getIssue } from "../src/routes/api/repos/[owner]/[repo]/issues/[number]/+server.ts";
-import { GET as getComments } from "../src/routes/api/repos/[owner]/[repo]/issues/[number]/comments/+server.ts";
-import { GET as getLabels } from "../src/routes/api/repos/[owner]/[repo]/labels/+server.ts";
-import { GET as getLabel } from "../src/routes/api/repos/[owner]/[repo]/labels/[name]/+server.ts";
-import { GET as getUser } from "../src/routes/api/users/[username]/+server.ts";
+import { setConfig } from "#/lib/server/config.js";
+import { resetAppCache } from "#/lib/server/github/app.server.js";
+import { clearPassthroughCache } from "#/lib/server/github/api-passthrough.server.js";
+import { GET as getIssues } from "#/routes/api/repos/[owner]/[repo]/issues/+server.js";
+import { GET as getIssue } from "#/routes/api/repos/[owner]/[repo]/issues/[number]/+server.js";
+import { GET as getComments } from "#/routes/api/repos/[owner]/[repo]/issues/[number]/comments/+server.js";
+import { GET as getLabels } from "#/routes/api/repos/[owner]/[repo]/labels/+server.js";
+import { GET as getLabel } from "#/routes/api/repos/[owner]/[repo]/labels/[name]/+server.js";
+import { GET as getUser } from "#/routes/api/users/[username]/+server.js";
+import { TEST_CONFIG } from "#tests/test-config.js";
 
 // Module test: real route wiring (installation lookup, query allowlists,
 // passthrough cache) with the network stubbed at `fetch`.
@@ -52,6 +55,8 @@ beforeEach(() => {
   SEEN.length = 0;
   FETCHED.length = 0;
   clearPassthroughCache();
+  setConfig(TEST_CONFIG);
+  resetAppCache();
   canned = { status: 200, data: [], headers: {} };
   failInstall = false;
   globalThis.fetch = stubFetch as typeof fetch;

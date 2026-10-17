@@ -29,8 +29,10 @@
 		"vite": "^8.3.0"
 	},
 	"imports": {
+		"#/*": "./src/*",
 		"#lib": "./src/lib/index.js",
-		"#lib/*": "./src/lib/*"
+		"#lib/*": "./src/lib/*",
+		"#tests/*": "./tests/*"
 	},
 	"dependencies": {
 		"@better-auth/drizzle-adapter": "^1.7.7",

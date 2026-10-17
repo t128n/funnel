@@ -6,6 +6,8 @@ import {
   clearPassthroughCache,
   setPassthroughTtl,
 } from "./api-passthrough.server";
+import { setConfig } from "#/lib/server/config.js";
+import { TEST_CONFIG } from "#tests/test-config.js";
 
 type Headers = Record<string, string | undefined>;
 type ReqFn = (
@@ -39,6 +41,7 @@ beforeEach(() => {
   SEEN.length = 0;
   clearPassthroughCache();
   setPassthroughTtl(30_000);
+  setConfig(TEST_CONFIG);
 });
 
 describe("rewriteLink", () => {
@@ -46,14 +49,24 @@ describe("rewriteLink", () => {
     expect(
       rewriteLink(
         '<https://api.github.com/repos/o/r/issues?page=2>; rel="next", <https://api.github.com/repos/o/r/issues?page=5>; rel="last"',
+        "https://api.github.com",
       ),
     ).toBe(
       '</api/repos/o/r/issues?page=2>; rel="next", </api/repos/o/r/issues?page=5>; rel="last"',
     );
   });
 
+  test("rewrites enterprise api/v3 origins to /api", () => {
+    expect(
+      rewriteLink(
+        '<https://acme.ghe.com/api/v3/repos/o/r/issues?page=2>; rel="next"',
+        "https://acme.ghe.com/api/v3",
+      ),
+    ).toBe('</api/repos/o/r/issues?page=2>; rel="next"');
+  });
+
   test("null stays null", () => {
-    expect(rewriteLink(null)).toBeNull();
+    expect(rewriteLink(null, "https://api.github.com")).toBeNull();
   });
 });
 

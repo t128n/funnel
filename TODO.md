@@ -24,7 +24,7 @@ This document tracks the implementation status of Funnel against the authoritati
 | :--- | :---: | :--- |
 | `src/env.ts` validation | ✅ Done | Valibot schema validates `FUNNEL_URL`, `FUNNEL_SECRET`, `FUNNEL_DB`, App ID, Private Key, Client ID/Secret, and `LOG_LEVEL`. |
 | `funnel.config.yaml` loader | ✅ Done | `src/lib/server/config.ts` uses `c12` (`loadConfig`) + valibot schema; provides cached `getConfig()`. See `funnel.config.example.yaml`. |
-| Enterprise GHE Host Overrides | ❌ Missing | Octokit in `app.server.ts` currently hardcodes standard GitHub URLs; needs dynamic `baseUrl` derived from config. |
+| Enterprise GHE Host Overrides | ✅ Done | `src/lib/server/github/app.server.ts` derives Octokit `baseUrl` from `github.api_url` and mirror links/`html_url`s from `github.url`. User OAuth flow wiring is intentionally deferred. |
 
 ---
 
@@ -113,7 +113,7 @@ flowchart TD
 
 ### Milestone 1: Configuration, GHE Host & Auth Hardening
 - [x] Create `funnel.config.yaml` schema validator and file loader (`yaml` parser). Done via `c12` + valibot in `src/lib/server/config.ts` (YAML parsed by c12's bundled `confbox`); see `funnel.config.example.yaml`.
-- [ ] Update `app.server.ts` to support dynamic enterprise GitHub URLs (`acme.ghe.com`) via `github.url` and `github.api_url`.
+- [x] Update `app.server.ts` to support dynamic enterprise GitHub URLs (`acme.ghe.com`) via `github.url` and `github.api_url`. Scoped to the `/api/` mirror (REST/JWT/installation clients, Link rewriting, 404 `html_url`s); OAuth user flow deferred.
 - [ ] Implement AES-GCM token encryption and decryption at rest for `auth_account` using `FUNNEL_SECRET`.
 - [ ] Implement automatic user token refresh hook in `app.server.ts` / session loader.
 - [ ] Fix `auth.test.ts` to use `auth_verification` table name so the test suite passes cleanly.

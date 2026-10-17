@@ -1,5 +1,5 @@
 import type { RequestHandler } from "./$types";
-import { github } from "#lib/server/github/app.server.js";
+import { github, webUrl } from "#lib/server/github/app.server.js";
 import {
   passthrough,
   toResponse,
@@ -15,7 +15,7 @@ export const GET: RequestHandler = async ({ params, request }) => {
     `/users/${encodeURIComponent(params.username)}`,
     new URLSearchParams(),
     request.headers.get("if-none-match"),
-    { htmlUrlFallback: `https://github.com/${params.username}` },
+    { htmlUrlFallback: await webUrl(params.username) },
   );
   return toResponse(result);
 };

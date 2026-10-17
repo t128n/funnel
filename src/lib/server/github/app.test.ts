@@ -1,19 +1,28 @@
-import { afterEach, describe, expect, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import {
   getInstallationId,
   github,
   installationErrorResponse,
+  resetAppCache,
 } from "./app.server.js";
+import { setConfig } from "#/lib/server/config.js";
+import { GHE_CONFIG, TEST_CONFIG } from "#tests/test-config.js";
 
 const realFetch = globalThis.fetch;
 
+beforeEach(() => {
+  setConfig(TEST_CONFIG);
+  resetAppCache();
+});
+
 afterEach(() => {
   globalThis.fetch = realFetch;
+  resetAppCache();
 });
 
 describe("installationErrorResponse", () => {
   test("404 becomes enriched not-synced response", async () => {
-    const res = installationErrorResponse("o", "r", { status: 404 });
+    const res = await installationErrorResponse("o", "r", { status: 404 });
     expect(res.status).toBe(404);
     expect(await res.json()).toEqual({
       message: "Not synced, open on GitHub",
@@ -21,12 +30,21 @@ describe("installationErrorResponse", () => {
     });
   });
 
+  test("404 html_url follows the configured github.url", async () => {
+    setConfig(GHE_CONFIG);
+    const res = await installationErrorResponse("o", "r", { status: 404 });
+    expect(await res.json()).toEqual({
+      message: "Not synced, open on GitHub",
+      html_url: "https://acme.ghe.com/o/r",
+    });
+  });
+
   test("other statuses forward, unknown errors become 500", async () => {
-    const limited = installationErrorResponse("o", "r", { status: 403 });
+    const limited = await installationErrorResponse("o", "r", { status: 403 });
     expect(limited.status).toBe(403);
     expect(await limited.json()).toEqual({ message: "Upstream error" });
 
-    const broken = installationErrorResponse("o", "r", new Error("boom"));
+    const broken = await installationErrorResponse("o", "r", new Error("boom"));
     expect(broken.status).toBe(500);
   });
 });
@@ -44,17 +62,32 @@ describe("getInstallationId", () => {
     expect(await getInstallationId("ACME", "WIDGETS")).toBe(777);
     expect(calls).toBe(1);
   });
+
+  test("enterprise config targets the api/v3 base", async () => {
+    setConfig(GHE_CONFIG);
+    resetAppCache();
+    let seen = "";
+    globalThis.fetch = (async (url: unknown) => {
+      seen = String(url);
+      return Response.json({ id: 4242 });
+    }) as typeof fetch;
+
+    expect(await getInstallationId("acme-ent", "widgets")).toBe(4242);
+    expect(seen).toContain(
+      "https://acme.ghe.com/api/v3/repos/acme-ent/widgets/installation",
+    );
+  });
 });
 
 describe("github clients", () => {
   test("asUser and asApp return request-capable clients", async () => {
     expect(typeof github.asUser("token").request).toBe("function");
     expect(typeof (await github.asApp()).request).toBe("function");
-    expect(typeof github.app().request).toBe("function");
+    expect(typeof (await github.app()).request).toBe("function");
   });
 
-  test("getLoginUrl builds a URL with the client id", () => {
-    const { url } = github.getLoginUrl({ redirectUrl: "http://x/cb" });
+  test("getLoginUrl builds a URL with the client id", async () => {
+    const { url } = await github.getLoginUrl({ redirectUrl: "http://x/cb" });
     expect(url).toContain("Iv1.0123456789abcdef");
   });
 

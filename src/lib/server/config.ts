@@ -130,6 +130,15 @@ export function resetConfigCache(): void {
   cached = undefined;
 }
 
+/**
+ * Seed the cache with an already-validated config, bypassing file loading.
+ * Lets tests exercise config-dependent code (e.g. the GitHub App's enterprise
+ * host) without writing a `funnel.config.yaml` to disk.
+ */
+export function setConfig(config: FunnelConfig): void {
+  cached = Promise.resolve(config);
+}
+
 /** Error raised when the funnel configuration fails to load or validate. */
 export class ConfigError extends Error {
   override name = "ConfigError";

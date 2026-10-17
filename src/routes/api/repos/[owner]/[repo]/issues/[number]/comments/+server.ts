@@ -3,6 +3,7 @@ import {
   getInstallationId,
   github,
   installationErrorResponse,
+  webUrl,
 } from "#lib/server/github/app.server.js";
 import {
   passthrough,
@@ -30,7 +31,9 @@ export const GET: RequestHandler = async ({ params, url, request }) => {
     query,
     request.headers.get("if-none-match"),
     {
-      htmlUrlFallback: `https://github.com/${params.owner}/${params.repo}/issues/${params.number}`,
+      htmlUrlFallback: await webUrl(
+        `${params.owner}/${params.repo}/issues/${params.number}`,
+      ),
     },
   );
   return toResponse(result);
