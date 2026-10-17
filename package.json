@@ -15,7 +15,7 @@
 		"db:generate": "bun --bun drizzle-kit generate",
 		"db:migrate": "bun --bun drizzle-kit migrate",
 		"db:studio": "bun --bun drizzle-kit studio",
-		"test": "bun test --preload ./tests/setup.ts --coverage"
+		"test": "bun test --preload ./tests/setup.ts --max-concurrency 1 --coverage"
 	},
 	"devDependencies": {
 		"@sveltejs/adapter-node": "^6.0.0",

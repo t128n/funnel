@@ -110,7 +110,7 @@ export interface ProvisionReport {
   failed: number;
 }
 
-interface RepoLabel {
+export interface RepoLabel {
   name: string;
   color: string;
   description: string | null;
@@ -129,7 +129,7 @@ function errorMessage(error: unknown): string {
 }
 
 /** Walk paginated `GET /repos/{owner}/{repo}/labels` until a short page. */
-async function listRepoLabels(
+export async function listRepoLabels(
   octokit: InstallationOctokit,
   owner: string,
   repo: string,

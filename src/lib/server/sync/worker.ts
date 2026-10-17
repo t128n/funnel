@@ -1,0 +1,446 @@
+/**
+ * REST conditional polling worker (SPEC §7.2).
+ *
+ * Per repo, Funnel sends `GET /repos/{o}/{r}/issues?since=<cursor>&sort=updated`
+ * with the stored ETag. GitHub answers `304 Not Modified` while nothing changed,
+ * which does not decrement the REST rate limit. The cursor is the newest
+ * mirrored `updated_at` (SPEC §7.2, derived rather than stored), so the request
+ * URL is stable during quiet periods and 304s keep firing; after a change is
+ * hydrated the cursor advances and the next poll is one 200 before 304s resume.
+ *
+ * Changed issues are hydrated in GraphQL batches (100/query) and reserved-label
+ * conflicts are resolved with the App installation token. Cadence is 30s per
+ * repo while any SSE client is connected, backing off to 300s when idle
+ * (`sync.poll_interval_active_seconds` / `sync.poll_interval_idle_seconds`).
+ *
+ * The scheduler starts once per process (adapter-node) and never blocks
+ * startup: `startSyncWorker` returns immediately.
+ */
+import { getConfig } from "#/lib/server/config";
+import { createLogger } from "#/lib/server/log";
+import {
+  getInstallationId,
+  github,
+  type InstallationOctokit,
+} from "#/lib/server/github/app.server";
+import { listRepoLabels } from "#/lib/server/github/labels";
+import { deriveMetadata, resolveIssueConflict } from "./conflicts";
+import { clientCount, publish } from "./events";
+import { hydrateAndStore } from "./hydrate";
+import * as mirror from "./mirror";
+
+const log = createLogger({ component: "sync" });
+
+const PER_PAGE = 100;
+const DAY_MS = 86_400_000;
+/** How often the scheduler wakes to check which repos are due. */
+const TICK_MS = 5_000;
+
+/** The subset of a REST issue the poller needs. */
+export interface RestIssue {
+  number: number;
+  node_id?: string | null;
+  state: string;
+  closed_at?: string | null;
+  updated_at?: string | null;
+  pull_request?: unknown;
+}
+
+export interface PollOptions {
+  /** Ignore the cursor and list every issue (nightly reconciliation). */
+  full?: boolean;
+}
+
+export interface PollResult {
+  notModified: boolean;
+  /** Non-PR issues returned by GitHub that fall inside the history window. */
+  changed: number;
+  /** Records actually hydrated and stored. */
+  hydrated: number;
+  /** Mirror rows dropped because the issue aged out of the history window. */
+  pruned: number;
+  /** Issues whose reserved-label conflicts were processed. */
+  conflicts: number;
+  /** Issue numbers seen inside the window (reconciliation prune input). */
+  seenNumbers: number[];
+}
+
+function statusOf(error: unknown): number | null {
+  if (typeof error === "object" && error !== null && "status" in error) {
+    const status = (error as { status?: unknown }).status;
+    if (typeof status === "number") return status;
+  }
+  return null;
+}
+
+function errorMessage(error: unknown): string {
+  const message = error instanceof Error ? error.message : String(error);
+  const status = statusOf(error);
+  return typeof status === "number" ? `${status} ${message}`.trim() : message;
+}
+
+function header(headers: Record<string, unknown>, name: string): string | null {
+  const value = headers[name] ?? headers[name.toLowerCase()];
+  return typeof value === "string" ? value : null;
+}
+
+/** Open issues, plus closed issues within `sync.history_days` (SPEC §7.1). */
+export function inHistoryWindow(issue: RestIssue, cutoff: number): boolean {
+  if (issue.state === "open") return true;
+  if (issue.state === "closed" && typeof issue.closed_at === "string") {
+    const closedAt = Date.parse(issue.closed_at);
+    return !Number.isNaN(closedAt) && closedAt >= cutoff;
+  }
+  return false;
+}
+
+interface IssuesPage {
+  notModified: false;
+  data: RestIssue[];
+  etag: string | null;
+}
+
+interface NotModified {
+  notModified: true;
+}
+
+async function requestIssues(
+  octokit: Pick<InstallationOctokit, "request">,
+  owner: string,
+  repo: string,
+  params: Record<string, unknown>,
+  etag: string | null,
+): Promise<IssuesPage | NotModified> {
+  try {
+    const response = await octokit.request("GET /repos/{owner}/{repo}/issues", {
+      owner,
+      repo,
+      ...params,
+      headers: {
+        accept: "application/vnd.github+json",
+        ...(etag ? { "If-None-Match": etag } : {}),
+      },
+    });
+    return {
+      notModified: false,
+      data: response.data as RestIssue[],
+      etag: header(response.headers as Record<string, unknown>, "etag"),
+    };
+  } catch (error) {
+    // Octokit surfaces 304 as a thrown error; it is a successful no-op here.
+    if (statusOf(error) === 304) return { notModified: true };
+    throw error;
+  }
+}
+
+/**
+ * Resolve reserved-label conflicts for hydrated records (SPEC §5.2.2). Writes
+ * run as `funnel[bot]`; ambiguous timelines are flagged instead of changed.
+ */
+async function resolveConflicts(
+  octokit: Pick<InstallationOctokit, "request">,
+  repo: mirror.RepoRow,
+  records: readonly mirror.IssueRecord[],
+): Promise<number> {
+  let processed = 0;
+  for (const record of records) {
+    const derived = deriveMetadata(record.labels);
+    if (derived.conflicts.length === 0) continue;
+    const resolved = await resolveIssueConflict(
+      octokit,
+      repo.org,
+      repo.name,
+      record.number,
+      record.labels,
+    );
+    mirror.setIssueMetadata(repo.githubId, record.number, {
+      status: resolved.metadata.status,
+      priority: resolved.metadata.priority,
+      size: resolved.metadata.size,
+      labelConflict: resolved.ambiguous,
+    });
+    if (resolved.removed.length > 0) {
+      const removed = new Set(resolved.removed.map((n) => n.toLowerCase()));
+      mirror.replaceIssueLabels(
+        repo.githubId,
+        record.number,
+        record.labels.filter((n) => !removed.has(n.toLowerCase())),
+      );
+    }
+    processed += 1;
+  }
+  return processed;
+}
+
+/**
+ * One conditional poll of a single repo. Exported for tests, which drive it
+ * directly and never start the scheduler.
+ */
+export async function pollRepo(
+  repo: mirror.RepoRow,
+  installationId: number,
+  now = Date.now(),
+  options: PollOptions = {},
+): Promise<PollResult> {
+  const { sync } = await getConfig();
+  const octokit = await github.asInstallation(installationId);
+  const cursor = options.full ? null : mirror.getRepoCursor(repo.githubId);
+
+  const baseQuery: Record<string, unknown> = {
+    state: "all",
+    sort: "updated",
+    direction: "asc",
+    per_page: PER_PAGE,
+  };
+  if (cursor !== null) baseQuery.since = new Date(cursor).toISOString();
+
+  const first = await requestIssues(
+    octokit,
+    repo.org,
+    repo.name,
+    { ...baseQuery, page: 1 },
+    options.full ? null : repo.etag,
+  );
+  if (first.notModified) {
+    mirror.setRepoPolledAt(repo.githubId, now);
+    mirror.setRepoDegraded(repo.githubId, false);
+    return {
+      notModified: true,
+      changed: 0,
+      hydrated: 0,
+      pruned: 0,
+      conflicts: 0,
+      seenNumbers: [],
+    };
+  }
+
+  // Paginate. `per_page` counts PRs too, so page until a short raw page.
+  const raw: RestIssue[] = [...first.data];
+  let lastPageLength = first.data.length;
+  for (let page = 2; lastPageLength === PER_PAGE; page += 1) {
+    const next = await requestIssues(
+      octokit,
+      repo.org,
+      repo.name,
+      { ...baseQuery, page },
+      null,
+    );
+    if (next.notModified) break;
+    raw.push(...next.data);
+    lastPageLength = next.data.length;
+  }
+
+  const cutoff = now - sync.history_days * DAY_MS;
+  const seenNumbers: number[] = [];
+  const nodeIds: string[] = [];
+  const pruned: number[] = [];
+  for (const item of raw) {
+    if (item.pull_request) continue; // PRs are excluded from the mirror.
+    if (inHistoryWindow(item, cutoff)) {
+      seenNumbers.push(item.number);
+      if (typeof item.node_id === "string") nodeIds.push(item.node_id);
+    } else {
+      pruned.push(item.number);
+    }
+  }
+
+  const hydrated =
+    nodeIds.length > 0
+      ? await hydrateAndStore(installationId, repo.githubId, nodeIds)
+      : [];
+  const conflicts = await resolveConflicts(octokit, repo, hydrated);
+
+  // Changed issues that aged out of the window are dropped from the mirror.
+  for (const number of pruned) mirror.deleteIssue(repo.githubId, number);
+
+  mirror.setRepoEtag(repo.githubId, first.etag);
+  mirror.setRepoPolledAt(repo.githubId, now);
+  mirror.setRepoDegraded(repo.githubId, false);
+
+  if (seenNumbers.length > 0) {
+    publish({
+      type: "issues",
+      repo: `${repo.org}/${repo.name}`,
+      numbers: seenNumbers,
+    });
+  }
+
+  return {
+    notModified: false,
+    changed: seenNumbers.length,
+    hydrated: hydrated.length,
+    pruned: pruned.length,
+    conflicts,
+    seenNumbers,
+  };
+}
+
+/** Upsert `mirror_github_repo` from `GET /repos/{o}/{r}` (FK target). */
+export async function ensureRepoMirror(
+  owner: string,
+  repo: string,
+  installationId: number,
+): Promise<mirror.RepoRow> {
+  const octokit = await github.asInstallation(installationId);
+  const { data } = await octokit.request("GET /repos/{owner}/{repo}", {
+    owner,
+    repo,
+  });
+  const info = data as {
+    id: number;
+    name?: string;
+    archived?: boolean;
+    owner?: { login?: string };
+  };
+  return mirror.upsertRepo({
+    githubId: info.id,
+    org: info.owner?.login ?? owner,
+    name: info.name ?? repo,
+    archived: Boolean(info.archived),
+  });
+}
+
+/** Refresh a repo's label set (multi-select filter options). */
+export async function refreshRepoLabels(
+  installationId: number,
+  repo: mirror.RepoRow,
+): Promise<void> {
+  const octokit = await github.asInstallation(installationId);
+  const labels = await listRepoLabels(octokit, repo.org, repo.name);
+  mirror.replaceRepoLabels(
+    repo.githubId,
+    labels.map((l) => ({
+      name: l.name,
+      color: l.color,
+      description: l.description ?? "",
+    })),
+  );
+}
+
+/**
+ * Full cycle for one `owner/repo`: resolve the installation, ensure the repo
+ * row, refresh labels, then poll. Marks the repo degraded on failure and
+ * rethrows so the scheduler can isolate it.
+ */
+export async function runRepoCycle(
+  owner: string,
+  repo: string,
+): Promise<PollResult> {
+  const installationId = await getInstallationId(owner, repo);
+  const repoRow = await ensureRepoMirror(owner, repo, installationId);
+  try {
+    await refreshRepoLabels(installationId, repoRow);
+    const result = await pollRepo(repoRow, installationId, Date.now());
+    log.debug({ repo: `${owner}/${repo}`, ...result }, "repo polled");
+    return result;
+  } catch (error) {
+    mirror.setRepoDegraded(repoRow.githubId, true);
+    log.warn(
+      { repo: `${owner}/${repo}`, err: errorMessage(error) },
+      "repo poll failed",
+    );
+    throw error;
+  }
+}
+
+/**
+ * Immediate single-issue refresh after a successful Funnel write (SPEC §7.2).
+ * Used by the mutation layer (Milestone 5).
+ */
+export async function refreshIssue(
+  owner: string,
+  repo: string,
+  number: number,
+): Promise<void> {
+  const installationId = await getInstallationId(owner, repo);
+  const repoRow = await ensureRepoMirror(owner, repo, installationId);
+  const octokit = await github.asInstallation(installationId);
+  const { data } = await octokit.request(
+    "GET /repos/{owner}/{repo}/issues/{issue_number}",
+    { owner, repo, issue_number: number },
+  );
+  const issue = data as RestIssue;
+  if (issue.pull_request || typeof issue.node_id !== "string") return;
+  const records = await hydrateAndStore(installationId, repoRow.githubId, [
+    issue.node_id,
+  ]);
+  await resolveConflicts(octokit, repoRow, records);
+  publish({ type: "issues", repo: `${owner}/${repo}`, numbers: [number] });
+}
+
+// ---------------------------------------------------------------------------
+// Scheduler
+// ---------------------------------------------------------------------------
+
+let running = false;
+let timer: ReturnType<typeof setTimeout> | undefined;
+const nextDue = new Map<string, number>();
+
+/** Start the background loop. Idempotent; returns immediately. */
+export function startSyncWorker(): void {
+  if (running) return;
+  running = true;
+  log.info("sync worker started");
+  void tick();
+}
+
+/** Stop the loop (tests / shutdown). */
+export function stopSyncWorker(): void {
+  running = false;
+  if (timer) clearTimeout(timer);
+  timer = undefined;
+  nextDue.clear();
+}
+
+/** Run one cycle for every configured repo now (tests / manual trigger). */
+export async function syncAllRepos(): Promise<void> {
+  let repos: readonly string[];
+  try {
+    repos = (await getConfig()).repos;
+  } catch (error) {
+    log.warn({ err: errorMessage(error) }, "sync skipped: no config");
+    return;
+  }
+  for (const entry of repos) {
+    const [owner, repo] = entry.split("/");
+    try {
+      await runRepoCycle(owner, repo);
+    } catch {
+      // Already logged and flagged degraded by runRepoCycle.
+    }
+  }
+}
+
+async function tick(): Promise<void> {
+  if (!running) return;
+  const now = Date.now();
+  try {
+    const { repos, sync } = await getConfig();
+    const intervalMs =
+      (clientCount() > 0
+        ? sync.poll_interval_active_seconds
+        : sync.poll_interval_idle_seconds) * 1000;
+
+    // Stagger first-time repos across the interval so they never burst.
+    repos.forEach((entry, index) => {
+      if (!nextDue.has(entry)) {
+        nextDue.set(entry, now + (intervalMs / repos.length) * index);
+      }
+    });
+
+    for (const entry of repos) {
+      if (!running) return;
+      if ((nextDue.get(entry) ?? now) > Date.now()) continue;
+      const [owner, repo] = entry.split("/");
+      try {
+        await runRepoCycle(owner, repo);
+      } catch {
+        // Isolated by runRepoCycle; keep polling the remaining repos.
+      }
+      nextDue.set(entry, Date.now() + intervalMs);
+    }
+  } catch (error) {
+    log.warn({ err: errorMessage(error) }, "sync tick skipped");
+  }
+  if (running) timer = setTimeout(() => void tick(), TICK_MS);
+}

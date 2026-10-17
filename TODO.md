@@ -9,11 +9,10 @@ This document tracks the implementation status of Funnel against the authoritati
 - **Architecture Maturity**: ~20% complete.
 - **Implemented Foundations**: Database schema (`drizzle-orm`), SQLite initialization (`bun:sqlite`), GitHub App client management (`octokit`), in-memory ETag LRU cache, and GitHub REST passthrough endpoints with test coverage.
 - **Critical Missing Pillars**:
-  1. **Sync Engine**: The background polling worker (REST 304 change detection + batched GraphQL hydration) and SSE event pusher are not yet built.
-  2. **Intake Staging & Routing**: Endpoints (`/api/intake`, `/submit`) and triage actions (Accept, Dismiss, Duplicate) are not yet implemented.
-  3. **Frontend Triage Cockpit**: The entire SvelteKit UI (3-pane layout, Oxocarbon theme, dense streams, 480px inspector pane, 6-column board, filters) is currently just the starter template.
-  4. **Enterprise / Host Configuration**: `funnel.config.yaml` parser and dynamic GitHub Enterprise host URLs (`acme.ghe.com`) are implemented; user OAuth flow wiring is deferred.
-  5. **Security & Tokens**: ✅ Resolved. Token encryption at rest and auto-refresh are handled by Better Auth (see §2.3).
+  1. **Intake Staging & Routing**: `POST /api/intake` and the Accept / Dismiss / Duplicate action logic are implemented (§2.6); the JavaScript-free `/submit` form and the SvelteKit action wiring (M6) remain.
+  2. **Frontend Triage Cockpit**: The entire SvelteKit UI (3-pane layout, Oxocarbon theme, dense streams, 480px inspector pane, 6-column board, filters) is currently just the starter template.
+  3. **Enterprise / Host Configuration**: `funnel.config.yaml` parser and dynamic GitHub Enterprise host URLs (`acme.ghe.com`) are implemented; user OAuth flow wiring is deferred.
+  4. **Security & Tokens**: ✅ Resolved. Token encryption at rest and auto-refresh are handled by Better Auth (see §2.3).
 
 ---
 
@@ -21,10 +20,10 @@ This document tracks the implementation status of Funnel against the authoritati
 
 ### 2.1 Configuration & Environment (SPEC §4, §10)
 
-| Feature                       | Status  | Notes / Location                                                                                                                                                                        |
-| :---------------------------- | :-----: | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `src/env.ts` validation       | ✅ Done | Valibot schema validates `FUNNEL_URL`, `FUNNEL_SECRET`, `FUNNEL_DB`, App ID, Private Key, Client ID/Secret, and `LOG_LEVEL`.                                                            |
-| `funnel.config.yaml` loader   | ✅ Done | `src/lib/server/config.ts` uses `c12` (`loadConfig`) + valibot schema; provides cached `getConfig()`. See `funnel.config.example.yaml`.                                                 |
+| Feature                       | Status  | Notes / Location                                                                                                                                                                                                          |
+| :---------------------------- | :-----: | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `src/env.ts` validation       | ✅ Done | Valibot schema validates `FUNNEL_URL`, `FUNNEL_SECRET`, `FUNNEL_DB`, App ID, Private Key, Client ID/Secret, and `LOG_LEVEL`.                                                                                              |
+| `funnel.config.yaml` loader   | ✅ Done | `src/lib/server/config.ts` uses `c12` (`loadConfig`) + valibot schema; provides cached `getConfig()`. See `funnel.config.example.yaml`.                                                                                   |
 | Enterprise GHE Host Overrides | ✅ Done | `src/lib/server/github/app.server.ts` derives Octokit `baseUrl` (REST & GraphQL) from `github.api_url` and mirror links/`html_url`s from `github.url`. GraphQL resolves via Octokit's `/api/v3` → `/api/graphql` rewrite. |
 
 ---
@@ -35,7 +34,7 @@ This document tracks the implementation status of Funnel against the authoritati
 | :----------------------------------- | :--------: | :-------------------------------------------------------------------------------------------------------------------------- |
 | Single SQLite DB (`funnel.db`)       |  ✅ Done   | Implemented in `src/lib/server/db/index.ts` with WAL mode, foreign keys, and busy timeout.                                  |
 | Drizzle Schemas                      |  ✅ Done   | Implemented in `src/lib/server/db/schema.ts`: `state_intake_submission`, `auth_*` tables, and all `mirror_github_*` tables. |
-| Startup Auto-Migration / Schema Sync | ✅ Done | Migration generated and committed under `drizzle/`; applied out-of-band via `bun run db:migrate` (no runtime initializer). |
+| Startup Auto-Migration / Schema Sync |  ✅ Done   | Migration generated and committed under `drizzle/`; applied out-of-band via `bun run db:migrate` (no runtime initializer).  |
 | Plain SQL Search queries (`like`)    | ❌ Missing | FTS5 deferred per interview; need standard Drizzle queries for issue text filtering.                                        |
 
 ---
@@ -47,33 +46,33 @@ This document tracks the implementation status of Funnel against the authoritati
 | Better Auth Initialization      | ✅ Done | Configured in `src/lib/server/auth/index.ts` with Drizzle adapter and GitHub social provider.                                                                                                                                                                                                                                                                                                                       |
 | SvelteKit Auth Handler          | ✅ Done | Hooked in `src/hooks.server.ts`.                                                                                                                                                                                                                                                                                                                                                                                    |
 | Encryption at Rest for Tokens   | ✅ Done | `account.encryptOAuthTokens: true` in `src/lib/server/auth/index.ts`. Better Auth encrypts `auth_account.accessToken`/`refreshToken` on write and decrypts on read, keyed off `FUNNEL_SECRET`. Cipher is XChaCha20-Poly1305 (authenticated encryption), Better Auth's built-in; the earlier "AES-GCM" wording is superseded. Callers must read tokens via `getUserAccessToken()` — the raw column holds ciphertext. |
-| Short-Lived Token Refresh       | ✅ Done | `getUserAccessToken(userId)` in `src/lib/server/auth/index.ts` uses `auth.api.getAccessToken()`, which auto-refreshes (and persists) tokens within 5s of expiry. Compose with the client as `await github.asUser(await getUserAccessToken(userId))`; `hooks.server.ts` also populates `event.locals.session`/`user`.                                                                                                      |
+| Short-Lived Token Refresh       | ✅ Done | `getUserAccessToken(userId)` in `src/lib/server/auth/index.ts` uses `auth.api.getAccessToken()`, which auto-refreshes (and persists) tokens within 5s of expiry. Compose with the client as `await github.asUser(await getUserAccessToken(userId))`; `hooks.server.ts` also populates `event.locals.session`/`user`.                                                                                                |
 | Test Suite Fix (`auth.test.ts`) | ✅ Done | Test now creates/queries `auth_verification`; added coverage for at-rest encryption and the refresh path.                                                                                                                                                                                                                                                                                                           |
 
 ---
 
 ### 2.4 GitHub App & Passthrough Layer (SPEC §4, §7)
 
-| Feature                  |   Status   | Notes / Location                                                                                         |
-| :----------------------- | :--------: | :------------------------------------------------------------------------------------------------------- |
-| GitHub App Singleton     |  ✅ Done   | Implemented in `src/lib/server/github/app.server.ts` (JWT client, installation resolution, user tokens). |
-| In-Memory ETag LRU Cache |  ✅ Done   | Implemented in `src/lib/server/github/cache.ts` with full unit test coverage.                            |
-| REST Passthrough Handler |  ✅ Done   | Implemented in `src/lib/server/github/api-passthrough.server.ts` with tests.                             |
-| Passthrough API Routes   |  ✅ Done   | Implemented under `src/routes/api/repos/...` and `src/routes/api/users/...`.                             |
+| Feature                  | Status  | Notes / Location                                                                                         |
+| :----------------------- | :-----: | :------------------------------------------------------------------------------------------------------- |
+| GitHub App Singleton     | ✅ Done | Implemented in `src/lib/server/github/app.server.ts` (JWT client, installation resolution, user tokens). |
+| In-Memory ETag LRU Cache | ✅ Done | Implemented in `src/lib/server/github/cache.ts` with full unit test coverage.                            |
+| REST Passthrough Handler | ✅ Done | Implemented in `src/lib/server/github/api-passthrough.server.ts` with tests.                             |
+| Passthrough API Routes   | ✅ Done | Implemented under `src/routes/api/repos/...` and `src/routes/api/users/...`.                             |
 
 ---
 
 ### 2.5 Synchronization & Label Management (SPEC §5, §7)
 
-| Feature                              |   Status   | Notes / Location                                                                                    |
-| :----------------------------------- | :--------: | :-------------------------------------------------------------------------------------------------- |
-| Polling Worker Loop                  | ❌ Missing | Staggered polling (30s active / 300s idle) using conditional REST `304 Not Modified` requests.      |
-| Batched GraphQL Hydrator             | ❌ Missing | Batched 100-issue GraphQL queries fetching body, labels, assignees, and comments. PRs filtered out. |
-| 90-Day History Window                | ❌ Missing | Filter closed issues to those closed within `sync.history_days` (default 90 days).                  |
-| Real-Time SSE Pusher (`/api/events`) | ❌ Missing | Server-Sent Events stream with mandatory 10–15s `: ping` heartbeat.                                 |
-| Self-Healing Label Provisioner       |  ✅ Done   | `src/lib/server/github/labels.ts` (`CANONICAL_LABELS` + `provisionCanonicalLabels`), wired to SvelteKit's `init` hook; creates/patches the reserved labels via the App installation token (`funnel[bot]`). |
-| Bot Conflict Resolution              | ❌ Missing | Automated de-duplication of multiple labels in the same group via timeline inspection.              |
-| Nightly Reconciliation Worker        | ❌ Missing | Daily full sweep to drop purged/transferred issues and verify repo configurations.                  |
+| Feature                              | Status  | Notes / Location                                                                                                                                                                                           |
+| :----------------------------------- | :-----: | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Polling Worker Loop                  | ✅ Done | `src/lib/server/sync/worker.ts`: conditional REST `304` polling (cursor = derived `MAX(updated_at)`, ETag on `mirror_github_repo`), staggered 30s active / 300s idle scheduler.                            |
+| Batched GraphQL Hydrator             | ✅ Done | `src/lib/server/sync/hydrate.ts`: 100-`node_id` GraphQL batches for body, labels, assignees, first-page comments; PRs dropped via `... on Issue`.                                                          |
+| 90-Day History Window                | ✅ Done | `sync.history_days` filter in `src/lib/server/sync/worker.ts` (`inHistoryWindow`); older closed issues pruned.                                                                                             |
+| Real-Time SSE Pusher (`/api/events`) | ✅ Done | `src/routes/api/events/+server.ts` + in-process bus in `src/lib/server/sync/events.ts`; 12s `: ping` heartbeat, `X-Accel-Buffering: no`.                                                                   |
+| Self-Healing Label Provisioner       | ✅ Done | `src/lib/server/github/labels.ts` (`CANONICAL_LABELS` + `provisionCanonicalLabels`), wired to SvelteKit's `init` hook; creates/patches the reserved labels via the App installation token (`funnel[bot]`). |
+| Bot Conflict Resolution              | ✅ Done | `src/lib/server/sync/conflicts.ts`: timeline inspection, latest-added-wins removal via `funnel[bot]`, ambiguous timelines flagged on the issue row.                                                        |
+| Nightly Reconciliation Worker        | ✅ Done | `src/lib/server/sync/reconcile.ts`: 03:00 full sweep to drop purged/transferred issues, re-hydrate, and re-verify repo label provisioning.                                                                 |
 
 ---
 
@@ -81,10 +80,10 @@ This document tracks the implementation status of Funnel against the authoritati
 
 | Feature                                       |     Status     | Notes / Location                                                                                     |
 | :-------------------------------------------- | :------------: | :--------------------------------------------------------------------------------------------------- |
-| `POST /api/intake`                            |   ❌ Missing   | Public JSON intake endpoint with open CORS headers.                                                  |
+| `POST /api/intake`                            |    ✅ Done     | `src/routes/api/intake/+server.ts` (valibot-validated JSON, `201 {"id"}`, open CORS + `OPTIONS` preflight). |
 | `/submit` Form                                |   ❌ Missing   | Plain HTML form working without JavaScript for external issue submission.                            |
-| Staging Table Storage                         | ⚠️ Schema Only | `state_intake_submission` defined in schema, but insertion/query logic not hooked up.                |
-| Triage Actions (Accept / Dismiss / Duplicate) |   ❌ Missing   | Accept creates GitHub issue with provenance footer; Dismiss hard-deletes; Duplicate appends comment. |
+| Staging Table Storage                         |    ✅ Done     | `src/lib/server/intake/staging.ts`: `createSubmission`/`getSubmission`/`listSubmissions`/`deleteSubmission` over `state_intake_submission`. |
+| Triage Actions (Accept / Dismiss / Duplicate) |    ✅ Done     | `src/lib/server/intake/actions.ts` (`acceptSubmission`/`dismissSubmission`/`duplicateSubmission`); repo selector + provenance footer, hard-delete on decision. SvelteKit form-action wiring lands with the M6 Inbox UI. |
 
 ---
 
@@ -142,17 +141,16 @@ flowchart TD
 
 **Sync engine:**
 
-- [ ] Build the REST conditional polling worker (`since` + ETag 304 change detection).
-- [ ] Build the GraphQL batch hydration routine for 100-issue batches (ignoring PRs).
-- [ ] Implement the timeline-based label conflict resolver.
-- [ ] Implement `/api/events` Server-Sent Events endpoint with the mandatory 10–15s heartbeat.
-- [ ] Add the nightly reconciliation task to clean up obsolete issues.
+- [x] Build the REST conditional polling worker (`since` + ETag 304 change detection). Implemented in `src/lib/server/sync/worker.ts` (`pollRepo`/`runRepoCycle` + staggered active/idle scheduler); cursor is the derived per-repo `MAX(updated_at)`, ETag persists on `mirror_github_repo`.
+- [x] Build the GraphQL batch hydration routine for 100-issue batches (ignoring PRs). Implemented in `src/lib/server/sync/hydrate.ts` (`HYDRATE_QUERY` + `hydrateNodes`/`hydrateAndStore`), keyed off REST `node_id`s with an `... on Issue` fragment that drops PRs.
+- [x] Implement the timeline-based label conflict resolver. Implemented in `src/lib/server/sync/conflicts.ts` (`deriveMetadata`, `resolveWinners`, `resolveIssueConflict`); latest-added wins via the timeline, ambiguous timelines flagged (`label_conflict`).
+- [x] Implement `/api/events` Server-Sent Events endpoint with the mandatory 10–15s heartbeat. Route at `src/routes/api/events/+server.ts` over the in-process bus in `src/lib/server/sync/events.ts`; 12s `: ping` heartbeat.
+- [x] Add the nightly reconciliation task to clean up obsolete issues. Implemented in `src/lib/server/sync/reconcile.ts` (full sweep, prune absent/aged-out rows, re-provision labels, 03:00 daily timer).
 
 ### Milestone 4: Funnel-First Intake & Staging Pipeline
 
-- [ ] Implement `POST /api/intake` (JSON API with open CORS).
-- [ ] Implement `/submit` HTML-only web form.
-- [ ] Implement server actions for Accept (with repo selector & provenance footer), Dismiss (hard-delete), and Duplicate.
+- [x] Implement `POST /api/intake` (JSON API with open CORS). `src/routes/api/intake/+server.ts`: valibot-validated `{ title, body?, source? }`, `201 {"id"}`, `OPEN_CORS` on POST + `OPTIONS` preflight, SSE publish. Staging writes in `src/lib/server/intake/staging.ts`.
+- [x] Implement server actions for Accept (with repo selector & provenance footer), Dismiss (hard-delete), and Duplicate. Logic in `src/lib/server/intake/actions.ts` (`acceptSubmission`/`dismissSubmission`/`duplicateSubmission`), pessimistic (row cleared only after GitHub confirms), provenance footer `_Submitted via Funnel intake (source: …)_`. SvelteKit form-action wiring is deferred to the M6 Inbox route.
 
 ### Milestone 5: Local Query & Mutation Service
 

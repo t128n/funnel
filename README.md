@@ -67,8 +67,8 @@ bun run dev
 
 Funnel builds to a standalone single-process server with
 [`@sveltejs/adapter-node`](https://svelte.dev/docs/kit/adapter-node). A long-lived
-process is required: background polling timers and the planned `/api/events` SSE
-stream cannot survive on a serverless target.
+process is required: the background polling worker, the nightly reconciliation
+timer, and the `/api/events` SSE stream cannot survive on a serverless target.
 
 ```sh
 bun run build
