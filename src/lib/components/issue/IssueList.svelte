@@ -1,6 +1,6 @@
 <script lang="ts">
 	import IssueRow from './IssueRow.svelte';
-	import { parseSelection } from '#lib/client/selection.svelte';
+	import { parseSelection, selectedIssue } from '#lib/client/selection.svelte';
 	import type { IssueListItem } from '#lib/server/issues/types';
 
 	interface Props {
@@ -10,7 +10,7 @@
 
 	let { issues, empty = 'Nothing here.' }: Props = $props();
 
-	const selection = $derived(parseSelection());
+	const selection = $derived(selectedIssue(parseSelection()));
 
 	function isSelected(issue: IssueListItem): boolean {
 		return (
@@ -34,7 +34,12 @@
 <style>
 	.list {
 		flex: 1;
+		min-height: 0;
 		overflow-y: auto;
+		display: flex;
+		flex-direction: column;
+		gap: 2px;
+		padding: var(--space-sm);
 	}
 
 	.empty {
@@ -42,6 +47,7 @@
 		flex: 1;
 		align-items: center;
 		justify-content: center;
+		padding: var(--space-xl);
 		color: var(--color-text-muted);
 		font-size: var(--text-sm);
 	}

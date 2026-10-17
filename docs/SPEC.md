@@ -252,23 +252,21 @@ The visual design language adheres strictly to [`docs/DESIGN.md`](file:///Users/
 - **Component Primitives**: Unstyled `bits-ui` for accessible dropdowns, dialogs, and popovers.
 
 ### 9.2 Layout Architecture
-Three-pane layout optimized for widescreen displays:
+The authenticated cockpit pairs a navigation sidebar with a per-view layout:
+
 1. **Navigation Sidebar (220px fixed)**:
    - Header: workspace menu (theme switcher, AGPL-3.0 source link) plus global Search (`⌘K`) and quick-create (`C`) actions.
    - Views shown as a flat list: **Inbox**, **Issues** (with an internal **All** / **Mine** segmented filter), and **Board**.
    - Footer: user profile and sign-out.
-2. **Main Stream (Flexible width)**:
-   - High-density issue rows with fixed 36px height.
-   - Left-aligned state indicator, monospace repo badge, truncated issue title (`13px`).
-   - Right-aligned metadata chips (Priority, Size, Assignee avatars).
-   - Default sort: **Priority (`p1` first, unprioritized last) then Updated**.
-3. **Inspector Pane (480px fixed, collapsible)**:
-   - Docked on the right for zero-navigation triage.
-   - Inline editing for Title (input) and Body (textarea with preserved whitespace).
-   - Plain-text comment thread displaying author, timestamp, and preserved line breaks.
-   - New comment input box with instant submission.
-   - Metadata pickers: Status, Priority, Size, Assignees, Labels.
-   - Outbound link: "Open on GitHub".
+2. **Inbox / Issues — Master–Detail Split**:
+   - **Feed column (360px fixed)**: a compact vertical master list. Top toolbar carries the view title + count, a Filter popover (the six multi-selects) and full-text search. Issue cards are two-line — status dot, `#id`, truncated title, relative time, then the `owner/repo` slug and reserved-label chips (status / priority / size) — with a rounded translucent hover/active fill. Default sort: **Priority (`p1` first, unprioritized last) then Updated**.
+   - **Detail canvas (flexible width)**: always present; an empty state renders until a selection is made. Selecting an issue opens the Inspector; selecting a staged submission opens the intake document (body + Accept / Dismiss / Duplicate).
+3. **Inspector / Detail Canvas**:
+   - Breadcrumb action bar (`owner/repo` · `#id` · state badge · "opened by … · time") with an outbound "Open on GitHub" link.
+   - Inline editing for Title (H1 input) and Body (open document text; textarea with preserved whitespace).
+   - Inline property bar for Status, Priority, Size, Assignee, Labels.
+   - Plain-text comment activity timeline (author, timestamp, preserved line breaks) with the new-comment composer pinned to the base.
+4. **Board** retains the classic full-width kanban stream with a fixed `480px` Inspector docked on selection.
 
 ### 9.3 Status Board
 - **Columns**: `Backlog`, `Todo`, `In Progress`, `In Review`, `Blocked`, and `Done`.

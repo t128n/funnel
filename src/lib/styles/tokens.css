@@ -52,6 +52,7 @@
   /* Structural dimensions. */
   --sidebar-width: 220px;
   --inspector-width: 480px;
+  --feed-width: 360px;
   --row-height: 36px;
   --topbar-height: 44px;
 
@@ -122,6 +123,10 @@
   --color-nav-caret: #8a8f98;
   --color-btn-ghost-hover: rgba(255, 255, 255, 0.05);
   --color-btn-border: rgba(255, 255, 255, 0.08);
+
+  /* Feed cards (master list): translucent, theme-aware hover/active fills. */
+  --color-row-hover: rgba(255, 255, 255, 0.05);
+  --color-row-active: rgba(255, 255, 255, 0.08);
 }
 
 /* Oxocarbon Light. */
@@ -184,4 +189,8 @@
   --color-nav-caret: var(--base06);
   --color-btn-ghost-hover: rgba(0, 0, 0, 0.05);
   --color-btn-border: rgba(0, 0, 0, 0.12);
+
+  /* Feed cards (master list): translucent, theme-aware hover/active fills. */
+  --color-row-hover: rgba(0, 0, 0, 0.04);
+  --color-row-active: rgba(0, 0, 0, 0.07);
 }

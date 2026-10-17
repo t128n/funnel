@@ -220,7 +220,9 @@ base0F: "37474F" # Slate Muted
 
 A modular multi-pane architecture built for widescreen displays and mouse drag-and-drop mechanics.
 
-- **Root Canvas:** Three-pane structure consisting of a collapsible organization/repo sidebar (fixed 220px), a high-density triage list/kanban stream (flexible width), and an expandable issue inspector pane (fixed 480px).
+- **Root Canvas:** A collapsible organization/repo sidebar (fixed 220px) followed by the active view.
+- **Master–Detail Views (Inbox / Issues):** A two-column split inside the view — a fixed-width master **feed** column (`360px`) and a flexible **detail canvas** that occupies the rest of the window. The feed stacks two-line issue cards (status dot, `#id`, title, repo slug, reserved-label chips, relative time). The detail canvas is always present and shows an empty state until an item is selected; it renders the issue Inspector Pane or, for staged intake, the submission document with its triage actions.
+- **Board View:** Keeps the classic layout — a full-width kanban stream with a fixed `480px` inspector docked on selection.
 - **Scale:** Strict 4px base increment (`xs: 4px`, `sm: 8px`, `md: 12px`, `lg: 16px`).
 - **Gutter & Containment:** 8px gutters between dense issue cards; 12px internal containment for dialogs and panels.
 
@@ -240,9 +242,9 @@ Funnel eschews heavy drop shadows in favor of 1px structural borders and subtle 
 
 ## Components
 
-- **Issue Row:** Compact list item (36px fixed height). Left-aligned state icon, repo tag (`JetBrains Mono`, 11px), truncated title (`13px`), and right-aligned interactive hover actions (Assign, Close, Snooze).
-- **Inspector Pane:** Docked side panel for inspecting comments and editing issue metadata without navigating away from the triage stream.
-- **Filter Bar:** Low-profile toolbar containing segmented pill selectors, multi-select repository dropdowns, and instant filter chips.
+- **Issue Row:** Two-line master-feed card. Line one: a status dot, monospace `#id`, and a truncated title (`13px`) with the relative timestamp at the trailing edge. Line two: the muted `owner/repo` slug on the left and reserved-label chips (status, priority, size) on the right. Rounded `6px` corners with a translucent `rgba(255,255,255,0.05)` hover/active fill.
+- **Inspector Pane:** Flexible document canvas within the master–detail split (fixed `480px` when docked to the Board). Breadcrumb action bar (`owner/repo / #id / state`, "opened by … "), an H1 title, an open-text description, an inline property bar, a comment activity timeline, and a composer pinned to the base.
+- **Filter Bar:** In the narrow feed column the six multi-selects collapse behind a single **Filter** button that reveals an anchored panel; the Board keeps the full-width toolbar.
 - **Quick-Action Context Menu:** Mouse-driven popup on right-click or row hover, utilizing Acrylic backdrop-filter styling and 6px rounded edges.
 
 ## Do’s and Don’ts

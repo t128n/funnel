@@ -145,15 +145,6 @@
 
 		<div class="side-head__actions">
 			<button
-				class="icon-btn"
-				type="button"
-				title="Search (⌘K)"
-				aria-label="Search"
-				onclick={focusSearch}
-			>
-				<IconSearch width={16} height={16} />
-			</button>
-			<button
 				class="icon-btn icon-btn--create"
 				type="button"
 				title="New issue (C)"

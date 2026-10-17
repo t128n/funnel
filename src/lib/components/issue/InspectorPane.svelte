@@ -27,9 +27,11 @@
 		number: number;
 		githubUrl: string;
 		onclose: () => void;
+		/** Fill the parent column instead of docking at `--inspector-width`. */
+		fill?: boolean;
 	}
 
-	let { repo, number, githubUrl, onclose }: Props = $props();
+	let { repo, number, githubUrl, onclose, fill = false }: Props = $props();
 
 	let detail = $state<IssueDetail | null>(null);
 	let loading = $state(false);
@@ -218,16 +220,27 @@
 	}
 </script>
 
-<aside class="inspector" aria-label="Issue inspector">
+<aside
+	class="inspector"
+	class:inspector--fill={fill}
+	aria-label="Issue inspector"
+>
 	<header class="inspector__head">
-		<div class="inspector__ident">
-			<span class="mono repo-badge">{repo}</span>
-			<span class="mono number">#{number}</span>
+		<div class="crumb">
+			<span class="mono crumb__repo" title={repo}>{repo}</span>
+			<span class="crumb__sep">/</span>
+			<span class="mono crumb__number">#{number}</span>
 			{#if issue}
 				<Chip
 					label={issue.state === 'closed' ? 'closed' : 'open'}
 					color={issue.state === 'closed' ? 'be95ff' : '42be65'}
 				/>
+				{#if issue.author}
+					<span class="crumb__meta">
+						opened by <strong>{issue.author.login}</strong>
+						· <span title={absoluteTime(issue.updatedAt)}>{relativeTime(issue.updatedAt)}</span>
+					</span>
+				{/if}
 			{/if}
 		</div>
 		<div class="inspector__actions">
@@ -289,9 +302,9 @@
 				</div>
 			{/if}
 
-			<section class="meta">
-				<div class="meta__field">
-					<span class="meta__label">Status</span>
+			<section class="props">
+				<div class="prop">
+					<span class="prop__label">Status</span>
 					<SingleSelect
 						label="No status"
 						options={STATUS_OPTIONS}
@@ -300,8 +313,8 @@
 						disabled={busy === 'status'}
 					/>
 				</div>
-				<div class="meta__field">
-					<span class="meta__label">Priority</span>
+				<div class="prop">
+					<span class="prop__label">Priority</span>
 					<SingleSelect
 						label="No priority"
 						options={PRIORITY_OPTIONS}
@@ -311,8 +324,8 @@
 						disabled={busy === 'priority'}
 					/>
 				</div>
-				<div class="meta__field">
-					<span class="meta__label">Size</span>
+				<div class="prop">
+					<span class="prop__label">Size</span>
 					<SingleSelect
 						label="No size"
 						options={SIZE_OPTIONS}
@@ -322,11 +335,15 @@
 						disabled={busy === 'size'}
 					/>
 				</div>
-			</section>
-
-			<section class="meta">
-				<div class="meta__field">
-					<span class="meta__label">Assignees</span>
+				<div class="prop">
+					<span class="prop__label">Assignee</span>
+					{#if issue.assignees.length > 0}
+						<div class="prop__avatars">
+							{#each issue.assignees as person (person.githubId)}
+								<Avatar login={person.login} avatarUrl={person.avatarUrl} size={18} />
+							{/each}
+						</div>
+					{/if}
 					<MultiSelect
 						label="Unassigned"
 						options={assigneeOptions.map((u) => ({ value: u.login, label: u.login }))}
@@ -335,8 +352,8 @@
 						disabled={busy === 'assignees'}
 					/>
 				</div>
-				<div class="meta__field">
-					<span class="meta__label">Labels</span>
+				<div class="prop">
+					<span class="prop__label">Labels</span>
 					<MultiSelect
 						label="No labels"
 						options={labelOptions}
@@ -346,20 +363,6 @@
 					/>
 				</div>
 			</section>
-
-			<div class="assignee-strip">
-				{#if issue.assignees.length > 0}
-					{#each issue.assignees as person (person.githubId)}
-						<Avatar login={person.login} avatarUrl={person.avatarUrl} size={20} />
-					{/each}
-				{/if}
-				{#if issue.author}
-					<span class="byline">
-						opened by <strong>{issue.author.login}</strong>
-						· <span title={absoluteTime(issue.updatedAt)}>{relativeTime(issue.updatedAt)}</span>
-					</span>
-				{/if}
-			</div>
 
 			<section class="block">
 				<div class="block__head">
@@ -434,28 +437,28 @@
 					</ul>
 				{/if}
 			</section>
-
-			<section class="composer">
-				<textarea
-					class="composer__input"
-					value={comment}
-					oninput={(e) => (comment = e.currentTarget.value)}
-					placeholder="Add a comment…"
-					rows="3"
-				></textarea>
-				<div class="composer__actions">
-					<button
-						class="primary-btn"
-						type="button"
-						onclick={submitComment}
-						disabled={comment.trim().length === 0 || busy === 'comment'}
-					>
-						{#if busy === 'comment'}<Spinner size={13} />{/if}
-						Comment
-					</button>
-				</div>
-			</section>
 		</div>
+
+		<section class="composer">
+			<textarea
+				class="composer__input"
+				value={comment}
+				oninput={(e) => (comment = e.currentTarget.value)}
+				placeholder="Add a comment…"
+				rows="2"
+			></textarea>
+			<div class="composer__actions">
+				<button
+					class="primary-btn"
+					type="button"
+					onclick={submitComment}
+					disabled={comment.trim().length === 0 || busy === 'comment'}
+				>
+					{#if busy === 'comment'}<Spinner size={13} />{/if}
+					Comment
+				</button>
+			</div>
+		</section>
 	{/if}
 </aside>
 
@@ -471,38 +474,61 @@
 		overflow: hidden;
 	}
 
+	/* Embedded in the master–detail split: fill the flexible detail column. */
+	.inspector--fill {
+		width: 100%;
+		flex: 1;
+		min-width: 0;
+		border-left: none;
+	}
+
 	.inspector__head {
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
 		gap: var(--space-sm);
 		height: var(--topbar-height);
-		padding: 0 var(--space-md);
+		padding: 0 var(--space-lg);
 		border-bottom: 1px solid var(--color-border-subtle);
+		flex: none;
 	}
 
-	.inspector__ident {
+	.crumb {
 		display: flex;
 		align-items: center;
 		gap: var(--space-sm);
 		overflow: hidden;
+		min-width: 0;
 	}
 
-	.repo-badge {
+	.crumb__repo {
 		color: var(--color-text-secondary);
 		overflow: hidden;
 		text-overflow: ellipsis;
 		white-space: nowrap;
 	}
 
-	.number {
+	.crumb__sep {
 		color: var(--color-text-muted);
+	}
+
+	.crumb__number {
+		color: var(--color-text-muted);
+	}
+
+	.crumb__meta {
+		font-size: var(--text-sm);
+		color: var(--color-text-muted);
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
 	}
 
 	.inspector__actions {
 		display: flex;
 		align-items: center;
 		gap: var(--space-xs);
+		flex: none;
 	}
 
 	.icon-link {
@@ -524,10 +550,12 @@
 	}
 
 	.inspector__body {
+		flex: 1;
+		min-height: 0;
 		display: flex;
 		flex-direction: column;
-		gap: var(--space-md);
-		padding: var(--space-md);
+		gap: var(--space-lg);
+		padding: var(--space-xl) var(--space-lg);
 		overflow-y: auto;
 	}
 
@@ -551,13 +579,28 @@
 
 	.title-input {
 		flex: 1;
-		padding: var(--space-sm);
-		background: var(--color-surface-layer-2);
-		border: 1px solid var(--color-border-subtle);
+		min-width: 0;
+		padding: var(--space-xs) var(--space-sm);
+		margin-left: calc(var(--space-sm) * -1);
+		background: transparent;
+		border: 1px solid transparent;
 		border-radius: var(--radius-sm);
-		font-size: var(--text-lg);
+		font-size: var(--text-xl);
 		font-weight: var(--weight-semibold);
-		letter-spacing: -0.01em;
+		letter-spacing: -0.015em;
+		line-height: 1.2;
+		color: var(--color-text-primary);
+		transition: background var(--transition-fast);
+	}
+
+	.title-input:hover {
+		background: var(--color-row-hover);
+	}
+
+	.title-input:focus {
+		background: var(--color-surface-layer-2);
+		border-color: var(--color-border-subtle);
+		outline: none;
 	}
 
 	.save-btn,
@@ -606,40 +649,35 @@
 		color: var(--color-accent-amber);
 	}
 
-	.meta {
-		display: grid;
-		grid-template-columns: 1fr 1fr 1fr;
-		gap: var(--space-sm);
-	}
-
-	.meta:last-of-type {
-		grid-template-columns: 1fr 1fr;
-	}
-
-	.meta__field {
+	.props {
 		display: flex;
-		flex-direction: column;
-		gap: var(--space-xxs);
-		min-width: 0;
+		flex-wrap: wrap;
+		gap: var(--space-sm) var(--space-lg);
+		padding: var(--space-sm) var(--space-md);
+		background: var(--color-surface-layer-2);
+		border: 1px solid var(--color-border-subtle);
+		border-radius: var(--radius-sm);
 	}
 
-	.meta__label {
-		font-size: 10px;
-		text-transform: uppercase;
-		letter-spacing: 0.06em;
-		color: var(--color-text-muted);
-	}
-
-	.assignee-strip {
+	.prop {
 		display: flex;
 		align-items: center;
 		gap: var(--space-xs);
-		flex-wrap: wrap;
+		min-width: 0;
 	}
 
-	.byline {
-		font-size: var(--text-sm);
+	.prop__label {
+		font-size: var(--text-xs);
+		text-transform: uppercase;
+		letter-spacing: 0.06em;
 		color: var(--color-text-muted);
+		white-space: nowrap;
+	}
+
+	.prop__avatars {
+		display: flex;
+		align-items: center;
+		gap: 2px;
 	}
 
 	.block {
@@ -660,14 +698,31 @@
 	}
 
 	.block__title {
-		font-size: var(--text-sm);
+		font-size: var(--text-xs);
 		font-weight: var(--weight-semibold);
-		color: var(--color-text-secondary);
+		color: var(--color-text-muted);
 		text-transform: uppercase;
-		letter-spacing: 0.05em;
+		letter-spacing: 0.08em;
 	}
 
-	.body-render,
+	/* Description renders as an open document, not a boxed field. */
+	.body-render {
+		min-height: 48px;
+		padding: var(--space-xs) var(--space-sm);
+		margin: 0 calc(var(--space-sm) * -1);
+		border-radius: var(--radius-sm);
+		font-family: var(--font-sans);
+		font-size: var(--text-md);
+		line-height: 1.6;
+		color: var(--color-text-secondary);
+		cursor: text;
+		transition: background var(--transition-fast);
+	}
+
+	.body-render:hover {
+		background: var(--color-row-hover);
+	}
+
 	.body-edit,
 	.composer__input {
 		width: 100%;
@@ -679,15 +734,6 @@
 		font-size: var(--text-base);
 		line-height: 1.5;
 		color: var(--color-text-primary);
-	}
-
-	.body-render {
-		cursor: text;
-		min-height: 48px;
-	}
-
-	.body-edit,
-	.composer__input {
 		resize: vertical;
 	}
 
@@ -737,8 +783,10 @@
 		display: flex;
 		flex-direction: column;
 		gap: var(--space-sm);
+		padding: var(--space-md) var(--space-lg);
 		border-top: 1px solid var(--color-border-subtle);
-		padding-top: var(--space-md);
+		background: var(--color-surface-layer-1);
+		flex: none;
 	}
 
 	.composer__actions {

@@ -1,16 +1,24 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { refreshAll } from '$app/navigation';
+	import { page } from '$app/state';
 	import InspectorPane from '#lib/components/issue/InspectorPane.svelte';
 	import Sidebar from '#lib/components/shell/Sidebar.svelte';
 	import { connectEvents } from '#lib/client/events';
 	import { bumpRefresh } from '#lib/client/refresh';
-	import { clearIssue, parseSelection } from '#lib/client/selection.svelte';
+	import { clearSelection, parseSelection, selectedIssue } from '#lib/client/selection.svelte';
 	import type { LayoutProps } from './$types';
 
 	let { data, children }: LayoutProps = $props();
 
 	const selection = $derived(parseSelection());
+	const issue = $derived(selectedIssue(selection));
+
+	// Inbox and Issues own their detail canvas (SplitView); the shared layout
+	// only docks the Inspector Pane for the remaining views (Board).
+	const ownsDetailCanvas = $derived(
+		page.url.pathname === '/inbox' || page.url.pathname === '/issues'
+	);
 
 	// Realtime bridge: any server-side mirror change refreshes the streams and
 	// signals the Inspector to refetch (SPEC §3.2).
@@ -22,19 +30,19 @@
 	);
 </script>
 
-<div class="shell" class:shell--inspecting={selection !== null}>
+<div class="shell" class:shell--inspecting={!ownsDetailCanvas && issue !== null}>
 	<Sidebar user={data.user} />
 
 	<main class="main">
 		{@render children()}
 	</main>
 
-	{#if selection}
+	{#if !ownsDetailCanvas && issue}
 		<InspectorPane
-			repo={selection.repo}
-			number={selection.number}
+			repo={issue.repo}
+			number={issue.number}
 			githubUrl={data.githubUrl}
-			onclose={clearIssue}
+			onclose={clearSelection}
 		/>
 	{/if}
 </div>

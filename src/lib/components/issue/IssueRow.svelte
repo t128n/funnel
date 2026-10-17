@@ -1,5 +1,4 @@
 <script lang="ts">
-	import Avatar from '#lib/components/common/Avatar.svelte';
 	import Chip from '#lib/components/common/Chip.svelte';
 	import { selectIssue } from '#lib/client/selection.svelte';
 	import { canonicalLabel } from '#lib/labels';
@@ -15,14 +14,14 @@
 
 	const closed = $derived(issue.state === 'closed');
 	const stateColor = $derived(closed ? 'var(--color-accent-purple)' : 'var(--color-accent-green)');
+	const statusColor = $derived(
+		issue.status ? (canonicalLabel(issue.status)?.color ?? null) : null
+	);
 	const priorityColor = $derived(
 		issue.priority ? (canonicalLabel(issue.priority)?.color ?? null) : null
 	);
 	const sizeColor = $derived(
 		issue.size ? (canonicalLabel(issue.size)?.color ?? null) : null
-	);
-	const statusColor = $derived(
-		issue.status ? (canonicalLabel(issue.status)?.color ?? null) : null
 	);
 
 	function select() {
@@ -45,52 +44,42 @@
 		}
 	}}
 >
-	<span
-		class="state"
-		style="background:{stateColor}"
-		title={closed ? 'Closed' : 'Open'}
-	></span>
-
-	<span class="repo mono">{issue.repo}</span>
-	<span class="number mono">#{issue.number}</span>
-	<span class="title" title={issue.title}>{issue.title}</span>
-
-	{#if issue.labelConflict}
-		<span class="conflict" title="Conflicting reserved labels on GitHub">⚠</span>
-	{/if}
-
-	<div class="meta">
-		{#if issue.status}
-			<Chip label={issue.status} color={statusColor} />
+	<div class="row__top">
+		<span class="dot" style="background:{stateColor}" title={closed ? 'Closed' : 'Open'}></span>
+		<span class="number mono">#{issue.number}</span>
+		<span class="title" title={issue.title}>{issue.title}</span>
+		{#if issue.labelConflict}
+			<span class="conflict" title="Conflicting reserved labels on GitHub">⚠</span>
 		{/if}
-		{#if issue.priority}
-			<Chip label={issue.priority.toUpperCase()} color={priorityColor} mono />
-		{/if}
-		{#if issue.size}
-			<Chip label={issue.size} color={sizeColor} variant="outline" mono />
-		{/if}
-		<span class="updated" title={new Date(issue.updatedAt).toLocaleString()}>
+		<span class="time" title={new Date(issue.updatedAt).toLocaleString()}>
 			{relativeTime(issue.updatedAt)}
 		</span>
-		<div class="assignees">
-			{#each issue.assignees.slice(0, 3) as person (person.githubId)}
-				<Avatar login={person.login} avatarUrl={person.avatarUrl} size={16} />
-			{/each}
-			{#if issue.assignees.length > 3}
-				<span class="assignees__more mono">+{issue.assignees.length - 3}</span>
-			{/if}
-		</div>
+	</div>
+	<div class="row__meta">
+		<span class="repo mono">{issue.repo}</span>
+		{#if issue.status || issue.priority || issue.size}
+			<div class="chips">
+				{#if issue.status}
+					<Chip label={issue.status} color={statusColor} />
+				{/if}
+				{#if issue.priority}
+					<Chip label={issue.priority.toUpperCase()} color={priorityColor} mono />
+				{/if}
+				{#if issue.size}
+					<Chip label={issue.size} color={sizeColor} variant="outline" mono />
+				{/if}
+			</div>
+		{/if}
 	</div>
 </div>
 
 <style>
 	.row {
 		display: flex;
-		align-items: center;
-		gap: var(--space-sm);
-		height: var(--row-height);
-		padding: 0 var(--space-sm) 0 0;
-		border-bottom: 1px solid var(--color-border-subtle);
+		flex-direction: column;
+		gap: 3px;
+		padding: var(--space-sm);
+		border-radius: var(--radius-sm);
 		cursor: pointer;
 		user-select: none;
 		outline: none;
@@ -99,31 +88,24 @@
 
 	.row:hover,
 	.row:focus-visible {
-		background: var(--color-surface-layer-1);
+		background: var(--color-row-hover);
 	}
 
 	.row--selected {
-		background: var(--color-surface-layer-2);
-		box-shadow: inset 2px 0 0 var(--color-primary);
+		background: var(--color-row-active);
 	}
 
-	.row--closed .title {
-		color: var(--color-text-muted);
+	.row__top {
+		display: flex;
+		align-items: center;
+		gap: var(--space-sm);
+		min-width: 0;
 	}
 
-	.state {
-		width: 3px;
-		height: 16px;
+	.dot {
+		width: 7px;
+		height: 7px;
 		border-radius: var(--radius-full);
-		flex: none;
-	}
-
-	.repo {
-		color: var(--color-text-secondary);
-		max-width: 160px;
-		overflow: hidden;
-		text-overflow: ellipsis;
-		white-space: nowrap;
 		flex: none;
 	}
 
@@ -142,35 +124,42 @@
 		color: var(--color-text-primary);
 	}
 
+	.row--closed .title {
+		color: var(--color-text-muted);
+	}
+
 	.conflict {
 		color: var(--color-accent-amber);
 		flex: none;
 	}
 
-	.meta {
+	.time {
+		flex: none;
+		font-size: var(--text-xs);
+		color: var(--color-text-muted);
+	}
+
+	.row__meta {
 		display: flex;
 		align-items: center;
 		gap: var(--space-sm);
-		flex: none;
-		color: var(--color-text-muted);
+		padding-left: calc(7px + var(--space-sm));
+		min-width: 0;
 	}
 
-	.updated {
-		font-size: var(--text-xs);
+	.repo {
+		flex: 1;
+		min-width: 0;
 		color: var(--color-text-muted);
-		width: 62px;
-		text-align: right;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
 	}
 
-	.assignees {
+	.chips {
 		display: flex;
 		align-items: center;
-		gap: 2px;
-		min-width: 16px;
-	}
-
-	.assignees__more {
-		color: var(--color-text-muted);
-		font-size: 10px;
+		gap: var(--space-xs);
+		flex: none;
 	}
 </style>
