@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Avatar from '#lib/components/common/Avatar.svelte';
 	import Chip from '#lib/components/common/Chip.svelte';
 	import { selectIssue } from '#lib/client/selection.svelte';
 	import { canonicalLabel } from '#lib/labels';
@@ -68,6 +69,13 @@
 				{#if issue.size}
 					<Chip label={issue.size} color={sizeColor} variant="outline" mono />
 				{/if}
+			</div>
+		{/if}
+		{#if issue.assignees.length > 0}
+			<div class="assignees">
+				{#each issue.assignees.slice(0, 3) as person (person.githubId)}
+					<Avatar login={person.login} avatarUrl={person.avatarUrl} size={16} />
+				{/each}
 			</div>
 		{/if}
 	</div>
@@ -161,5 +169,13 @@
 		align-items: center;
 		gap: var(--space-xs);
 		flex: none;
+	}
+
+	.assignees {
+		display: flex;
+		align-items: center;
+		gap: 2px;
+		flex: none;
+		margin-left: auto;
 	}
 </style>
