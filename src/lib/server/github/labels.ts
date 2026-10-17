@@ -18,11 +18,14 @@
  * issue zero writes and return immediately.
  */
 import { getConfig } from "#/lib/server/config";
+import { createLogger } from "#/lib/server/log";
 import {
   getInstallationId,
   github,
   type InstallationOctokit,
 } from "./app.server";
+
+const log = createLogger({ component: "labels" });
 
 export type LabelGroup = "status" | "priority" | "size";
 
@@ -220,9 +223,11 @@ export async function provisionCanonicalLabels(): Promise<ProvisionReport> {
   try {
     repos = (await getConfig()).repos;
   } catch (error) {
-    console.warn(`[labels] provisioning skipped: ${errorMessage(error)}`);
+    log.warn({ err: errorMessage(error) }, "provisioning skipped");
     return report;
   }
+
+  log.info({ repos: repos.length }, "label provisioning started");
 
   for (const entry of repos) {
     const slash = entry.indexOf("/");
@@ -233,17 +238,32 @@ export async function provisionCanonicalLabels(): Promise<ProvisionReport> {
       report.created += summary.created.length;
       report.updated += summary.updated.length;
       report.repos.push({ repo: entry, summary });
-      console.info(
-        `[labels] ${entry}: ${summary.created.length} created, ` +
-          `${summary.updated.length} updated, ${summary.unchanged.length} unchanged`,
+      log.info(
+        {
+          repo: entry,
+          created: summary.created.length,
+          updated: summary.updated.length,
+          unchanged: summary.unchanged.length,
+        },
+        "repo labels reconciled",
       );
     } catch (error) {
       report.failed += 1;
       const message = errorMessage(error);
       report.repos.push({ repo: entry, error: message });
-      console.warn(`[labels] ${entry}: provisioning failed: ${message}`);
+      log.warn({ repo: entry, err: message }, "provisioning failed");
     }
   }
+
+  log.info(
+    {
+      repos: report.repos.length,
+      created: report.created,
+      updated: report.updated,
+      failed: report.failed,
+    },
+    "label provisioning finished",
+  );
 
   return report;
 }

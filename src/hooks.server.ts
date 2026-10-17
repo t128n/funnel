@@ -2,7 +2,10 @@ import { building } from "$app/env";
 import { svelteKitHandler } from "better-auth/svelte-kit";
 import { auth } from "#lib/server/auth/index";
 import { provisionCanonicalLabels } from "#lib/server/github/labels";
+import { createLogger } from "#lib/server/log";
 import type { Handle, ServerInit } from "@sveltejs/kit/hooks";
+
+const log = createLogger({ component: "startup" });
 
 /**
  * Startup self-healing label provisioning (SPEC §5.2(4)). Runs before the
@@ -12,7 +15,18 @@ import type { Handle, ServerInit } from "@sveltejs/kit/hooks";
  */
 export const init: ServerInit = async () => {
   if (building) return;
-  await provisionCanonicalLabels();
+  const startedAt = Date.now();
+  const report = await provisionCanonicalLabels();
+  log.info(
+    {
+      repos: report.repos.length,
+      created: report.created,
+      updated: report.updated,
+      failed: report.failed,
+      durationMs: Date.now() - startedAt,
+    },
+    "startup complete",
+  );
 };
 
 export const handle: Handle = async ({ event, resolve }) => {

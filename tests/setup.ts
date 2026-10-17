@@ -23,6 +23,17 @@ mock.module("$app/env/private", () => ({
   LOG_LEVEL: "silent",
 }));
 
+// `$app/*` are Vite/SvelteKit virtual modules and do not resolve under
+// `bun test`; `src/lib/server/log.ts` reads the compile-time `dev` flag from
+// here (and `hooks.server.ts` reads `building`). `LOG_LEVEL: "silent"` above
+// keeps test output quiet regardless.
+mock.module("$app/env", () => ({
+  dev: true,
+  building: false,
+  browser: false,
+  version: "test",
+}));
+
 // Apply the committed Drizzle migration to the in-memory DB so tests exercise
 // the same schema the server gets from `bun run db:migrate` (applied
 // out-of-band; there is no startup initializer). Dynamic imports are required

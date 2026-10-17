@@ -134,7 +134,7 @@ flowchart TD
 
 **Dependencies / Prerequisites (must land before the sync engine can run):**
 
-- [ ] **Structured logging (pino)**: add `pino` (and `pino-pretty` for dev) and create `src/lib/server/log.ts`; drive level from `LOG_LEVEL` and emit JSON logs from every background cycle.
+- [x] **Structured logging (pino)**: add `pino` (and `pino-pretty` for dev) and create `src/lib/server/log.ts`; drive level from `LOG_LEVEL` and emit JSON logs from every background cycle.
 - [x] **Schema migrations**: commit the generated Drizzle migration under `drizzle/`; apply out-of-band via `bun run db:migrate` before the server starts (no `init` hook).
 - [x] **Config loader**: add the `c12` dependency and `src/lib/server/config.ts` (valibot-validated `funnel.config.yaml`: `github.url`, `github.api_url`, `repos`, `sync.history_days`, `sync.poll_interval_active_seconds`, `sync.poll_interval_idle_seconds`).
 - [ ] **GHE base-URL wiring**: update `app.server.ts` so Octokit REST and the GraphQL hydration endpoint derive from `github.api_url` (`acme.ghe.com/api/v3` + `/graphql`).
