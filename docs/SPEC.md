@@ -28,7 +28,7 @@
 
 ### 2.1 In Scope (MVP)
 - **Inbox**: Unified triage queue combining pending local intake submissions and untriaged GitHub issues (open issues missing a status label).
-- **Issue Streams**: **All Issues**, **My Issues** (assigned to current user), sorted by Priority (`p1` first) then Updated.
+- **Issue Streams**: **Issues** with an internal **All** / **Mine** segmented filter (**Mine** = assigned to the current user, i.e. `assignee=me`), sorted by Priority (`p1` first) then Updated.
 - **Status Board**: 6-column Kanban view (`Backlog`, `Todo`, `In Progress`, `In Review`, `Blocked`, and `Done` within 14 days) with status pickers on cards.
 - **Issue Detail & Inspector Pane**: 480px docked side inspector pane for viewing plain-text issue bodies, reading comment threads, adding comments, editing title/body inline, and adjusting status/labels/assignees.
 - **Filters & Search**: Six multi-select dropdown filters (Repo, Status, Assignee, Priority, Size, Labels) combined with AND across groups and OR within groups, with complete state serialized into URL query parameters. Text search powered by standard indexed SQLite queries via Drizzle ORM.
@@ -255,7 +255,7 @@ The visual design language adheres strictly to [`docs/DESIGN.md`](file:///Users/
 Three-pane layout optimized for widescreen displays:
 1. **Navigation Sidebar (220px fixed)**:
    - Header: workspace menu (theme switcher, AGPL-3.0 source link) plus global Search (`⌘K`) and quick-create (`C`) actions.
-   - Views grouped as **Triage** (**Inbox**, **My Issues**) and **Workspace** (**All Issues**, **Status Board**).
+   - Views shown as a flat list: **Inbox**, **Issues** (with an internal **All** / **Mine** segmented filter), and **Board**.
    - Footer: user profile and sign-out.
 2. **Main Stream (Flexible width)**:
    - High-density issue rows with fixed 36px height.

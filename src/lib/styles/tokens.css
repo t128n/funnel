@@ -108,6 +108,20 @@
   --color-accent-purple: var(--base0e);
   --color-accent-amber: var(--base09);
   --color-accent-red: var(--base0a);
+
+  /* Sidebar navigation + header actions (Linear-flavored dark values). */
+  --color-nav-text: #8a8f98;
+  --color-nav-text-hover: #d0d3d8;
+  --color-nav-text-active: #ffffff;
+  --color-nav-icon: #71767e;
+  --color-nav-icon-hover: #d0d3d8;
+  --color-nav-icon-active: #ffffff;
+  --color-nav-bg-hover: rgba(255, 255, 255, 0.04);
+  --color-nav-bg-active: rgba(255, 255, 255, 0.08);
+  --color-nav-title: #f7f8f8;
+  --color-nav-caret: #8a8f98;
+  --color-btn-ghost-hover: rgba(255, 255, 255, 0.05);
+  --color-btn-border: rgba(255, 255, 255, 0.08);
 }
 
 /* Oxocarbon Light. */
@@ -156,4 +170,18 @@
   --color-accent-purple: var(--base0e);
   --color-accent-amber: var(--base0a);
   --color-accent-red: var(--base09);
+
+  /* Sidebar navigation + header actions (light-theme equivalents). */
+  --color-nav-text: var(--base06);
+  --color-nav-text-hover: var(--base03);
+  --color-nav-text-active: var(--base03);
+  --color-nav-icon: #737373;
+  --color-nav-icon-hover: var(--base05);
+  --color-nav-icon-active: var(--base03);
+  --color-nav-bg-hover: rgba(0, 0, 0, 0.04);
+  --color-nav-bg-active: rgba(0, 0, 0, 0.08);
+  --color-nav-title: var(--base03);
+  --color-nav-caret: var(--base06);
+  --color-btn-ghost-hover: rgba(0, 0, 0, 0.05);
+  --color-btn-border: rgba(0, 0, 0, 0.12);
 }

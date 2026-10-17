@@ -1,5 +1,6 @@
 <script lang="ts">
 	import FilterBar from '#lib/components/filter/FilterBar.svelte';
+	import ViewSegment from '#lib/components/filter/ViewSegment.svelte';
 	import IssueList from '#lib/components/issue/IssueList.svelte';
 	import type { PageProps } from './$types';
 
@@ -8,8 +9,9 @@
 
 <div class="view">
 	<header class="view__head">
-		<h1 class="view__title">All Issues</h1>
+		<h1 class="view__title">Issues</h1>
 		<span class="view__count mono">{data.issues.length}</span>
+		<div class="view__segment"><ViewSegment /></div>
 	</header>
 
 	<FilterBar options={data.options} />
@@ -27,7 +29,7 @@
 
 	.view__head {
 		display: flex;
-		align-items: baseline;
+		align-items: center;
 		gap: var(--space-sm);
 		height: var(--topbar-height);
 		padding: 0 var(--space-md);
@@ -43,5 +45,9 @@
 
 	.view__count {
 		color: var(--color-text-muted);
+	}
+
+	.view__segment {
+		margin-left: auto;
 	}
 </style>

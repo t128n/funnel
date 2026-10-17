@@ -10,10 +10,9 @@
 	import IconChevronDown from '~icons/carbon/chevron-down';
 	import IconSearch from '~icons/carbon/search';
 	import IconAdd from '~icons/carbon/add';
-	import IconInbox from '~icons/carbon/notification';
-	import IconMine from '~icons/carbon/task';
-	import IconAll from '~icons/carbon/list';
-	import IconBoard from '~icons/carbon/dashboard';
+	import IconInbox from '~icons/carbon/box';
+	import IconIssues from '~icons/carbon/center-square';
+	import IconBoard from '~icons/carbon/split-screen';
 	import IconLogout from '~icons/carbon/logout';
 	import IconSource from '~icons/carbon/logo-github';
 
@@ -25,23 +24,13 @@
 
 	const SOURCE_URL = 'https://github.com/t128n/funnel';
 
-	// Categorical hierarchy: high-frequency triage views first, structural
-	// workspace containers second. See docs/SPEC.md §9.2.
-	const sections = [
-		{
-			label: 'Triage',
-			items: [
-				{ href: '/inbox', label: 'Inbox', Icon: IconInbox },
-				{ href: '/my', label: 'My Issues', Icon: IconMine }
-			]
-		},
-		{
-			label: 'Workspace',
-			items: [
-				{ href: '/issues', label: 'All Issues', Icon: IconAll },
-				{ href: '/board', label: 'Status Board', Icon: IconBoard }
-			]
-		}
+	// Flat information architecture: three sibling views. "My Issues" is no
+	// longer a root link — it lives as a segmented filter on the Issues view
+	// (`/issues?assignee=me`). See docs/SPEC.md §9.2.
+	const views = [
+		{ href: '/inbox', label: 'Inbox', Icon: IconInbox },
+		{ href: '/issues', label: 'Issues', Icon: IconIssues },
+		{ href: '/board', label: 'Board', Icon: IconBoard }
 	];
 
 	const themeOptions: { value: ThemeChoice; label: string }[] = [
@@ -59,7 +48,7 @@
 		await goto('/login');
 	}
 
-	/** Focus the view's filter-bar search, navigating to All Issues if needed. */
+	/** Focus the view's filter-bar search, navigating to Issues if needed. */
 	async function focusSearch() {
 		let input = document.getElementById('issue-search');
 		if (!input) {
@@ -110,7 +99,7 @@
 		<DropdownMenu.Root>
 			<DropdownMenu.Trigger class="instance" aria-label="Workspace menu">
 				<span class="instance__mark">
-					<IconFunnel width={15} height={15} />
+					<IconFunnel width={16} height={16} />
 				</span>
 				<span class="instance__name">Funnel</span>
 				<span class="instance__caret">
@@ -162,39 +151,34 @@
 				aria-label="Search"
 				onclick={focusSearch}
 			>
-				<IconSearch width={15} height={15} />
+				<IconSearch width={16} height={16} />
 			</button>
 			<button
-				class="icon-btn"
+				class="icon-btn icon-btn--create"
 				type="button"
 				title="New issue (C)"
 				aria-label="New issue"
 				onclick={openNew}
 			>
-				<IconAdd width={15} height={15} />
+				<IconAdd width={16} height={16} />
 			</button>
 		</div>
 	</header>
 
 	<nav class="nav" aria-label="Views">
-		{#each sections as section (section.label)}
-			<div class="nav__section">
-				<div class="nav__heading">{section.label}</div>
-				{#each section.items as item (item.href)}
-					{@const Icon = item.Icon}
-					<a
-						class="nav__item"
-						class:nav__item--active={isActive(item.href)}
-						href={item.href}
-						title={item.label}
-						aria-label={item.label}
-						aria-current={isActive(item.href) ? 'page' : undefined}
-					>
-						<span class="nav__glyph"><Icon width={15} height={15} /></span>
-						<span class="nav__label">{item.label}</span>
-					</a>
-				{/each}
-			</div>
+		{#each views as view (view.href)}
+			{@const Icon = view.Icon}
+			<a
+				class="nav__item"
+				class:nav__item--active={isActive(view.href)}
+				href={view.href}
+				title={view.label}
+				aria-label={view.label}
+				aria-current={isActive(view.href) ? 'page' : undefined}
+			>
+				<span class="nav__glyph"><Icon width={16} height={16} /></span>
+				<span class="nav__label">{view.label}</span>
+			</a>
 		{/each}
 	</nav>
 
@@ -239,39 +223,38 @@
 		gap: var(--space-sm);
 		flex: 1;
 		min-width: 0;
-		padding: var(--space-xs);
+		height: 32px;
+		padding: var(--space-xs) var(--space-sm);
 		margin-left: calc(var(--space-xs) * -1);
 		background: transparent;
 		border: 1px solid transparent;
 		border-radius: var(--radius-sm);
-		color: var(--color-text-primary);
+		color: var(--color-nav-title);
 		cursor: pointer;
 		text-align: left;
 		transition: background var(--transition-fast);
 	}
 
 	:global(.side-head .instance:hover) {
-		background: var(--color-surface-layer-2);
+		background: var(--color-nav-bg-hover);
 	}
 
 	.instance__mark {
 		display: inline-flex;
 		align-items: center;
 		justify-content: center;
-		width: 22px;
-		height: 22px;
+		width: 16px;
+		height: 16px;
 		flex: none;
-		border-radius: var(--radius-sm);
-		background: var(--color-surface-layer-2);
-		border: 1px solid var(--color-border-subtle);
-		color: var(--color-text-primary);
+		color: var(--color-nav-title);
 	}
 
 	.instance__name {
-		flex: 1;
 		min-width: 0;
-		font-size: var(--text-base);
+		font-size: var(--text-md);
 		font-weight: var(--weight-medium);
+		letter-spacing: -0.01em;
+		color: var(--color-nav-title);
 		overflow: hidden;
 		text-overflow: ellipsis;
 		white-space: nowrap;
@@ -280,7 +263,7 @@
 	.instance__caret {
 		display: inline-flex;
 		flex: none;
-		color: var(--color-text-muted);
+		color: var(--color-nav-caret);
 	}
 
 	.side-head__actions {
@@ -300,52 +283,48 @@
 		background: transparent;
 		border: 1px solid transparent;
 		border-radius: var(--radius-sm);
-		color: var(--color-text-secondary);
+		color: var(--color-nav-text);
 		cursor: pointer;
 		transition:
 			background var(--transition-fast),
+			border-color var(--transition-fast),
 			color var(--transition-fast);
 	}
 
 	.icon-btn:hover {
-		background: var(--color-surface-layer-2);
+		background: var(--color-btn-ghost-hover);
 		color: var(--color-text-primary);
 	}
 
-	/* Grouped navigation. */
+	/* Create action: boxed ghost button, matching an edit/compose affordance. */
+	.icon-btn--create {
+		border-color: var(--color-btn-border);
+	}
+
+	.icon-btn--create:hover {
+		border-color: var(--color-border-strong);
+	}
+
+	/* Flat navigation: dense sibling rows, no category headings. */
 	.nav {
 		display: flex;
 		flex-direction: column;
-		gap: var(--space-md);
-		padding: var(--space-sm);
+		gap: 2px;
+		padding: var(--space-md) var(--space-sm);
 		flex: 1;
 		overflow-y: auto;
-	}
-
-	.nav__section {
-		display: flex;
-		flex-direction: column;
-		gap: 2px;
-	}
-
-	.nav__heading {
-		padding: var(--space-xs) var(--space-sm);
-		font-size: var(--text-xs);
-		font-weight: var(--weight-medium);
-		text-transform: uppercase;
-		letter-spacing: 0.06em;
-		color: var(--color-text-muted);
 	}
 
 	.nav__item {
 		display: flex;
 		align-items: center;
-		gap: var(--space-sm);
-		height: 32px;
+		gap: 10px;
+		height: 30px;
 		padding: 0 var(--space-sm);
 		border-radius: var(--radius-sm);
-		color: var(--color-text-secondary);
+		color: var(--color-nav-text);
 		font-size: var(--text-base);
+		letter-spacing: -0.01em;
 		text-decoration: none;
 		transition:
 			background var(--transition-fast),
@@ -353,19 +332,24 @@
 	}
 
 	.nav__item:hover {
-		background: color-mix(in srgb, var(--color-text-primary) 5%, transparent);
-		color: var(--color-text-primary);
+		background: var(--color-nav-bg-hover);
+		color: var(--color-nav-text-hover);
 		text-decoration: none;
+	}
+
+	.nav__item:hover .nav__glyph {
+		color: var(--color-nav-icon-hover);
 	}
 
 	/* Subtle, neutral fill — no asymmetric accent border (docs/DESIGN.md). */
 	.nav__item--active {
-		background: color-mix(in srgb, var(--color-text-primary) 9%, transparent);
-		color: var(--color-text-primary);
+		background: var(--color-nav-bg-active);
+		color: var(--color-nav-text-active);
+		font-weight: var(--weight-medium);
 	}
 
 	.nav__item--active .nav__glyph {
-		color: var(--color-text-primary);
+		color: var(--color-nav-icon-active);
 	}
 
 	.nav__glyph {
@@ -373,7 +357,10 @@
 		align-items: center;
 		justify-content: center;
 		width: 16px;
+		height: 16px;
 		flex: none;
+		color: var(--color-nav-icon);
+		transition: color var(--transition-fast);
 	}
 
 	.nav__label {

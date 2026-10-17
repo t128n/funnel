@@ -8,7 +8,7 @@
 
 <div class="view">
 	<header class="view__head">
-		<h1 class="view__title">Status Board</h1>
+		<h1 class="view__title">Board</h1>
 		<span class="view__note">Done shows issues closed in the last {data.doneDays} days</span>
 	</header>
 

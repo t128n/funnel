@@ -76,7 +76,6 @@
 
 		.shell :global(.sidebar .instance__name),
 		.shell :global(.sidebar .instance__caret),
-		.shell :global(.sidebar .nav__heading),
 		.shell :global(.sidebar .nav__label),
 		.shell :global(.sidebar .profile__meta) {
 			display: none;
@@ -100,11 +99,6 @@
 		.shell :global(.sidebar .side-head__actions) {
 			flex-direction: column;
 			gap: var(--space-xs);
-		}
-
-		.shell :global(.sidebar .nav__section + .nav__section) {
-			padding-top: var(--space-sm);
-			border-top: 1px solid var(--color-border-subtle);
 		}
 
 		.shell :global(.sidebar .nav__item) {
