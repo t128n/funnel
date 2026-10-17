@@ -95,3 +95,28 @@ export async function getUserAccessToken(userId: string): Promise<string> {
   });
   return accessToken;
 }
+
+/**
+ * Resolve the signed-in user's numeric GitHub id.
+ *
+ * Better Auth stores the provider subject in `auth_account.accountId`; for the
+ * GitHub provider that subject is `profile.id` (the numeric account id, as a
+ * string). Mirror rows key people by that same numeric id
+ * (`mirror_github_user.github_id`), so this is what "My Issues" and the
+ * `assignee=me` filter compare against. Returns `null` when no GitHub account
+ * is linked or the subject is not numeric.
+ */
+export async function getViewerGithubId(
+  userId: string,
+): Promise<number | null> {
+  const [account] = await db
+    .select({ accountId: authAccount.accountId })
+    .from(authAccount)
+    .where(
+      and(eq(authAccount.userId, userId), eq(authAccount.providerId, "github")),
+    )
+    .limit(1);
+  if (!account) return null;
+  const id = Number(account.accountId);
+  return Number.isFinite(id) ? id : null;
+}

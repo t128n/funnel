@@ -1,9 +1,28 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 	<head>
 		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
 		<meta name="text-scale" content="scale" />
+		<script>
+			// Pre-paint theme resolution (docs/DESIGN.md §Colors). Runs before the
+			// stylesheet paints so the correct `data-theme` is set with no flash.
+			// `funnel:theme` holds "system" | "dark" | "light".
+			(function () {
+				try {
+					var choice = localStorage.getItem("funnel:theme") || "system";
+					var resolved =
+						choice === "system"
+							? window.matchMedia("(prefers-color-scheme: light)").matches
+								? "light"
+								: "dark"
+							: choice;
+					document.documentElement.setAttribute("data-theme", resolved);
+				} catch (e) {
+					document.documentElement.setAttribute("data-theme", "dark");
+				}
+			})();
+		</script>
 		%sveltekit.head%
 	</head>
 	<body data-sveltekit-preload-data="hover">

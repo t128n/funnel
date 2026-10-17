@@ -133,3 +133,24 @@ describe("repo labels", () => {
     ]);
   });
 });
+
+describe("repo assignees", () => {
+  test("upserts users and replaces the full set, sorted by login", () => {
+    seedRepo();
+    mirror.replaceRepoAssignees(1, [
+      { githubId: 42, login: "zoe", avatarUrl: "z" },
+      { githubId: 41, login: "amy", avatarUrl: "a" },
+    ]);
+    expect(mirror.getRepoAssignees(1)).toEqual([
+      { githubId: 41, login: "amy", avatarUrl: "a" },
+      { githubId: 42, login: "zoe", avatarUrl: "z" },
+    ]);
+
+    mirror.replaceRepoAssignees(1, [
+      { githubId: 43, login: "bob", avatarUrl: "b" },
+    ]);
+    expect(mirror.getRepoAssignees(1)).toEqual([
+      { githubId: 43, login: "bob", avatarUrl: "b" },
+    ]);
+  });
+});

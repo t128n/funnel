@@ -14,6 +14,11 @@
  */
 import type { Octokit } from "octokit";
 import { getConfig } from "#lib/server/config";
+import {
+  errorMessage,
+  errorStatus,
+  type Outcome,
+} from "#lib/server/http/outcome";
 import { createLogger } from "#lib/server/log";
 import { getIssue, getRepoByOrgName } from "#lib/server/sync/mirror";
 import { publish } from "#lib/server/sync/events";
@@ -23,19 +28,13 @@ import {
   type StagedSubmission,
 } from "./staging";
 
+// Re-exported so existing importers (and the UI layer) keep a single source.
+export type { Outcome } from "#lib/server/http/outcome";
+
 const log = createLogger({ component: "intake" });
 
 /** Default workflow status applied to an accepted issue (SPEC §6.2). */
 export const DEFAULT_ACCEPT_STATUS = "backlog";
-
-/**
- * A triage decision either produced a value or failed with an HTTP-shaped
- * status the caller can map onto `fail()`/a JSON error. `status` is GitHub's
- * own status where the failure came from upstream, else 400/404/502.
- */
-export type Outcome<T> =
-  | { ok: true; value: T }
-  | { ok: false; status: number; message: string };
 
 export interface AcceptResult {
   number: number;
@@ -59,18 +58,6 @@ export interface DuplicateInput {
   /** Existing mirrored issue to comment on, in `owner/name` form. */
   repo: string;
   number: number;
-}
-
-function errorStatus(error: unknown): number {
-  if (typeof error === "object" && error !== null && "status" in error) {
-    const status = (error as { status?: unknown }).status;
-    if (typeof status === "number") return status;
-  }
-  return 502;
-}
-
-function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
 }
 
 /** Plain-text provenance footer appended to accepted issues (SPEC §6.2). */

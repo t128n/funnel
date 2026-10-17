@@ -6,11 +6,11 @@ This document tracks the implementation status of Funnel against the authoritati
 
 ## 1. Executive Summary
 
-- **Architecture Maturity**: ~20% complete.
-- **Implemented Foundations**: Database schema (`drizzle-orm`), SQLite initialization (`bun:sqlite`), GitHub App client management (`octokit`), in-memory ETag LRU cache, and GitHub REST passthrough endpoints with test coverage.
+- **Architecture Maturity**: ~85% complete.
+- **Implemented Foundations**: Database schema (`drizzle-orm`), SQLite initialization (`bun:sqlite`), GitHub App client management (`octokit`), in-memory ETag LRU cache, GitHub REST passthrough endpoints, and the local query/filter/mutation service (`src/lib/server/issues/`), all with test coverage.
 - **Critical Missing Pillars**:
-  1. **Intake Staging & Routing**: `POST /api/intake` and the Accept / Dismiss / Duplicate action logic are implemented (§2.6); the JavaScript-free `/submit` form and the SvelteKit action wiring (M6) remain.
-  2. **Frontend Triage Cockpit**: The entire SvelteKit UI (3-pane layout, Oxocarbon theme, dense streams, 480px inspector pane, 6-column board, filters) is currently just the starter template.
+  1. **Intake Staging & Routing**: `POST /api/intake`, the Accept / Dismiss / Duplicate action logic (§2.6), the JavaScript-free `/submit` form, and the SvelteKit Inbox action wiring (M6) are all implemented.
+  2. **Frontend Triage Cockpit**: The SvelteKit UI (Oxocarbon theme, 3-pane shell, dense streams, 480px inspector pane, 6-column board, URL-synced filters, login gate) is implemented (M6).
   3. **Enterprise / Host Configuration**: `funnel.config.yaml` parser and dynamic GitHub Enterprise host URLs (`acme.ghe.com`) are implemented; user OAuth flow wiring is deferred.
   4. **Security & Tokens**: ✅ Resolved. Token encryption at rest and auto-refresh are handled by Better Auth (see §2.3).
 
@@ -35,7 +35,7 @@ This document tracks the implementation status of Funnel against the authoritati
 | Single SQLite DB (`funnel.db`)       |  ✅ Done   | Implemented in `src/lib/server/db/index.ts` with WAL mode, foreign keys, and busy timeout.                                  |
 | Drizzle Schemas                      |  ✅ Done   | Implemented in `src/lib/server/db/schema.ts`: `state_intake_submission`, `auth_*` tables, and all `mirror_github_*` tables. |
 | Startup Auto-Migration / Schema Sync |  ✅ Done   | Migration generated and committed under `drizzle/`; applied out-of-band via `bun run db:migrate` (no runtime initializer).  |
-| Plain SQL Search queries (`like`)    | ❌ Missing | FTS5 deferred per interview; need standard Drizzle queries for issue text filtering.                                        |
+| Plain SQL Search queries (`like`)    | ✅ Done | FTS5 deferred per interview; standard Drizzle queries in `src/lib/server/issues/filters.ts` (`buildIssueWhere`) filter issue text (`LIKE ... ESCAPE`) and the six dimensions. |
 
 ---
 
@@ -81,7 +81,7 @@ This document tracks the implementation status of Funnel against the authoritati
 | Feature                                       |     Status     | Notes / Location                                                                                     |
 | :-------------------------------------------- | :------------: | :--------------------------------------------------------------------------------------------------- |
 | `POST /api/intake`                            |    ✅ Done     | `src/routes/api/intake/+server.ts` (valibot-validated JSON, `201 {"id"}`, open CORS + `OPTIONS` preflight). |
-| `/submit` Form                                |   ❌ Missing   | Plain HTML form working without JavaScript for external issue submission.                            |
+| `/submit` Form                                |    ✅ Done     | `src/routes/submit/+page.svelte` + `+page.server.ts`: JavaScript-free HTML form validated server-side, writes to staging via `createSubmission`, publishes the SSE `intake` event. |
 | Staging Table Storage                         |    ✅ Done     | `src/lib/server/intake/staging.ts`: `createSubmission`/`getSubmission`/`listSubmissions`/`deleteSubmission` over `state_intake_submission`. |
 | Triage Actions (Accept / Dismiss / Duplicate) |    ✅ Done     | `src/lib/server/intake/actions.ts` (`acceptSubmission`/`dismissSubmission`/`duplicateSubmission`); repo selector + provenance footer, hard-delete on decision. SvelteKit form-action wiring lands with the M6 Inbox UI. |
 
@@ -91,16 +91,16 @@ This document tracks the implementation status of Funnel against the authoritati
 
 | Feature                          |   Status   | Notes / Location                                                                                               |
 | :------------------------------- | :--------: | :------------------------------------------------------------------------------------------------------------- |
-| Oxocarbon CSS Design Tokens      | ❌ Missing | Dark & Light theme tokens from IBM Oxocarbon palette.                                                          |
-| In-App Theme Switcher            | ❌ Missing | System / Dark / Light switcher in sidebar footer.                                                              |
-| 3-Pane Shell Layout              | ❌ Missing | 220px fixed Sidebar, flexible Main Stream, 480px fixed Inspector Pane.                                         |
-| Navigation Sidebar               | ❌ Missing | Inbox, All Issues, My Issues, Status Board, source repo link.                                                  |
-| 36px Fixed-Height Issue Rows     | ❌ Missing | High-density list items with monospace repo badges (`repo#123`), truncated titles, priority/size chips.        |
-| 480px Inspector Pane             | ❌ Missing | Plain text body/comments with preserved whitespace, inline title/body editing, comment posting, label pickers. |
-| 6-Column Status Board            | ❌ Missing | Columns: Backlog, Todo, In Progress, In Review, Blocked, Done (14 days). Status dropdown pickers on cards.     |
-| 6-Dimension Multi-Select Filters | ❌ Missing | Repo, Status, Assignee, Priority, Size, Labels (OR inside group, AND across groups).                           |
-| URL State Serialization          | ❌ Missing | Filter state and search terms bidirectionally bound to URL query parameters.                                   |
-| Pessimistic UI Mutations         | ❌ Missing | Inline spinner states on controls until GitHub responds; no optimistic rollback logic.                         |
+| Oxocarbon CSS Design Tokens      |  ✅ Done   | Dark & Light theme tokens from IBM Oxocarbon palette.                                                          |
+| In-App Theme Switcher            |  ✅ Done   | System / Dark / Light switcher in sidebar footer.                                                              |
+| 3-Pane Shell Layout              |  ✅ Done   | 220px fixed Sidebar, flexible Main Stream, 480px fixed Inspector Pane.                                         |
+| Navigation Sidebar               |  ✅ Done   | Inbox, All Issues, My Issues, Status Board, source repo link.                                                  |
+| 36px Fixed-Height Issue Rows     |  ✅ Done   | High-density list items with monospace repo badges (`repo#123`), truncated titles, priority/size chips.        |
+| 480px Inspector Pane             |  ✅ Done   | Plain text body/comments with preserved whitespace, inline title/body editing, comment posting, label pickers. |
+| 6-Column Status Board            |  ✅ Done   | Columns: Backlog, Todo, In Progress, In Review, Blocked, Done (14 days). Status dropdown pickers on cards.     |
+| 6-Dimension Multi-Select Filters |  ✅ Done   | Repo, Status, Assignee, Priority, Size, Labels (OR inside group, AND across groups).                           |
+| URL State Serialization          |  ✅ Done   | Filter state and search terms bidirectionally bound to URL query parameters.                                   |
+| Pessimistic UI Mutations         |  ✅ Done   | Inline spinner states on controls until GitHub responds; no optimistic rollback logic.                         |
 
 ---
 
@@ -154,18 +154,20 @@ flowchart TD
 
 ### Milestone 5: Local Query & Mutation Service
 
-- [ ] Write Drizzle queries for Inbox (pending intake + unlabelled issues), All Issues, My Issues, and Status Board.
-- [ ] Build filter evaluation logic (6 multi-select dropdowns + SQL `like` search).
-- [ ] Implement pessimistic mutation endpoints for issue creation, status changes, label adjustments, and comments.
+- [x] Write Drizzle queries for Inbox (pending intake + unlabelled issues), All Issues, My Issues, and Status Board. Implemented in `src/lib/server/issues/queries.ts` (`inbox`/`allIssues`/`myIssues`/`statusBoard` + `getIssueListItem`), with labels/assignees hydrated in two batched child queries. Sort is priority (`p1` first) then updated; Inbox mixes staged submissions with open status-less issues; Done is closed-completed within `board.done_days`.
+- [x] Build filter evaluation logic (6 multi-select dropdowns + SQL `like` search). Implemented in `src/lib/server/issues/filters.ts` (`parseIssueFilter`/`buildIssueWhere`): OR within a group, AND across groups, `none` sentinels, `assignee=me`, and `LIKE ... ESCAPE` over title/body/comments.
+- [x] Implement pessimistic mutation endpoints for issue creation, status changes, label adjustments, and comments. Transport-agnostic actions in `src/lib/server/issues/mutations.ts` behind GitHub-shaped routes: `POST /api/repos/{owner}/{repo}/issues`, `PATCH .../issues/{number}` (title/body/assignees/state + group-aware status/priority/size), `POST`/`DELETE .../issues/{number}/labels[/name]`, and `POST .../issues/{number}/comments`. Writes use the user token; each success publishes an SSE event and schedules a background `refreshIssue` (SPEC §7.2).
 
 ### Milestone 6: High-Density UI (The Cockpit)
 
-- [ ] Set up Oxocarbon Dark and Light CSS variables and font stacks (`Inter` + `JetBrains Mono`).
-- [ ] Build the 3-pane responsive desktop shell with bits-ui.
-- [ ] Implement the dense 36px issue row component.
-- [ ] Build the 480px Inspector Pane (plain text rendering, inline title/body editor, comment composer).
-- [ ] Build the 6-column Status Board with card dropdown pickers and the 14-day Done cutoff.
-- [ ] Connect URL query parameter state to filters and search.
+- [x] Set up Oxocarbon Dark and Light CSS variables and font stacks (`Inter` + `JetBrains Mono`). `src/lib/styles/tokens.css` + `global.css`; self-hosted `@fontsource-variable` fonts; pre-paint theme script in `src/app.html`; `src/lib/client/theme.ts`.
+- [x] Build the 3-pane responsive desktop shell with bits-ui. `src/routes/(app)/+layout.svelte` + `src/lib/components/shell/Sidebar.svelte`; `(app)` route group gates on session; collapses below 1100px/900px.
+- [x] Implement the dense 36px issue row component. `src/lib/components/issue/IssueRow.svelte` (`--row-height: 36px`), mono `repo#123`, truncated title, priority/size/status chips, assignee avatars, conflict marker.
+- [x] Build the 480px Inspector Pane (plain text rendering, inline title/body editor, comment composer). `src/lib/components/issue/InspectorPane.svelte` over `GET /api/mirror/issues/{owner}/{repo}/{number}` (`getIssueDetail`); pessimistic metadata pickers and comment composer.
+- [x] Build the 6-column Status Board with card dropdown pickers and the 14-day Done cutoff. `src/lib/components/board/StatusBoard.svelte` + `BoardCard.svelte`; Done window from `board.done_days`.
+- [x] Connect URL query parameter state to filters and search. `src/lib/url-filter.ts` + `src/lib/components/filter/FilterBar.svelte`; six multi-select dimensions + debounced search, bidirectional with the URL; inspector selection in `?issue=`.
+
+Also landed: `/login` (GitHub OAuth via `better-auth/svelte`) and the JavaScript-free `/submit` form. See §2.6/§2.7.
 
 ### Milestone 7: Verification & Final Polish
 

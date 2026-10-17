@@ -12,7 +12,7 @@
  * `updated_at` mirrored for the repo (SPEC §7.2). GitHub's `since` is
  * inclusive, so re-sending that boundary issue is an idempotent upsert.
  */
-import { and, eq, max } from "drizzle-orm";
+import { and, asc, eq, max } from "drizzle-orm";
 import { db } from "#lib/server/db/index";
 import {
   mirrorGithubComment,
@@ -20,6 +20,7 @@ import {
   mirrorGithubIssueAssignee,
   mirrorGithubIssueLabel,
   mirrorGithubRepo,
+  mirrorGithubRepoAssignee,
   mirrorGithubRepoLabel,
   mirrorGithubUser,
 } from "#lib/server/db/schema";
@@ -214,6 +215,44 @@ export function getRepoLabels(repoId: number): RepoLabelRecord[] {
     })
     .from(mirrorGithubRepoLabel)
     .where(eq(mirrorGithubRepoLabel.repoId, repoId))
+    .all();
+}
+
+/**
+ * Replace a repo's assignable-user set (the Inspector's assignee picker source,
+ * SPEC §9.2). Users are upserted first because they are FK targets.
+ */
+export function replaceRepoAssignees(
+  repoId: number,
+  users: readonly UserRecord[],
+): void {
+  for (const user of users) upsertUser(user);
+  db.transaction((tx) => {
+    tx.delete(mirrorGithubRepoAssignee)
+      .where(eq(mirrorGithubRepoAssignee.repoId, repoId))
+      .run();
+    if (users.length > 0) {
+      tx.insert(mirrorGithubRepoAssignee)
+        .values(users.map((u) => ({ repoId, userId: u.githubId })))
+        .run();
+    }
+  });
+}
+
+export function getRepoAssignees(repoId: number): UserRecord[] {
+  return db
+    .select({
+      githubId: mirrorGithubUser.githubId,
+      login: mirrorGithubUser.login,
+      avatarUrl: mirrorGithubUser.avatarUrl,
+    })
+    .from(mirrorGithubRepoAssignee)
+    .innerJoin(
+      mirrorGithubUser,
+      eq(mirrorGithubRepoAssignee.userId, mirrorGithubUser.githubId),
+    )
+    .where(eq(mirrorGithubRepoAssignee.repoId, repoId))
+    .orderBy(asc(mirrorGithubUser.login))
     .all();
 }
 

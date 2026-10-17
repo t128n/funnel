@@ -52,7 +52,7 @@ describe("normalizeNode", () => {
       repoId: 1,
       number: 1,
       title: "Fix the thing",
-      state: "OPEN",
+      state: "open",
       milestoneName: "v1",
       labels: ["todo", "bug"],
       author: { githubId: 7, login: "octocat" },
@@ -70,6 +70,20 @@ describe("normalizeNode", () => {
       },
     ]);
     expect(record?.updatedAt).toBe(Date.parse("2026-01-02T00:00:00Z"));
+  });
+
+  test("lowercases GraphQL state enum values (Inbox/board predicates)", () => {
+    const record = normalizeNode(
+      {
+        ...ISSUE_NODE,
+        state: "CLOSED",
+        stateReason: "COMPLETED",
+        closedAt: "2026-01-03T00:00:00Z",
+      },
+      1,
+    );
+    expect(record?.state).toBe("closed");
+    expect(record?.stateReason).toBe("completed");
   });
 
   test("drops pull requests (empty node from the Issue fragment)", () => {

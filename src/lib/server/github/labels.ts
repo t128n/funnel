@@ -18,6 +18,7 @@
  * issue zero writes and return immediately.
  */
 import { getConfig } from "#/lib/server/config";
+import { CANONICAL_LABELS, type CanonicalLabel, type LabelGroup } from "#lib/labels";
 import { createLogger } from "#/lib/server/log";
 import {
   getInstallationId,
@@ -27,72 +28,10 @@ import {
 
 const log = createLogger({ component: "labels" });
 
-export type LabelGroup = "status" | "priority" | "size";
-
-export interface CanonicalLabel {
-  name: string;
-  /** Six-digit hex without `#`, the format the GitHub labels API expects. */
-  color: string;
-  description: string;
-  group: LabelGroup;
-}
-
-/**
- * The reserved label vocabulary (SPEC §5.1). Colors follow the Oxocarbon
- * semantic mapping in `docs/DESIGN.md`. This is the single source of truth
- * shared by provisioning, the conflict resolver, and the UI pickers.
- */
-export const CANONICAL_LABELS: readonly CanonicalLabel[] = [
-  // Status (SPEC §5.1). Absence of a status label means "untriaged" (Inbox).
-  {
-    name: "backlog",
-    color: "525252",
-    description: "Status: Backlog",
-    group: "status",
-  },
-  { name: "todo", color: "78a9ff", description: "Status: Todo", group: "status" },
-  {
-    name: "in-progress",
-    color: "33b1ff",
-    description: "Status: In Progress",
-    group: "status",
-  },
-  {
-    name: "in-review",
-    color: "be95ff",
-    description: "Status: In Review",
-    group: "status",
-  },
-  {
-    name: "blocked",
-    color: "ee5396",
-    description: "Status: Blocked",
-    group: "status",
-  },
-  // Priority. Absence means "no priority".
-  {
-    name: "p1",
-    color: "ee5396",
-    description: "Priority: 1 (critical)",
-    group: "priority",
-  },
-  {
-    name: "p2",
-    color: "FF6F00",
-    description: "Priority: 2 (high)",
-    group: "priority",
-  },
-  {
-    name: "p3",
-    color: "42be65",
-    description: "Priority: 3 (normal)",
-    group: "priority",
-  },
-  // Size. Absence means "unestimated".
-  { name: "sm", color: "42be65", description: "Size: Small", group: "size" },
-  { name: "md", color: "3ddbd9", description: "Size: Medium", group: "size" },
-  { name: "lg", color: "ff7eb6", description: "Size: Large", group: "size" },
-];
+// The reserved vocabulary lives in the dependency-free `#lib/labels` module so
+// the UI can share it; re-exported here for existing server-side importers.
+export { CANONICAL_LABELS };
+export type { CanonicalLabel, LabelGroup };
 
 /** Per-repo outcome of a provisioning pass. */
 export interface ProvisionSummary {

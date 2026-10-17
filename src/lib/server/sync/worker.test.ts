@@ -31,6 +31,14 @@ let nodes: unknown[] = [];
 let graphqlCalls: Array<Record<string, unknown>> = [];
 let failIssues = false;
 
+/** Returned by the fake `GET /repos/{owner}/{repo}/assignees` (refreshRepoAssignees). */
+interface FakeAssignee {
+  id: number;
+  login: string;
+  avatar_url: string;
+}
+let repoAssignees: FakeAssignee[] = [];
+
 const fake = {
   request: async (route: string, params: Record<string, unknown> = {}) => {
     const headers = (params.headers ?? {}) as Record<string, string>;
@@ -39,6 +47,9 @@ const fake = {
     }
     if (route === "GET /repos/{owner}/{repo}/labels") {
       return { data: [] };
+    }
+    if (route === "GET /repos/{owner}/{repo}/assignees") {
+      return { data: repoAssignees };
     }
     if (route === "GET /repos/{owner}/{repo}/issues") {
       if (failIssues) throw new Error("boom");
@@ -118,6 +129,7 @@ beforeEach(() => {
   nodes = [];
   graphqlCalls = [];
   failIssues = false;
+  repoAssignees = [];
   globalThis.fetch = (async (input: unknown) => {
     const url = new URL(String(input));
     if (url.pathname.endsWith("/installation")) {
@@ -328,6 +340,20 @@ describe("runRepoCycle", () => {
     expect(mirror.getRepo(1)?.name).toBe("core");
     expect(mirror.getRepo(1)?.degraded).toBe(0);
     expect(mirror.getIssue(1, 1)?.title).toBe("t");
+  });
+
+  test("mirrors the repo's assignable users", async () => {
+    repoAssignees = [
+      { id: 42, login: "amy", avatar_url: "https://avatars/amy.png" },
+      { id: 43, login: "zoe", avatar_url: "https://avatars/zoe.png" },
+    ];
+
+    await runRepoCycle("orgA", "core");
+
+    expect(mirror.getRepoAssignees(1).map((u) => u.login)).toEqual([
+      "amy",
+      "zoe",
+    ]);
   });
 
   test("marks the repo degraded and rethrows when polling fails", async () => {

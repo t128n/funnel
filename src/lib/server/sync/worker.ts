@@ -24,6 +24,7 @@ import {
   type InstallationOctokit,
 } from "#/lib/server/github/app.server";
 import { listRepoLabels } from "#/lib/server/github/labels";
+import { listRepoAssignees } from "#/lib/server/github/assignees";
 import { deriveMetadata, resolveIssueConflict } from "./conflicts";
 import { clientCount, publish } from "./events";
 import { hydrateAndStore } from "./hydrate";
@@ -317,6 +318,16 @@ export async function refreshRepoLabels(
   );
 }
 
+/** Refresh a repo's assignable users (Inspector assignee picker, SPEC §9.2). */
+export async function refreshRepoAssignees(
+  installationId: number,
+  repo: mirror.RepoRow,
+): Promise<void> {
+  const octokit = await github.asInstallation(installationId);
+  const users = await listRepoAssignees(octokit, repo.org, repo.name);
+  mirror.replaceRepoAssignees(repo.githubId, users);
+}
+
 /**
  * Full cycle for one `owner/repo`: resolve the installation, ensure the repo
  * row, refresh labels, then poll. Marks the repo degraded on failure and
@@ -330,6 +341,7 @@ export async function runRepoCycle(
   const repoRow = await ensureRepoMirror(owner, repo, installationId);
   try {
     await refreshRepoLabels(installationId, repoRow);
+    await refreshRepoAssignees(installationId, repoRow);
     const result = await pollRepo(repoRow, installationId, Date.now());
     log.debug({ repo: `${owner}/${repo}`, ...result }, "repo polled");
     return result;

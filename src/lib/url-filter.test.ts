@@ -1,0 +1,119 @@
+import { describe, expect, test } from "bun:test";
+import {
+	activeFilterCount,
+	buildFilterUrl,
+	EMPTY_CLIENT_FILTER,
+	isEmptyFilter,
+	NONE,
+	parseFilterParams,
+	toFilterParams,
+	toggleValue,
+	type ClientFilter,
+} from "./url-filter";
+
+describe("parseFilterParams", () => {
+	test("reads repeated and comma-joined values, trimming and de-duplicating", () => {
+		const params = new URLSearchParams([
+			["repo", "orgA/core"],
+			["repo", "orgA/web, orgA/core"],
+			["status", "todo"],
+			["assignee", "me"],
+		]);
+		const filter = parseFilterParams(params);
+		expect(filter.repos).toEqual(["orgA/core", "orgA/web"]);
+		expect(filter.statuses).toEqual(["todo"]);
+		expect(filter.assignees).toEqual(["me"]);
+		expect(filter.search).toBe("");
+	});
+
+	test("keeps the `none` sentinel", () => {
+		const filter = parseFilterParams(new URLSearchParams("status=none"));
+		expect(filter.statuses).toEqual([NONE]);
+	});
+
+	test("trims the search term", () => {
+		expect(parseFilterParams(new URLSearchParams("q=%20foo%20")).search).toBe(
+			"foo",
+		);
+	});
+
+	test("yields an empty filter for empty params", () => {
+		expect(parseFilterParams(new URLSearchParams())).toEqual(
+			EMPTY_CLIENT_FILTER,
+		);
+	});
+});
+
+describe("toFilterParams", () => {
+	test("omits empty dimensions and repeated-encodes values", () => {
+		const params = toFilterParams({
+			...EMPTY_CLIENT_FILTER,
+			repos: ["orgA/core", "orgA/web"],
+			statuses: ["todo"],
+			search: "",
+		});
+		expect(params.getAll("repo")).toEqual(["orgA/core", "orgA/web"]);
+		expect(params.getAll("status")).toEqual(["todo"]);
+		expect(params.has("q")).toBe(false);
+	});
+
+	test("round-trips through parse", () => {
+		const filter: ClientFilter = {
+			repos: ["orgA/core"],
+			statuses: ["todo", "blocked"],
+			assignees: ["me", "octocat"],
+			priorities: ["p1"],
+			sizes: ["sm", "md"],
+			labels: ["bug", "frontend"],
+			search: "crash on boot",
+		};
+		expect(parseFilterParams(toFilterParams(filter))).toEqual(filter);
+	});
+});
+
+describe("buildFilterUrl", () => {
+	test("replaces filter keys while preserving unrelated params", () => {
+		const current = new URLSearchParams([
+			["repo", "orgA/core"],
+			["issue", "orgA/core/1"],
+		]);
+		const url = buildFilterUrl("/issues", current, {
+			...EMPTY_CLIENT_FILTER,
+			statuses: ["todo"],
+		});
+		const parsed = new URL(url, "http://localhost");
+		expect(parsed.pathname).toBe("/issues");
+		expect(parsed.searchParams.getAll("repo")).toEqual([]);
+		expect(parsed.searchParams.getAll("status")).toEqual(["todo"]);
+		expect(parsed.searchParams.get("issue")).toBe("orgA/core/1");
+	});
+
+	test("returns a bare path when the filter is empty", () => {
+		const current = new URLSearchParams([["issue", "orgA/core/1"]]);
+		expect(buildFilterUrl("/inbox", current, EMPTY_CLIENT_FILTER)).toBe(
+			"/inbox?issue=orgA%2Fcore%2F1",
+		);
+	});
+});
+
+describe("toggleValue", () => {
+	test("adds and removes immutably", () => {
+		const start = ["a"];
+		expect(toggleValue(start, "b")).toEqual(["a", "b"]);
+		expect(toggleValue(start, "a")).toEqual([]);
+		expect(start).toEqual(["a"]);
+	});
+});
+
+describe("activeFilterCount / isEmptyFilter", () => {
+	test("counts dimensions, not values", () => {
+		const filter: ClientFilter = {
+			...EMPTY_CLIENT_FILTER,
+			repos: ["a", "b", "c"],
+			search: "x",
+		};
+		expect(activeFilterCount(filter)).toBe(2);
+		expect(isEmptyFilter(filter)).toBe(false);
+		expect(isEmptyFilter(EMPTY_CLIENT_FILTER)).toBe(true);
+	});
+});

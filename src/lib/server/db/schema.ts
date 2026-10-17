@@ -215,6 +215,22 @@ export const mirrorGithubIssueAssignee = sqliteTable(
   ],
 );
 
+// Mirror: per-repo assignable users (GitHub `GET /repos/{o}/{r}/assignees`).
+// Distinct from `mirror_github_issue_assignee` (who is currently assigned):
+// this is the collaborator set the assignee picker offers (SPEC §9.2).
+export const mirrorGithubRepoAssignee = sqliteTable(
+  "mirror_github_repo_assignee",
+  {
+    repoId: integer("repo_id")
+      .notNull()
+      .references(() => mirrorGithubRepo.githubId, { onDelete: "cascade" }),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => mirrorGithubUser.githubId, { onDelete: "cascade" }),
+  },
+  (t) => [primaryKey({ columns: [t.repoId, t.userId] })],
+);
+
 // Mirror: issue comments (SPEC 6.1).
 export const mirrorGithubComment = sqliteTable(
   "mirror_github_comment",
