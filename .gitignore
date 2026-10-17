@@ -18,6 +18,13 @@ Thumbs.db
 !.env.example
 !.env.test
 
+# Instance configuration (see funnel.config.example.yaml)
+funnel.config.yaml
+funnel.config.yml
+funnel.config.json
+funnel.config.toml
+funnel.config.ts
+
 # Vite
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*

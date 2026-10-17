@@ -36,6 +36,7 @@
 		"@better-auth/drizzle-adapter": "^1.7.7",
 		"@types/node": "^26.6.5",
 		"better-auth": "^1.7.7",
+		"c12": "^4.0.0-rc.2",
 		"drizzle-orm": "^1.0.0-rc.4",
 		"lru-cache": "^11.5.3",
 		"octokit": "^5.0.5",

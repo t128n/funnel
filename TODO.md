@@ -23,7 +23,7 @@ This document tracks the implementation status of Funnel against the authoritati
 | Feature | Status | Notes / Location |
 | :--- | :---: | :--- |
 | `src/env.ts` validation | ✅ Done | Valibot schema validates `FUNNEL_URL`, `FUNNEL_SECRET`, `FUNNEL_DB`, App ID, Private Key, Client ID/Secret, and `LOG_LEVEL`. |
-| `funnel.config.yaml` loader | ❌ Missing | Needs YAML loader for `github.url`, `github.api_url`, `repos`, `intake.default_repo`, `sync.*`, `board.done_days`, `session.idle_days`. |
+| `funnel.config.yaml` loader | ✅ Done | `src/lib/server/config.ts` uses `c12` (`loadConfig`) + valibot schema; provides cached `getConfig()`. See `funnel.config.example.yaml`. |
 | Enterprise GHE Host Overrides | ❌ Missing | Octokit in `app.server.ts` currently hardcodes standard GitHub URLs; needs dynamic `baseUrl` derived from config. |
 
 ---
@@ -112,7 +112,7 @@ flowchart TD
 ```
 
 ### Milestone 1: Configuration, GHE Host & Auth Hardening
-- [ ] Create `funnel.config.yaml` schema validator and file loader (`yaml` parser).
+- [x] Create `funnel.config.yaml` schema validator and file loader (`yaml` parser). Done via `c12` + valibot in `src/lib/server/config.ts` (YAML parsed by c12's bundled `confbox`); see `funnel.config.example.yaml`.
 - [ ] Update `app.server.ts` to support dynamic enterprise GitHub URLs (`acme.ghe.com`) via `github.url` and `github.api_url`.
 - [ ] Implement AES-GCM token encryption and decryption at rest for `auth_account` using `FUNNEL_SECRET`.
 - [ ] Implement automatic user token refresh hook in `app.server.ts` / session loader.
@@ -124,6 +124,15 @@ flowchart TD
 - [ ] Build the self-healing label provisioner that creates canonical labels on configured repos at startup.
 
 ### Milestone 3: Polling Sync Engine & Live Updates
+
+**Dependencies / Prerequisites (must land before the sync engine can run):**
+- [ ] **Structured logging (pino)**: add `pino` (and `pino-pretty` for dev) and create `src/lib/server/log.ts`; drive level from `LOG_LEVEL` and emit JSON logs from every background cycle.
+- [ ] **Server startup hook + SQL bootstrap**: add `export const init` (`ServerInit`) to `src/hooks.server.ts` (guarded by `building`) and `src/lib/server/db/bootstrap.server.ts` running `CREATE TABLE IF NOT EXISTS` derived from the Drizzle schema, so `mirror_github_*`/`state_*` tables exist on boot.
+- [x] **Config loader**: add the `c12` dependency and `src/lib/server/config.ts` (valibot-validated `funnel.config.yaml`: `github.url`, `github.api_url`, `repos`, `sync.history_days`, `sync.poll_interval_active_seconds`, `sync.poll_interval_idle_seconds`).
+- [ ] **GHE base-URL wiring**: update `app.server.ts` so Octokit REST and the GraphQL hydration endpoint derive from `github.api_url` (`acme.ghe.com/api/v3` + `/graphql`).
+- [ ] **Persistent process adapter**: replace `adapter-auto` with `svelte-adapter-bun` (or `adapter-node`) so background timers and SSE are not silently killed by a serverless target.
+
+**Sync engine:**
 - [ ] Build the REST conditional polling worker (`since` + ETag 304 change detection).
 - [ ] Build the GraphQL batch hydration routine for 100-issue batches (ignoring PRs).
 - [ ] Implement the timeline-based label conflict resolver.
