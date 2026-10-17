@@ -6,30 +6,6 @@ import { db } from "#lib/server/db/index";
 import { authAccount, authUser } from "#lib/server/db/schema";
 import { auth, getUserAccessToken } from "./index";
 
-// No migration runner yet, so create the touched tables directly. Names and
-// columns must match `schema.ts` (`auth_*`, camelCase imposed by Better Auth).
-function createAuthTables() {
-  db.$client.run(
-    "CREATE TABLE IF NOT EXISTS auth_verification (" +
-      "id TEXT PRIMARY KEY, identifier TEXT NOT NULL, value TEXT NOT NULL, " +
-      "expiresAt INTEGER NOT NULL, createdAt INTEGER, updatedAt INTEGER)",
-  );
-  db.$client.run(
-    "CREATE TABLE IF NOT EXISTS auth_user (" +
-      "id TEXT PRIMARY KEY, name TEXT NOT NULL, email TEXT NOT NULL UNIQUE, " +
-      "emailVerified INTEGER NOT NULL DEFAULT 0, image TEXT, " +
-      "createdAt INTEGER NOT NULL, updatedAt INTEGER NOT NULL)",
-  );
-  db.$client.run(
-    "CREATE TABLE IF NOT EXISTS auth_account (" +
-      "id TEXT PRIMARY KEY, accountId TEXT NOT NULL, providerId TEXT NOT NULL, " +
-      "userId TEXT NOT NULL REFERENCES auth_user(id) ON DELETE CASCADE, " +
-      "accessToken TEXT, refreshToken TEXT, idToken TEXT, " +
-      "accessTokenExpiresAt INTEGER, refreshTokenExpiresAt INTEGER, scope TEXT, " +
-      "password TEXT, createdAt INTEGER NOT NULL, updatedAt INTEGER NOT NULL)",
-  );
-}
-
 describe("auth smoke", () => {
   test("github provider configured with client id", () => {
     const providers = auth.options.socialProviders;
@@ -41,7 +17,6 @@ describe("auth smoke", () => {
   });
 
   test("sign-in stores oauth state and returns github url", async () => {
-    createAuthTables();
     const res = await auth.api.signInSocial({
       body: { provider: "github", callbackURL: "/" },
     });
@@ -82,7 +57,6 @@ describe("getUserAccessToken", () => {
   }
 
   test("refreshes an expiring token and keeps it encrypted at rest", async () => {
-    createAuthTables();
     const now = new Date();
     await seedUser("user_1", "user_1@example.com");
     await db
@@ -137,7 +111,6 @@ describe("getUserAccessToken", () => {
   });
 
   test("returns the stored token without a network call when fresh", async () => {
-    createAuthTables();
     const now = new Date();
     await seedUser("user_2", "user_2@example.com");
     await db

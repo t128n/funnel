@@ -25,6 +25,12 @@ funnel.config.json
 funnel.config.toml
 funnel.config.ts
 
+# Database (runtime state; schema lives in the committed drizzle/ migrations)
+data/
+*.db
+*.db-wal
+*.db-shm
+
 # Vite
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
