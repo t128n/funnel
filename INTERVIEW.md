@@ -118,6 +118,8 @@ Decisions branching directly off the Round 1 root. Answer below each question in
 
 **Your Answer:** A
 
+> **Update (Oct 2026):** The size labels were renamed from single letters (`s`/`m`/`l`) to `sm`/`md`/`lg` to cut collisions with existing repo labels; see `docs/SPEC.md` §5.1.
+
 ---
 
 ❓ **Q10** - **Closed Issue State & Pull Request Exclusion in MVP**: Should closed issues follow the **"closed state wins"** rule (preserving their existing status label untouched without resetting it), while **Pull Requests are completely excluded** from the mirror, board, and triage inbox in the MVP?
@@ -156,6 +158,8 @@ Decisions branching directly off the Round 2 answers. Answer below each question
 ➡️ **Yes**, support **configurable GitHub web and API host URLs**. This ensures seamless operation with Enterprise Cloud custom domains (`acme.ghe.com`) and on-premise GHES.
 
 **Your Answer:** a
+
+> **Update (Oct 2026):** The `/setup` App Manifest flow referenced in this question was subsequently dropped; operators now create the GitHub App manually. Host configuration is unaffected — see `docs/SPEC.md` §4.
 
 ---
 
@@ -229,6 +233,8 @@ This is the final frontier resolving the remaining operational and implementatio
 ➡️ **Yes**, include the **`/setup` manifest flow and automatic label provisioning**. This makes onboarding a new repo or fresh instance frictionless and guarantees label contract consistency across all repositories.
 
 **Your Answer:** A
+
+> **Update (Oct 2026):** The `/setup` App Manifest flow was dropped in favor of manual GitHub App creation (`docs/SPEC.md` §4.2). The automatic self-healing label provisioner remains in scope (Milestone 2 in `TODO.md`).
 
 ---
 

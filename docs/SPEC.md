@@ -34,7 +34,7 @@
 - **Filters & Search**: Six multi-select dropdown filters (Repo, Status, Assignee, Priority, Size, Labels) combined with AND across groups and OR within groups, with complete state serialized into URL query parameters. Text search powered by standard indexed SQLite queries via Drizzle ORM.
 - **Funnel-First Intake**: Anonymous `POST /api/intake` (JSON) and `/submit` (JavaScript-free HTML form). Single-item triage actions: Accept, Dismiss, Duplicate.
 - **GitHub Enterprise & Cloud Support**: Dynamic host configuration (`github.url`, `github.api_url`) for GitHub Enterprise Server (GHES), GHE.com data residency, or standard `github.com`.
-- **First-Run Setup Flow**: One-time `/setup` route running the GitHub App Manifest flow to generate and print application credentials.
+- **Manual GitHub App Setup**: Operators register the GitHub App in GitHub settings and supply the credentials via environment variables (no built-in manifest flow).
 - **Self-Healing Label Provisioning**: Automated background provisioning and conflict cleanup via `funnel[bot]`.
 - **Theme Support**: Oxocarbon Dark and Light palette with an in-app System / Dark / Light switcher.
 
@@ -121,7 +121,7 @@
 ## 4. GitHub Integration & Enterprise Configuration
 
 ### 4.1 Enterprise & Cloud Host URLs
-Funnel dynamically configures all Octokit clients, OAuth endpoints, `/setup` app manifest URLs, and outbound web links from configuration:
+Funnel dynamically configures all Octokit clients, OAuth endpoints, and outbound web links from configuration:
 
 ```yaml
 # funnel.config.yaml
@@ -133,13 +133,10 @@ github:
 - When using standard GitHub, defaults are `https://github.com` and `https://api.github.com`.
 - Outbound issue links always resolve dynamically to `${github.url}/${org}/${repo}/issues/${number}`.
 
-### 4.2 Credentials & Setup Flow
+### 4.2 Credentials
 - Required credentials: `GITHUB_APP_ID`, `GITHUB_APP_PRIVATE_KEY`, `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`.
-- When credentials are unset in the environment, navigating to `/setup` triggers the GitHub App Manifest flow:
-  - Dynamically builds manifest registration redirect targeting `${github.url}/settings/apps/new`.
-  - Derives callback URLs from `FUNNEL_URL`.
-  - Requests permissions: **Issues (Read & Write)**, **Metadata (Read)**.
-  - Outputs the generated credentials block for pasting into `.env`. Once credentials exist, `/setup` returns 404.
+- Operators register the GitHub App manually in GitHub settings — `${github.url}/settings/apps/new` on GitHub, or the equivalent organization page on GitHub Enterprise — then supply the generated credentials via environment variables. Funnel ships no first-run setup route or App Manifest flow.
+- The App must request the permissions **Issues (Read & Write)** and **Metadata (Read)**, and set its user authorization callback URL to `${FUNNEL_URL}/api/auth/callback/github`.
 
 ---
 
@@ -153,7 +150,7 @@ Funnel represents issue metadata strictly through standard GitHub labels across 
 | :--- | :--- | :--- |
 | **Status** | `backlog`, `todo`, `in-progress`, `in-review`, `blocked` | **Untriaged** (Routed to Inbox) |
 | **Priority** | `p1`, `p2`, `p3` | No priority |
-| **Size** | `s`, `m`, `l` | Unestimated |
+| **Size** | `sm`, `md`, `lg` | Unestimated |
 
 ### 5.2 Rules & Conflict Resolution
 1. **At most one label per category**: An issue may carry at most one status, one priority, and one size label.
