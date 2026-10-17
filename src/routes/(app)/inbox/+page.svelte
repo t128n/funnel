@@ -49,8 +49,11 @@
 				<FilterPopover options={data.options} />
 			</div>
 		</div>
-		<FeedSearch />
 	</header>
+
+	<div class="feed-tools">
+		<FeedSearch />
+	</div>
 
 	{#if formError}
 		<div class="banner banner--error">{formError}</div>
@@ -79,10 +82,11 @@
 <style>
 	.feed-head {
 		display: flex;
-		flex-direction: column;
+		align-items: center;
 		gap: var(--space-sm);
-		padding: var(--space-sm);
-		border-bottom: 1px solid var(--color-border-subtle);
+		height: var(--island-header-height);
+		padding: 0 var(--space-sm);
+		background: var(--color-island-header);
 		flex: none;
 	}
 
@@ -90,6 +94,8 @@
 		display: flex;
 		align-items: center;
 		gap: var(--space-sm);
+		flex: 1;
+		min-width: 0;
 	}
 
 	.feed-title {
@@ -105,6 +111,15 @@
 
 	.feed-head__actions {
 		margin-left: auto;
+	}
+
+	/* Secondary toolbar: the feed's search sits below the header band, on the
+	   island surface, so every island header stays the same height. */
+	.feed-tools {
+		display: flex;
+		align-items: center;
+		padding: var(--space-sm);
+		flex: none;
 	}
 
 	.stream {

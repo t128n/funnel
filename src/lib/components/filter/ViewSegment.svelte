@@ -79,5 +79,6 @@
 		background: var(--color-nav-bg-active);
 		color: var(--color-nav-text-active);
 		font-weight: var(--weight-medium);
+		box-shadow: inset 0 -2px 0 0 var(--color-primary);
 	}
 </style>

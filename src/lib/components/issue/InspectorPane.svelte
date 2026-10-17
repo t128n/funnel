@@ -25,6 +25,11 @@
 	} from '#lib/labels';
 	import { absoluteTime, relativeTime } from '#lib/time';
 	import type { IssueDetail, UserRef } from '#lib/server/issues/types';
+	import IconPriority from '~icons/carbon/signal-strength';
+	import IconSize from '~icons/carbon/scales';
+	import IconStatus from '~icons/carbon/circle-dash';
+	import IconTag from '~icons/carbon/tag';
+	import IconUser from '~icons/carbon/user-avatar';
 
 	interface Props {
 		repo: string;
@@ -61,6 +66,7 @@
 	const sizeValue = $derived(issue?.size ?? null);
 
 	const assigneeLogins = $derived(issue?.assignees.map((a) => a.login) ?? []);
+	const assignees = $derived(issue?.assignees ?? []);
 	const assigneeOptions = $derived(detail?.assigneeOptions ?? []);
 	const selectedLabels = $derived(
 		(issue?.labels ?? []).filter((name) => !canonicalLabel(name))
@@ -72,6 +78,14 @@
 	);
 
 	const githubLink = $derived(`${githubUrl}/${repo}/issues/${number}`);
+
+	/** Inline `color:` tint for a canonical label value, or undefined. */
+	function tintStyle(name: string | null | undefined): string | undefined {
+		const color = name ? canonicalLabel(name)?.color : null;
+		if (!color) return undefined;
+		const hex = /^[0-9a-f]{6}$/i.test(color) ? `#${color}` : color;
+		return `color: ${hex}`;
+	}
 
 	async function load() {
 		loading = true;
@@ -386,86 +400,101 @@
 				</div>
 			{/if}
 
-			<section class="props">
-				<div class="prop">
-					<span class="prop__label">Status</span>
-					<SingleSelect
-						label="No status"
-						options={STATUS_OPTIONS}
-						value={statusValue}
-						onselect={setStatus}
-						disabled={busy === 'status'}
-					/>
-				</div>
-				<div class="prop">
-					<span class="prop__label">Priority</span>
-					<SingleSelect
-						label="No priority"
-						options={PRIORITY_OPTIONS}
-						value={priorityValue}
-						onselect={setPriority}
-						allowClear
-						disabled={busy === 'priority'}
-					/>
-				</div>
-				<div class="prop">
-					<span class="prop__label">Size</span>
-					<SingleSelect
-						label="No size"
-						options={SIZE_OPTIONS}
-						value={sizeValue}
-						onselect={setSize}
-						allowClear
-						disabled={busy === 'size'}
-					/>
-				</div>
-				<div class="prop">
-					<span class="prop__label">Assignee</span>
-					{#if issue.assignees.length > 0}
-						<div class="prop__avatars">
-							{#each issue.assignees as person (person.githubId)}
-								<Avatar login={person.login} avatarUrl={person.avatarUrl} size={18} />
-							{/each}
-						</div>
-					{/if}
-					<MultiSelect
-						label="Assignee"
-						placeholder="Unassigned"
-						display="selection"
-						options={assigneeOptions.map((u) => ({ value: u.login, label: u.login }))}
-						selected={assigneeLogins}
-						onselect={setAssignees}
-						disabled={busy === 'assignees'}
-					/>
-				</div>
-				<div class="prop">
-					<span class="prop__label">Labels</span>
-					<MultiSelect
-						label="Labels"
-						placeholder="No labels"
-						display="selection"
-						options={labelOptions}
-						selected={selectedLabels}
-						onselect={setLabels}
-						disabled={busy === 'labels'}
-					/>
-				</div>
+			<section class="meta" aria-label="Issue properties">
+				<SingleSelect
+					variant="ghost"
+					label="No status"
+					options={STATUS_OPTIONS}
+					value={statusValue}
+					onselect={setStatus}
+					disabled={busy === 'status'}
+				>
+					{#snippet icon()}
+						<IconStatus width={14} height={14} style={tintStyle(statusValue)} />
+					{/snippet}
+				</SingleSelect>
+
+				<SingleSelect
+					variant="ghost"
+					label="No priority"
+					options={PRIORITY_OPTIONS}
+					value={priorityValue}
+					onselect={setPriority}
+					allowClear
+					disabled={busy === 'priority'}
+				>
+					{#snippet icon()}
+						<IconPriority width={14} height={14} style={tintStyle(priorityValue)} />
+					{/snippet}
+				</SingleSelect>
+
+				<SingleSelect
+					variant="ghost"
+					label="No size"
+					options={SIZE_OPTIONS}
+					value={sizeValue}
+					onselect={setSize}
+					allowClear
+					disabled={busy === 'size'}
+				>
+					{#snippet icon()}
+						<IconSize width={14} height={14} style={tintStyle(sizeValue)} />
+					{/snippet}
+				</SingleSelect>
+
+				<MultiSelect
+					variant="ghost"
+					hideCount
+					label="Assignee"
+					placeholder="Unassigned"
+					display="selection"
+					options={assigneeOptions.map((u) => ({ value: u.login, label: u.login }))}
+					selected={assigneeLogins}
+					onselect={setAssignees}
+					disabled={busy === 'assignees'}
+				>
+					{#snippet icon()}
+						{@const first = assignees[0]}
+						{#if first}
+							<Avatar login={first.login} avatarUrl={first.avatarUrl} size={16} />
+						{:else}
+							<IconUser width={14} height={14} />
+						{/if}
+					{/snippet}
+				</MultiSelect>
+
+				<MultiSelect
+					variant="ghost"
+					hideCount
+					label="Labels"
+					placeholder="No labels"
+					display="selection"
+					options={labelOptions}
+					selected={selectedLabels}
+					onselect={setLabels}
+					disabled={busy === 'labels'}
+				>
+					{#snippet icon()}
+						<IconTag width={14} height={14} />
+					{/snippet}
+				</MultiSelect>
 			</section>
 
 			<section class="block">
-				<div class="block__head">
-					<span class="block__title">Description</span>
-					{#if busy === 'body'}
-						<Spinner size={13} />
-					{:else if editingBody}
+				{#if busy === 'body' || editingBody}
+					<div class="block__head">
 						<div class="block__tools">
-							<button class="save-btn" type="button" onclick={cancelBody}>Cancel</button>
-							<button class="save-btn" type="button" onclick={saveBody} disabled={!bodyDirty}>
-								Save
-							</button>
+							{#if busy === 'body'}
+								<Spinner size={13} />
+							{:else}
+								<button class="save-btn" type="button" onclick={cancelBody}>Cancel</button>
+								<button class="save-btn" type="button" onclick={saveBody} disabled={!bodyDirty}>
+									Save
+								</button>
+							{/if}
 						</div>
-					{/if}
-				</div>
+					</div>
+				{/if}
 				{#if editingBody}
 					<textarea
 						class="body-edit"
@@ -492,7 +521,7 @@
 						{#if body.trim().length > 0}
 							{body}
 						{:else}
-							<span class="muted">No description. Click to add one.</span>
+							<span class="body-placeholder">Add a description…</span>
 						{/if}
 					</div>
 				{/if}
@@ -572,7 +601,7 @@
 		flex: none;
 		height: 100%;
 		background: var(--color-surface-layer-1);
-		border-left: 1px solid var(--color-border-subtle);
+		border-radius: var(--island-radius);
 		overflow: hidden;
 	}
 
@@ -581,7 +610,6 @@
 		width: 100%;
 		flex: 1;
 		min-width: 0;
-		border-left: none;
 	}
 
 	.inspector__head {
@@ -589,9 +617,9 @@
 		align-items: center;
 		justify-content: space-between;
 		gap: var(--space-sm);
-		height: var(--topbar-height);
+		height: var(--island-header-height);
 		padding: 0 var(--space-lg);
-		border-bottom: 1px solid var(--color-border-subtle);
+		background: var(--color-island-header);
 		flex: none;
 	}
 
@@ -689,9 +717,9 @@
 		border-radius: var(--radius-sm);
 		font-size: var(--text-xl);
 		font-weight: var(--weight-semibold);
-		letter-spacing: -0.015em;
-		line-height: 1.2;
-		color: var(--color-text-primary);
+		letter-spacing: -0.02em;
+		line-height: 1.25;
+		color: var(--color-nav-title);
 		transition: background var(--transition-fast);
 	}
 
@@ -751,35 +779,13 @@
 		color: var(--color-accent-amber);
 	}
 
-	.props {
+	/* Borderless property pills (Linear-style) — no container, no uppercase
+	   labels; the semantic icon and value text carry the meaning. */
+	.meta {
 		display: flex;
 		flex-wrap: wrap;
-		gap: var(--space-sm) var(--space-lg);
-		padding: var(--space-sm) var(--space-md);
-		background: var(--color-surface-layer-2);
-		border: 1px solid var(--color-border-subtle);
-		border-radius: var(--radius-sm);
-	}
-
-	.prop {
-		display: flex;
 		align-items: center;
 		gap: var(--space-xs);
-		min-width: 0;
-	}
-
-	.prop__label {
-		font-size: var(--text-xs);
-		text-transform: uppercase;
-		letter-spacing: 0.06em;
-		color: var(--color-text-muted);
-		white-space: nowrap;
-	}
-
-	.prop__avatars {
-		display: flex;
-		align-items: center;
-		gap: 2px;
 	}
 
 	.block {
@@ -791,7 +797,7 @@
 	.block__head {
 		display: flex;
 		align-items: center;
-		justify-content: space-between;
+		justify-content: flex-end;
 	}
 
 	.block__tools {
@@ -803,8 +809,6 @@
 		font-size: var(--text-xs);
 		font-weight: var(--weight-semibold);
 		color: var(--color-text-muted);
-		text-transform: uppercase;
-		letter-spacing: 0.08em;
 	}
 
 	/* Description renders as an open document, not a boxed field. */
@@ -823,6 +827,14 @@
 
 	.body-render:hover {
 		background: var(--color-row-hover);
+	}
+
+	.body-placeholder {
+		color: var(--color-text-muted);
+	}
+
+	.body-render:hover .body-placeholder {
+		color: var(--color-text-secondary);
 	}
 
 	.body-edit,
@@ -886,8 +898,7 @@
 		flex-direction: column;
 		gap: var(--space-sm);
 		padding: var(--space-md) var(--space-lg);
-		border-top: 1px solid var(--color-border-subtle);
-		background: var(--color-surface-layer-1);
+		background: var(--color-island-header);
 		flex: none;
 	}
 

@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { DropdownMenu } from 'bits-ui';
+	import type { Snippet } from 'svelte';
 
 	export interface MultiSelectOption {
 		value: string;
@@ -26,6 +27,10 @@
 		display?: 'label' | 'selection';
 		/** Shown in `selection` display mode when nothing is selected. */
 		placeholder?: string;
+		/** Trigger styling: `default` (filter toolbar) or `ghost` (borderless pill). */
+		variant?: 'default' | 'ghost';
+		/** Optional leading glyph rendered inside the trigger. */
+		icon?: Snippet;
 	}
 
 	let {
@@ -38,7 +43,9 @@
 		disabled = false,
 		hideCount = false,
 		display = 'label',
-		placeholder
+		placeholder,
+		variant = 'default',
+		icon
 	}: Props = $props();
 
 	const triggerText = $derived.by(() => {
@@ -73,8 +80,11 @@
 <DropdownMenu.Root>
 	<DropdownMenu.Trigger
 		{disabled}
-		class="ms-trigger{selected.length > 0 ? ' ms-trigger--active' : ''}"
+		class="ms-trigger{selected.length > 0 ? ' ms-trigger--active' : ''}{variant === 'ghost' ? ' ms-trigger--ghost' : ''}"
 	>
+		{#if icon}
+			<span class="ms-trigger__icon" aria-hidden="true">{@render icon()}</span>
+		{/if}
 		<span class="ms-trigger__label">{triggerText}</span>
 		{#if !hideCount && selected.length > 0}
 			<span class="ms-trigger__count">{selected.length}</span>
@@ -85,7 +95,21 @@
 	</DropdownMenu.Trigger>
 
 	<DropdownMenu.Portal>
-		<DropdownMenu.Content {align} sideOffset={6} class="ms-content">
+		<!--
+			`preventScroll={false}` keeps the menu non-modal: bits-ui locks the
+			body (and sets `pointer-events: none` on it) when `preventScroll` is
+			true, which retargets the follow-up click to <html> and makes outer
+			popovers (e.g. FilterPopover) treat it as an outside click.
+			`strategy="fixed"` preserves the fixed positioning, since bits-ui
+			derives the strategy from `preventScroll` internally.
+		-->
+		<DropdownMenu.Content
+			{align}
+			sideOffset={6}
+			class="ms-content"
+			preventScroll={false}
+			strategy="fixed"
+		>
 			{#if ordered.length === 0}
 				<div class="ms-empty">No options</div>
 			{:else}
@@ -126,7 +150,7 @@
 		gap: var(--space-xs);
 		height: 26px;
 		padding: 0 var(--space-sm);
-		background: var(--color-surface-layer-1);
+		background: var(--color-surface-layer-2);
 		border: 1px solid var(--color-border-subtle);
 		border-radius: var(--radius-sm);
 		color: var(--color-text-secondary);
@@ -138,7 +162,7 @@
 	}
 
 	:global(.ms-trigger:hover) {
-		background: var(--color-surface-layer-2);
+		background: var(--color-surface-overlay);
 	}
 
 	:global(.ms-trigger--active) {
@@ -149,6 +173,43 @@
 	:global(.ms-trigger:disabled) {
 		opacity: 0.5;
 		cursor: not-allowed;
+	}
+
+	.ms-trigger__icon {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 14px;
+		height: 14px;
+		flex: none;
+	}
+
+	/* Ghost variant: borderless Linear-style property pill (issue inspector). */
+	:global(.ms-trigger--ghost) {
+		height: 26px;
+		background: transparent;
+		border-color: var(--color-btn-border);
+		color: var(--color-nav-text);
+		font-weight: 450;
+	}
+
+	:global(.ms-trigger--ghost:hover) {
+		background: var(--color-nav-bg-hover);
+		border-color: var(--color-btn-border);
+		color: var(--color-nav-text-hover);
+	}
+
+	:global(.ms-trigger--ghost.ms-trigger--active) {
+		border-color: var(--color-btn-border);
+		color: var(--color-nav-text-hover);
+	}
+
+	:global(.ms-trigger--ghost .ms-trigger__count) {
+		display: none;
+	}
+
+	:global(.ms-trigger--ghost .ms-trigger__label) {
+		max-width: 220px;
 	}
 
 	.ms-trigger__label {

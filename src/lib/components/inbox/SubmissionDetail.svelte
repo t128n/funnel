@@ -200,9 +200,9 @@
 		align-items: center;
 		justify-content: space-between;
 		gap: var(--space-sm);
-		height: var(--topbar-height);
+		height: var(--island-header-height);
 		padding: 0 var(--space-lg);
-		border-bottom: 1px solid var(--color-border-subtle);
+		background: var(--color-island-header);
 		flex: none;
 	}
 
@@ -297,8 +297,7 @@
 		flex-direction: column;
 		gap: var(--space-sm);
 		padding: var(--space-md) var(--space-lg);
-		border-top: 1px solid var(--color-border-subtle);
-		background: var(--color-surface-layer-1);
+		background: var(--color-island-header);
 		flex: none;
 	}
 

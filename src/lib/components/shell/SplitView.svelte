@@ -61,6 +61,7 @@
 <style>
 	.split {
 		display: flex;
+		gap: var(--island-gap);
 		flex: 1;
 		min-height: 0;
 		min-width: 0;
@@ -73,8 +74,9 @@
 		min-height: 0;
 		display: flex;
 		flex-direction: column;
-		border-right: 1px solid var(--color-border-subtle);
-		background: var(--color-surface-base);
+		background: var(--color-surface-layer-1);
+		border-radius: var(--island-radius);
+		overflow: hidden;
 	}
 
 	.detail {
@@ -85,6 +87,7 @@
 		flex-direction: column;
 		overflow: hidden;
 		background: var(--color-surface-layer-1);
+		border-radius: var(--island-radius);
 	}
 
 	.detail__empty {
@@ -110,17 +113,15 @@
 		.feed {
 			width: auto;
 			flex: 1;
-			border-right: none;
 		}
 
 		.detail {
 			position: absolute;
-			top: 0;
-			right: 0;
-			bottom: 0;
-			width: min(560px, 100%);
+			top: var(--island-gap);
+			right: var(--island-gap);
+			bottom: var(--island-gap);
+			width: min(560px, calc(100% - var(--island-gap) * 2));
 			z-index: 40;
-			border-left: 1px solid var(--color-border-subtle);
 			box-shadow: var(--shadow-overlay);
 		}
 

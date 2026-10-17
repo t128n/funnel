@@ -56,11 +56,33 @@
   --row-height: 36px;
   --topbar-height: 44px;
 
+  /* Islands geometry (docs/DESIGN.md §Islands). JetBrains stores 2× the
+     effective corner arc and the gap + 1, so the raw theme values are not the
+     pixels on screen: arc 20 → 10px radius, borderWidth 5 → 4px gap. */
+  --island-arc: 20px;
+  --island-border-width: 5px;
+  --island-radius: calc(var(--island-arc) / 2);
+  --island-gap: calc(var(--island-border-width) - 1px);
+
+  /* Shared island header-band height so every band (sidebar, feed, inspector,
+     submission, board column, view toolbar) lines up. */
+  --island-header-height: 40px;
+
   /* Elevation 2 ambient shadow (floating popovers / menus). */
   --shadow-overlay: 0 8px 24px rgba(0, 0, 0, 0.45);
   --backdrop-blur: 12px;
 
   --transition-fast: 90ms ease;
+}
+
+/* Compact islands: smaller viewports shrink the arc and the gap (arc 16 → 8px,
+   borderWidth 4 → 3px), mirroring the first-class compact geometry tokens. */
+@media (max-width: 1280px), (max-height: 800px) {
+  :root {
+    --island-arc: 16px;
+    --island-border-width: 4px;
+    --island-header-height: 36px;
+  }
 }
 
 /* Oxocarbon Dark. */
@@ -82,11 +104,18 @@
   --base0e: #be95ff;
   --base0f: #82cfff;
 
-  --color-surface-base: var(--base00);
-  --color-surface-layer-1: var(--base01);
-  --color-surface-layer-2: var(--base02);
-  --color-surface-overlay: var(--base03);
-  --color-surface-overlay-translucent: rgba(22, 22, 22, 0.82);
+  /* Islands surfaces (docs/DESIGN.md §Islands). Dark mode inverts the classic
+     hierarchy: the canvas (the "sea") is lighter than the islands, so the gap
+     reads as a faint glow around each working surface. Canvas↔island contrast
+     is kept at or above the mandatory 1.20:1 luminance ratio. */
+  --color-surface-base: #2a2a2a; /* canvas — the sea between islands */
+  --color-surface-layer-1: #161616; /* island — editing / working surface */
+  --color-surface-layer-2: #262626; /* raised: cards, inputs, triggers */
+  --color-surface-overlay: #2f2f2f;
+  --color-surface-overlay-translucent: rgba(30, 30, 30, 0.85);
+  --color-island-header: #1e1e1e; /* header band, one step off the island */
+  --color-island-border: var(--color-surface-layer-1); /* invisible edge */
+  --color-chrome-border: transparent; /* toolbar / stripe / status */
 
   --color-border-subtle: var(--base02);
   --color-border-strong: var(--base03);
@@ -148,11 +177,16 @@
   --base0e: #be95ff;
   --base0f: #37474f;
 
-  --color-surface-base: var(--base00);
-  --color-surface-layer-1: var(--base01);
-  --color-surface-layer-2: var(--base00);
-  --color-surface-overlay: var(--base01);
+  /* Islands surfaces: in light mode the canvas recedes into shadow beneath the
+     islands (canvas darker than island), again keeping ≥1.20:1 contrast. */
+  --color-surface-base: #d2d4d9; /* canvas — the sea */
+  --color-surface-layer-1: #f2f4f8; /* island */
+  --color-surface-layer-2: #ffffff; /* raised */
+  --color-surface-overlay: #e9ecf1;
   --color-surface-overlay-translucent: rgba(242, 244, 248, 0.86);
+  --color-island-header: #e9ecf1; /* header band, one step off the island */
+  --color-island-border: var(--color-surface-layer-1);
+  --color-chrome-border: transparent;
 
   --color-border-subtle: var(--base01);
   --color-border-strong: var(--base02);

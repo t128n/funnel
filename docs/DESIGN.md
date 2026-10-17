@@ -42,10 +42,11 @@ schemes:
     base0E: "#be95ff"
     base0F: "#37474F"
 colors:
-  surface-base: "var(--color-surface-base, #161616)"
-  surface-layer-1: "var(--color-surface-layer-1, #262626)"
-  surface-layer-2: "var(--color-surface-layer-2, #393939)"
-  surface-overlay: "var(--color-surface-overlay, #525252)"
+  surface-base: "var(--color-surface-base, #2a2a2a)"
+  surface-layer-1: "var(--color-surface-layer-1, #161616)"
+  surface-layer-2: "var(--color-surface-layer-2, #262626)"
+  surface-overlay: "var(--color-surface-overlay, #2f2f2f)"
+  island-header: "var(--color-island-header, #1e1e1e)"
   border-subtle: "var(--color-border-subtle, #393939)"
   border-focus: "var(--color-border-focus, #3ddbd9)"
   text-primary: "var(--color-text-primary, #f2f4f8)"
@@ -96,6 +97,7 @@ rounded:
   sm: 6px
   md: 8px
   lg: 12px
+  island: 10px
   full: 9999px
 spacing:
   base: 16px
@@ -216,11 +218,63 @@ base0F: "37474F" # Slate Muted
 - **Monospace Stack:** `JetBrains Mono` handles GitHub issue numbers (`#1042`), git SHAs, labels, and hotkey hints.
 - **Scale:** Base body sits firmly at `13px` to balance readability with high item density per viewport fold.
 
+## Islands
+
+The shell follows JetBrains' **Islands** layout language (IntelliJ Platform SDK, "Supporting Islands Theme"): every working area is an independent, rounded surface — an *island* — floating on a single shared *canvas*. Areas are separated by real elevation and a visible gap, never by drawn hairlines. This supersedes the older edge-to-edge, border-separated chrome.
+
+### Role model
+
+Every region maps to exactly one role, and every structural color key references that role:
+
+| Region | Role |
+| :--- | :--- |
+| `.shell` background + gaps | **Canvas** — the "sea" between islands |
+| Sidebar | **Island** (tool window) |
+| Feed column (Inbox / Issues) | **Island** (tool window) |
+| Detail canvas / Inspector / Submission detail | **Island** (editor) |
+| Board columns | **Island** |
+| `feed-head`, `inspector__head`, `sd__head`, `column__head`, side-head | **Island header band** — one step off the island |
+| `composer`, `sd__triage` | **Island footer band** |
+| `FilterBar`, `view__head`, nav | **Borderless chrome** — floats on the canvas |
+
+### Geometry tokens (`tokens.css`)
+
+JetBrains stores 2× the effective arc and gap + 1, so the raw values are not the pixels on screen:
+
+| Token | Value | Effective | Meaning |
+| :--- | :--- | :--- | :--- |
+| `--island-arc` | 20px | 10px | Corner arc (2× scale) → `--island-radius` |
+| `--island-border-width` | 5px | 4px | Gap between islands → `--island-gap` |
+| `--island-radius` | — | 10px | `calc(--island-arc / 2)` |
+| `--island-gap` | — | 4px | `calc(--island-border-width - 1px)` |
+| `--island-header-height` | — | 40px | Shared height of every island header band (36px compact) |
+
+Compact viewports (`≤1280px` wide or `≤800px` tall) shrink to arc 16 → 8px, borderWidth 4 → 3px, and header height 40 → 36px.
+
+Every island header band — sidebar, feed, inspector, submission detail, board column, and the board's view/filter toolbars — is exactly `--island-header-height`. Where a band needs a second row (e.g. the feed's search), that row is a **secondary toolbar** on the island surface, not part of the band.
+
+### The inversion rule
+
+The canvas is deliberately never the darkest surface in dark mode:
+
+- **Dark:** the canvas (`#2a2a2a`) is *lighter* than the islands (`#161616`) — the sea glows faintly around the land.
+- **Light:** the canvas (`#d2d4d9`) is *darker* than the islands (`#f2f4f8`) — the sea recedes into shadow.
+
+Canvas↔island contrast is kept at or above **1.20:1** luminance ratio in both modes. Island header bands sit one step off the island (`#1e1e1e` dark, `#e9ecf1` light).
+
+### Borderless chrome
+
+Main toolbars, view headers, and the sidebar header have **no border** — they are part of the sea. Their surfaces come from `--color-island-header` (bands) or the canvas (chrome), never a 1px line. `--color-chrome-border` is transparent by design.
+
+### Active tab recognition
+
+The selected tab is marked with a filled background **plus** a 2px underline (`--color-primary`), so it can be located at a glance. Applied to the All/Mine segmented control and the sidebar navigation.
+
 ## Layout
 
-A modular multi-pane architecture built for widescreen displays and mouse drag-and-drop mechanics.
+A modular multi-pane architecture built for widescreen displays and mouse drag-and-drop mechanics, expressed in the Islands grammar above.
 
-- **Root Canvas:** A collapsible organization/repo sidebar (fixed 220px) followed by the active view.
+- **Root Canvas:** the shell paints the canvas and exposes a `--island-gap` gutter around and between a collapsible organization/repo sidebar (fixed 220px, its own island) and the active view.
 - **Master–Detail Views (Inbox / Issues):** A two-column split inside the view — a fixed-width master **feed** column (`360px`) and a flexible **detail canvas** that occupies the rest of the window. The feed stacks two-line issue cards (status dot, `#id`, title, repo slug, reserved-label chips, relative time). The detail canvas is always present and shows an empty state until an item is selected; it renders the issue Inspector Pane or, for staged intake, the submission document with its triage actions.
 - **Board View:** Keeps the classic layout — a full-width kanban stream with a fixed `480px` inspector docked on selection.
 - **Scale:** Strict 4px base increment (`xs: 4px`, `sm: 8px`, `md: 12px`, `lg: 16px`).
@@ -228,7 +282,7 @@ A modular multi-pane architecture built for widescreen displays and mouse drag-a
 
 ## Elevation & Depth
 
-Funnel eschews heavy drop shadows in favor of 1px structural borders and subtle ambient illumination:
+Funnel separates areas **by elevation, not by line** (Islands): working surfaces float on the canvas with a visible gap and rounded corners, and structural dividers are expressed as surface steps (`island` → `island-header` → `raised`) rather than borders. Shadows remain reserved for genuinely floating layers:
 
 - **Elevation 0 (Canvas):** Flat base surface (`surface-base`) with inset container borders (`border-subtle`).
 - **Elevation 1 (Issue Rows / Cards):** Solid fill (`surface-layer-1`) bound by a 1px border. Hover transitions illuminate the background to `surface-layer-2` with zero layout shift.
@@ -236,14 +290,14 @@ Funnel eschews heavy drop shadows in favor of 1px structural borders and subtle 
 
 ## Shapes
 
-- **Corner Radii:** Consistent `6px` (`rounded.sm`) across buttons, inputs, context menus, and issue list rows.
+- **Corner Radii:** Islands (sidebar, feed, detail, inspector, board columns) use `10px` (`rounded.island`); nested controls stay at `6px` (`rounded.sm`) so no child exceeds its parent island.
 - **Badges & Tokens:** `3px` (`rounded.xs`) for compact repo identifiers, issue numbers, and GitHub tags.
 - **Edge Treatment:** Crisp 1px solid hairline borders with no bevels.
 
 ## Components
 
 - **Issue Row:** Two-line master-feed card. Line one: a status dot, monospace `#id`, and a truncated title (`13px`) with the relative timestamp at the trailing edge. Line two: the muted `owner/repo` slug on the left and reserved-label chips (status, priority, size) on the right. Rounded `6px` corners with a translucent `rgba(255,255,255,0.05)` hover/active fill.
-- **Inspector Pane:** Flexible document canvas within the master–detail split (fixed `480px` when docked to the Board). Breadcrumb action bar (`owner/repo / #id / state`, "opened by … "), an H1 title, an open-text description, an inline property bar, a comment activity timeline, and a composer pinned to the base.
+- **Inspector Pane:** Flexible document canvas within the master–detail split (fixed `480px` when docked to the Board). Breadcrumb action bar (`owner/repo / #id / state`, "opened by … "), a `20px` inline-editable title (`-0.02em`, `1.25`), a **borderless row of icon-first property pills** (status, priority, size, assignee, labels — no container box and no uppercase labels), an open-text description with an `Add a description…` ghost prompt, a comment activity timeline, and a composer pinned to the base.
 - **Filter Bar:** In the narrow feed column the six multi-selects collapse behind a single **Filter** button that reveals an anchored panel; the Board keeps the full-width toolbar.
 - **Quick-Action Context Menu:** Mouse-driven popup on right-click or row hover, utilizing Acrylic backdrop-filter styling and 6px rounded edges.
 

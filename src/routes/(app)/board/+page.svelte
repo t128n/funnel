@@ -29,7 +29,7 @@
 		display: flex;
 		align-items: baseline;
 		gap: var(--space-md);
-		height: var(--topbar-height);
+		height: var(--island-header-height);
 		padding: 0 var(--space-md);
 		flex: none;
 	}

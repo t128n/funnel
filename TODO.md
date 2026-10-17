@@ -94,6 +94,7 @@ This document tracks the implementation status of Funnel against the authoritati
 | Oxocarbon CSS Design Tokens      |  ✅ Done   | Dark & Light theme tokens from IBM Oxocarbon palette.                                                          |
 | In-App Theme Switcher            |  ✅ Done   | System / Dark / Light switcher in sidebar footer.                                                              |
 | 3-Pane Shell Layout              |  ✅ Done   | 220px fixed Sidebar, flexible Main Stream, 480px fixed Inspector Pane.                                         |
+| Islands Shell Layout             |  ✅ Done   | Canvas + island surfaces (`--island-arc`/`--island-gap`), borderless chrome, inverted canvas (`docs/DESIGN.md` §Islands), filled+underline active tabs. |
 | Navigation Sidebar               |  ✅ Done   | Inbox, Issues (All/Mine segment), Board, source repo link.                                                     |
 | 36px Fixed-Height Issue Rows     |  ✅ Done   | High-density list items with monospace repo badges (`repo#123`), truncated titles, priority/size chips.        |
 | 480px Inspector Pane             |  ✅ Done   | Plain text body/comments with preserved whitespace, inline title/body editing, comment posting, label pickers. |

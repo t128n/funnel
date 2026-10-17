@@ -212,7 +212,8 @@
         flex: none;
         height: 100%;
         background: var(--color-surface-layer-1);
-        border-right: 1px solid var(--color-border-subtle);
+        border-radius: var(--island-radius);
+        overflow: hidden;
     }
 
     /* Header: workspace/instance menu + primary actions. */
@@ -220,9 +221,9 @@
         display: flex;
         align-items: center;
         gap: var(--space-xs);
-        height: var(--topbar-height);
+        height: var(--island-header-height);
         padding: 0 var(--space-sm);
-        border-bottom: 1px solid var(--color-border-subtle);
+        background: var(--color-island-header);
         flex: none;
     }
 
@@ -370,7 +371,6 @@
     /* Footer: account only, set off by the separator above it. */
     .footer {
         padding: var(--space-sm);
-        border-top: 1px solid var(--color-border-subtle);
         flex: none;
     }
 

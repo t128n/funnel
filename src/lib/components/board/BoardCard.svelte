@@ -123,7 +123,7 @@
 		flex-direction: column;
 		gap: var(--space-sm);
 		padding: var(--space-sm);
-		background: var(--color-surface-layer-1);
+		background: var(--color-surface-layer-2);
 		border: 1px solid var(--color-border-subtle);
 		border-radius: var(--radius-sm);
 		cursor: pointer;
@@ -133,7 +133,7 @@
 
 	.card:hover,
 	.card:focus-visible {
-		background: var(--color-surface-layer-2);
+		background: var(--color-surface-overlay);
 		border-color: var(--color-border-strong);
 	}
 

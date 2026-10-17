@@ -163,10 +163,8 @@
 		display: flex;
 		align-items: center;
 		gap: var(--space-sm);
-		height: var(--topbar-height);
+		height: var(--island-header-height);
 		padding: 0 var(--space-md);
-		border-bottom: 1px solid var(--color-border-subtle);
-		background: var(--color-surface-base);
 		flex: none;
 	}
 
@@ -189,7 +187,7 @@
 		margin-left: auto;
 		height: 26px;
 		padding: 0 var(--space-sm);
-		background: var(--color-surface-layer-1);
+		background: var(--color-surface-layer-2);
 		border: 1px solid var(--color-border-subtle);
 		border-radius: var(--radius-sm);
 		color: var(--color-text-muted);

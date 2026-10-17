@@ -44,17 +44,19 @@
 		width: 240px;
 		flex: none;
 		min-height: 0;
-		background: color-mix(in srgb, var(--color-surface-layer-1) 45%, transparent);
-		border: 1px solid var(--color-border-subtle);
-		border-radius: var(--radius-md);
+		background: var(--color-surface-layer-1);
+		border-radius: var(--island-radius);
+		overflow: hidden;
 	}
 
 	.column__head {
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
-		padding: var(--space-sm) var(--space-md);
-		border-bottom: 1px solid var(--color-border-subtle);
+		height: var(--island-header-height);
+		padding: 0 var(--space-md);
+		background: var(--color-island-header);
+		flex: none;
 	}
 
 	.column__label {

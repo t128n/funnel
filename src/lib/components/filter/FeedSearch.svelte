@@ -64,7 +64,7 @@
 		gap: var(--space-xs);
 		height: 30px;
 		padding: 0 var(--space-sm);
-		background: var(--color-surface-layer-1);
+		background: var(--color-surface-layer-2);
 		border: 1px solid var(--color-border-subtle);
 		border-radius: var(--radius-sm);
 		color: var(--color-text-muted);

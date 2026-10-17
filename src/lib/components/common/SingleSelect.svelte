@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { DropdownMenu } from 'bits-ui';
+	import type { Snippet } from 'svelte';
 
 	export interface SingleSelectOption {
 		value: string;
@@ -15,6 +16,10 @@
 		allowClear?: boolean;
 		clearLabel?: string;
 		disabled?: boolean;
+		/** Trigger styling: `default` (form control) or `ghost` (borderless pill). */
+		variant?: 'default' | 'ghost';
+		/** Optional leading glyph rendered inside the trigger. */
+		icon?: Snippet;
 	}
 
 	let {
@@ -24,7 +29,9 @@
 		onselect,
 		allowClear = false,
 		clearLabel = 'None',
-		disabled = false
+		disabled = false,
+		variant = 'default',
+		icon
 	}: Props = $props();
 
 	const current = $derived(options.find((o) => o.value === value) ?? null);
@@ -38,13 +45,17 @@
 <DropdownMenu.Root>
 	<DropdownMenu.Trigger
 		{disabled}
-		class="ss-trigger{value !== null ? ' ss-trigger--set' : ''}"
+		class="ss-trigger{variant === 'ghost' ? ' ss-trigger--ghost' : ''}{value !== null ? ' ss-trigger--set' : ''}"
 	>
-		<span
-			class="ss-dot"
-			style={cssColor(current?.color) ? `background:${cssColor(current?.color)}` : undefined}
-			class:ss-dot--hidden={!current?.color}
-		></span>
+		{#if icon}
+			<span class="ss-trigger__icon" aria-hidden="true">{@render icon()}</span>
+		{:else}
+			<span
+				class="ss-dot"
+				style={cssColor(current?.color) ? `background:${cssColor(current?.color)}` : undefined}
+				class:ss-dot--hidden={!current?.color}
+			></span>
+		{/if}
 		<span class="ss-trigger__text">{current?.label ?? label}</span>
 		<svg class="ss-trigger__caret" viewBox="0 0 10 6" aria-hidden="true">
 			<path d="M1 1l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.4" />
@@ -52,7 +63,14 @@
 	</DropdownMenu.Trigger>
 
 	<DropdownMenu.Portal>
-		<DropdownMenu.Content sideOffset={6} align="start" class="ss-content">
+		<!-- `preventScroll={false}` keeps the menu non-modal; see MultiSelect. -->
+		<DropdownMenu.Content
+			sideOffset={6}
+			align="start"
+			class="ss-content"
+			preventScroll={false}
+			strategy="fixed"
+		>
 			<DropdownMenu.RadioGroup
 				value={value ?? ''}
 				onValueChange={(next) => onselect(next || null)}
@@ -112,6 +130,35 @@
 		cursor: not-allowed;
 	}
 
+	.ss-trigger__icon {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 14px;
+		height: 14px;
+		flex: none;
+	}
+
+	/* Ghost variant: borderless Linear-style property pill (issue inspector). */
+	:global(.ss-trigger--ghost) {
+		width: auto;
+		height: 26px;
+		background: transparent;
+		border-color: var(--color-btn-border);
+		color: var(--color-nav-text);
+		font-weight: 450;
+	}
+
+	:global(.ss-trigger--ghost:hover) {
+		background: var(--color-nav-bg-hover);
+		border-color: var(--color-btn-border);
+		color: var(--color-nav-text-hover);
+	}
+
+	:global(.ss-trigger--ghost.ss-trigger--set) {
+		color: var(--color-nav-text-hover);
+	}
+
 	.ss-trigger__text {
 		flex: 1;
 		overflow: hidden;
@@ -151,7 +198,7 @@
 
 	:global(.ss-item:hover),
 	:global(.ss-item[data-highlighted]) {
-		background: var(--color-surface-layer-1);
+		background: var(--color-surface-layer-2);
 		color: var(--color-text-primary);
 	}
 
@@ -194,7 +241,7 @@
 
 	:global(.ss-clear:hover),
 	:global(.ss-clear[data-highlighted]) {
-		background: var(--color-surface-layer-1);
+		background: var(--color-surface-layer-2);
 		color: var(--color-text-primary);
 	}
 </style>

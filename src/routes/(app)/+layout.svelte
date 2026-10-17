@@ -49,10 +49,13 @@
 
 <style>
 	.shell {
+		position: relative;
 		display: flex;
+		gap: var(--island-gap);
 		height: 100vh;
 		height: 100dvh;
 		overflow: hidden;
+		padding: var(--island-gap);
 		background: var(--color-surface-base);
 	}
 
@@ -69,8 +72,9 @@
 	@media (max-width: 1100px) {
 		.shell--inspecting :global(.inspector) {
 			position: absolute;
-			top: 0;
-			right: 0;
+			top: var(--island-gap);
+			right: var(--island-gap);
+			bottom: var(--island-gap);
 			z-index: 40;
 			max-width: 100%;
 			box-shadow: var(--shadow-overlay);
