@@ -247,7 +247,7 @@ The visual design language adheres strictly to [`docs/DESIGN.md`](file:///Users/
 - **Palette**: Oxocarbon (IBM Carbon modernist palette).
   - Dark: Deep canvas `#161616`, Layer 1 `#262626`, Layer 2 `#393939`, Borders `#393939`.
   - Light: Canvas `#F2F4F8`, Layer 1 `#DDE1E6`, Layer 2 `#F2F4F8`, Borders `#DDE1E6`.
-- **Theme Toggle**: In-app 3-way toggle (System / Dark / Light) in the sidebar header menu.
+- **Theme Toggle**: In-app 3-way toggle (System / Dark / Light) in the sidebar footer.
 - **Typography**: `Inter` for structural UI labels; `JetBrains Mono` for issue numbers (`repo#123`), commit SHAs, and tags. Base body text set to high-density `13px`.
 - **Component Primitives**: Unstyled `bits-ui` for accessible dropdowns, dialogs, and popovers.
 
@@ -255,9 +255,9 @@ The visual design language adheres strictly to [`docs/DESIGN.md`](file:///Users/
 The authenticated cockpit pairs a navigation sidebar with a per-view layout:
 
 1. **Navigation Sidebar (220px fixed)**:
-   - Header: workspace menu (theme switcher, AGPL-3.0 source link) plus global Search (`⌘K`) and quick-create (`C`) actions.
+   - Header: instance mark plus an AGPL-3.0 source link and quick-create (`C`) action; global Search stays bound to `⌘K`.
    - Views shown as a flat list: **Inbox**, **Issues** (with an internal **All** / **Mine** segmented filter), and **Board**.
-   - Footer: user profile and sign-out.
+   - Footer: theme switcher (System / Dark / Light) pinned above the separator, with the user profile and sign-out below it.
 2. **Inbox / Issues — Master–Detail Split**:
    - **Feed column (360px fixed)**: a compact vertical master list. Top toolbar carries the view title + count, a Filter popover (the six multi-selects) and full-text search. Issue cards are two-line — status dot, `#id`, truncated title, relative time, then the `owner/repo` slug and reserved-label chips (status / priority / size) — with a rounded translucent hover/active fill. Default sort: **Priority (`p1` first, unprioritized last) then Updated**.
    - **Detail canvas (flexible width)**: always present; an empty state renders until a selection is made. Selecting an issue opens the Inspector; selecting a staged submission opens the intake document (body + Accept / Dismiss / Duplicate).

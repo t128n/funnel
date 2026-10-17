@@ -83,9 +83,11 @@
 		}
 
 		.shell :global(.sidebar .instance__name),
-		.shell :global(.sidebar .instance__caret),
 		.shell :global(.sidebar .nav__label),
-		.shell :global(.sidebar .profile__meta) {
+		.shell :global(.sidebar .profile__meta),
+		.shell :global(.sidebar .theme-trigger__label),
+		.shell :global(.sidebar .theme-trigger__value),
+		.shell :global(.sidebar .theme-trigger__caret) {
 			display: none;
 		}
 
@@ -112,6 +114,13 @@
 		.shell :global(.sidebar .nav__item) {
 			justify-content: center;
 			padding: 0;
+		}
+
+		/* Collapsed rail: the theme trigger narrows to its glyph. */
+		.shell :global(.sidebar .theme-trigger) {
+			justify-content: center;
+			gap: 0;
+			padding: var(--space-xs);
 		}
 
 		.shell :global(.sidebar .profile) {

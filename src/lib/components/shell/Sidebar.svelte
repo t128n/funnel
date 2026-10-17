@@ -15,6 +15,7 @@
 	import IconBoard from '~icons/carbon/split-screen';
 	import IconLogout from '~icons/carbon/logout';
 	import IconSource from '~icons/carbon/logo-github';
+	import IconPalette from '~icons/carbon/color-palette';
 
 	interface Props {
 		user: { id: string; name: string; email: string; image: string | null };
@@ -38,6 +39,11 @@
 		{ value: 'dark', label: 'Dark' },
 		{ value: 'light', label: 'Light' }
 	];
+
+	/** Label of the active theme, shown on the footer trigger. */
+	const currentThemeLabel = $derived(
+		themeOptions.find((option) => option.value === $themeChoice)?.label ?? 'System'
+	);
 
 	function isActive(href: string): boolean {
 		return page.url.pathname === href;
@@ -96,54 +102,23 @@
 
 <aside class="sidebar">
 	<header class="side-head">
-		<DropdownMenu.Root>
-			<DropdownMenu.Trigger class="instance" aria-label="Workspace menu">
-				<span class="instance__mark">
-					<IconFunnel width={16} height={16} />
-				</span>
-				<span class="instance__name">Funnel</span>
-				<span class="instance__caret">
-					<IconChevronDown width={14} height={14} />
-				</span>
-			</DropdownMenu.Trigger>
-
-			<DropdownMenu.Portal>
-				<DropdownMenu.Content side="bottom" align="start" sideOffset={6} class="side-menu">
-					<DropdownMenu.Group>
-						<DropdownMenu.GroupHeading class="side-menu__heading">
-							Theme
-						</DropdownMenu.GroupHeading>
-						<DropdownMenu.RadioGroup
-							value={$themeChoice}
-							onValueChange={(value) => setTheme(value as ThemeChoice)}
-						>
-							{#each themeOptions as option (option.value)}
-								<DropdownMenu.RadioItem value={option.value} class="side-menu__item">
-									<span>{option.label}</span>
-									<span class="side-menu__check" aria-hidden="true">
-										{#if $themeChoice === option.value}✓{/if}
-									</span>
-								</DropdownMenu.RadioItem>
-							{/each}
-						</DropdownMenu.RadioGroup>
-					</DropdownMenu.Group>
-
-					<DropdownMenu.Separator class="side-menu__sep" />
-
-					<DropdownMenu.Item
-						class="side-menu__item side-menu__item--link"
-						onSelect={() => window.open(SOURCE_URL, '_blank', 'noopener,noreferrer')}
-					>
-						<span class="side-menu__glyph">
-							<IconSource width={14} height={14} />
-						</span>
-						<span>Source · AGPL-3.0</span>
-					</DropdownMenu.Item>
-				</DropdownMenu.Content>
-			</DropdownMenu.Portal>
-		</DropdownMenu.Root>
+		<div class="instance">
+			<span class="instance__mark">
+				<IconFunnel width={16} height={16} />
+			</span>
+			<span class="instance__name">Funnel</span>
+		</div>
 
 		<div class="side-head__actions">
+			<button
+				class="icon-btn"
+				type="button"
+				title="Source · AGPL-3.0"
+				aria-label="Source on GitHub"
+				onclick={() => window.open(SOURCE_URL, '_blank', 'noopener,noreferrer')}
+			>
+				<IconSource width={16} height={16} />
+			</button>
 			<button
 				class="icon-btn icon-btn--create"
 				type="button"
@@ -172,6 +147,40 @@
 			</a>
 		{/each}
 	</nav>
+
+	<div class="theme-bar">
+		<DropdownMenu.Root>
+			<DropdownMenu.Trigger class="theme-trigger" aria-label="Theme">
+				<span class="theme-trigger__glyph">
+					<IconPalette width={16} height={16} />
+				</span>
+				<span class="theme-trigger__label">Theme</span>
+				<span class="theme-trigger__value">{currentThemeLabel}</span>
+				<span class="theme-trigger__caret">
+					<IconChevronDown width={14} height={14} />
+				</span>
+			</DropdownMenu.Trigger>
+
+			<DropdownMenu.Portal>
+				<DropdownMenu.Content side="top" align="start" sideOffset={6} class="side-menu">
+					<DropdownMenu.RadioGroup
+						aria-label="Theme"
+						value={$themeChoice}
+						onValueChange={(value) => setTheme(value as ThemeChoice)}
+					>
+						{#each themeOptions as option (option.value)}
+							<DropdownMenu.RadioItem value={option.value} class="side-menu__item">
+								<span>{option.label}</span>
+								<span class="side-menu__check" aria-hidden="true">
+									{#if $themeChoice === option.value}✓{/if}
+								</span>
+							</DropdownMenu.RadioItem>
+						{/each}
+					</DropdownMenu.RadioGroup>
+				</DropdownMenu.Content>
+			</DropdownMenu.Portal>
+		</DropdownMenu.Root>
+	</div>
 
 	<div class="footer">
 		<div class="profile" title={user.email}>
@@ -208,7 +217,7 @@
 		flex: none;
 	}
 
-	:global(.side-head .instance) {
+	.instance {
 		display: flex;
 		align-items: center;
 		gap: var(--space-sm);
@@ -217,17 +226,6 @@
 		height: 32px;
 		padding: var(--space-xs) var(--space-sm);
 		margin-left: calc(var(--space-xs) * -1);
-		background: transparent;
-		border: 1px solid transparent;
-		border-radius: var(--radius-sm);
-		color: var(--color-nav-title);
-		cursor: pointer;
-		text-align: left;
-		transition: background var(--transition-fast);
-	}
-
-	:global(.side-head .instance:hover) {
-		background: var(--color-nav-bg-hover);
 	}
 
 	.instance__mark {
@@ -249,12 +247,6 @@
 		overflow: hidden;
 		text-overflow: ellipsis;
 		white-space: nowrap;
-	}
-
-	.instance__caret {
-		display: inline-flex;
-		flex: none;
-		color: var(--color-nav-caret);
 	}
 
 	.side-head__actions {
@@ -360,11 +352,71 @@
 		white-space: nowrap;
 	}
 
-	/* Footer: account only. */
+	/* Theme selector: sits above the footer separator, with breathing room. */
+	.theme-bar {
+		padding: var(--space-xs) var(--space-sm) var(--space-sm);
+		flex: none;
+	}
+
+	/* Footer: account only, set off by the separator above it. */
 	.footer {
 		padding: var(--space-sm);
 		border-top: 1px solid var(--color-border-subtle);
 		flex: none;
+	}
+
+	/* Ghost row; its menu opens upward from the bottom of the sidebar. */
+	:global(.theme-trigger) {
+		display: flex;
+		align-items: center;
+		gap: var(--space-sm);
+		width: 100%;
+		height: 28px;
+		padding: var(--space-xs) var(--space-sm);
+		background: transparent;
+		border: 1px solid transparent;
+		border-radius: var(--radius-sm);
+		color: var(--color-nav-text);
+		font-size: var(--text-sm);
+		cursor: pointer;
+		text-align: left;
+		transition:
+			background var(--transition-fast),
+			color var(--transition-fast);
+	}
+
+	:global(.theme-trigger:hover) {
+		background: var(--color-nav-bg-hover);
+		color: var(--color-nav-text-hover);
+	}
+
+	.theme-trigger__glyph {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 16px;
+		height: 16px;
+		flex: none;
+		color: var(--color-nav-icon);
+	}
+
+	.theme-trigger__label {
+		flex: 1;
+		min-width: 0;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	.theme-trigger__value {
+		flex: none;
+		color: var(--color-text-muted);
+	}
+
+	.theme-trigger__caret {
+		display: inline-flex;
+		flex: none;
+		color: var(--color-nav-caret);
 	}
 
 	.profile {
@@ -425,15 +477,6 @@
 		box-shadow: var(--shadow-overlay);
 	}
 
-	:global(.side-menu__heading) {
-		padding: var(--space-xs) var(--space-sm);
-		font-size: var(--text-xs);
-		font-weight: var(--weight-medium);
-		text-transform: uppercase;
-		letter-spacing: 0.06em;
-		color: var(--color-text-muted);
-	}
-
 	:global(.side-menu__item) {
 		display: flex;
 		align-items: center;
@@ -447,31 +490,14 @@
 		outline: none;
 	}
 
-	:global(.side-menu__item--link) {
-		justify-content: flex-start;
-		gap: var(--space-sm);
-	}
-
 	:global(.side-menu__item:hover),
 	:global(.side-menu__item[data-highlighted]) {
 		background: var(--color-surface-layer-2);
 		color: var(--color-text-primary);
 	}
 
-	:global(.side-menu__glyph) {
-		display: inline-flex;
-		align-items: center;
-		color: var(--color-text-muted);
-	}
-
 	:global(.side-menu__check) {
 		color: var(--color-primary);
 		font-family: var(--font-mono);
-	}
-
-	:global(.side-menu__sep) {
-		height: 1px;
-		margin: var(--space-xs) 0;
-		background: var(--color-border-subtle);
 	}
 </style>
