@@ -4,11 +4,11 @@ import {
   github,
   installationErrorResponse,
   webUrl,
-} from "#lib/server/github/app.server.js";
+} from "#lib/server/github/app.server";
 import {
   passthrough,
   toResponse,
-} from "#lib/server/github/api-passthrough.server.js";
+} from "#lib/server/github/api-passthrough.server";
 
 /** Mirrors `GET /repos/{owner}/{repo}/labels/{name}`. */
 export const GET: RequestHandler = async ({ params, request }) => {

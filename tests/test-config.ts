@@ -1,4 +1,4 @@
-import type { FunnelConfig } from "#/lib/server/config.js";
+import type { FunnelConfig } from "#/lib/server/config";
 
 /**
  * Minimal valid config so config-dependent code (the GitHub App clients,

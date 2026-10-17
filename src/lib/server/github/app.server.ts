@@ -5,7 +5,7 @@ import {
   GITHUB_CLIENT_ID,
   GITHUB_CLIENT_SECRET,
 } from "$app/env/private";
-import { getConfig } from "#/lib/server/config.js";
+import { getConfig } from "#/lib/server/config";
 
 let appPromise: Promise<App> | undefined;
 

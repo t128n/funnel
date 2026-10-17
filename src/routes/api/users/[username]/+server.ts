@@ -1,9 +1,9 @@
 import type { RequestHandler } from "./$types";
-import { github, webUrl } from "#lib/server/github/app.server.js";
+import { github, webUrl } from "#lib/server/github/app.server";
 import {
   passthrough,
   toResponse,
-} from "#lib/server/github/api-passthrough.server.js";
+} from "#lib/server/github/api-passthrough.server";
 
 /** Mirrors `GET /users/{username}` (login + avatar URLs).
  * No repo context, so this uses the App-JWT client and a

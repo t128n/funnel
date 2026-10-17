@@ -4,11 +4,11 @@ import {
   github,
   installationErrorResponse,
   webUrl,
-} from "#lib/server/github/app.server.js";
+} from "#lib/server/github/app.server";
 import {
   passthrough,
   toResponse,
-} from "#lib/server/github/api-passthrough.server.js";
+} from "#lib/server/github/api-passthrough.server";
 
 /** Mirrors `GET /repos/{owner}/{repo}/issues/{number}/comments`. */
 const ALLOWED = new Set(["since", "per_page", "page"]);

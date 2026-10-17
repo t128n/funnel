@@ -4,9 +4,9 @@ import {
   github,
   installationErrorResponse,
   resetAppCache,
-} from "./app.server.js";
-import { setConfig } from "#/lib/server/config.js";
-import { GHE_CONFIG, TEST_CONFIG } from "#tests/test-config.js";
+} from "./app.server";
+import { setConfig } from "#/lib/server/config";
+import { GHE_CONFIG, TEST_CONFIG } from "#tests/test-config";
 
 const realFetch = globalThis.fetch;
 

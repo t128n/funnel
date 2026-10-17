@@ -8,7 +8,7 @@ import {
   getConfig,
   loadFunnelConfig,
   resetConfigCache,
-} from "./config.js";
+} from "./config";
 
 const dirs: string[] = [];
 

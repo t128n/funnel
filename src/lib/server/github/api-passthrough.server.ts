@@ -11,7 +11,7 @@
  * for batched sync hydration, not per-request serving.
  */
 import type { InstallationOctokit } from "./app.server";
-import { getConfig } from "#/lib/server/config.js";
+import { getConfig } from "#/lib/server/config";
 import {
   etagMatches,
   getCache,
@@ -19,7 +19,7 @@ import {
   setCache,
   cacheKey,
   type CacheEntry,
-} from "./cache.js";
+} from "./cache";
 
 // Re-exported so existing callers keep importing from here.
 export { clearPassthroughCache, setPassthroughTtl } from "./cache";

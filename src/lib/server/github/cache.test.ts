@@ -8,7 +8,7 @@ import {
   setCache,
   setPassthroughTtl,
   type CacheEntry,
-} from "./cache.js";
+} from "./cache";
 
 function entry(overrides: Partial<CacheEntry> = {}): CacheEntry {
   return {

@@ -3,11 +3,11 @@ import {
   getInstallationId,
   github,
   installationErrorResponse,
-} from "#lib/server/github/app.server.js";
+} from "#lib/server/github/app.server";
 import {
   passthrough,
   toResponse,
-} from "#lib/server/github/api-passthrough.server.js";
+} from "#lib/server/github/api-passthrough.server";
 
 /** Mirrors `GET /repos/{owner}/{repo}/issues`. Entries with a
  * `pull_request` key are dropped. Unknown query params are ignored,

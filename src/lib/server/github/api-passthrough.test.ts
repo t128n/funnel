@@ -6,8 +6,8 @@ import {
   clearPassthroughCache,
   setPassthroughTtl,
 } from "./api-passthrough.server";
-import { setConfig } from "#/lib/server/config.js";
-import { TEST_CONFIG } from "#tests/test-config.js";
+import { setConfig } from "#/lib/server/config";
+import { TEST_CONFIG } from "#tests/test-config";
 
 type Headers = Record<string, string | undefined>;
 type ReqFn = (

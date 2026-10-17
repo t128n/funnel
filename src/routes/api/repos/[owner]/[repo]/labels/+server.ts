@@ -3,11 +3,11 @@ import {
   getInstallationId,
   github,
   installationErrorResponse,
-} from "#lib/server/github/app.server.js";
+} from "#lib/server/github/app.server";
 import {
   passthrough,
   toResponse,
-} from "#lib/server/github/api-passthrough.server.js";
+} from "#lib/server/github/api-passthrough.server";
 
 /** Mirrors `GET /repos/{owner}/{repo}/labels`. */
 const ALLOWED = new Set(["per_page", "page"]);
