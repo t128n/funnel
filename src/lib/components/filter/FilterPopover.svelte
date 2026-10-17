@@ -79,7 +79,11 @@
 		});
 	}
 
-	function onWindowClick(event: MouseEvent) {
+	// Outside-interaction detection runs on `pointerdown`, matching bits-ui's
+	// own floating layers (`onInteractOutside`). A `click` listener would react
+	// after nested menus have already changed the DOM / pointer-events, so the
+	// target may no longer reflect what the user actually pressed.
+	function onWindowPointerDown(event: PointerEvent) {
 		if (!open) return;
 		const target = event.target as Node;
 		if (panel?.contains(target) || trigger?.contains(target)) return;
@@ -98,7 +102,7 @@
 	}
 </script>
 
-<svelte:window onclick={onWindowClick} onkeydown={onKeydown} />
+<svelte:window onpointerdown={onWindowPointerDown} onkeydown={onKeydown} />
 
 <div class="filter">
 	<button
