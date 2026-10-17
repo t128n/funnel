@@ -101,6 +101,7 @@ This document tracks the implementation status of Funnel against the authoritati
 | 6-Dimension Multi-Select Filters |  ✅ Done   | Repo, Status, Assignee, Priority, Size, Labels (OR inside group, AND across groups).                           |
 | URL State Serialization          |  ✅ Done   | Filter state and search terms bidirectionally bound to URL query parameters.                                   |
 | Pessimistic UI Mutations         |  ✅ Done   | Inline spinner states on controls until GitHub responds; no optimistic rollback logic.                         |
+| Structured Close / Reopen        |  ✅ Done   | Inspector action bar opens a SNOW-style dialog: required resolution (Completed / Not planned → GitHub `state_reason`) plus a required note posted as a comment *before* the state change (SPEC §5.2.3). Board cards keep their quick, un-noted "Done" close. |
 
 ---
 
@@ -166,6 +167,7 @@ flowchart TD
 - [x] Build the 480px Inspector Pane (plain text rendering, inline title/body editor, comment composer). `src/lib/components/issue/InspectorPane.svelte` over `GET /api/mirror/issues/{owner}/{repo}/{number}` (`getIssueDetail`); pessimistic metadata pickers and comment composer.
 - [x] Build the 6-column Status Board with card dropdown pickers and the 14-day Done cutoff. `src/lib/components/board/StatusBoard.svelte` + `BoardCard.svelte`; Done window from `board.done_days`.
 - [x] Connect URL query parameter state to filters and search. `src/lib/url-filter.ts` + `src/lib/components/filter/FilterBar.svelte`; six multi-select dimensions + debounced search, bidirectional with the URL; inspector selection in `?issue=`.
+- [x] Add structured close/reopen to the Inspector Pane. `IssueActionDialog.svelte` + `closeIssue`/`reopenIssue` client helpers: a required resolution (Completed / Not planned → GitHub `state_reason`) and a required note posted as a comment *before* the state change (SPEC §5.2.3).
 
 Also landed: `/login` (GitHub OAuth via `better-auth/svelte`) and the JavaScript-free `/submit` form. See §2.6/§2.7.
 

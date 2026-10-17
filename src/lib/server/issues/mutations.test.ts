@@ -167,6 +167,67 @@ describe("updateIssue", () => {
     });
   });
 
+  test("closes as completed and publishes", async () => {
+    const { client, calls } = stubOctokit(() => ({
+      data: { number: 5, html_url: "https://github.com/orgA/core/issues/5" },
+    }));
+    const events: Array<Record<string, unknown>> = [];
+    subscribe((event) => events.push(event as Record<string, unknown>));
+
+    const result = await updateIssue({
+      octokit: client,
+      repo: "orgA/core",
+      number: 5,
+      state: "closed",
+      stateReason: "completed",
+    });
+
+    expect(result.ok).toBe(true);
+    expect(calls).toHaveLength(1);
+    expect(calls[0].route).toBe("PATCH /repos/{owner}/{repo}/issues/{issue_number}");
+    expect(calls[0].params).toMatchObject({
+      owner: "orgA",
+      repo: "core",
+      issue_number: 5,
+      state: "closed",
+      state_reason: "completed",
+    });
+    expect(events).toContainEqual(
+      expect.objectContaining({ type: "issues", repo: "orgA/core", numbers: [5] }),
+    );
+  });
+
+  test("closes as not planned", async () => {
+    const { client, calls } = stubOctokit(() => ({ data: {} }));
+
+    await updateIssue({
+      octokit: client,
+      repo: "orgA/core",
+      number: 5,
+      state: "closed",
+      stateReason: "not_planned",
+    });
+
+    expect(calls[0].params).toMatchObject({
+      state: "closed",
+      state_reason: "not_planned",
+    });
+  });
+
+  test("reopens with a null state reason", async () => {
+    const { client, calls } = stubOctokit(() => ({ data: {} }));
+
+    await updateIssue({
+      octokit: client,
+      repo: "orgA/core",
+      number: 5,
+      state: "open",
+      stateReason: null,
+    });
+
+    expect(calls[0].params).toMatchObject({ state: "open", state_reason: null });
+  });
+
   test("swaps the reserved status label (GET then PUT)", async () => {
     const { client, calls } = stubOctokit((call) => {
       if (call.route.startsWith("GET")) {

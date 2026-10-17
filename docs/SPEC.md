@@ -155,7 +155,7 @@ Funnel represents issue metadata strictly through standard GitHub labels across 
 ### 5.2 Rules & Conflict Resolution
 1. **At most one label per category**: An issue may carry at most one status, one priority, and one size label.
 2. **Automated conflict de-duplication**: If an issue accumulates multiple labels in the same category (e.g. both `todo` and `in-progress`), `funnel[bot]` queries the issue timeline events. The **latest added label wins**, and `funnel[bot]` removes the obsolete label on GitHub. If the timeline is ambiguous, Funnel flags the item in the UI.
-3. **Closed state wins**: Closing an issue marks it as *Done* (closed as completed) or *Canceled* (closed as not planned). Existing status labels are preserved untouched. Reopening an issue restores its prior status label; if it had none, it returns to the Inbox.
+3. **Closed state wins**: Closing an issue marks it as *Done* (closed as completed) or *Canceled* (closed as not planned). Existing status labels are preserved untouched. Reopening an issue restores its prior status label; if it had none, it returns to the Inbox. Closing and reopening from the Inspector require a note, which is posted as an issue comment before the state change.
 4. **Self-healing provisioning**: At startup and during nightly reconciliation, Funnel creates any missing canonical labels across configured repositories and restores canonical colors/descriptions.
 5. **Non-reserved labels**: All other labels (e.g. `frontend`, `bug`, monorepo domain tags) are preserved as-is, exposed as multi-select filter options, and assignable from the UI.
 
@@ -262,7 +262,7 @@ The authenticated cockpit pairs a navigation sidebar with a per-view layout:
    - **Feed column (360px fixed)**: a compact vertical master list. Top toolbar carries the view title + count, a Filter popover (the six multi-selects) and full-text search. Issue cards are two-line — status dot, `#id`, truncated title, relative time, then the `owner/repo` slug and reserved-label chips (status / priority / size) — with a rounded translucent hover/active fill. Default sort: **Priority (`p1` first, unprioritized last) then Updated**.
    - **Detail canvas (flexible width)**: always present; an empty state renders until a selection is made. Selecting an issue opens the Inspector; selecting a staged submission opens the intake document (body + Accept / Dismiss / Duplicate).
 3. **Inspector / Detail Canvas**:
-   - Breadcrumb action bar (`owner/repo` · `#id` · state badge · "opened by … · time") with an outbound "Open on GitHub" link.
+   - Breadcrumb action bar (`owner/repo` · `#id` · state badge · "opened by … · time") with an outbound "Open on GitHub" link and a **Close / Reopen** action. Closing opens a structured dialog requiring a resolution (Completed / Not planned) and a note; reopening requires a note. The note is posted as a comment before the state change.
    - Inline editing for Title (H1 input) and Body (open document text; textarea with preserved whitespace).
    - Inline property bar for Status, Priority, Size, Assignee, Labels.
    - Plain-text comment activity timeline (author, timestamp, preserved line breaks) with the new-comment composer pinned to the base.

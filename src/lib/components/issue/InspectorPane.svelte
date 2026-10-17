@@ -4,12 +4,16 @@
 	import MultiSelect from '#lib/components/common/MultiSelect.svelte';
 	import SingleSelect from '#lib/components/common/SingleSelect.svelte';
 	import Spinner from '#lib/components/common/Spinner.svelte';
+	import IssueActionDialog from '#lib/components/issue/IssueActionDialog.svelte';
 	import {
 		addIssueComment,
 		addIssueLabels,
+		closeIssue,
 		fetchIssueDetail,
 		removeIssueLabel,
+		reopenIssue,
 		updateIssue,
+		type CloseReason,
 		type UpdateIssuePatch
 	} from '#lib/client/mutations';
 	import { refreshSignal } from '#lib/client/refresh';
@@ -38,6 +42,10 @@
 	let error = $state<string | null>(null);
 	let busy = $state<string | null>(null);
 	let actionError = $state<string | null>(null);
+
+	/** Structured close/reopen dialog (SPEC §5.2.3). */
+	let dialogMode = $state<'close' | 'reopen' | null>(null);
+	let resolveError = $state<string | null>(null);
 
 	let title = $state('');
 	let body = $state('');
@@ -126,11 +134,66 @@
 				size: 'size' in patch ? (patch.size ?? null) : issue.size,
 				assignees: patch.assignees
 					? localAssigneeList(patch.assignees)
-					: issue.assignees
+					: issue.assignees,
+				state: patch.state ?? issue.state,
+				stateReason:
+					'state_reason' in patch ? (patch.state_reason ?? null) : issue.stateReason,
+				closedAt:
+					patch.state === 'closed'
+						? Date.now()
+						: patch.state === 'open'
+							? null
+							: issue.closedAt
 			}
 		};
 		if (patch.body !== undefined) body = patch.body;
 		return true;
+	}
+
+	function openDialog(mode: 'close' | 'reopen') {
+		resolveError = null;
+		dialogMode = mode;
+	}
+
+	/** Close with a required resolution: note comment first, then the state change. */
+	async function confirmClose(payload: { reason: CloseReason; note: string }) {
+		if (!detail) return;
+		busy = 'close';
+		resolveError = null;
+		const result = await closeIssue(repo, number, payload.reason, payload.note);
+		busy = null;
+		if (!result.ok) {
+			resolveError = result.error;
+			return;
+		}
+		detail = {
+			...detail,
+			issue: {
+				...detail.issue,
+				state: 'closed',
+				stateReason: payload.reason,
+				closedAt: Date.now()
+			}
+		};
+		dialogMode = null;
+	}
+
+	/** Reopen with a required note, posted as a comment before the state change. */
+	async function confirmReopen(payload: { reason: CloseReason; note: string }) {
+		if (!detail) return;
+		busy = 'reopen';
+		resolveError = null;
+		const result = await reopenIssue(repo, number, payload.note);
+		busy = null;
+		if (!result.ok) {
+			resolveError = result.error;
+			return;
+		}
+		detail = {
+			...detail,
+			issue: { ...detail.issue, state: 'open', stateReason: null, closedAt: null }
+		};
+		dialogMode = null;
 	}
 
 	async function saveTitle() {
@@ -244,6 +307,27 @@
 			{/if}
 		</div>
 		<div class="inspector__actions">
+			{#if issue}
+				{#if issue.state === 'closed'}
+					<button
+						class="save-btn"
+						type="button"
+						onclick={() => openDialog('reopen')}
+						disabled={busy !== null}
+					>
+						Reopen
+					</button>
+				{:else}
+					<button
+						class="save-btn"
+						type="button"
+						onclick={() => openDialog('close')}
+						disabled={busy !== null}
+					>
+						Close issue
+					</button>
+				{/if}
+			{/if}
 			<a class="icon-link" href={githubLink} target="_blank" rel="noreferrer" title="Open on GitHub">
 				<svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true">
 					<path
@@ -464,6 +548,20 @@
 			</div>
 		</section>
 	{/if}
+
+	<IssueActionDialog
+		open={dialogMode !== null}
+		mode={dialogMode ?? 'close'}
+		busy={busy === 'close' || busy === 'reopen'}
+		error={resolveError}
+		onopenchange={(open) => {
+			if (!open && busy === null) dialogMode = null;
+		}}
+		onconfirm={(payload) => {
+			if (dialogMode === 'reopen') void confirmReopen(payload);
+			else void confirmClose(payload);
+		}}
+	/>
 </aside>
 
 <style>

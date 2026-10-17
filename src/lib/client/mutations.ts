@@ -80,6 +80,59 @@ export function updateIssue(
   });
 }
 
+/** Structured resolution for closing an issue (SPEC §5.2.3). */
+export type CloseReason = "completed" | "not_planned";
+
+/**
+ * Close an issue with a required resolution (SPEC §5.2.3). The resolution note
+ * is posted as a comment *before* the state change, so an issue is never closed
+ * without its resolution recorded. Labels are left untouched; a later reopen
+ * therefore restores the prior status as-is.
+ */
+export function closeIssue(
+  repo: string,
+  number: number,
+  reason: CloseReason,
+  note: string,
+): Promise<MutationResult<{ number: number; htmlUrl: string }>> {
+  return commentThenUpdate(repo, number, note, {
+    state: "closed",
+    state_reason: reason,
+  });
+}
+
+/**
+ * Reopen a closed issue, recording a required reopen note as a comment first
+ * (SPEC §5.2.3).
+ */
+export function reopenIssue(
+  repo: string,
+  number: number,
+  note: string,
+): Promise<MutationResult<{ number: number; htmlUrl: string }>> {
+  return commentThenUpdate(repo, number, note, { state: "open" });
+}
+
+/**
+ * Post `note` as a comment, then apply `patch`. The comment must succeed first:
+ * a failed state change leaves the note on the issue (recoverable) rather than
+ * closing/reopening without it.
+ */
+async function commentThenUpdate(
+  repo: string,
+  number: number,
+  note: string,
+  patch: UpdateIssuePatch,
+): Promise<MutationResult<{ number: number; htmlUrl: string }>> {
+  const body = note.trim();
+  if (body.length === 0) {
+    return { ok: false, error: "A note is required." };
+  }
+  const comment = await addIssueComment(repo, number, body);
+  if (!comment.ok) return comment;
+  return updateIssue(repo, number, patch);
+}
+
 export function addIssueComment(
   repo: string,
   number: number,

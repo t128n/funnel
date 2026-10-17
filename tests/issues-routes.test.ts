@@ -231,6 +231,39 @@ describe("PATCH /api/repos/{owner}/{repo}/issues/{number}", () => {
     expect(res.status).toBe(400);
     expect(calls).toHaveLength(0);
   });
+
+  test("closes with a state reason", async () => {
+    const res = await patchIssue({
+      params: { ...repoParams(), number: "42" },
+      request: request("PATCH", { state: "closed", state_reason: "not_planned" }),
+      locals: viewer(),
+    } as never);
+
+    expect(res.status).toBe(200);
+    expect(calls).toContain(`PATCH /repos/${REPO_SLUG}/issues/42`);
+  });
+
+  test("reopens without a state reason", async () => {
+    const res = await patchIssue({
+      params: { ...repoParams(), number: "42" },
+      request: request("PATCH", { state: "open" }),
+      locals: viewer(),
+    } as never);
+
+    expect(res.status).toBe(200);
+    expect(calls).toContain(`PATCH /repos/${REPO_SLUG}/issues/42`);
+  });
+
+  test("rejects an invalid state reason", async () => {
+    const res = await patchIssue({
+      params: { ...repoParams(), number: "42" },
+      request: request("PATCH", { state: "closed", state_reason: "bogus" }),
+      locals: viewer(),
+    } as never);
+
+    expect(res.status).toBe(400);
+    expect(calls).toHaveLength(0);
+  });
 });
 
 describe("POST /api/repos/{owner}/{repo}/issues/{number}/comments", () => {
