@@ -1,14 +1,15 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { setConfig } from "#/lib/server/config.js";
-import { resetAppCache } from "#/lib/server/github/app.server.js";
-import { clearPassthroughCache } from "#/lib/server/github/api-passthrough.server.js";
-import { GET as getIssues } from "#/routes/api/repos/[owner]/[repo]/issues/+server.js";
-import { GET as getIssue } from "#/routes/api/repos/[owner]/[repo]/issues/[number]/+server.js";
-import { GET as getComments } from "#/routes/api/repos/[owner]/[repo]/issues/[number]/comments/+server.js";
-import { GET as getLabels } from "#/routes/api/repos/[owner]/[repo]/labels/+server.js";
-import { GET as getLabel } from "#/routes/api/repos/[owner]/[repo]/labels/[name]/+server.js";
-import { GET as getUser } from "#/routes/api/users/[username]/+server.js";
-import { TEST_CONFIG } from "#tests/test-config.js";
+import { setConfig } from "#/lib/server/config";
+import { resetAppCache } from "#/lib/server/github/app.server";
+import { clearPassthroughCache } from "#/lib/server/github/api-passthrough.server";
+import { GET as getIssues } from "#/routes/api/repos/[owner]/[repo]/issues/+server";
+import { GET as getIssue } from "#/routes/api/repos/[owner]/[repo]/issues/[number]/+server";
+import { GET as getComments } from "#/routes/api/repos/[owner]/[repo]/issues/[number]/comments/+server";
+import { GET as getLabels } from "#/routes/api/repos/[owner]/[repo]/labels/+server";
+import { GET as getLabel } from "#/routes/api/repos/[owner]/[repo]/labels/[name]/+server";
+import { GET as getUser } from "#/routes/api/users/[username]/+server";
+import { GET as authRoute } from "#/routes/api/auth/[...all]/+server";
+import { TEST_CONFIG } from "#tests/test-config";
 
 // Module test: real route wiring (installation lookup, query allowlists,
 // passthrough cache) with the network stubbed at `fetch`.
@@ -256,5 +257,15 @@ describe("GET user", () => {
       message: "Not synced, open on GitHub",
       html_url: "https://github.com/ghost",
     });
+  });
+});
+
+describe("Better Auth mount", () => {
+  test("catch-all route forwards /api/auth/* to the handler", async () => {
+    const res = await authRoute({
+      request: new Request("http://x/api/auth/get-session"),
+    } as never);
+    expect(res).toBeInstanceOf(Response);
+    expect(res.status).toBe(200);
   });
 });

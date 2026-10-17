@@ -1,3 +1,4 @@
+import { and, eq } from "drizzle-orm";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "@better-auth/drizzle-adapter";
 import {
@@ -6,13 +7,13 @@ import {
   GITHUB_CLIENT_ID,
   GITHUB_CLIENT_SECRET,
 } from "$app/env/private";
-import { db } from "#lib/server/db/index.js";
+import { db } from "#lib/server/db/index";
 import {
   authAccount,
   authSession,
   authUser,
   authVerification,
-} from "#lib/server/db/schema.js";
+} from "#lib/server/db/schema";
 
 // SPEC section 11: `session.idle_days`, default 30. Hardcoded until
 // `funnel.config.yaml` exists; then read it from config instead.
@@ -20,11 +21,7 @@ const SESSION_IDLE_DAYS = 30;
 const DAY_SECONDS = 60 * 60 * 24;
 
 export const auth = betterAuth({
-  // Doubles as the secret for signing. SPEC section 8 additionally
-  // requires encryption of stored GitHub tokens at rest and refresh of
-  // short-lived GitHub App user-to-server tokens — neither is known to
-  // be handled by the GitHub provider (SPEC section 17, open item), so
-  // both are TODO above this layer, keyed off FUNNEL_SECRET.
+  // Doubles as the secret for signing and for encrypting stored OAuth tokens.
   secret: FUNNEL_SECRET,
   baseURL: FUNNEL_URL,
   database: drizzleAdapter(db, {
@@ -46,6 +43,17 @@ export const auth = betterAuth({
       scope: ["read:user", "repo"],
     },
   },
+  account: {
+    // SPEC 8: user-to-server OAuth tokens and refresh tokens are stored
+    // encrypted at rest in `auth_account`, keyed off FUNNEL_SECRET. With this
+    // flag Better Auth encrypts `accessToken`/`refreshToken` on write (see
+    // `linkOAuthAccount`) and decrypts them on read (`getAccessToken`,
+    // `accountInfo`, `refreshToken`). The cipher is XChaCha20-Poly1305 with a
+    // SHA-256-derived key — an AEAD, so the ciphertext is authenticated too.
+    // Better Auth picks the algorithm; the earlier "AES-GCM" wording in the
+    // roadmap is superseded by this built-in.
+    encryptOAuthTokens: true,
+  },
   session: {
     expiresIn: DAY_SECONDS * SESSION_IDLE_DAYS,
     updateAge: DAY_SECONDS,
@@ -58,3 +66,32 @@ export function getSession(request: Request) {
 }
 
 export type Session = typeof auth.$Infer.Session;
+
+/**
+ * Resolve a currently-valid GitHub user access token for `userId`.
+ *
+ * SPEC 8 token refresh: Better Auth records `accessTokenExpiresAt` (GitHub App
+ * user-to-server tokens expire after ~8h) and, when a token is within 5
+ * seconds of expiry, refreshes it through the provider's `refreshAccessToken`
+ * before returning it, persisting the rotated access/refresh tokens (still
+ * encrypted) back to `auth_account`. This is the automatic refresh path for
+ * write operations — call it instead of reading `auth_account.accessToken`
+ * directly, which now holds ciphertext. Compose it with the GitHub client:
+ * `github.asUser(await getUserAccessToken(userId))`.
+ */
+export async function getUserAccessToken(userId: string): Promise<string> {
+  const [account] = await db
+    .select({ id: authAccount.id })
+    .from(authAccount)
+    .where(
+      and(eq(authAccount.userId, userId), eq(authAccount.providerId, "github")),
+    )
+    .limit(1);
+  if (!account) {
+    throw new Error(`No GitHub account linked for user ${userId}`);
+  }
+  const { accessToken } = await auth.api.getAccessToken({
+    body: { accountId: account.id, userId },
+  });
+  return accessToken;
+}

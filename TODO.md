@@ -13,7 +13,7 @@ This document tracks the implementation status of Funnel against the authoritati
   2. **Intake Staging & Routing**: Endpoints (`/api/intake`, `/submit`) and triage actions (Accept, Dismiss, Duplicate) are not yet implemented.
   3. **Frontend Triage Cockpit**: The entire SvelteKit UI (3-pane layout, Oxocarbon theme, dense streams, 480px inspector pane, 6-column board, filters) is currently just the starter template.
   4. **Enterprise / Host Configuration**: `funnel.config.yaml` parser, dynamic GitHub Enterprise host URLs (`acme.ghe.com`), and first-run `/setup` manifest flow are missing.
-  5. **Security & Tokens**: Token encryption at rest and token auto-refresh for stored GitHub user tokens remain to be built.
+  5. **Security & Tokens**: ✅ Resolved. Token encryption at rest and auto-refresh are handled by Better Auth (see §2.3).
 
 ---
 
@@ -43,9 +43,9 @@ This document tracks the implementation status of Funnel against the authoritati
 | :--- | :---: | :--- |
 | Better Auth Initialization | ✅ Done | Configured in `src/lib/server/auth/index.ts` with Drizzle adapter and GitHub social provider. |
 | SvelteKit Auth Handler | ✅ Done | Hooked in `src/hooks.server.ts`. |
-| Encryption at Rest for Tokens | ❌ Missing | Access and refresh tokens in `auth_account` must be AES-GCM encrypted using a key derived from `FUNNEL_SECRET`. |
-| Short-Lived Token Refresh | ❌ Missing | Expiring GitHub App user tokens must be automatically refreshed before executing write operations. |
-| Test Suite Fix (`auth.test.ts`) | ⚠️ Fix Needed | Test creates table `verification` instead of `auth_verification`, causing a test failure. |
+| Encryption at Rest for Tokens | ✅ Done | `account.encryptOAuthTokens: true` in `src/lib/server/auth/index.ts`. Better Auth encrypts `auth_account.accessToken`/`refreshToken` on write and decrypts on read, keyed off `FUNNEL_SECRET`. Cipher is XChaCha20-Poly1305 (authenticated encryption), Better Auth's built-in; the earlier "AES-GCM" wording is superseded. Callers must read tokens via `getUserAccessToken()` — the raw column holds ciphertext. |
+| Short-Lived Token Refresh | ✅ Done | `getUserAccessToken(userId)` in `src/lib/server/auth/index.ts` uses `auth.api.getAccessToken()`, which auto-refreshes (and persists) tokens within 5s of expiry. Compose with the client as `github.asUser(await getUserAccessToken(userId))`; `hooks.server.ts` also populates `event.locals.session`/`user`. |
+| Test Suite Fix (`auth.test.ts`) | ✅ Done | Test now creates/queries `auth_verification`; added coverage for at-rest encryption and the refresh path. |
 
 ---
 
@@ -114,9 +114,9 @@ flowchart TD
 ### Milestone 1: Configuration, GHE Host & Auth Hardening
 - [x] Create `funnel.config.yaml` schema validator and file loader (`yaml` parser). Done via `c12` + valibot in `src/lib/server/config.ts` (YAML parsed by c12's bundled `confbox`); see `funnel.config.example.yaml`.
 - [x] Update `app.server.ts` to support dynamic enterprise GitHub URLs (`acme.ghe.com`) via `github.url` and `github.api_url`. Scoped to the `/api/` mirror (REST/JWT/installation clients, Link rewriting, 404 `html_url`s); OAuth user flow deferred.
-- [ ] Implement AES-GCM token encryption and decryption at rest for `auth_account` using `FUNNEL_SECRET`.
-- [ ] Implement automatic user token refresh hook in `app.server.ts` / session loader.
-- [ ] Fix `auth.test.ts` to use `auth_verification` table name so the test suite passes cleanly.
+- [x] Implement token encryption at rest for `auth_account` using `FUNNEL_SECRET`. Done via Better Auth's `account.encryptOAuthTokens` (XChaCha20-Poly1305 AEAD, key derived from `FUNNEL_SECRET`); see `src/lib/server/auth/index.ts`.
+- [x] Implement automatic user token refresh for write operations. Done via `getUserAccessToken()` (Better Auth lazy refresh + persist), composed as `github.asUser(await getUserAccessToken(userId))`; session exposed on `event.locals`.
+- [x] Fix `auth.test.ts` to use `auth_verification` table name so the test suite passes cleanly.
 
 ### Milestone 2: Schema Initialization & Setup Flow
 - [ ] Build startup database initialization script ensuring all Drizzle tables exist in `funnel.db`.
