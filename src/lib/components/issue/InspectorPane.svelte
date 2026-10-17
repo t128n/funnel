@@ -345,7 +345,9 @@
 						</div>
 					{/if}
 					<MultiSelect
-						label="Unassigned"
+						label="Assignee"
+						placeholder="Unassigned"
+						display="selection"
 						options={assigneeOptions.map((u) => ({ value: u.login, label: u.login }))}
 						selected={assigneeLogins}
 						onselect={setAssignees}
@@ -355,7 +357,9 @@
 				<div class="prop">
 					<span class="prop__label">Labels</span>
 					<MultiSelect
-						label="No labels"
+						label="Labels"
+						placeholder="No labels"
+						display="selection"
 						options={labelOptions}
 						selected={selectedLabels}
 						onselect={setLabels}

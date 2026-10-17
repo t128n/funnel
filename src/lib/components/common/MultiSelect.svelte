@@ -18,6 +18,14 @@
 		disabled?: boolean;
 		/** Hide the count badge even when values are selected. */
 		hideCount?: boolean;
+		/**
+		 * `label` (default) keeps the trigger text static and relies on the count
+		 * badge — the filter toolbars' dimension-name style. `selection` shows the
+		 * selected option labels instead, using {@link placeholder} when empty.
+		 */
+		display?: 'label' | 'selection';
+		/** Shown in `selection` display mode when nothing is selected. */
+		placeholder?: string;
 	}
 
 	let {
@@ -28,8 +36,18 @@
 		pinned = [],
 		align = 'start',
 		disabled = false,
-		hideCount = false
+		hideCount = false,
+		display = 'label',
+		placeholder
 	}: Props = $props();
+
+	const triggerText = $derived.by(() => {
+		if (display !== 'selection') return label;
+		if (selected.length === 0) return placeholder ?? label;
+		return selected
+			.map((value) => options.find((o) => o.value === value)?.label ?? value)
+			.join(', ');
+	});
 
 	const ordered = $derived.by(() => {
 		const pinnedSet = new Set(pinned);
@@ -57,7 +75,7 @@
 		{disabled}
 		class="ms-trigger{selected.length > 0 ? ' ms-trigger--active' : ''}"
 	>
-		<span class="ms-trigger__label">{label}</span>
+		<span class="ms-trigger__label">{triggerText}</span>
 		{#if !hideCount && selected.length > 0}
 			<span class="ms-trigger__count">{selected.length}</span>
 		{/if}
@@ -133,6 +151,13 @@
 		cursor: not-allowed;
 	}
 
+	.ms-trigger__label {
+		max-width: 180px;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
 	.ms-trigger__count {
 		display: inline-flex;
 		align-items: center;
@@ -152,6 +177,7 @@
 		width: 9px;
 		height: 6px;
 		opacity: 0.7;
+		flex: none;
 	}
 
 	:global(.ms-content) {
