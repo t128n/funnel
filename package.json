@@ -7,6 +7,7 @@
 		"dev": "bun --bun vite dev",
 		"build": "bun --bun vite build",
 		"preview": "bun --bun vite preview",
+		"start": "bun ./build/index.js",
 		"prepare": "bun --bun svelte-kit sync || echo ''",
 		"check": "bun --bun svelte-kit sync && bun --bun svelte-check --tsconfig ./tsconfig.json",
 		"check:watch": "bun --bun svelte-kit sync && bun --bun svelte-check --tsconfig ./tsconfig.json --watch",
@@ -17,7 +18,7 @@
 		"test": "bun test --preload ./tests/setup.ts --coverage"
 	},
 	"devDependencies": {
-		"@sveltejs/adapter-auto": "^8.0.0",
+		"@sveltejs/adapter-node": "^6.0.0",
 		"@sveltejs/kit": "^3.0.0",
 		"@sveltejs/vite-plugin-svelte": "^7.2.0",
 		"@types/bun": "^1.4.3",

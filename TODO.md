@@ -138,7 +138,7 @@ flowchart TD
 - [x] **Schema migrations**: commit the generated Drizzle migration under `drizzle/`; apply out-of-band via `bun run db:migrate` before the server starts (no `init` hook).
 - [x] **Config loader**: add the `c12` dependency and `src/lib/server/config.ts` (valibot-validated `funnel.config.yaml`: `github.url`, `github.api_url`, `repos`, `sync.history_days`, `sync.poll_interval_active_seconds`, `sync.poll_interval_idle_seconds`).
 - [x] **GHE base-URL wiring**: `app.server.ts` derives Octokit REST and GraphQL from `github.api_url`. GraphQL goes through `github.graphql(installationId)`; `@octokit/graphql` rewrites the GHES `/api/v3` suffix to `/api/graphql` (Cloud: `api.github.com/graphql`, GHE: `acme.ghe.com/api/graphql`). `github.asUser` is now host-aware too.
-- [ ] **Persistent process adapter**: replace `adapter-auto` with `svelte-adapter-bun` (or `adapter-node`) so background timers and SSE are not silently killed by a serverless target.
+- [x] **Persistent process adapter**: replaced `adapter-auto` with `@sveltejs/adapter-node` so background timers and SSE are not silently killed by a serverless target. Runs as a single long-lived process via `bun run build && bun run start` (`svelte-adapter-bun` still declares Kit 2 peer support only, so `adapter-node` was chosen).
 
 **Sync engine:**
 

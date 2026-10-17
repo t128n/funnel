@@ -56,23 +56,37 @@ config.repos; // ["orgA/core", ...]
 
 ## Developing
 
-Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
+Install dependencies and start the development server:
 
 ```sh
-npm run dev
-
-# or start the server and open the app in a new browser tab
-npm run dev -- --open
+bun install
+bun run dev
 ```
 
 ## Building
 
-To create a production version of your app:
+Funnel builds to a standalone single-process server with
+[`@sveltejs/adapter-node`](https://svelte.dev/docs/kit/adapter-node). A long-lived
+process is required: background polling timers and the planned `/api/events` SSE
+stream cannot survive on a serverless target.
 
 ```sh
-npm run build
+bun run build
+bun run start   # bun ./build/index.js
 ```
 
-You can preview the production build with `npm run preview`.
+The server **must run under Bun** — the database layer uses `bun:sqlite`, so
+`node build/index.js` will not work. Production `dependencies` are kept external
+by the adapter, so `node_modules` must be installed alongside `build/`.
 
-> To deploy your app, you may need to install an [adapter](https://svelte.dev/docs/kit/adapters) for your target environment.
+Server configuration is read from the environment by the adapter:
+
+| Variable | Default | Purpose |
+| :--- | :--- | :--- |
+| `PORT` | `3000` | Listen port |
+| `HOST` | `0.0.0.0` | Listen address |
+| `ORIGIN` | — | Public origin, e.g. `https://funnel.example.com` (set to `FUNNEL_URL`) |
+| `PROTOCOL_HEADER` / `HOST_HEADER` | — | Forwarded proto/host when behind a TLS-terminating proxy |
+| `BODY_SIZE_LIMIT` | `512K` | Max request body (sufficient for intake) |
+| `SHUTDOWN_TIMEOUT` | `30` | Graceful shutdown window in seconds |
+
