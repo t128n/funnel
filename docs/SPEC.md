@@ -127,7 +127,7 @@ Funnel dynamically configures all Octokit clients, OAuth endpoints, and outbound
 # funnel.config.yaml
 github:
   url: https://acme.ghe.com          # Base web URL (OAuth, "Open on GitHub" links)
-  api_url: https://acme.ghe.com/api/v3 # API base URL (Octokit REST & GraphQL)
+  api_url: https://acme.ghe.com/api/v3 # API base (REST; GraphQL served at /api/graphql)
 ```
 
 - When using standard GitHub, defaults are `https://github.com` and `https://api.github.com`.

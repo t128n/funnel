@@ -77,7 +77,7 @@ export type Session = typeof auth.$Infer.Session;
  * encrypted) back to `auth_account`. This is the automatic refresh path for
  * write operations — call it instead of reading `auth_account.accessToken`
  * directly, which now holds ciphertext. Compose it with the GitHub client:
- * `github.asUser(await getUserAccessToken(userId))`.
+ * `await github.asUser(await getUserAccessToken(userId))`.
  */
 export async function getUserAccessToken(userId: string): Promise<string> {
   const [account] = await db

@@ -81,7 +81,7 @@ describe("getInstallationId", () => {
 
 describe("github clients", () => {
   test("asUser and asApp return request-capable clients", async () => {
-    expect(typeof github.asUser("token").request).toBe("function");
+    expect(typeof (await github.asUser("token")).request).toBe("function");
     expect(typeof (await github.asApp()).request).toBe("function");
     expect(typeof (await github.app()).request).toBe("function");
   });
@@ -112,6 +112,71 @@ describe("github clients", () => {
     expect(created.refreshToken).toBe("ghr_y");
     const refreshed = await github.refreshUserToken("ghr_y");
     expect(refreshed.token).toBe("ghu_x");
+  });
+});
+
+describe("GraphQL endpoint follows github.api_url", () => {
+  test("Cloud targets api.github.com/graphql", async () => {
+    let seen = "";
+    globalThis.fetch = (async (url: unknown) => {
+      seen = String(url);
+      return Response.json({ data: { viewer: { login: "octocat" } } });
+    }) as typeof fetch;
+
+    const data = await (await github.asApp()).graphql(
+      "query { viewer { login } }",
+    );
+    expect(data).toEqual({ viewer: { login: "octocat" } });
+    expect(seen).toBe("https://api.github.com/graphql");
+  });
+
+  test("enterprise targets api/graphql, not api/v3/graphql", async () => {
+    setConfig(GHE_CONFIG);
+    resetAppCache();
+    let seen = "";
+    globalThis.fetch = (async (url: unknown) => {
+      seen = String(url);
+      return Response.json({ data: {} });
+    }) as typeof fetch;
+
+    await (await github.asApp()).graphql("query { viewer { login } }");
+    expect(seen).toBe("https://acme.ghe.com/api/graphql");
+    expect(seen).not.toContain("/api/v3/graphql");
+  });
+
+  test("installation helper hits the same endpoint", async () => {
+    setConfig(GHE_CONFIG);
+    resetAppCache();
+    const seen: string[] = [];
+    globalThis.fetch = (async (url: unknown) => {
+      const u = String(url);
+      seen.push(u);
+      if (u.includes("/access_tokens")) {
+        return Response.json({
+          token: "test-token",
+          expires_at: new Date(Date.now() + 3_600_000).toISOString(),
+        });
+      }
+      return Response.json({ data: { repository: { id: "R_1" } } });
+    }) as typeof fetch;
+
+    const gql = await github.graphql(7);
+    const data = await gql("query { repository { id } }");
+    expect(data).toEqual({ repository: { id: "R_1" } });
+    expect(seen).toContain("https://acme.ghe.com/api/graphql");
+  });
+
+  test("asUser targets the configured api_url", async () => {
+    setConfig(GHE_CONFIG);
+    resetAppCache();
+    let seen = "";
+    globalThis.fetch = (async (url: unknown) => {
+      seen = String(url);
+      return Response.json({ login: "octocat" });
+    }) as typeof fetch;
+
+    await (await github.asUser("token")).request("GET /user");
+    expect(seen).toBe("https://acme.ghe.com/api/v3/user");
   });
 });
 

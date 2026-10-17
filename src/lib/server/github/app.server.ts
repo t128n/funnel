@@ -12,7 +12,10 @@ let appPromise: Promise<App> | undefined;
 /**
  * Build the shared GitHub App. Every REST/JWT/installation call derives its
  * host from `github.api_url`, so the same code targets github.com or an
- * enterprise instance (`https://acme.ghe.com/api/v3`). `@octokit/app` has no
+ * enterprise instance (`https://acme.ghe.com/api/v3`). The same `baseUrl` also
+ * drives GraphQL: `@octokit/graphql` rewrites a trailing `/api/v3` to
+ * `/api/graphql`, so enterprise instances resolve `acme.ghe.com/api/graphql`
+ * while Cloud resolves `api.github.com/graphql`. `@octokit/app` has no
  * top-level `baseUrl`, so we hand it a pre-defaulted Octokit class; it reuses
  * that class for installation clients (via `auth.octokit.constructor`) and for
  * its OAuth app.
@@ -130,9 +133,22 @@ export const github = {
     return new Octokit({ auth: token, baseUrl: hosts.api_url });
   },
 
+  /**
+   * Installation-token GraphQL client for batched hydration. The endpoint
+   * derives from `github.api_url`: `@octokit/graphql` rewrites a trailing
+   * `/api/v3` to `/api/graphql`, so enterprise instances hit
+   * `acme.ghe.com/api/graphql` (never `.../api/v3/graphql`).
+   */
+  async graphql(
+    installationId: number,
+  ): Promise<InstallationOctokit["graphql"]> {
+    return (await this.asInstallation(installationId)).graphql;
+  },
+
   /** User-impersonating client for a user access token from the OAuth web flow. */
-  asUser(token: string): Octokit {
-    return new Octokit({ auth: token });
+  async asUser(token: string): Promise<Octokit> {
+    const { github: hosts } = await getConfig();
+    return new Octokit({ auth: token, baseUrl: hosts.api_url });
   },
 
   /** Start the OAuth web flow: redirect the user to the returned `url`. */

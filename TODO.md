@@ -25,7 +25,7 @@ This document tracks the implementation status of Funnel against the authoritati
 | :---------------------------- | :-----: | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `src/env.ts` validation       | ✅ Done | Valibot schema validates `FUNNEL_URL`, `FUNNEL_SECRET`, `FUNNEL_DB`, App ID, Private Key, Client ID/Secret, and `LOG_LEVEL`.                                                            |
 | `funnel.config.yaml` loader   | ✅ Done | `src/lib/server/config.ts` uses `c12` (`loadConfig`) + valibot schema; provides cached `getConfig()`. See `funnel.config.example.yaml`.                                                 |
-| Enterprise GHE Host Overrides | ✅ Done | `src/lib/server/github/app.server.ts` derives Octokit `baseUrl` from `github.api_url` and mirror links/`html_url`s from `github.url`. User OAuth flow wiring is intentionally deferred. |
+| Enterprise GHE Host Overrides | ✅ Done | `src/lib/server/github/app.server.ts` derives Octokit `baseUrl` (REST & GraphQL) from `github.api_url` and mirror links/`html_url`s from `github.url`. GraphQL resolves via Octokit's `/api/v3` → `/api/graphql` rewrite. |
 
 ---
 
@@ -47,7 +47,7 @@ This document tracks the implementation status of Funnel against the authoritati
 | Better Auth Initialization      | ✅ Done | Configured in `src/lib/server/auth/index.ts` with Drizzle adapter and GitHub social provider.                                                                                                                                                                                                                                                                                                                       |
 | SvelteKit Auth Handler          | ✅ Done | Hooked in `src/hooks.server.ts`.                                                                                                                                                                                                                                                                                                                                                                                    |
 | Encryption at Rest for Tokens   | ✅ Done | `account.encryptOAuthTokens: true` in `src/lib/server/auth/index.ts`. Better Auth encrypts `auth_account.accessToken`/`refreshToken` on write and decrypts on read, keyed off `FUNNEL_SECRET`. Cipher is XChaCha20-Poly1305 (authenticated encryption), Better Auth's built-in; the earlier "AES-GCM" wording is superseded. Callers must read tokens via `getUserAccessToken()` — the raw column holds ciphertext. |
-| Short-Lived Token Refresh       | ✅ Done | `getUserAccessToken(userId)` in `src/lib/server/auth/index.ts` uses `auth.api.getAccessToken()`, which auto-refreshes (and persists) tokens within 5s of expiry. Compose with the client as `github.asUser(await getUserAccessToken(userId))`; `hooks.server.ts` also populates `event.locals.session`/`user`.                                                                                                      |
+| Short-Lived Token Refresh       | ✅ Done | `getUserAccessToken(userId)` in `src/lib/server/auth/index.ts` uses `auth.api.getAccessToken()`, which auto-refreshes (and persists) tokens within 5s of expiry. Compose with the client as `await github.asUser(await getUserAccessToken(userId))`; `hooks.server.ts` also populates `event.locals.session`/`user`.                                                                                                      |
 | Test Suite Fix (`auth.test.ts`) | ✅ Done | Test now creates/queries `auth_verification`; added coverage for at-rest encryption and the refresh path.                                                                                                                                                                                                                                                                                                           |
 
 ---
@@ -122,7 +122,7 @@ flowchart TD
 - [x] Create `funnel.config.yaml` schema validator and file loader (`yaml` parser). Done via `c12` + valibot in `src/lib/server/config.ts` (YAML parsed by c12's bundled `confbox`); see `funnel.config.example.yaml`.
 - [x] Update `app.server.ts` to support dynamic enterprise GitHub URLs (`acme.ghe.com`) via `github.url` and `github.api_url`. Scoped to the `/api/` mirror (REST/JWT/installation clients, Link rewriting, 404 `html_url`s); OAuth user flow deferred.
 - [x] Implement token encryption at rest for `auth_account` using `FUNNEL_SECRET`. Done via Better Auth's `account.encryptOAuthTokens` (XChaCha20-Poly1305 AEAD, key derived from `FUNNEL_SECRET`); see `src/lib/server/auth/index.ts`.
-- [x] Implement automatic user token refresh for write operations. Done via `getUserAccessToken()` (Better Auth lazy refresh + persist), composed as `github.asUser(await getUserAccessToken(userId))`; session exposed on `event.locals`.
+- [x] Implement automatic user token refresh for write operations. Done via `getUserAccessToken()` (Better Auth lazy refresh + persist), composed as `await github.asUser(await getUserAccessToken(userId))`; session exposed on `event.locals`.
 - [x] Fix `auth.test.ts` to use `auth_verification` table name so the test suite passes cleanly.
 
 ### Milestone 2: Schema Initialization & Label Provisioning
@@ -137,7 +137,7 @@ flowchart TD
 - [x] **Structured logging (pino)**: add `pino` (and `pino-pretty` for dev) and create `src/lib/server/log.ts`; drive level from `LOG_LEVEL` and emit JSON logs from every background cycle.
 - [x] **Schema migrations**: commit the generated Drizzle migration under `drizzle/`; apply out-of-band via `bun run db:migrate` before the server starts (no `init` hook).
 - [x] **Config loader**: add the `c12` dependency and `src/lib/server/config.ts` (valibot-validated `funnel.config.yaml`: `github.url`, `github.api_url`, `repos`, `sync.history_days`, `sync.poll_interval_active_seconds`, `sync.poll_interval_idle_seconds`).
-- [ ] **GHE base-URL wiring**: update `app.server.ts` so Octokit REST and the GraphQL hydration endpoint derive from `github.api_url` (`acme.ghe.com/api/v3` + `/graphql`).
+- [x] **GHE base-URL wiring**: `app.server.ts` derives Octokit REST and GraphQL from `github.api_url`. GraphQL goes through `github.graphql(installationId)`; `@octokit/graphql` rewrites the GHES `/api/v3` suffix to `/api/graphql` (Cloud: `api.github.com/graphql`, GHE: `acme.ghe.com/api/graphql`). `github.asUser` is now host-aware too.
 - [ ] **Persistent process adapter**: replace `adapter-auto` with `svelte-adapter-bun` (or `adapter-node`) so background timers and SSE are not silently killed by a serverless target.
 
 **Sync engine:**
