@@ -140,6 +140,7 @@
 			/>
 		</svg>
 		<input
+			id="issue-search"
 			type="search"
 			placeholder="Search title, body, comments…"
 			value={search}

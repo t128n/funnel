@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { PageProps } from './$types';
+	import CarbonFunnelSequence from '~icons/carbon/funnel-sequence';
 
 	let { form }: PageProps = $props();
 </script>
@@ -7,7 +8,7 @@
 <div class="page">
 	<div class="card">
 		<header class="card__head">
-			<span class="brand__mark">F</span>
+			<span class="brand__mark"><CarbonFunnelSequence width="18" height="18" aria-hidden="true" /></span>
 			<h1>Submit an issue</h1>
 		</header>
 

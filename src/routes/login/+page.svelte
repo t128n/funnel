@@ -1,5 +1,7 @@
 <script lang="ts">
 	import { signInWithGitHub } from '#lib/client/auth';
+	import CarbonFunnelSequence from '~icons/carbon/funnel-sequence';
+	import CarbonLogoGithub from '~icons/carbon/logo-github';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
@@ -15,18 +17,13 @@
 <div class="page">
 	<div class="card">
 		<div class="brand">
-			<span class="brand__mark">F</span>
+			<span class="brand__mark"><CarbonFunnelSequence width="20" height="20" aria-hidden="true" /></span>
 			<span class="brand__name">Funnel</span>
 		</div>
 		<p class="tagline">High-density GitHub triage.</p>
 
 		<button class="github" type="button" onclick={signIn} disabled={pending}>
-			<svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true">
-				<path
-					fill="currentColor"
-					d="M8 0a8 8 0 00-2.5 15.6c.4.1.5-.2.5-.4v-1.4c-2.2.5-2.7-1-2.7-1-.4-1-.9-1.2-.9-1.2-.7-.5.1-.5.1-.5.8.1 1.2.8 1.2.8.7 1.2 1.9.9 2.3.7.1-.5.3-.9.5-1.1-1.8-.2-3.6-.9-3.6-3.9 0-.9.3-1.6.8-2.1-.1-.2-.4-1 .1-2.1 0 0 .7-.2 2.2.8a7.5 7.5 0 014 0c1.5-1 2.2-.8 2.2-.8.5 1.1.2 1.9.1 2.1.5.5.8 1.2.8 2.1 0 3-1.8 3.7-3.6 3.9.3.3.5.8.5 1.6v2.3c0 .2.1.5.5.4A8 8 0 008 0z"
-				/>
-			</svg>
+			<CarbonLogoGithub width="16" height="16" aria-hidden="true" />
 			{pending ? 'Redirecting…' : 'Sign in with GitHub'}
 		</button>
 

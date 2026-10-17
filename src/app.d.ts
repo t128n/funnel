@@ -1,3 +1,5 @@
+import 'unplugin-icons/types/svelte';
+
 import type { Session } from "#lib/server/auth/index";
 
 // See https://svelte.dev/docs/kit/types#app.d.ts

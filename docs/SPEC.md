@@ -247,15 +247,16 @@ The visual design language adheres strictly to [`docs/DESIGN.md`](file:///Users/
 - **Palette**: Oxocarbon (IBM Carbon modernist palette).
   - Dark: Deep canvas `#161616`, Layer 1 `#262626`, Layer 2 `#393939`, Borders `#393939`.
   - Light: Canvas `#F2F4F8`, Layer 1 `#DDE1E6`, Layer 2 `#F2F4F8`, Borders `#DDE1E6`.
-- **Theme Toggle**: In-app 3-way toggle (System / Dark / Light) in the sidebar footer.
+- **Theme Toggle**: In-app 3-way toggle (System / Dark / Light) in the sidebar header menu.
 - **Typography**: `Inter` for structural UI labels; `JetBrains Mono` for issue numbers (`repo#123`), commit SHAs, and tags. Base body text set to high-density `13px`.
 - **Component Primitives**: Unstyled `bits-ui` for accessible dropdowns, dialogs, and popovers.
 
 ### 9.2 Layout Architecture
 Three-pane layout optimized for widescreen displays:
 1. **Navigation Sidebar (220px fixed)**:
-   - Views: **Inbox**, **All Issues**, **My Issues**, **Status Board**.
-   - Footer: Theme switcher, AGPL-3.0 source repository link, user profile/logout.
+   - Header: workspace menu (theme switcher, AGPL-3.0 source link) plus global Search (`⌘K`) and quick-create (`C`) actions.
+   - Views grouped as **Triage** (**Inbox**, **My Issues**) and **Workspace** (**All Issues**, **Status Board**).
+   - Footer: user profile and sign-out.
 2. **Main Stream (Flexible width)**:
    - High-density issue rows with fixed 36px height.
    - Left-aligned state indicator, monospace repo badge, truncated issue title (`13px`).

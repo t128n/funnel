@@ -3,6 +3,7 @@
 // serverless target would kill them. See docs/SPEC.md §3.1.
 import adapter from '@sveltejs/adapter-node';
 import { sveltekit } from '@sveltejs/kit/vite';
+import Icons from 'unplugin-icons/vite';
 import { defineConfig } from 'vite';
 
 export default defineConfig({
@@ -15,6 +16,7 @@ export default defineConfig({
 			},
 
 			adapter: adapter()
-		})
+		}),
+		Icons({ compiler: 'svelte' })
 	]
 });

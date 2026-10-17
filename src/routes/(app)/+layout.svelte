@@ -74,12 +74,47 @@
 			width: 56px;
 		}
 
-		.shell :global(.sidebar .brand__text),
-		.shell :global(.sidebar .nav__item span),
-		.shell :global(.sidebar .ts-trigger__label),
-		.shell :global(.sidebar .footer__link span),
+		.shell :global(.sidebar .instance__name),
+		.shell :global(.sidebar .instance__caret),
+		.shell :global(.sidebar .nav__heading),
+		.shell :global(.sidebar .nav__label),
 		.shell :global(.sidebar .profile__meta) {
 			display: none;
+		}
+
+		/* Collapsed rail: stack the header controls and center every glyph. */
+		.shell :global(.sidebar .side-head) {
+			flex-direction: column;
+			height: auto;
+			gap: var(--space-sm);
+			padding: var(--space-sm) var(--space-xs);
+		}
+
+		.shell :global(.sidebar .side-head .instance) {
+			flex: none;
+			justify-content: center;
+			padding: var(--space-xs);
+			margin-left: 0;
+		}
+
+		.shell :global(.sidebar .side-head__actions) {
+			flex-direction: column;
+			gap: var(--space-xs);
+		}
+
+		.shell :global(.sidebar .nav__section + .nav__section) {
+			padding-top: var(--space-sm);
+			border-top: 1px solid var(--color-border-subtle);
+		}
+
+		.shell :global(.sidebar .nav__item) {
+			justify-content: center;
+			padding: 0;
+		}
+
+		.shell :global(.sidebar .profile) {
+			flex-direction: column;
+			gap: var(--space-xs);
 		}
 	}
 </style>
