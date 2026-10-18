@@ -54,7 +54,7 @@
 	 */
 	interface Props {
 		issue: IssueListItem;
-		/** `owner/name` → project key from `funnel.config.yaml`. */
+		/** `owner/name` → project key from instance settings. */
 		repoShortcodes: Record<string, string>;
 		/** Show the repository context tag when the board spans multiple repos. */
 		showRepo?: boolean;

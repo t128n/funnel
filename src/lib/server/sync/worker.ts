@@ -405,6 +405,16 @@ export function stopSyncWorker(): void {
   nextDue.clear();
 }
 
+/**
+ * Signal that instance settings changed (repos added/removed, intervals
+ * retuned). Clears the per-repo schedule so the next tick re-reads config and
+ * picks up new repositories; wakes the loop immediately if it is idle.
+ */
+export function notifyConfigChanged(): void {
+  nextDue.clear();
+  if (running && !timer) void tick();
+}
+
 /** Run one cycle for every configured repo now (tests / manual trigger). */
 export async function syncAllRepos(): Promise<void> {
   let repos: readonly string[];

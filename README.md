@@ -34,34 +34,32 @@ npx sv add tailwindcss
 
 ## Configuration
 
-Instance configuration lives in `funnel.config.yaml` (git-ignored, per-instance).
-Start from the annotated example:
+Instance configuration is stored in the SQLite database and edited from the
+**Settings** page (`/settings`) after signing in. Repositories, projects, the
+intake default, sync cadence, board behaviour, and session lifetime all live in
+the `state_setting` table; writes are validated and applied without a restart
+(the sync scheduler re-reads config; open cockpits refresh over SSE).
 
-```sh
-cp funnel.config.example.yaml funnel.config.yaml
-```
+A fresh install starts with no repositories — add them on the Settings page.
 
-Only `repos` is required; every other key falls back to the defaults documented in
-[docs/SPEC.md](docs/SPEC.md) §4 and §10. The file is loaded and validated at runtime by
-`src/lib/server/config.ts` using [`c12`](https://github.com/unjs/c12) (YAML) and
-[valibot](https://valibot.dev):
+Deploy-time values come from the environment (see `.env.example`):
+
+- `FUNNEL_GITHUB_URL` / `FUNNEL_GITHUB_API_URL` — the GitHub host. Defaults to
+  github.com; set both to your host for GitHub Enterprise Server.
+- `FUNNEL_SECRET`, `FUNNEL_DB`, the GitHub App credentials, and `LOG_LEVEL`.
+
+Reads stay programmatic and are unchanged:
 
 ```ts
 import { getConfig } from "#lib/server/config.js";
 
 const config = await getConfig(); // validated, cached, defaults applied
 config.github.api_url; // https://api.github.com
-config.repos; // ["orgA/core", ...]
+config.repos; // [{ repo: "orgA/core", shortcode: "CORE" }, ...]
 ```
 
-The optional top-level `projects` list maps GitHub labels to project names and
-enables the **Project** group-by option in the issue feeds:
-
-```yaml
-projects:
-  - label: project1
-    name: Project One
-```
+The **Projects** list on the Settings page maps GitHub labels to project names
+and enables the **Project** group-by option in the issue feeds.
 
 ## Developing
 

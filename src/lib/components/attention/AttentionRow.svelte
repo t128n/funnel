@@ -41,7 +41,7 @@
 	interface Props {
 		item: AttentionItem;
 		today: string;
-		/** `owner/name` → project key from `funnel.config.yaml`. */
+		/** `owner/name` → project key from instance settings. */
 		repoShortcodes?: Record<string, string>;
 		/** Signed-in viewer, when their GitHub identity is mirrored. */
 		viewer?: UserRef | null;

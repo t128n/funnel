@@ -1,9 +1,8 @@
-import { FUNNEL_COMMENT_UI } from "$app/env/private";
 import { getViewerGithubId } from "#lib/server/auth/index";
 import { requireUser } from "#lib/server/auth/guard";
-import { COMMENT_UI_COOKIE, parseCommentUi } from "#lib/comment-ui";
+import { FEATURES_COOKIE, parseFeatureOverrides } from "#lib/features";
 import { getConfig, repoShortcodeMap } from "#lib/server/config";
-import { commentBubbles } from "#lib/server/flags";
+import { COMMENT_BUBBLES_FLAG, resolveFeatures } from "#lib/server/flags";
 import { attentionIssues, filterOptions } from "#lib/server/issues/queries";
 import { getUser } from "#lib/server/sync/mirror";
 import type { LayoutServerLoad } from "./$types";
@@ -12,18 +11,17 @@ import type { LayoutServerLoad } from "./$types";
  * Shared data for every cockpit view: the signed-in user (also enforcing the
  * session gate), the filter option lists, and host/board configuration used by
  * the Inspector's outbound links, the board's Done window, and the per-stage
- * Work-in-Progress caps. It also resolves the comment-rendering flag, honouring
- * a per-browser cookie before the `FUNNEL_COMMENT_UI` default.
+ * Work-in-Progress caps. It also resolves the feature flags, layering the
+ * browser's cookie overrides over the instance defaults.
  */
 export const load: LayoutServerLoad = async ({ locals, url, cookies }) => {
   const user = requireUser(locals, url);
-  const commentUi =
-    parseCommentUi(cookies.get(COMMENT_UI_COOKIE)) ?? FUNNEL_COMMENT_UI;
-  const [options, config, viewerGithubId, chatComments] = await Promise.all([
+  const overrides = parseFeatureOverrides(cookies.get(FEATURES_COOKIE));
+  const [options, config, viewerGithubId, features] = await Promise.all([
     Promise.resolve(filterOptions()),
     getConfig(),
     getViewerGithubId(user.id),
-    commentBubbles(commentUi),
+    resolveFeatures(overrides),
   ]);
 
   const viewerGithub =
@@ -41,6 +39,7 @@ export const load: LayoutServerLoad = async ({ locals, url, cookies }) => {
     projects: config.projects,
     doneDays: config.board.done_days,
     wipLimits: config.board.wip_limits,
-    commentBubbles: chatComments,
+    features,
+    commentBubbles: features[COMMENT_BUBBLES_FLAG],
   };
 };

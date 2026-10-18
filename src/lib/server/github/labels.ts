@@ -143,7 +143,7 @@ export async function provisionRepoLabels(
 }
 
 /**
- * Provision every repository in `funnel.config.yaml` (SPEC §5.2(4)).
+ * Provision every repository in instance settings (SPEC §5.2(4)).
  *
  * Never throws: a repository that fails (App not installed, permissions,
  * network) is recorded and skipped so the remaining repos still reconcile,

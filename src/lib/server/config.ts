@@ -1,36 +1,34 @@
-import { loadConfig } from "c12";
+/**
+ * Instance configuration (SPEC §4, §10).
+ *
+ * Configuration is assembled from two sources and validated as one:
+ *
+ *  - the GitHub hosts (`github.url` / `github.api_url`) come from the
+ *    environment, because they are tied to the deployed GitHub App and its
+ *    OAuth wiring (`src/env.ts` reads `FUNNEL_GITHUB_URL` /
+ *    `FUNNEL_GITHUB_API_URL`);
+ *  - everything else (repositories, projects, intake, sync cadence, board, and
+ *    session) lives in the SQLite `state_setting` table and is edited from the
+ *    `/settings` page via `#lib/server/settings`.
+ *
+ * {@link loadFunnelConfig} merges both, normalizes list entries, and runs the
+ * cross-field checks. {@link getConfig} is the process-wide cached accessor
+ * that every consumer already uses.
+ */
+import { FUNNEL_GITHUB_API_URL, FUNNEL_GITHUB_URL } from "$app/env/private";
 import * as v from "valibot";
 import { deriveRepoShortcode } from "#lib/issue-ref";
-
-// `owner/name` on GitHub. Owner segments are alphanumerics/hyphens; repo names
-// additionally allow dots and underscores. Kept intentionally permissive here
-// (GitHub is the source of truth) but strict enough to reject junk.
-const repoPattern = /^[\w.-]+\/[\w.-]+$/;
-
-const repoName = v.pipe(
-  v.string("Repository must be a string"),
-  v.trim(),
-  v.regex(repoPattern, "Repository must be in `owner/name` form"),
-);
-
-// The short project key shown on cards (e.g. `FIT-12`). Kept short because it
-// repeats on every card; owners can override the derived value in config.
-const shortcode = v.pipe(
-  v.string("Shortcode must be a string"),
-  v.trim(),
-  v.regex(
-    /^[A-Za-z][A-Za-z0-9]{0,5}$/,
-    "Shortcode must start with a letter and be at most 6 characters",
-  ),
-);
-
-/** Non-negative integer with a label used in validation messages. */
-const count = (label: string) =>
-  v.pipe(
-    v.number(`${label} must be a number`),
-    v.integer(`${label} must be an integer`),
-    v.minValue(0, `${label} must be >= 0`),
-  );
+import {
+  count,
+  projectInput,
+  readSettings,
+  repoEntry,
+  repoName,
+  type ProjectInput,
+  type RepoInput,
+  type SettingsInput,
+  WIP_STAGES,
+} from "#lib/server/settings/store";
 
 /** One configured repository and the short key used in issue identifiers. */
 export interface RepoConfig {
@@ -52,17 +50,6 @@ export interface ProjectConfig {
   name: string;
 }
 
-/** Raw YAML project entry: the label string or the structured mapping. */
-type ProjectInput = string | { label: string; name?: string };
-
-const projectInput = v.union([
-  v.pipe(v.string(), v.trim(), v.nonEmpty("Project label must not be empty")),
-  v.object({
-    label: v.pipe(v.string(), v.trim(), v.nonEmpty("Project label must not be empty")),
-    name: v.optional(v.pipe(v.string(), v.trim())),
-  }),
-]);
-
 function normalizeProjects(entries: ProjectInput[]): ProjectConfig[] {
   const seen = new Set<string>();
   const projects: ProjectConfig[] = [];
@@ -76,14 +63,6 @@ function normalizeProjects(entries: ProjectInput[]): ProjectConfig[] {
   }
   return projects;
 }
-
-/** Raw YAML entry: the legacy string form or the structured mapping. */
-type RepoInput = string | { repo: string; shortcode?: string };
-
-const repoEntry = v.union([
-  repoName,
-  v.object({ repo: repoName, shortcode: v.optional(shortcode) }),
-]);
 
 function normalizeRepos(entries: RepoInput[]): RepoConfig[] {
   const seen = new Set<string>();
@@ -103,9 +82,9 @@ function normalizeRepos(entries: RepoInput[]): RepoConfig[] {
 }
 
 /**
- * The configuration defaults. These are merged in at the lowest priority by c12
- * *before* validation, so the schema can require the fully-resolved shape while
- * a config file only specifies what it overrides.
+ * The configuration defaults, mirroring the per-key defaults in the settings
+ * store (plus the env host defaults). Used as the documentation of record and
+ * by tests; the store applies its own defaults when a row is missing.
  */
 export const DEFAULT_CONFIG = {
   github: {
@@ -114,7 +93,7 @@ export const DEFAULT_CONFIG = {
   },
   repos: [] as RepoConfig[],
   projects: [] as ProjectConfig[],
-  intake: {},
+  intake: {} as { default_repo?: string },
   sync: {
     history_days: 90,
     poll_interval_active_seconds: 30,
@@ -135,11 +114,12 @@ export const configSchema = v.pipe(
       url: v.pipe(v.string(), v.url("github.url must be a valid URL")),
       api_url: v.pipe(v.string(), v.url("github.api_url must be a valid URL")),
     }),
-    repos: v.pipe(
-      v.array(repoEntry),
-      v.minLength(1, "At least one repository is required"),
-      v.transform(normalizeRepos),
-    ),
+    /**
+     * Repositories are optional at the schema level: a fresh install starts
+     * with none and is configured from `/settings`. A missing repository just
+     * means nothing is synced until one is added.
+     */
+    repos: v.pipe(v.array(repoEntry), v.transform(normalizeRepos)),
     /**
      * Optional project indicators. Each entry maps a GitHub label to a display
      * name; omitted means no project grouping is available in the cockpit.
@@ -159,10 +139,7 @@ export const configSchema = v.pipe(
        * Optional per-stage Work-in-Progress caps, keyed by the open status
        * names. A missing entry means "no limit". Done is never capped.
        */
-      wip_limits: v.record(
-        v.picklist(["backlog", "todo", "in-progress", "in-review"] as const),
-        count("board.wip_limits"),
-      ),
+      wip_limits: v.record(v.picklist(WIP_STAGES), count("board.wip_limits")),
     }),
     session: v.object({
       idle_days: count("session.idle_days"),
@@ -209,58 +186,73 @@ export function repoShortcodeMap(
 }
 
 /**
- * Load and validate `funnel.config.yaml` from `cwd`.
+ * Validate a composed settings object against {@link configSchema}, injecting
+ * the env-supplied GitHub hosts. Shared by {@link loadFunnelConfig} and the
+ * settings write path, so a UI patch is rejected by exactly the same rules
+ * (including the cross-field checks) as a startup load.
  *
- * c12 resolves `funnel.config.{yaml,yml,json,jsonc,json5,toml,ts,js,...}`
- * (YAML parsed via its bundled `confbox`), merges {@link DEFAULT_CONFIG} and
- * validates the result against {@link configSchema}.
- *
- * Throws a `ConfigError` when the merged config is invalid.
+ * Throws a {@link ConfigError} when the merged config is invalid.
  */
-export async function loadFunnelConfig(
-  options: { cwd?: string } = {},
-): Promise<FunnelConfig> {
-  try {
-    const { config } = await loadConfig({
-      name: "funnel",
-      cwd: options.cwd ?? process.cwd(),
-      dotenv: false, // environment variables are owned by `src/env.ts`
-      packageJson: false,
-      rcFile: false,
-      // A missing file is not fatal: `defaults` are merged, then the schema
-      // rejects the absence of required `repos` with a readable message.
-      configFileRequired: false,
-      defaults: DEFAULT_CONFIG,
-      schema: configSchema,
-    });
-    return config as FunnelConfig;
-  } catch (error) {
+export function validateConfig(settings: SettingsInput): FunnelConfig {
+  const merged = {
+    github: { url: FUNNEL_GITHUB_URL, api_url: FUNNEL_GITHUB_API_URL },
+    ...settings,
+  };
+
+  const parsed = v.safeParse(configSchema, merged);
+  if (!parsed.success) {
     throw new ConfigError(
-      `Invalid funnel configuration: ${(error as Error).message}`,
-      { cause: error },
+      `Invalid funnel configuration: ${parsed.issues
+        .map((issue) => issue.message)
+        .join("; ")}`,
+      { cause: parsed.issues },
     );
   }
+  return parsed.output;
+}
+
+/**
+ * Load and validate the instance configuration.
+ *
+ * The GitHub hosts come from the environment; the rest is read from the
+ * `state_setting` table (with per-key defaults). The merged object is validated
+ * against {@link configSchema}, normalizing list entries and enforcing the
+ * cross-field rules.
+ *
+ * Throws a {@link ConfigError} when the merged config is invalid.
+ */
+export async function loadFunnelConfig(): Promise<FunnelConfig> {
+  return validateConfig(readSettings());
 }
 
 let cached: Promise<FunnelConfig> | undefined;
 
 /**
  * Process-wide singleton accessor. Mirrors the lazy `getApp()` pattern used by
- * the GitHub layer so background workers and request handlers share one parse.
+ * the GitHub layer so background workers and request handlers share one read.
+ *
+ * A failed load is *not* cached: a rejected promise is dropped so a later fix
+ * (e.g. correcting settings in the UI) takes effect without a restart.
  */
 export function getConfig(): Promise<FunnelConfig> {
-  return (cached ??= loadFunnelConfig());
+  if (!cached) {
+    cached = loadFunnelConfig().catch((error: unknown) => {
+      cached = undefined;
+      throw error;
+    });
+  }
+  return cached;
 }
 
-/** Drop the cached config (for tests, or after a config reload). */
+/** Drop the cached config (for tests, or after a settings change). */
 export function resetConfigCache(): void {
   cached = undefined;
 }
 
 /**
- * Seed the cache with an already-validated config, bypassing file loading.
- * Lets tests exercise config-dependent code (e.g. the GitHub App's enterprise
- * host) without writing a `funnel.config.yaml` to disk.
+ * Seed the cache with an already-validated config, bypassing loading. Lets
+ * tests exercise config-dependent code (e.g. the GitHub App's enterprise host)
+ * without writing settings rows.
  */
 export function setConfig(config: FunnelConfig): void {
   cached = Promise.resolve(config);

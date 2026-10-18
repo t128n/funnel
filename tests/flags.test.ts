@@ -1,34 +1,39 @@
 import { describe, expect, test } from "bun:test";
-import { COMMENT_UI_COOKIE, parseCommentUi } from "#lib/comment-ui";
-import { commentBubbles } from "#lib/server/flags";
+import { FEATURE_FLAGS } from "#lib/features";
+import {
+  COMMENT_BUBBLES_FLAG,
+  flagDefault,
+  resolveFeatures,
+} from "#lib/server/flags";
 
-describe("commentBubbles flag", () => {
-  test("defaults to the compact list", async () => {
-    expect(await commentBubbles(null)).toBe(false);
+describe("flagDefault", () => {
+  test("maps FUNNEL_COMMENT_UI onto the comment flag", () => {
+    // `tests/setup.ts` mocks FUNNEL_COMMENT_UI as "compact".
+    expect(flagDefault(COMMENT_BUBBLES_FLAG)).toBe(false);
   });
 
-  test("enables chat bubbles when the context asks for them", async () => {
-    expect(await commentBubbles("bubbles")).toBe(true);
-  });
-
-  test("stays off for an explicit compact choice", async () => {
-    expect(await commentBubbles("compact")).toBe(false);
+  test("falls back to false for an unknown key", () => {
+    expect(flagDefault("not-a-flag")).toBe(false);
   });
 });
 
-describe("parseCommentUi", () => {
-  test("accepts the two known values", () => {
-    expect(parseCommentUi("compact")).toBe("compact");
-    expect(parseCommentUi("bubbles")).toBe("bubbles");
+describe("resolveFeatures", () => {
+  test("resolves every registered flag", async () => {
+    const features = await resolveFeatures();
+    expect(Object.keys(features).sort()).toEqual(
+      FEATURE_FLAGS.map((flag) => flag.key).sort(),
+    );
   });
 
-  test("rejects anything else", () => {
-    expect(parseCommentUi(null)).toBeNull();
-    expect(parseCommentUi("")).toBeNull();
-    expect(parseCommentUi("Bubbles")).toBeNull();
+  test("uses the instance default when there is no override", async () => {
+    expect((await resolveFeatures())[COMMENT_BUBBLES_FLAG]).toBe(false);
   });
 
-  test("exposes a stable cookie name", () => {
-    expect(COMMENT_UI_COOKIE).toBe("funnel:comment-ui");
+  test("honours a browser override", async () => {
+    expect(
+      (await resolveFeatures({ [COMMENT_BUBBLES_FLAG]: true }))[
+        COMMENT_BUBBLES_FLAG
+      ],
+    ).toBe(true);
   });
 });

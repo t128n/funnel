@@ -18,13 +18,6 @@ Thumbs.db
 !.env.example
 !.env.test
 
-# Instance configuration (see funnel.config.example.yaml)
-funnel.config.yaml
-funnel.config.yml
-funnel.config.json
-funnel.config.toml
-funnel.config.ts
-
 # Database (runtime state; schema lives in the committed drizzle/ migrations)
 data/
 *.db

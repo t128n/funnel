@@ -14,10 +14,21 @@ import {
   authUser,
   authVerification,
 } from "#lib/server/db/schema";
+import { readSettings } from "#lib/server/settings/store";
 
-// SPEC section 11: `session.idle_days`, default 30. Hardcoded until
-// `funnel.config.yaml` exists; then read it from config instead.
-const SESSION_IDLE_DAYS = 30;
+// SPEC section 11: `session.idle_days` (default 30), read from instance
+// settings at startup. Better Auth builds its options once per process, so a
+// change made from the UI applies to sessions created after a restart.
+function sessionIdleDays(): number {
+  try {
+    return readSettings().session.idle_days;
+  } catch {
+    // The settings table may not exist yet (migrations run out-of-band).
+    return 30;
+  }
+}
+
+const SESSION_IDLE_DAYS = sessionIdleDays();
 const DAY_SECONDS = 60 * 60 * 24;
 
 export const auth = betterAuth({

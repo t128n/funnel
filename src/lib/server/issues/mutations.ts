@@ -197,7 +197,7 @@ function badRequest(message: string): Outcome<never> {
 
 /**
  * Guard every write against a repo that isn't one of the configured
- * `funnel.config.yaml` repos, so the cockpit can never target an unmapped
+ * instance settings repos, so the cockpit can never target an unmapped
  * repository. Returns a ready `Outcome` failure, or `null` when allowed.
  */
 async function requireConfiguredRepo(
@@ -211,7 +211,7 @@ async function requireConfiguredRepo(
 
 /**
  * Create a GitHub issue with the user's token (SPEC §9.2). The repo must be one
- * of the configured `funnel.config.yaml` repos so the cockpit cannot target an
+ * of the configured instance settings repos so the cockpit cannot target an
  * unmapped repository.
  */
 export async function createIssue(

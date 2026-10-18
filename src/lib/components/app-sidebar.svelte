@@ -5,6 +5,7 @@
 	import FunnelIcon from "@lucide/svelte/icons/funnel";
 	import InboxIcon from "@lucide/svelte/icons/inbox";
 	import KanbanIcon from "@lucide/svelte/icons/kanban";
+	import SettingsIcon from "@lucide/svelte/icons/settings";
 	import type { ComponentProps } from "svelte";
 	import * as Sidebar from "#lib/components/ui/sidebar/index.js";
 	import { viewOf } from "#lib/issue-url";
@@ -48,6 +49,7 @@
 
 	// Attention is a plain page (not a `viewOf` view), so it tests the prefix.
 	const attentionActive = $derived(page.url.pathname.startsWith("/attention"));
+	const settingsActive = $derived(page.url.pathname.startsWith("/settings"));
 </script>
 
 <Sidebar.Root bind:ref {collapsible} {...restProps}>
@@ -116,6 +118,25 @@
 					{#if dueCount > 0}
 						<Sidebar.MenuBadge class="bg-destructive text-white">{dueCount}</Sidebar.MenuBadge>
 					{/if}
+				</Sidebar.MenuItem>
+				<Sidebar.MenuItem
+					class={cn(
+						"before:absolute before:inset-y-0 before:start-0 before:w-0.5 before:bg-sidebar-primary",
+						settingsActive ? "before:opacity-100" : "before:opacity-0"
+					)}
+				>
+					<Sidebar.MenuButton isActive={settingsActive} tooltipContent="Settings">
+						{#snippet child({ props })}
+							<a
+								href="/settings"
+								aria-current={settingsActive ? "page" : undefined}
+								{...props}
+							>
+								<SettingsIcon />
+								<span>Settings</span>
+							</a>
+						{/snippet}
+					</Sidebar.MenuButton>
 				</Sidebar.MenuItem>
 			</Sidebar.Menu>
 		</Sidebar.Group>

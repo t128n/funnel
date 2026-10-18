@@ -12,7 +12,7 @@
 		/** The detail route's issue, highlighted in the feed. */
 		selected?: { repo: string; number: number } | null;
 		empty?: string;
-		/** `owner/name` → project key from `funnel.config.yaml`. */
+		/** `owner/name` → project key from instance settings. */
 		repoShortcodes?: Record<string, string>;
 		/** Configured project indicators for group-by-project. */
 		projects?: ProjectOption[];

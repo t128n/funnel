@@ -10,7 +10,6 @@
 	import { useSidebar } from "#lib/components/ui/sidebar/index.js";
 	import { signOut } from "#lib/client/auth";
 	import { appHotkeys } from "#lib/client/hotkeys";
-	import { openSettings } from "#lib/client/settings.svelte";
 
 	let {
 		user
@@ -31,10 +30,10 @@
 		await goto("/login");
 	}
 
-	/** Close the mobile sheet before opening the (also modal) settings dialog. */
+	/** Close the mobile sheet before navigating to the settings page. */
 	function handleSettings() {
 		if (sidebar.isMobile) sidebar.setOpenMobile(false);
-		openSettings();
+		void goto("/settings");
 	}
 </script>
 

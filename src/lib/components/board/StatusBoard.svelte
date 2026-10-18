@@ -19,7 +19,7 @@
 		board: StatusBoardData;
 		wipLimits?: Record<string, number>;
 		doneDays: number;
-		/** `owner/name` → project key from `funnel.config.yaml`. */
+		/** `owner/name` → project key from instance settings. */
 		repoShortcodes: Record<string, string>;
 		/** Signed-in viewer for the card's quick assign action. */
 		viewer?: UserRef | null;

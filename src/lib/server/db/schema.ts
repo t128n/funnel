@@ -29,6 +29,20 @@ export const stateIntakeSubmission = sqliteTable("state_intake_submission", {
 });
 
 // ---------------------------------------------------------------------------
+// State: instance settings (SPEC §4, §10).
+// A normalized key/value store that replaces `funnel.config.yaml`. Keys are
+// dotted paths (`sync.history_days`, `intake.default_repo`, ...) and `value`
+// holds the JSON-encoded setting. Lists (`repos`, `projects`) live under a
+// single key as a JSON array. Reads are validated per key in
+// `#lib/server/settings`.
+// ---------------------------------------------------------------------------
+export const stateSetting = sqliteTable("state_setting", {
+  key: text("key").primaryKey(),
+  value: text("value").notNull(),
+  updatedAt: integer("updated_at").notNull(),
+});
+
+// ---------------------------------------------------------------------------
 // Auth: Better Auth tables (SPEC 7, 8). Field names match Better Auth's
 // stock schema. Date columns use timestamp mode and `emailVerified`
 // boolean mode: the drizzle adapter passes Date/boolean objects, and

@@ -1,7 +1,4 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
 import {
   ConfigError,
   DEFAULT_CONFIG,
@@ -9,76 +6,82 @@ import {
   loadFunnelConfig,
   resetConfigCache,
 } from "./config";
+import {
+  clearSettings,
+  SettingsError,
+  writeSettings,
+  type SettingsInput,
+} from "./settings/store";
 
-const dirs: string[] = [];
+/** A complete, all-defaults payload; `seed` overrides individual sections. */
+const BASE: SettingsInput = {
+  repos: [],
+  projects: [],
+  intake: {},
+  sync: {
+    history_days: 90,
+    poll_interval_active_seconds: 30,
+    poll_interval_idle_seconds: 300,
+  },
+  board: { done_days: 14, wip_limits: {} },
+  session: { idle_days: 30 },
+};
 
-afterEach(() => {
-  while (dirs.length) {
-    const dir = dirs.pop();
-    if (dir) rmSync(dir, { recursive: true, force: true });
-  }
-});
-
-/** Create a temp cwd containing a `funnel.config.yaml` with `yaml` contents. */
-function configDir(yaml: string): string {
-  const dir = mkdtempSync(join(tmpdir(), "funnel-config-"));
-  dirs.push(dir);
-  writeFileSync(join(dir, "funnel.config.yaml"), yaml);
-  return dir;
+/** Write settings to the in-memory `state_setting` table. */
+function seed(partial: Partial<SettingsInput>): void {
+  writeSettings({ ...BASE, ...partial });
 }
 
+afterEach(() => {
+  clearSettings();
+  resetConfigCache();
+});
+
 describe("loadFunnelConfig", () => {
-  test("loads and validates a full config, de-duplicating repos", async () => {
-    const cwd = configDir(`
-github:
-  url: https://acme.ghe.com
-  api_url: https://acme.ghe.com/api/v3
-repos:
-  - orgA/core
-  - orgA/web
-  - orgA/core
-intake:
-  default_repo: orgA/core
-sync:
-  history_days: 30
-  poll_interval_active_seconds: 10
-  poll_interval_idle_seconds: 120
-board:
-  done_days: 7
-session:
-  idle_days: 1
-`);
-
-    const config = await loadFunnelConfig({ cwd });
-
-    expect(config).toEqual({
-      github: {
-        url: "https://acme.ghe.com",
-        api_url: "https://acme.ghe.com/api/v3",
-      },
-      repos: [
-        { repo: "orgA/core", shortcode: "CORE" },
-        { repo: "orgA/web", shortcode: "WEB" },
-      ],
-      projects: [],
+  test("loads settings, normalizes lists, and uses the env host", async () => {
+    seed({
+      repos: ["orgA/core", "orgA/web", "orgA/core"],
+      projects: [{ label: "project1", name: "Project One" }, "project2"],
       intake: { default_repo: "orgA/core" },
       sync: {
         history_days: 30,
         poll_interval_active_seconds: 10,
         poll_interval_idle_seconds: 120,
       },
-      board: { done_days: 7, wip_limits: {} },
+      board: { done_days: 7, wip_limits: { "in-progress": 3 } },
+      session: { idle_days: 1 },
+    });
+
+    const config = await loadFunnelConfig();
+
+    expect(config).toEqual({
+      github: {
+        url: "https://github.com",
+        api_url: "https://api.github.com",
+      },
+      repos: [
+        { repo: "orgA/core", shortcode: "CORE" },
+        { repo: "orgA/web", shortcode: "WEB" },
+      ],
+      projects: [
+        { label: "project1", name: "Project One" },
+        { label: "project2", name: "project2" },
+      ],
+      intake: { default_repo: "orgA/core" },
+      sync: {
+        history_days: 30,
+        poll_interval_active_seconds: 10,
+        poll_interval_idle_seconds: 120,
+      },
+      board: { done_days: 7, wip_limits: { "in-progress": 3 } },
       session: { idle_days: 1 },
     });
   });
 
-  test("fills omitted sections from defaults", async () => {
-    const cwd = configDir(`
-repos:
-  - orgA/core
-`);
+  test("fills omitted settings from defaults", async () => {
+    seed({});
 
-    const config = await loadFunnelConfig({ cwd });
+    const config = await loadFunnelConfig();
 
     expect(config.github).toEqual(DEFAULT_CONFIG.github);
     expect(config.sync).toEqual(DEFAULT_CONFIG.sync);
@@ -87,27 +90,20 @@ repos:
     expect(config.intake).toEqual({});
   });
 
-  test("fails when repos is empty or missing", async () => {
-    const empty = configDir("repos: []\n");
-    await expect(loadFunnelConfig({ cwd: empty })).rejects.toBeInstanceOf(
-      ConfigError,
-    );
+  test("allows a fresh install with no repositories", async () => {
+    seed({});
 
-    const missing = configDir("github:\n  url: https://github.com\n");
-    await expect(loadFunnelConfig({ cwd: missing })).rejects.toThrow(
-      /repository/i,
-    );
+    const config = await loadFunnelConfig();
+
+    expect(config.repos).toEqual([]);
   });
 
   test("normalizes structured repos and honours an explicit shortcode", async () => {
-    const cwd = configDir(`
-repos:
-  - repo: t128n/funnel-issue-tracker
-    shortcode: fit
-  - orgB/infra
-`);
+    seed({
+      repos: [{ repo: "t128n/funnel-issue-tracker", shortcode: "fit" }, "orgB/infra"],
+    });
 
-    const config = await loadFunnelConfig({ cwd });
+    const config = await loadFunnelConfig();
 
     expect(config.repos).toEqual([
       { repo: "t128n/funnel-issue-tracker", shortcode: "FIT" },
@@ -116,52 +112,43 @@ repos:
   });
 
   test("rejects duplicate shortcodes", async () => {
-    const cwd = configDir(`
-repos:
-  - repo: orgA/core
-    shortcode: CORE
-  - repo: orgB/core
-    shortcode: CORE
-`);
-    await expect(loadFunnelConfig({ cwd })).rejects.toThrow(/shortcode/i);
+    seed({
+      repos: [
+        { repo: "orgA/core", shortcode: "CORE" },
+        { repo: "orgB/core", shortcode: "CORE" },
+      ],
+    });
+
+    await expect(loadFunnelConfig()).rejects.toThrow(/shortcode/i);
   });
 
-  test("rejects a malformed repository identifier", async () => {
-    const cwd = configDir("repos:\n  - not-a-repo\n");
-    await expect(loadFunnelConfig({ cwd })).rejects.toThrow(/owner\/name/);
-  });
-
-  test("rejects an invalid github.url", async () => {
-    const cwd = configDir("repos:\n  - orgA/core\ngithub:\n  url: not-a-url\n");
-    await expect(loadFunnelConfig({ cwd })).rejects.toThrow(/github\.url/);
+  test("rejects a malformed repository identifier on write", () => {
+    expect(() => seed({ repos: ["not-a-repo"] })).toThrow(SettingsError);
   });
 
   test("rejects intake.default_repo that is not configured", async () => {
-    const cwd = configDir(`
-repos:
-  - orgA/core
-intake:
-  default_repo: orgB/other
-`);
-    await expect(loadFunnelConfig({ cwd })).rejects.toThrow(/default_repo/);
+    seed({ repos: ["orgA/core"], intake: { default_repo: "orgB/other" } });
+
+    await expect(loadFunnelConfig()).rejects.toThrow(/default_repo/);
   });
 
   test("defaults projects to an empty list", async () => {
-    const cwd = configDir("repos:\n  - orgA/core\n");
-    const config = await loadFunnelConfig({ cwd });
-    expect(config.projects).toEqual([]);
+    seed({ repos: ["orgA/core"] });
+
+    expect((await loadFunnelConfig()).projects).toEqual([]);
   });
 
   test("normalizes structured projects and defaults name to the label", async () => {
-    const cwd = configDir(`
-repos:
-  - orgA/core
-projects:
-  - label: project1
-    name: Project One
-  - label: project2
-`);
-    const config = await loadFunnelConfig({ cwd });
+    seed({
+      repos: ["orgA/core"],
+      projects: [
+        { label: "project1", name: "Project One" },
+        { label: "project2" },
+      ],
+    });
+
+    const config = await loadFunnelConfig();
+
     expect(config.projects).toEqual([
       { label: "project1", name: "Project One" },
       { label: "project2", name: "project2" },
@@ -169,45 +156,48 @@ projects:
   });
 
   test("accepts bare label strings and de-duplicates case-insensitively", async () => {
-    const cwd = configDir(`
-repos:
-  - orgA/core
-projects:
-  - Project1
-  - project1
-  - project2
-`);
-    const config = await loadFunnelConfig({ cwd });
+    seed({
+      repos: ["orgA/core"],
+      projects: ["Project1", "project1", "project2"],
+    });
+
+    const config = await loadFunnelConfig();
+
     expect(config.projects).toEqual([
       { label: "Project1", name: "Project1" },
       { label: "project2", name: "project2" },
     ]);
   });
 
-  test("rejects an empty project label", async () => {
-    const cwd = configDir(`
-repos:
-  - orgA/core
-projects:
-  - label: ""
-`);
-    await expect(loadFunnelConfig({ cwd })).rejects.toThrow(/label/i);
+  test("rejects an empty project label on write", () => {
+    expect(() => seed({ projects: [{ label: "" }] })).toThrow(SettingsError);
   });
 });
 
 describe("getConfig", () => {
-  test("caches one load until reset", () => {
+  test("caches one load until reset", async () => {
+    seed({ repos: ["orgA/core"] });
     resetConfigCache();
+
     const first = getConfig();
     const second = getConfig();
     expect(second).toBe(first);
+    await first;
 
     resetConfigCache();
     const third = getConfig();
     expect(third).not.toBe(first);
+    await third;
+  });
 
-    // Avoid unhandled rejections if the repo root has no config file.
-    for (const p of [first, third]) p.catch(() => {});
+  test("does not cache a failed load", async () => {
+    seed({ repos: ["orgA/core"], intake: { default_repo: "orgB/other" } });
     resetConfigCache();
+
+    await expect(getConfig()).rejects.toBeInstanceOf(ConfigError);
+
+    // A corrected write must take effect without an explicit cache reset.
+    seed({ repos: ["orgA/core"], intake: {} });
+    await expect(getConfig()).resolves.toBeDefined();
   });
 });

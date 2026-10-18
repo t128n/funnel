@@ -6,10 +6,8 @@ import {
   spyOn,
   test,
 } from "bun:test";
-import { mkdtempSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
 import { resetConfigCache, setConfig, type FunnelConfig } from "#/lib/server/config";
+import { clearSettings, writeSettings } from "#/lib/server/settings/store";
 import { TEST_CONFIG } from "#tests/test-config";
 import { github, resetAppCache, type InstallationOctokit } from "./app.server";
 import {
@@ -296,17 +294,23 @@ describe("provisionCanonicalLabels", () => {
   });
 
   test("resolves with an empty report when config cannot be loaded", async () => {
-    // A real `funnel.config.yaml` may exist in the repo root, so run from an
-    // empty directory to force `getConfig()` to fail deterministically.
-    const originalCwd = process.cwd();
-    const emptyDir = mkdtempSync(join(tmpdir(), "funnel-no-config-"));
+    // Force a load failure deterministically: `intake.default_repo` points at a
+    // repository that is not configured, which the cross-field validation
+    // rejects (a plain empty store would now be a valid fresh-install config).
+    writeSettings({
+      repos: [],
+      projects: [],
+      intake: { default_repo: "ghost/repo" },
+      sync: TEST_CONFIG.sync,
+      board: TEST_CONFIG.board,
+      session: TEST_CONFIG.session,
+    });
+    resetConfigCache();
     try {
-      process.chdir(emptyDir);
-      resetConfigCache();
       const report = await provisionCanonicalLabels();
       expect(report).toEqual({ repos: [], created: 0, updated: 0, failed: 0 });
     } finally {
-      process.chdir(originalCwd);
+      clearSettings();
       resetConfigCache();
     }
   });

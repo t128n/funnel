@@ -4,13 +4,11 @@
 	import { createHotkeys, getAppHotkeys } from '@tanstack/svelte-hotkeys';
 	import BellIcon from '@lucide/svelte/icons/bell';
 	import AppSidebar from '#lib/components/app-sidebar.svelte';
-	import SettingsDialog from '#lib/components/settings/settings-dialog.svelte';
 	import * as Sidebar from '#lib/components/ui/sidebar/index.js';
 	import { actionableCount, classifyAttention, toISODate } from '#lib/attention';
 	import { connectEvents } from '#lib/client/events';
 	import { clockTick, startClock } from '#lib/client/clock.svelte';
 	import { bumpRefresh } from '#lib/client/refresh';
-	import { openSettings } from '#lib/client/settings.svelte';
 	import type { LayoutProps } from './$types';
 
 	let { data, children }: LayoutProps = $props();
@@ -56,7 +54,7 @@
 	}
 
 	function openNew() {
-		void goto('/submit');
+		void goto('/intake');
 	}
 
 	// Global shortcuts come from the shared catalog, so labels, hints, and
@@ -68,7 +66,7 @@
 	createHotkeys(() => [
 		{ hotkey: hotkeys.current['nav.search'], callback: () => void focusSearch() },
 		{ hotkey: hotkeys.current['nav.search-slash'], callback: () => void focusSearch() },
-		{ hotkey: hotkeys.current['app.settings'], callback: openSettings },
+		{ hotkey: hotkeys.current['app.settings'], callback: () => void goto('/settings') },
 		{ hotkey: hotkeys.current['issue.create'], callback: openNew }
 	]);
 </script>
@@ -102,6 +100,4 @@
 			{@render children()}
 		</Sidebar.Inset>
 	</div>
-
-	<SettingsDialog commentUi={data.commentBubbles ? 'bubbles' : 'compact'} />
 </Sidebar.Provider>

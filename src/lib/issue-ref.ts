@@ -1,7 +1,7 @@
 /**
  * Short, human-readable issue references for dense UI (board cards, lists).
  *
- * The project key comes from `funnel.config.yaml` (`repos[].shortcode`), so a
+ * The project key comes from instance settings (`repos[].shortcode`), so a
  * card reads `FIT-12` instead of repeating `owner/funnel-issue-tracker#12`.
  * The fallback keeps the UI stable for a mirrored repo that is no longer in
  * the configuration.

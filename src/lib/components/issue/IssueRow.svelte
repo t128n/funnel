@@ -22,7 +22,7 @@
 	interface Props {
 		issue: IssueListItem;
 		selected?: boolean;
-		/** `owner/name` → project key from `funnel.config.yaml`. */
+		/** `owner/name` → project key from instance settings. */
 		repoShortcodes?: Record<string, string>;
 		/** When grouped by status the section header carries it, so the row omits its glyph. */
 		groupedBy?: GroupKey | null;

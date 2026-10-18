@@ -94,7 +94,7 @@ function duplicateComment(submission: StagedSubmission): string {
  * Accept a submission: create the GitHub issue and clear the queue.
  *
  * Repo resolution: the explicit selector wins; otherwise `intake.default_repo`.
- * A repo that is not in `funnel.config.yaml` is rejected so triage can never
+ * A repo that is not in instance settings is rejected so triage can never
  * target an unmapped repository.
  */
 export async function acceptSubmission(

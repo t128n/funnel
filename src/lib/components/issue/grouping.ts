@@ -15,7 +15,7 @@ export interface IssueGroup {
   issues: IssueListItem[];
 }
 
-/** One configurable project indicator (SPEC `funnel.config.yaml` `projects`). */
+/** One configurable project indicator (SPEC `projects`). */
 export interface ProjectOption {
   /** GitHub label that marks an issue as belonging to the project. */
   label: string;

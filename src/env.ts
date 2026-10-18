@@ -36,9 +36,34 @@ export const variables = defineEnvVars({
       "./data/funnel.db",
     ),
   },
+  FUNNEL_GITHUB_URL: {
+    description:
+      "Base URL of the GitHub web host. Set to your enterprise host (e.g. https://acme.ghe.com) for GitHub Enterprise Server.",
+    schema: v.optional(
+      v.pipe(
+        v.string(),
+        v.trim(),
+        v.url("Must be a valid HTTP/HTTPS URL."),
+      ),
+      "https://github.com",
+    ),
+  },
+  FUNNEL_GITHUB_API_URL: {
+    description:
+      "Base URL of the GitHub API. Set to your enterprise API (e.g. https://acme.ghe.com/api/v3) for GitHub Enterprise Server.",
+    schema: v.optional(
+      v.pipe(
+        v.string(),
+        v.trim(),
+        v.url("Must be a valid HTTP/HTTPS URL."),
+      ),
+      "https://api.github.com",
+    ),
+  },
+
   FUNNEL_COMMENT_UI: {
     description:
-      "Default issue-comment rendering: 'compact' (dense list) or 'bubbles' (chat-style). Browsers can override it per session.",
+      "Default issue-comment rendering: 'compact' (dense list) or 'bubbles' (chat-style). Browsers can override it per browser in Settings > Features.",
     schema: v.optional(
       v.pipe(
         v.string(),

@@ -3,7 +3,7 @@ import type { FunnelConfig } from "#/lib/server/config";
 /**
  * Minimal valid config so config-dependent code (the GitHub App clients,
  * passthrough link rewriting, and route `html_url` fallbacks) works in tests
- * without a `funnel.config.yaml` on disk. Defaults match the Cloud hosts, so
+ * without writing settings to the database. Defaults match the Cloud hosts, so
  * existing expectations stay on `github.com` / `api.github.com`.
  *
  * Seed it with `setConfig(TEST_CONFIG)` from a `beforeEach`: `config.test.ts`
