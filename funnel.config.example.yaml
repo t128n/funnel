@@ -8,10 +8,26 @@ github:
   url: https://github.com               # Web base (e.g. https://acme.ghe.com)
   api_url: https://api.github.com       # API base (e.g. https://acme.ghe.com/api/v3)
 
-repos: # Required. At least one `owner/name` repository.
-  - orgA/core
-  - orgA/web
-  - orgB/infra
+repos: # Required. At least one repository.
+  # `shortcode` is optional: it is the project key shown on board cards
+  # (e.g. CORE-12). When omitted it is derived from the repo name.
+  - repo: orgA/core
+    shortcode: CORE
+  - repo: orgA/web
+    shortcode: WEB
+  - repo: orgB/infra
+    shortcode: INF
+
+projects: # Optional. Labels that mark an issue as belonging to a project.
+  # Enables the "Project" group-by option in the issue feeds. Each entry maps a
+  # GitHub label to the section header text; `name` defaults to the label.
+  # The first matching label in this order wins; unmatched issues fall under
+  # "No project".
+  - label: project1
+    name: Project One
+  - label: project2
+    name: Project Two
+  - label: project3
 
 intake:
   default_repo: orgA/core               # Pre-fills the Accept dialog (must be listed above)

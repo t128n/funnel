@@ -42,7 +42,13 @@ function createHandler(call: Call): { data: unknown } {
 }
 
 beforeEach(() => {
-  setConfig({ ...TEST_CONFIG, repos: ["orgA/core", "orgA/web"] });
+  setConfig({
+    ...TEST_CONFIG,
+    repos: [
+      { repo: "orgA/core", shortcode: "CORE" },
+      { repo: "orgA/web", shortcode: "WEB" },
+    ],
+  });
   resetEventBus();
 });
 

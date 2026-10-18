@@ -67,6 +67,7 @@
 
 	createHotkeys(() => [
 		{ hotkey: hotkeys.current['nav.search'], callback: () => void focusSearch() },
+		{ hotkey: hotkeys.current['nav.search-slash'], callback: () => void focusSearch() },
 		{ hotkey: hotkeys.current['app.settings'], callback: openSettings },
 		{ hotkey: hotkeys.current['issue.create'], callback: openNew }
 	]);

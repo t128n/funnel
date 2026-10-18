@@ -60,6 +60,7 @@ describe("toFilterParams", () => {
 	test("round-trips through parse", () => {
 		const filter: ClientFilter = {
 			repos: ["orgA/core"],
+			states: ["open"],
 			statuses: ["todo", "blocked"],
 			assignees: ["me", "octocat"],
 			priorities: ["p1"],

@@ -56,7 +56,11 @@ session:
         url: "https://acme.ghe.com",
         api_url: "https://acme.ghe.com/api/v3",
       },
-      repos: ["orgA/core", "orgA/web"],
+      repos: [
+        { repo: "orgA/core", shortcode: "CORE" },
+        { repo: "orgA/web", shortcode: "WEB" },
+      ],
+      projects: [],
       intake: { default_repo: "orgA/core" },
       sync: {
         history_days: 30,
@@ -95,6 +99,33 @@ repos:
     );
   });
 
+  test("normalizes structured repos and honours an explicit shortcode", async () => {
+    const cwd = configDir(`
+repos:
+  - repo: t128n/funnel-issue-tracker
+    shortcode: fit
+  - orgB/infra
+`);
+
+    const config = await loadFunnelConfig({ cwd });
+
+    expect(config.repos).toEqual([
+      { repo: "t128n/funnel-issue-tracker", shortcode: "FIT" },
+      { repo: "orgB/infra", shortcode: "INFRA" },
+    ]);
+  });
+
+  test("rejects duplicate shortcodes", async () => {
+    const cwd = configDir(`
+repos:
+  - repo: orgA/core
+    shortcode: CORE
+  - repo: orgB/core
+    shortcode: CORE
+`);
+    await expect(loadFunnelConfig({ cwd })).rejects.toThrow(/shortcode/i);
+  });
+
   test("rejects a malformed repository identifier", async () => {
     const cwd = configDir("repos:\n  - not-a-repo\n");
     await expect(loadFunnelConfig({ cwd })).rejects.toThrow(/owner\/name/);
@@ -113,6 +144,54 @@ intake:
   default_repo: orgB/other
 `);
     await expect(loadFunnelConfig({ cwd })).rejects.toThrow(/default_repo/);
+  });
+
+  test("defaults projects to an empty list", async () => {
+    const cwd = configDir("repos:\n  - orgA/core\n");
+    const config = await loadFunnelConfig({ cwd });
+    expect(config.projects).toEqual([]);
+  });
+
+  test("normalizes structured projects and defaults name to the label", async () => {
+    const cwd = configDir(`
+repos:
+  - orgA/core
+projects:
+  - label: project1
+    name: Project One
+  - label: project2
+`);
+    const config = await loadFunnelConfig({ cwd });
+    expect(config.projects).toEqual([
+      { label: "project1", name: "Project One" },
+      { label: "project2", name: "project2" },
+    ]);
+  });
+
+  test("accepts bare label strings and de-duplicates case-insensitively", async () => {
+    const cwd = configDir(`
+repos:
+  - orgA/core
+projects:
+  - Project1
+  - project1
+  - project2
+`);
+    const config = await loadFunnelConfig({ cwd });
+    expect(config.projects).toEqual([
+      { label: "Project1", name: "Project1" },
+      { label: "project2", name: "project2" },
+    ]);
+  });
+
+  test("rejects an empty project label", async () => {
+    const cwd = configDir(`
+repos:
+  - orgA/core
+projects:
+  - label: ""
+`);
+    await expect(loadFunnelConfig({ cwd })).rejects.toThrow(/label/i);
   });
 });
 

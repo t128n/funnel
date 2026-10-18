@@ -16,7 +16,7 @@
  * The scheduler starts once per process (adapter-node) and never blocks
  * startup: `startSyncWorker` returns immediately.
  */
-import { getConfig } from "#/lib/server/config";
+import { configuredRepoSlugs, getConfig } from "#/lib/server/config";
 import { createLogger } from "#/lib/server/log";
 import {
   getInstallationId,
@@ -409,7 +409,7 @@ export function stopSyncWorker(): void {
 export async function syncAllRepos(): Promise<void> {
   let repos: readonly string[];
   try {
-    repos = (await getConfig()).repos;
+    repos = configuredRepoSlugs(await getConfig());
   } catch (error) {
     log.warn({ err: errorMessage(error) }, "sync skipped: no config");
     return;
@@ -428,7 +428,9 @@ async function tick(): Promise<void> {
   if (!running) return;
   const now = Date.now();
   try {
-    const { repos, sync } = await getConfig();
+    const config = await getConfig();
+    const { sync } = config;
+    const repos = configuredRepoSlugs(config);
     const intervalMs =
       (clientCount() > 0
         ? sync.poll_interval_active_seconds

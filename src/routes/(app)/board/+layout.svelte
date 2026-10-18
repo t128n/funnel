@@ -2,6 +2,7 @@
 	import { page } from '$app/state';
 	import { createHotkeys, getAppHotkeys } from '@tanstack/svelte-hotkeys';
 	import BlockActionDialog from '#lib/components/board/BlockActionDialog.svelte';
+	import BoardShortcuts from '#lib/components/board/BoardShortcuts.svelte';
 	import StatusBoard from '#lib/components/board/StatusBoard.svelte';
 	import SegmentedControl from '#lib/components/common/SegmentedControl.svelte';
 	import FeedSearch from '#lib/components/filter/FeedSearch.svelte';
@@ -9,7 +10,7 @@
 	import ViewSegment from '#lib/components/filter/ViewSegment.svelte';
 	import IssueActionDialog from '#lib/components/issue/IssueActionDialog.svelte';
 	import IssueList from '#lib/components/issue/IssueList.svelte';
-	import { requestFocusedCardMenu } from '#lib/client/board-ui.svelte';
+	import { requestFocusedCardMenu, requestFocusedCardOpen } from '#lib/client/board-ui.svelte';
 	import {
 		cancelAction,
 		confirmBlock,
@@ -62,30 +63,47 @@
 	// menu and drag-and-drop both route through `issue-actions`.
 	const hotkeys = getAppHotkeys();
 	createHotkeys(() => [
-		{ hotkey: hotkeys.current['issue.status'], callback: requestFocusedCardMenu }
+		{ hotkey: hotkeys.current['issue.status'], callback: requestFocusedCardMenu },
+		{ hotkey: hotkeys.current['issue.select'], callback: requestFocusedCardOpen }
 	]);
 </script>
 
-<div class="relative flex min-h-0 min-w-0 flex-1">
+<div class="surface-shell bg-[var(--surface-canvas)] relative flex min-h-0 min-w-0 flex-1">
 	<div class="flex min-h-0 min-w-0 flex-1 flex-col">
-		<header class="flex h-11 shrink-0 items-center gap-2 border-b px-2">
+		<header
+			class="border-[color:var(--surface-divider)] flex min-h-11 shrink-0 flex-wrap items-center gap-2 border-b px-3 py-1.5 sm:py-0"
+		>
 			<h1 class="text-base font-semibold tracking-tight">Board</h1>
 			<span class="mono text-muted-foreground text-xs">{total}</span>
+			<div class="order-last w-full min-w-0 sm:order-none sm:mx-auto sm:w-auto sm:max-w-md sm:flex-1 sm:px-2">
+				<FeedSearch />
+			</div>
 			<div class="ml-auto flex shrink-0 items-center gap-1">
 				<SegmentedControl label="Board view" items={viewItems} />
 				<ViewSegment />
 				<FilterPopover options={data.options} />
+				{#if !backlogView}
+					<BoardShortcuts />
+				{/if}
 			</div>
 		</header>
 
-		<div class="flex shrink-0 items-center gap-2 border-b p-2">
-			<div class="min-w-0 flex-1"><FeedSearch /></div>
-		</div>
-
 		{#if backlogView}
-			<IssueList issues={backlog} {selected} empty="Backlog is empty." />
+			<IssueList
+				issues={backlog}
+				{selected}
+				empty="Backlog is empty."
+				repoShortcodes={data.repoShortcodes}
+				groupable={false}
+			/>
 		{:else}
-			<StatusBoard {board} wipLimits={data.wipLimits} doneDays={data.doneDays} />
+			<StatusBoard
+				{board}
+				wipLimits={data.wipLimits}
+				doneDays={data.doneDays}
+				repoShortcodes={data.repoShortcodes}
+				viewer={data.viewerGithub}
+			/>
 		{/if}
 	</div>
 

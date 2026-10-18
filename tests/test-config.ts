@@ -12,7 +12,8 @@ import type { FunnelConfig } from "#/lib/server/config";
  */
 export const TEST_CONFIG: FunnelConfig = {
   github: { url: "https://github.com", api_url: "https://api.github.com" },
-  repos: ["orgA/core"],
+  repos: [{ repo: "orgA/core", shortcode: "CORE" }],
+  projects: [],
   intake: {},
   sync: {
     history_days: 90,

@@ -1,132 +1,266 @@
 <script lang="ts">
-	import { goto } from '$app/navigation';
+	import { goto, invalidateAll } from '$app/navigation';
 	import Avatar from '#lib/components/common/Avatar.svelte';
-	import Chip from '#lib/components/common/Chip.svelte';
+	import MetaTag from '#lib/components/common/MetaTag.svelte';
 	import PriorityIcon from '#lib/components/common/PriorityIcon.svelte';
 	import * as DropdownMenu from '#lib/components/ui/dropdown-menu/index.js';
-	import { daysBetween, recheckDateLabel, recheckLabel } from '#lib/attention';
-	import { requestBlock, requestUnblock } from '#lib/client/issue-actions.svelte';
+	import * as Tooltip from '#lib/components/ui/tooltip/index.js';
+	import { daysBetween, quickRecheckDates, recheckDateLabel, recheckLabel } from '#lib/attention';
+	import {
+		assignToMe,
+		requestBlock,
+		requestClose,
+		requestUnblock,
+		rescheduleBlock,
+		setPriority,
+		unassignFromMe
+	} from '#lib/client/issue-actions.svelte';
 	import { issuePath } from '#lib/issue-url';
-	import { canonicalLabel } from '#lib/labels';
-	import type { AttentionItem } from '#lib/server/issues/types';
+	import { issueRef } from '#lib/issue-ref';
+	import { canonicalLabel, PRIORITY_OPTIONS } from '#lib/labels';
+	import type { AttentionItem, UserRef } from '#lib/server/issues/types';
 	import { cn } from '#lib/utils';
 	import BanIcon from '@lucide/svelte/icons/ban';
+	import CalendarClockIcon from '@lucide/svelte/icons/calendar-clock';
 	import CircleCheckIcon from '@lucide/svelte/icons/circle-check';
 	import ClockAlertIcon from '@lucide/svelte/icons/clock-alert';
 	import EllipsisIcon from '@lucide/svelte/icons/ellipsis';
 	import ExternalLinkIcon from '@lucide/svelte/icons/external-link';
+	import SignalZeroIcon from '@lucide/svelte/icons/signal-zero';
+	import UserMinusIcon from '@lucide/svelte/icons/user-minus';
+	import UserPlusIcon from '@lucide/svelte/icons/user-plus';
 
 	/**
-	 * One blocked issue on the Attention list. The re-check timing leads the row
-	 * (accent bar + badge), with the context needed to triage — priority, repo,
-	 * assignees, status — beneath it. The body links into the Issues view; the
-	 * menu revises the block in place (which is how a re-check is deferred).
+	 * One blocked issue on the Attention list, flattened to a single scannable
+	 * line: the re-check pill leads (urgency stripe + tinted pill), then
+	 * priority, the short `FIT-13` reference, and the dominant title, with a
+	 * quiet metadata tray (labels, Blocked, estimate, assignees) and a hover
+	 * action tray that triages in place — reschedule the re-check, set priority
+	 * or assignee, or mark it done — without leaving the view.
 	 */
 	interface Props {
 		item: AttentionItem;
 		today: string;
+		/** `owner/name` → project key from `funnel.config.yaml`. */
+		repoShortcodes?: Record<string, string>;
+		/** Signed-in viewer, when their GitHub identity is mirrored. */
+		viewer?: UserRef | null;
 	}
 
-	let { item, today }: Props = $props();
+	let { item, today, repoShortcodes = {}, viewer = null }: Props = $props();
 
 	const issue = $derived(item.issue);
 	const href = $derived(issuePath('issues', issue.repo, issue.number));
+	const ref = $derived(issueRef(issue.repo, issue.number, repoShortcodes));
 
 	const days = $derived(daysBetween(today, item.recheck));
 	const urgency = $derived(days < 0 ? 'overdue' : days === 0 ? 'today' : 'upcoming');
 
+	/**
+	 * Urgency is carried by a quiet leading stripe and a tinted pill, never by a
+	 * heavy enclosing border — it reads at a glance without boxing the row in.
+	 */
 	const TONE = {
 		overdue: {
-			card: 'border-destructive/30 border-l-destructive',
-			badge: 'border-destructive/40 bg-destructive/10 text-destructive',
-			icon: 'text-destructive'
+			stripe: 'bg-destructive',
+			badge: 'border-destructive/30 bg-destructive/10 text-destructive'
 		},
 		today: {
-			card: 'border-warning/40 border-l-warning',
-			badge: 'border-warning/50 bg-warning/10 text-warning',
-			icon: 'text-warning'
+			stripe: 'bg-warning',
+			badge: 'border-warning/40 bg-warning/10 text-warning'
 		},
 		upcoming: {
-			card: 'border-border border-l-border',
-			badge: 'border-border bg-muted text-muted-foreground',
-			icon: 'text-muted-foreground'
+			stripe: 'bg-[color:var(--surface-border)]',
+			badge: 'border-[color:var(--surface-border)] bg-[var(--surface-tag-bg)] text-muted-foreground'
 		}
 	} as const;
 	const tone = $derived(TONE[urgency]);
 
-	const statusColor = $derived(
-		issue.status ? (canonicalLabel(issue.status)?.color ?? null) : null
+	/** Non-reserved labels only; reserved groups render as dedicated affordances. */
+	const labels = $derived(issue.labels.filter((label) => !canonicalLabel(label)).slice(0, 2));
+	const sizeText = $derived(
+		issue.size === 'sm' ? 'S' : issue.size === 'md' ? 'M' : issue.size === 'lg' ? 'L' : null
 	);
 	const sizeColor = $derived(issue.size ? (canonicalLabel(issue.size)?.color ?? null) : null);
+
+	const blockerTitle = $derived(
+		item.needs ? `${item.blocker} — needs: ${item.needs}` : item.blocker || 'Blocked'
+	);
+	const assignedToViewer = $derived(
+		viewer != null && issue.assignees.some((person) => person.githubId === viewer.githubId)
+	);
+
+	const quickDates = $derived(quickRecheckDates(today));
+	const priorityOptions = $derived([
+		{ value: 'none', label: 'No priority', color: null },
+		...PRIORITY_OPTIONS
+	]);
+
+	const actionBtn =
+		'text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:ring-ring/50 inline-flex size-6 items-center justify-center rounded outline-none transition-colors focus-visible:ring-1';
+
+	/** Defer the re-check without re-recording the block, then reload the feed. */
+	async function snooze(value: string) {
+		const ok = await rescheduleBlock(
+			issue,
+			{ blocker: item.blocker, needs: item.needs, trying: item.trying },
+			value
+		);
+		if (ok) void invalidateAll();
+	}
+
+	function toggleAssign() {
+		if (!viewer) return;
+		void (assignedToViewer ? unassignFromMe(issue, viewer) : assignToMe(issue, viewer));
+	}
 </script>
 
 <div
 	role="listitem"
-	class={cn(
-		'group/row flex items-stretch gap-2 rounded-lg border border-l-2 py-2 pr-2 pl-3 transition-colors',
-		tone.card
-	)}
+	class="group/row relative flex h-11 items-center gap-2 pr-2 pl-3 transition-colors hover:bg-[var(--surface-card-hover)]"
 >
+	<span class={cn('absolute inset-y-1.5 start-0 w-[2px] rounded-full', tone.stripe)} aria-hidden="true"
+	></span>
+
+	<!-- Stretched link: the whole row opens the issue; controls layer above it. -->
 	<a
 		{href}
-		class="focus-visible:ring-ring/50 flex min-w-0 flex-1 flex-col gap-1 rounded-md no-underline outline-none focus-visible:ring-1"
+		class="focus-visible:ring-ring/50 absolute inset-0 outline-none focus-visible:ring-1"
 		aria-label={`Open ${issue.repo}#${issue.number}: ${issue.title}`}
+	></a>
+
+	<span
+		class={cn(
+			'inline-flex shrink-0 items-center gap-1 rounded-md border px-1.5 py-0.5 text-[11px] font-medium whitespace-nowrap',
+			tone.badge
+		)}
+		title={`Re-check ${recheckDateLabel(item.recheck)}`}
 	>
-		<div class="flex min-w-0 items-center gap-2">
-			<PriorityIcon priority={issue.priority} />
-			<span class="min-w-0 flex-1 truncate text-sm font-medium" title={issue.title}>
-				{issue.title}
-			</span>
-		</div>
+		<ClockAlertIcon class="size-3" aria-hidden="true" />
+		{recheckLabel(item.recheck, today)}
+	</span>
 
-		<div class="text-muted-foreground flex min-w-0 items-center gap-2 text-xs">
-			<span class="mono shrink-0">{issue.repo}#{issue.number}</span>
-			{#if issue.assignees.length > 0}
-				<span class="flex shrink-0 items-center gap-0.5">
-					{#each issue.assignees.slice(0, 3) as person (person.githubId)}
-						<Avatar login={person.login} avatarUrl={person.avatarUrl} size={16} />
-					{/each}
-				</span>
-			{:else}
-				<span class="shrink-0 italic">Unassigned</span>
-			{/if}
-			{#if issue.status}
-				<Chip label={issue.status} color={statusColor} />
-			{/if}
-			{#if issue.size}
-				<Chip label={issue.size} color={sizeColor} variant="outline" mono />
-			{/if}
-		</div>
+	<PriorityIcon priority={issue.priority} />
 
-		{#if item.blocker}
-			<div class="text-muted-foreground flex min-w-0 items-center gap-1.5 text-xs">
-				<BanIcon class={cn('size-3 shrink-0', tone.icon)} aria-hidden="true" />
-				<span
-					class="truncate"
-					title={item.needs ? `${item.blocker} — needs: ${item.needs}` : item.blocker}
-				>
-					{item.blocker}
-				</span>
+	<Tooltip.Root>
+		<Tooltip.Trigger>
+			{#snippet child({ props })}
+				<span {...props} class="mono text-muted-foreground shrink-0 text-[11px]">{ref}</span>
+			{/snippet}
+		</Tooltip.Trigger>
+		<Tooltip.Content>{issue.repo}#{issue.number}</Tooltip.Content>
+	</Tooltip.Root>
+
+	<span class="min-w-0 flex-1 truncate text-[13px]" title={issue.title}>{issue.title}</span>
+
+	<div class="flex shrink-0 items-center gap-1.5">
+		{#each labels as label (label)}
+			<MetaTag label={label} class="hidden shrink-0 lg:inline-flex" />
+		{/each}
+
+		<MetaTag label="Blocked" tone="danger" title={blockerTitle} class="hidden shrink-0 sm:inline-flex">
+			<BanIcon class="size-3" aria-hidden="true" />
+		</MetaTag>
+
+		{#if sizeText}
+			<MetaTag
+				label={sizeText}
+				color={sizeColor}
+				class="mono hidden shrink-0 sm:inline-flex"
+				title={`Size: ${issue.size}`}
+			/>
+		{/if}
+
+		{#if issue.assignees.length > 0}
+			<div class="hidden shrink-0 items-center -space-x-1.5 sm:flex">
+				{#each issue.assignees.slice(0, 3) as person (person.githubId)}
+					<Avatar login={person.login} avatarUrl={person.avatarUrl} size={16} />
+				{/each}
 			</div>
 		{/if}
-	</a>
+	</div>
 
-	<div class="flex shrink-0 flex-col items-end justify-between gap-1">
-		<span
-			class={cn(
-				'inline-flex shrink-0 items-center gap-1 rounded-md border px-1.5 py-0.5 text-xs font-medium whitespace-nowrap',
-				tone.badge
-			)}
-			title={`Re-check ${recheckDateLabel(item.recheck)}`}
-		>
-			<ClockAlertIcon class="size-3.5" aria-hidden="true" />
-			{recheckLabel(item.recheck, today)}
-		</span>
+	<!-- Hover tray: triage in place. Overlays the metadata on `md`+; flows
+	     inline (always visible) on touch, below the tray's hidden extras. -->
+	<div
+		class="relative z-10 flex shrink-0 items-center gap-0.5 md:pointer-events-none md:absolute md:end-1 md:bg-linear-to-l md:from-[var(--surface-card-hover)] md:from-70% md:to-transparent md:pl-8 md:opacity-0 md:transition-opacity md:group-hover/row:pointer-events-auto md:group-hover/row:opacity-100 md:group-focus-within/row:pointer-events-auto md:group-focus-within/row:opacity-100"
+	>
+		<DropdownMenu.Root>
+			<DropdownMenu.Trigger class={actionBtn} title="Reschedule re-check" aria-label="Reschedule re-check">
+				<CalendarClockIcon class="size-3.5" />
+			</DropdownMenu.Trigger>
+			<DropdownMenu.Content align="end" class="w-52">
+				<DropdownMenu.Label>Re-check</DropdownMenu.Label>
+				{#each quickDates as option (option.label)}
+					<DropdownMenu.Item class="gap-2" onSelect={() => void snooze(option.value)}>
+						<span class="flex-1 truncate">{option.label}</span>
+						<span class="mono text-muted-foreground text-[10px]">{option.value}</span>
+					</DropdownMenu.Item>
+				{/each}
+				<DropdownMenu.Separator />
+				<DropdownMenu.Item class="gap-2" onSelect={() => requestBlock(issue)}>
+					<BanIcon class="text-destructive size-3.5" />
+					Custom date…
+				</DropdownMenu.Item>
+			</DropdownMenu.Content>
+		</DropdownMenu.Root>
 
 		<DropdownMenu.Root>
-			<DropdownMenu.Trigger
-				class="text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:ring-ring/50 inline-flex size-6 items-center justify-center rounded outline-none transition-opacity focus-visible:ring-1 data-[state=open]:opacity-100 max-md:opacity-100 md:opacity-0 md:group-hover/row:opacity-100"
+			<DropdownMenu.Trigger class={actionBtn} title="Priority" aria-label="Priority">
+				{#if issue.priority}
+					<PriorityIcon priority={issue.priority} />
+				{:else}
+					<SignalZeroIcon class="text-muted-foreground/60 size-3.5" />
+				{/if}
+			</DropdownMenu.Trigger>
+			<DropdownMenu.Content align="end" class="w-44">
+				<DropdownMenu.Label>Priority</DropdownMenu.Label>
+				<DropdownMenu.RadioGroup
+					value={issue.priority ?? 'none'}
+					onValueChange={(value) => void setPriority(issue, value === 'none' ? null : value)}
+				>
+					{#each priorityOptions as option (option.value)}
+						<DropdownMenu.RadioItem value={option.value} class="gap-2">
+							{#if option.value === 'none'}
+								<SignalZeroIcon class="text-muted-foreground/60 size-3.5" />
+							{:else}
+								<PriorityIcon priority={option.value} />
+							{/if}
+							<span class="flex-1 truncate">{option.label}</span>
+						</DropdownMenu.RadioItem>
+					{/each}
+				</DropdownMenu.RadioGroup>
+			</DropdownMenu.Content>
+		</DropdownMenu.Root>
+
+		{#if viewer}
+			<button
+				type="button"
+				class={actionBtn}
+				title={assignedToViewer ? 'Unassign me' : 'Assign to me'}
+				aria-label={assignedToViewer ? 'Unassign me' : 'Assign to me'}
+				onclick={toggleAssign}
 			>
+				{#if assignedToViewer}
+					<UserMinusIcon class="size-3.5" />
+				{:else}
+					<UserPlusIcon class="size-3.5" />
+				{/if}
+			</button>
+		{/if}
+
+		<button
+			type="button"
+			class={actionBtn}
+			title="Mark done"
+			aria-label="Mark done"
+			onclick={() => requestClose(issue)}
+		>
+			<CircleCheckIcon class="size-3.5" />
+		</button>
+
+		<DropdownMenu.Root>
+			<DropdownMenu.Trigger class={actionBtn}>
 				<EllipsisIcon class="size-3.5" />
 				<span class="sr-only">Issue actions</span>
 			</DropdownMenu.Trigger>

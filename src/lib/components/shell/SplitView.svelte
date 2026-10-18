@@ -27,7 +27,7 @@
 <div class="relative flex min-h-0 min-w-0 flex-1">
 	<section
 		class={cn(
-			'flex w-90 shrink-0 flex-col overflow-hidden border-r',
+			'flex w-96 shrink-0 flex-col overflow-hidden border-r',
 			detailOpen && 'max-[1000px]:w-auto max-[1000px]:flex-1'
 		)}
 	>

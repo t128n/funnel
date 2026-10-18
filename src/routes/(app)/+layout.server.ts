@@ -2,9 +2,10 @@ import { FUNNEL_COMMENT_UI } from "$app/env/private";
 import { getViewerGithubId } from "#lib/server/auth/index";
 import { requireUser } from "#lib/server/auth/guard";
 import { COMMENT_UI_COOKIE, parseCommentUi } from "#lib/comment-ui";
-import { getConfig } from "#lib/server/config";
+import { getConfig, repoShortcodeMap } from "#lib/server/config";
 import { commentBubbles } from "#lib/server/flags";
 import { attentionIssues, filterOptions } from "#lib/server/issues/queries";
+import { getUser } from "#lib/server/sync/mirror";
 import type { LayoutServerLoad } from "./$types";
 
 /**
@@ -25,13 +26,19 @@ export const load: LayoutServerLoad = async ({ locals, url, cookies }) => {
     commentBubbles(commentUi),
   ]);
 
+  const viewerGithub =
+    viewerGithubId === null ? null : (getUser(viewerGithubId) ?? null);
+
   return {
     user,
     viewerGithubId,
+    viewerGithub,
     options,
     attention: attentionIssues(),
     githubUrl: config.github.url,
-    defaultRepo: config.intake.default_repo ?? config.repos[0] ?? "",
+    defaultRepo: config.intake.default_repo ?? config.repos[0]?.repo ?? "",
+    repoShortcodes: repoShortcodeMap(config),
+    projects: config.projects,
     doneDays: config.board.done_days,
     wipLimits: config.board.wip_limits,
     commentBubbles: chatComments,

@@ -110,7 +110,10 @@ const repoParams = () => ({ owner: OWNER, repo: REPO });
 
 beforeEach(async () => {
   calls.length = 0;
-  setConfig({ ...TEST_CONFIG, repos: [REPO_SLUG] });
+  setConfig({
+    ...TEST_CONFIG,
+    repos: [{ repo: REPO_SLUG, shortcode: "CORE" }],
+  });
   resetAppCache();
   globalThis.fetch = stubFetch as typeof fetch;
   await seedViewer();

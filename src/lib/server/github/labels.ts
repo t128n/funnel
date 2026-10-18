@@ -17,7 +17,7 @@
  * labels therefore takes roughly ten seconds to converge; converged repos
  * issue zero writes and return immediately.
  */
-import { getConfig } from "#/lib/server/config";
+import { configuredRepoSlugs, getConfig } from "#/lib/server/config";
 import { CANONICAL_LABELS, type CanonicalLabel, type LabelGroup } from "#lib/labels";
 import { createLogger } from "#/lib/server/log";
 import {
@@ -160,7 +160,7 @@ export async function provisionCanonicalLabels(): Promise<ProvisionReport> {
 
   let repos: readonly string[];
   try {
-    repos = (await getConfig()).repos;
+    repos = configuredRepoSlugs(await getConfig());
   } catch (error) {
     log.warn({ err: errorMessage(error) }, "provisioning skipped");
     return report;

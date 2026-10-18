@@ -7,6 +7,7 @@ import {
   daysBetween,
   dedupeByValue,
   nextBusinessWeekStart,
+  quickRecheckDates,
   recheckDateLabel,
   recheckLabel,
   toISODate,
@@ -94,6 +95,22 @@ describe("recheckDateLabel", () => {
 
   test("returns malformed dates unchanged", () => {
     expect(recheckDateLabel("nope")).toBe("nope");
+  });
+});
+
+describe("quickRecheckDates", () => {
+  test("offers the relative anchors from today", () => {
+    expect(quickRecheckDates("2026-10-18")).toEqual([
+      { label: "Tomorrow", value: "2026-10-19" },
+      { label: "In 3 days", value: "2026-10-21" },
+      { label: "End of week", value: "2026-10-23" },
+    ]);
+  });
+
+  test("dedupes anchors that collide, keeping the earlier label", () => {
+    // On a Friday, "In 3 days" and "Start of next week" are both the Monday.
+    const labels = quickRecheckDates("2026-10-23").map((option) => option.label);
+    expect(labels).toEqual(["Tomorrow", "In 3 days", "End of week"]);
   });
 });
 

@@ -2,8 +2,8 @@
 	import { page } from '$app/state';
 	import FeedSearch from '#lib/components/filter/FeedSearch.svelte';
 	import FilterPopover from '#lib/components/filter/FilterPopover.svelte';
-	import StateSegment from '#lib/components/filter/StateSegment.svelte';
 	import ViewSegment from '#lib/components/filter/ViewSegment.svelte';
+	import GroupByControl from '#lib/components/issue/GroupByControl.svelte';
 	import IssueList from '#lib/components/issue/IssueList.svelte';
 	import SplitView from '#lib/components/shell/SplitView.svelte';
 	import { projectIssues, reconcileIssues } from '#lib/client/optimistic.svelte';
@@ -23,21 +23,32 @@
 
 <SplitView detailOpen={selected !== null}>
 	{#snippet feed()}
-		<header class="flex h-11 shrink-0 items-center gap-2 border-b px-2">
-			<h1 class="text-base font-semibold tracking-tight">Issues</h1>
-			<span class="mono text-muted-foreground text-xs">{issues.length}</span>
-			<div class="ml-auto flex items-center gap-1">
-				<ViewSegment />
-				<FilterPopover options={data.options} allowNoStatus={false} />
-			</div>
-		</header>
+		<div class="surface-shell bg-[var(--surface-canvas)] flex min-h-0 flex-1 flex-col">
+			<header
+				class="border-[color:var(--surface-divider)] flex min-h-11 shrink-0 flex-wrap items-center gap-2 border-b px-3 py-1.5 sm:py-0"
+			>
+				<h1 class="text-base font-semibold tracking-tight">Issues</h1>
+				<span class="mono text-muted-foreground text-xs">{issues.length}</span>
+				<div
+					class="order-last w-full min-w-0 sm:order-none sm:mx-auto sm:w-auto sm:max-w-md sm:flex-1 sm:px-2"
+				>
+					<FeedSearch />
+				</div>
+				<div class="ml-auto flex shrink-0 items-center gap-1">
+					<ViewSegment />
+					<GroupByControl projects={data.projects} />
+					<FilterPopover options={data.options} allowNoStatus={false} showState />
+				</div>
+			</header>
 
-		<div class="flex shrink-0 items-center gap-2 border-b p-2">
-			<div class="min-w-0 flex-1"><FeedSearch /></div>
-			<StateSegment />
+			<IssueList
+				{issues}
+				{selected}
+				empty="No issues match these filters."
+				repoShortcodes={data.repoShortcodes}
+				projects={data.projects}
+			/>
 		</div>
-
-		<IssueList {issues} {selected} empty="No issues match these filters." />
 	{/snippet}
 
 	{#snippet detail()}

@@ -112,7 +112,10 @@ describe("acceptSubmission", () => {
   test("honors an explicit repo selector and extra labels/assignees", async () => {
     setConfig({
       ...TEST_CONFIG,
-      repos: ["orgA/core", "orgA/web"],
+      repos: [
+        { repo: "orgA/core", shortcode: "CORE" },
+        { repo: "orgA/web", shortcode: "WEB" },
+      ],
       intake: { default_repo: "orgA/core" },
     });
     const { id } = createSubmission({ title: "Route elsewhere" });

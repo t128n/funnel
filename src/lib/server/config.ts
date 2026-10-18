@@ -1,5 +1,6 @@
 import { loadConfig } from "c12";
 import * as v from "valibot";
+import { deriveRepoShortcode } from "#lib/issue-ref";
 
 // `owner/name` on GitHub. Owner segments are alphanumerics/hyphens; repo names
 // additionally allow dots and underscores. Kept intentionally permissive here
@@ -12,6 +13,17 @@ const repoName = v.pipe(
   v.regex(repoPattern, "Repository must be in `owner/name` form"),
 );
 
+// The short project key shown on cards (e.g. `FIT-12`). Kept short because it
+// repeats on every card; owners can override the derived value in config.
+const shortcode = v.pipe(
+  v.string("Shortcode must be a string"),
+  v.trim(),
+  v.regex(
+    /^[A-Za-z][A-Za-z0-9]{0,5}$/,
+    "Shortcode must start with a letter and be at most 6 characters",
+  ),
+);
+
 /** Non-negative integer with a label used in validation messages. */
 const count = (label: string) =>
   v.pipe(
@@ -19,6 +31,76 @@ const count = (label: string) =>
     v.integer(`${label} must be an integer`),
     v.minValue(0, `${label} must be >= 0`),
   );
+
+/** One configured repository and the short key used in issue identifiers. */
+export interface RepoConfig {
+  /** `owner/name` as it appears on GitHub. */
+  repo: string;
+  /** Uppercase project prefix, e.g. `FIT` in `FIT-12`. */
+  shortcode: string;
+}
+
+/**
+ * One configured project, matched against an issue's GitHub labels. A project
+ * indicator is any label; e.g. issues carrying `project1` can be sectioned
+ * under `Project One` in the group-by-project view.
+ */
+export interface ProjectConfig {
+  /** GitHub label that marks an issue as belonging to the project. */
+  label: string;
+  /** Human display name; defaults to `label` when omitted. */
+  name: string;
+}
+
+/** Raw YAML project entry: the label string or the structured mapping. */
+type ProjectInput = string | { label: string; name?: string };
+
+const projectInput = v.union([
+  v.pipe(v.string(), v.trim(), v.nonEmpty("Project label must not be empty")),
+  v.object({
+    label: v.pipe(v.string(), v.trim(), v.nonEmpty("Project label must not be empty")),
+    name: v.optional(v.pipe(v.string(), v.trim())),
+  }),
+]);
+
+function normalizeProjects(entries: ProjectInput[]): ProjectConfig[] {
+  const seen = new Set<string>();
+  const projects: ProjectConfig[] = [];
+  for (const entry of entries) {
+    const label = typeof entry === "string" ? entry : entry.label;
+    const key = label.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const explicit = typeof entry === "string" ? undefined : entry.name;
+    projects.push({ label, name: explicit?.length ? explicit : label });
+  }
+  return projects;
+}
+
+/** Raw YAML entry: the legacy string form or the structured mapping. */
+type RepoInput = string | { repo: string; shortcode?: string };
+
+const repoEntry = v.union([
+  repoName,
+  v.object({ repo: repoName, shortcode: v.optional(shortcode) }),
+]);
+
+function normalizeRepos(entries: RepoInput[]): RepoConfig[] {
+  const seen = new Set<string>();
+  const repos: RepoConfig[] = [];
+  for (const entry of entries) {
+    const repo = typeof entry === "string" ? entry : entry.repo;
+    const key = repo.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const explicit = typeof entry === "string" ? undefined : entry.shortcode;
+    repos.push({
+      repo,
+      shortcode: (explicit ?? deriveRepoShortcode(repo)).toUpperCase(),
+    });
+  }
+  return repos;
+}
 
 /**
  * The configuration defaults. These are merged in at the lowest priority by c12
@@ -30,7 +112,8 @@ export const DEFAULT_CONFIG = {
     url: "https://github.com",
     api_url: "https://api.github.com",
   },
-  repos: [] as string[],
+  repos: [] as RepoConfig[],
+  projects: [] as ProjectConfig[],
   intake: {},
   sync: {
     history_days: 90,
@@ -53,10 +136,15 @@ export const configSchema = v.pipe(
       api_url: v.pipe(v.string(), v.url("github.api_url must be a valid URL")),
     }),
     repos: v.pipe(
-      v.array(repoName),
+      v.array(repoEntry),
       v.minLength(1, "At least one repository is required"),
-      v.transform((repos) => [...new Set(repos)]),
+      v.transform(normalizeRepos),
     ),
+    /**
+     * Optional project indicators. Each entry maps a GitHub label to a display
+     * name; omitted means no project grouping is available in the cockpit.
+     */
+    projects: v.pipe(v.array(projectInput), v.transform(normalizeProjects)),
     intake: v.object({
       default_repo: v.optional(repoName),
     }),
@@ -82,13 +170,43 @@ export const configSchema = v.pipe(
   }),
   v.check(
     (config) =>
+      new Set(config.repos.map((entry) => entry.shortcode)).size ===
+      config.repos.length,
+    "Repository shortcodes must be unique (set an explicit shortcode to disambiguate)",
+  ),
+  v.check(
+    (config) =>
       !config.intake.default_repo ||
-      config.repos.includes(config.intake.default_repo),
+      config.repos.some((entry) => entry.repo === config.intake.default_repo),
     "intake.default_repo must be one of the configured repos",
   ),
 );
 
 export type FunnelConfig = v.InferOutput<typeof configSchema>;
+
+/** `owner/name` slugs for every configured repository. */
+export function configuredRepoSlugs(
+  config: Pick<FunnelConfig, "repos">,
+): string[] {
+  return config.repos.map((entry) => entry.repo);
+}
+
+/** Whether `repo` is one of the configured `owner/name` repositories. */
+export function isConfiguredRepo(
+  config: Pick<FunnelConfig, "repos">,
+  repo: string,
+): boolean {
+  return config.repos.some((entry) => entry.repo === repo);
+}
+
+/** `owner/name` → shortcode, for identifier rendering in the cockpit. */
+export function repoShortcodeMap(
+  config: Pick<FunnelConfig, "repos">,
+): Record<string, string> {
+  return Object.fromEntries(
+    config.repos.map((entry) => [entry.repo, entry.shortcode]),
+  );
+}
 
 /**
  * Load and validate `funnel.config.yaml` from `cwd`.

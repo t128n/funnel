@@ -54,6 +54,15 @@ config.github.api_url; // https://api.github.com
 config.repos; // ["orgA/core", ...]
 ```
 
+The optional top-level `projects` list maps GitHub labels to project names and
+enables the **Project** group-by option in the issue feeds:
+
+```yaml
+projects:
+  - label: project1
+    name: Project One
+```
+
 ## Developing
 
 Install dependencies and start the development server:

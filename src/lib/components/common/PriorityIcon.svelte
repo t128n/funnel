@@ -35,6 +35,8 @@
 	<entry.Icon
 		class={cn('size-3.5 shrink-0', className)}
 		style={cssColor ? `color:${cssColor}` : undefined}
+		strokeWidth={1.5}
+		absoluteStrokeWidth
 		role="img"
 		aria-label={entry.label}
 	/>

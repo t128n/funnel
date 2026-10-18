@@ -13,7 +13,7 @@
  * set from GitHub, swapping the sibling, and replacing the set in one `PUT`.
  */
 import type { Octokit } from "octokit";
-import { getConfig } from "#lib/server/config";
+import { getConfig, isConfiguredRepo } from "#lib/server/config";
 import {
   errorMessage,
   errorStatus,
@@ -204,7 +204,7 @@ async function requireConfiguredRepo(
   repo: string,
 ): Promise<Outcome<never> | null> {
   const config = await getConfig();
-  return config.repos.includes(repo)
+  return isConfiguredRepo(config, repo)
     ? null
     : badRequest(`Repository ${repo} is not configured`);
 }

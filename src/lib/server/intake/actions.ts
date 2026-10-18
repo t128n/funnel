@@ -13,7 +13,7 @@
  * triager can retry.
  */
 import type { Octokit } from "octokit";
-import { getConfig } from "#lib/server/config";
+import { getConfig, isConfiguredRepo } from "#lib/server/config";
 import {
   errorMessage,
   errorStatus,
@@ -110,7 +110,7 @@ export async function acceptSubmission(
   if (!target) {
     return { ok: false, status: 400, message: "No target repository selected" };
   }
-  if (!config.repos.includes(target)) {
+  if (!isConfiguredRepo(config, target)) {
     return {
       ok: false,
       status: 400,

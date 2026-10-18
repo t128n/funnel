@@ -58,6 +58,28 @@ export function businessWeekEnd(iso: string): string {
   return friday < iso ? addDaysISO(friday, 7) : friday;
 }
 
+/** A quick re-check anchor offered by the Block dialog and the Attention menu. */
+export interface RecheckOption {
+  label: string;
+  /** `YYYY-MM-DD`. */
+  value: string;
+}
+
+/**
+ * Relative re-check anchors from a local "today", deduped so two anchors that
+ * resolve to the same date on some days (e.g. "Tomorrow" and "Start of next
+ * week" on a Friday) never repeat. Shared by the Block dialog and the Attention
+ * row's reschedule menu so the two can't drift.
+ */
+export function quickRecheckDates(todayISO: string): RecheckOption[] {
+  return dedupeByValue([
+    { label: "Tomorrow", value: addDaysISO(todayISO, 1) },
+    { label: "In 3 days", value: addDaysISO(todayISO, 3) },
+    { label: "Start of next week", value: nextBusinessWeekStart(todayISO) },
+    { label: "End of week", value: businessWeekEnd(todayISO) },
+  ]);
+}
+
 /**
  * Bucket dated items into overdue / due today / upcoming within `windowDays`.
  * Items further out (or with a malformed date) are dropped, matching the

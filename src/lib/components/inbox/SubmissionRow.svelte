@@ -4,7 +4,6 @@
 	import { timeAgo } from '#lib/client/clock.svelte';
 	import type { StagedSubmission } from '#lib/server/intake/staging';
 	import { cn } from '#lib/utils';
-	import * as Item from '#lib/components/ui/item/index.js';
 
 	interface Props {
 		submission: StagedSubmission;
@@ -13,17 +12,24 @@
 
 	let { submission, selected = false }: Props = $props();
 
+	const title = $derived(submission.title.trim() || 'Untitled');
+
 	function select() {
 		selectSubmission(submission.id);
 	}
 </script>
 
-<Item.Root
-	size="xs"
-	class={cn('cursor-pointer select-none hover:bg-accent', selected && 'bg-accent')}
+<div
+	class={cn(
+		'issue-grid group/row cursor-pointer border-b border-[color:var(--surface-divider)] py-1.5 select-none transition-colors duration-[120ms] last:border-b-0',
+		'hover:bg-[var(--surface-tag-bg)]',
+		'focus-visible:outline-[1.5px] focus-visible:outline-offset-[-2px] focus-visible:outline-[color:var(--surface-accent)]',
+		selected && 'bg-[var(--surface-card-hover)] shadow-[inset_2px_0_0_var(--surface-accent)]'
+	)}
 	role="button"
 	tabindex={0}
 	aria-current={selected ? 'true' : undefined}
+	aria-label={`Intake submission: ${title}`}
 	onclick={select}
 	onkeydown={(e) => {
 		if (e.key === 'Enter' || e.key === ' ') {
@@ -32,27 +38,29 @@
 		}
 	}}
 >
-	<Item.Media class="pt-0.5">
+	<span></span>
+	<span></span>
+
+	<span class="flex min-w-0 items-center gap-1.5">
 		<IntakeTag />
-	</Item.Media>
-
-	<Item.Content class="min-w-0">
-		<Item.Title class="w-full min-w-0">
-			<span class="text-foreground min-w-0 flex-1 truncate" title={submission.title}>
-				{submission.title}
+		<span class="flex min-w-0 flex-col">
+			<span class="text-foreground truncate text-[13px]" title={title}>{title}</span>
+			<span class="mono text-muted-foreground truncate text-[11px]">
+				{submission.source ?? 'via intake'}
 			</span>
-		</Item.Title>
-		<div class="mono text-muted-foreground truncate text-xs">
-			{submission.source ?? 'via intake'}
-		</div>
-	</Item.Content>
-
-	<Item.Actions class="shrink-0 items-center self-start pt-0.5">
-		<span
-			class="text-muted-foreground text-xs"
-			title={new Date(submission.createdAt).toLocaleString()}
-		>
-			{timeAgo(submission.createdAt)}
 		</span>
-	</Item.Actions>
-</Item.Root>
+	</span>
+
+	<span class="issue-col-labels"></span>
+	<span></span>
+	<span></span>
+
+	<span
+		class="text-muted-foreground justify-self-end truncate text-[11px] tabular-nums"
+		title={new Date(submission.createdAt).toLocaleString()}
+	>
+		{timeAgo(submission.createdAt)}
+	</span>
+
+	<span></span>
+</div>

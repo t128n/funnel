@@ -6,7 +6,7 @@
 	import * as Field from '#lib/components/ui/field';
 	import { Input } from '#lib/components/ui/input';
 	import { Textarea } from '#lib/components/ui/textarea';
-	import { addDaysISO, businessWeekEnd, dedupeByValue, nextBusinessWeekStart, toISODate } from '#lib/attention';
+	import { quickRecheckDates, toISODate } from '#lib/attention';
 	import { clockTick } from '#lib/client/clock.svelte';
 	import type { BlockPayload } from '#lib/client/issue-actions.svelte';
 	import type { BlockInfo } from '#lib/funnel-metadata';
@@ -68,14 +68,7 @@
 		clockTick();
 		return toISODate(new Date());
 	});
-	const quickDates = $derived(
-		dedupeByValue([
-			{ label: 'Tomorrow', value: addDaysISO(today, 1) },
-			{ label: 'In 3 days', value: addDaysISO(today, 3) },
-			{ label: 'Start of next week', value: nextBusinessWeekStart(today) },
-			{ label: 'End of week', value: businessWeekEnd(today) }
-		])
-	);
+	const quickDates = $derived(quickRecheckDates(today));
 
 	function confirm() {
 		if (!canConfirm) return;

@@ -10,6 +10,7 @@
 
 let focusedKey = $state<string | null>(null);
 let menuRequestKey = $state<string | null>(null);
+let openRequestKey = $state<string | null>(null);
 
 /** Record which card currently holds focus. */
 export function setFocusedCard(key: string): void {
@@ -34,4 +35,19 @@ export function getMenuRequestKey(): string | null {
 /** Acknowledge a menu request once the owning card has opened. */
 export function clearMenuRequest(): void {
   menuRequestKey = null;
+}
+
+/** Ask the focused card to open its detail pane (the `X` shortcut). */
+export function requestFocusedCardOpen(): void {
+  if (focusedKey) openRequestKey = focusedKey;
+}
+
+/** The card whose detail pane was requested, or `null`. */
+export function getOpenRequestKey(): string | null {
+  return openRequestKey;
+}
+
+/** Acknowledge an open request once the owning card has navigated. */
+export function clearOpenRequest(): void {
+  openRequestKey = null;
 }

@@ -26,9 +26,11 @@
 		options: FilterOptions;
 		/** The Issues view turns this off: it lists triaged issues only. */
 		allowNoStatus?: boolean;
+		/** Offer the Open / Closed / All state switch (folded in from the header). */
+		showState?: boolean;
 	}
 
-	let { options, allowNoStatus = true }: Props = $props();
+	let { options, allowNoStatus = true, showState = false }: Props = $props();
 
 	const filter = $derived(parseFilterParams(page.url.searchParams));
 
@@ -64,6 +66,28 @@
 
 	let open = $state(false);
 
+	/**
+	 * State switch (formerly the header's Open / Closed / All segment). The
+	 * server defaults to `open` when no `state` param is present, so "Open"
+	 * serializes as an empty dimension and only the non-default views add a key.
+	 */
+	type StateView = 'open' | 'closed' | 'all';
+	const currentState = $derived.by((): StateView => {
+		const set = new Set(filter.states);
+		if (set.has('open') && set.has('closed')) return 'all';
+		if (set.has('closed')) return 'closed';
+		return 'open';
+	});
+	const STATE_OPTIONS: { value: StateView; label: string }[] = [
+		{ value: 'open', label: 'Open' },
+		{ value: 'closed', label: 'Closed' },
+		{ value: 'all', label: 'All' }
+	];
+
+	function setState(next: StateView) {
+		set('states', next === 'all' ? ['open', 'closed'] : next === 'closed' ? ['closed'] : []);
+	}
+
 	function apply(next: ClientFilter) {
 		void goto(buildFilterUrl(page.url.pathname, page.url.searchParams, next), { reset: false });
 	}
@@ -76,6 +100,7 @@
 	function clearAll() {
 		apply({
 			repos: [],
+			states: [],
 			statuses: [],
 			// Keep the All/Mine scope: the popover does not own `assignee=me`.
 			assignees: filter.assignees.filter((value) => value === ME),
@@ -129,6 +154,28 @@
 				<Button variant="link" size="xs" onclick={clearAll}>Clear</Button>
 			{/if}
 		</div>
+		{#if showState}
+			<div class="flex items-center justify-between">
+				<span class="text-muted-foreground text-xs">State</span>
+				<div class="border-[color:var(--surface-divider)] flex overflow-hidden rounded-md border">
+					{#each STATE_OPTIONS as option (option.value)}
+						<button
+							type="button"
+							class={cn(
+								'px-2 py-0.5 text-xs transition-colors',
+								currentState === option.value
+									? 'bg-accent text-foreground'
+									: 'text-muted-foreground hover:bg-accent/60'
+							)}
+							aria-pressed={currentState === option.value}
+							onclick={() => setState(option.value)}
+						>
+							{option.label}
+						</button>
+					{/each}
+				</div>
+			</div>
+		{/if}
 		<div class="flex flex-wrap gap-1">
 			<MultiSelect
 				label="Repo"

@@ -17,6 +17,10 @@ export const appHotkeys = defineAppHotkeys({
     hotkey: 'Mod+K',
     meta: { name: 'Search', group: 'Navigation' }
   },
+  'nav.search-slash': {
+    hotkey: '/',
+    meta: { name: 'Search (/)', group: 'Navigation' }
+  },
   'app.settings': {
     hotkey: 'Mod+,',
     meta: { name: 'Settings', group: 'Application' }
@@ -28,6 +32,10 @@ export const appHotkeys = defineAppHotkeys({
   'issue.status': {
     hotkey: 'S',
     meta: { name: 'Change status of focused card', group: 'Issues' }
+  },
+  'issue.select': {
+    hotkey: 'X',
+    meta: { name: 'Open focused card', group: 'Issues' }
   },
   'sidebar.toggle': {
     hotkey: 'Mod+B',

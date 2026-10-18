@@ -11,7 +11,7 @@
  * One dialog set is rendered at the board level, so this module owns the
  * pending request instead of each card.
  */
-import type { IssueListItem } from "#lib/server/issues/types";
+import type { IssueListItem, UserRef } from "#lib/server/issues/types";
 import {
   blockIssue,
   closeIssue,
@@ -21,8 +21,8 @@ import {
   updateIssue,
   type CloseReason,
 } from "#lib/client/mutations";
-import { mutate, overlayKey } from "#lib/client/optimistic.svelte";
-import type { BlockInfo } from "#lib/funnel-metadata";
+import { mutate, notifyFailure, overlayKey } from "#lib/client/optimistic.svelte";
+import { writeBlocked, type BlockInfo } from "#lib/funnel-metadata";
 
 export type ResolveMode = "close" | "reopen";
 export type BlockMode = "block" | "unblock";
@@ -130,6 +130,103 @@ export async function moveToStatus(
     commit: () => updateIssue(issue.repo, issue.number, { status }),
   });
   return result.ok;
+}
+
+/**
+ * Quick priority write used by the board card's metadata tray. Applies the
+ * optimistic overlay immediately so the glyph updates before the mirror
+ * catches up.
+ */
+export async function setPriority(
+  issue: IssueListItem,
+  priority: string | null,
+): Promise<boolean> {
+  if (issue.priority === priority) return true;
+  const result = await mutate({
+    key: overlayKey(issue.repo, issue.number),
+    patch: { priority },
+    failure: "Could not update priority",
+    commit: () => updateIssue(issue.repo, issue.number, { priority }),
+  });
+  return result.ok;
+}
+
+/**
+ * Quick "assign to me" used by the board card's hover actions. The viewer is
+ * resolved from the mirror on the server; the whole assignee list is written
+ * because the GitHub endpoint replaces it.
+ */
+export async function assignToMe(
+  issue: IssueListItem,
+  viewer: UserRef,
+): Promise<boolean> {
+  if (issue.assignees.some((person) => person.githubId === viewer.githubId)) {
+    return true;
+  }
+  const assignees = [...issue.assignees, viewer];
+  const result = await mutate({
+    key: overlayKey(issue.repo, issue.number),
+    patch: { assignees },
+    failure: "Could not assign issue",
+    commit: () =>
+      updateIssue(issue.repo, issue.number, {
+        assignees: assignees.map((person) => person.login),
+      }),
+  });
+  return result.ok;
+}
+
+/**
+ * Quick "unassign me" counterpart to {@link assignToMe}, used by the Attention
+ * row's hover actions. Writes the whole assignee list because the GitHub
+ * endpoint replaces it.
+ */
+export async function unassignFromMe(
+  issue: IssueListItem,
+  viewer: UserRef,
+): Promise<boolean> {
+  if (!issue.assignees.some((person) => person.githubId === viewer.githubId)) {
+    return true;
+  }
+  const assignees = issue.assignees.filter(
+    (person) => person.githubId !== viewer.githubId,
+  );
+  const result = await mutate({
+    key: overlayKey(issue.repo, issue.number),
+    patch: { assignees },
+    failure: "Could not unassign issue",
+    commit: () =>
+      updateIssue(issue.repo, issue.number, {
+        assignees: assignees.map((person) => person.login),
+      }),
+  });
+  return result.ok;
+}
+
+/**
+ * Move a blocked issue's re-check date without re-recording the block (the
+ * Attention view's "snooze"). The date lives in the body's metadata envelope,
+ * so the body is fetched and rewritten in place — no comment is posted, keeping
+ * a deferral quiet in the issue timeline. Returns whether the write landed.
+ */
+export async function rescheduleBlock(
+  issue: IssueListItem,
+  info: Pick<BlockInfo, "blocker" | "needs" | "trying">,
+  recheck: string,
+): Promise<boolean> {
+  const detail = await fetchIssueDetail(issue.repo, issue.number);
+  if (!detail.ok) {
+    notifyFailure("Could not reschedule re-check", detail.error);
+    return false;
+  }
+  const result = await updateIssue(issue.repo, issue.number, {
+    body: writeBlocked(detail.value.body, { ...info, recheck }),
+  });
+  if (!result.ok) {
+    notifyFailure("Could not reschedule re-check", result.error);
+    return false;
+  }
+  return true;
 }
 
 /**

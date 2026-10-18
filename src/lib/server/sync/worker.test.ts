@@ -381,7 +381,10 @@ describe("refreshIssue", () => {
 
 describe("syncAllRepos", () => {
   test("polls every configured repo and isolates failures", async () => {
-    setConfig({ ...TEST_CONFIG, repos: ["orgA/core"] });
+    setConfig({
+      ...TEST_CONFIG,
+      repos: [{ repo: "orgA/core", shortcode: "CORE" }],
+    });
     pages = [[restIssue({ number: 1, node_id: "n1" })]];
     nodes = [issueNode({ databaseId: 101, number: 1 })];
 

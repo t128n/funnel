@@ -10,7 +10,7 @@
  *
  * Scheduled for 03:00 local time and re-armed after each run.
  */
-import { getConfig } from "#/lib/server/config";
+import { configuredRepoSlugs, getConfig } from "#/lib/server/config";
 import { createLogger } from "#/lib/server/log";
 import { getInstallationId } from "#/lib/server/github/app.server";
 import {
@@ -82,7 +82,7 @@ export async function runReconciliation(): Promise<ReconcileReport> {
 
   let repos: readonly string[];
   try {
-    repos = (await getConfig()).repos;
+    repos = configuredRepoSlugs(await getConfig());
   } catch (error) {
     log.warn({ err: errorMessage(error) }, "reconciliation skipped");
     return report;

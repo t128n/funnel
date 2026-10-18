@@ -129,6 +129,45 @@
   .plain-text {
     @apply break-words whitespace-pre-wrap;
   }
+
+  /* Issue list grid (SPEC §9.2).
+
+     The feed pane is a fixed ~384px column while the board's Backlog view is
+     full-width, so one shared template adapts through a container query instead
+     of two layouts. The compact layout keeps every metadata column but hides
+     the labels track; the wide layout reveals the labels track and widens the
+     metadata columns so their header labels fit. The sticky header and every
+     row opt into the same classes, keeping the columns in lock-step. */
+  .issue-list {
+    container: issue-list / inline-size;
+  }
+
+  .issue-grid {
+    display: grid;
+    align-items: center;
+    column-gap: 0.5rem;
+    grid-template-columns: 18px 48px minmax(0, 1fr) 18px 22px 42px 26px;
+  }
+
+  /* The labels track and the metadata header labels only exist when wide. */
+  .issue-col-labels,
+  .issue-head-meta {
+    display: none;
+  }
+
+  @container issue-list (min-width: 820px) {
+    .issue-grid {
+      grid-template-columns: 18px 54px minmax(0, 1fr) 150px 56px 50px 64px 52px;
+    }
+
+    .issue-col-labels {
+      display: flex;
+    }
+
+    .issue-head-meta {
+      display: block;
+    }
+  }
 }
 
 :root {
@@ -226,6 +265,49 @@
   --syntax-function: #56a8f5;
   --syntax-comment: #7a7e85;
   --syntax-constant: #b389f5;
+}
+
+/**
+ * Work-surface tokens.
+ *
+ * The cockpit keeps the JetBrains palette everywhere else; the board and the
+ * dense list feeds opt into a darker, Linear-like layered surface so rows and
+ * cards carry the structure. Light values fall back to the semantic tokens.
+ */
+.surface-shell {
+  --surface-canvas: var(--background);
+  --surface-card: var(--card);
+  --surface-card-hover: var(--accent);
+  --surface-border: var(--border);
+  --surface-border-hover: color-mix(in srgb, var(--foreground) 18%, transparent);
+  --surface-accent: var(--primary);
+  --surface-tag-bg: color-mix(in srgb, var(--foreground) 4%, transparent);
+  --surface-tag-border: color-mix(in srgb, var(--foreground) 8%, transparent);
+  --surface-divider: color-mix(in srgb, var(--foreground) 8%, transparent);
+}
+
+.dark .surface-shell {
+  --surface-canvas: #0d0e11;
+  --surface-card: #18191d;
+  --surface-card-hover: #1e2025;
+  --surface-border: rgba(255, 255, 255, 0.07);
+  --surface-border-hover: rgba(255, 255, 255, 0.15);
+  --surface-accent: #5e6ad2;
+  --surface-tag-bg: rgba(255, 255, 255, 0.05);
+  --surface-tag-border: rgba(255, 255, 255, 0.08);
+  --surface-divider: rgba(255, 255, 255, 0.06);
+}
+
+/**
+ * The dragged card is cloned to <body> by `svelte-dnd-action`, which writes an
+ * inline `transform` for positioning. Individual `rotate`/`scale` properties
+ * compose with that transform, so the lift does not fight the drag maths.
+ */
+#dnd-action-dragged-el {
+  rotate: 2deg;
+  scale: 1.02;
+  cursor: grabbing !important;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45) !important;
 }
 
 @theme inline {

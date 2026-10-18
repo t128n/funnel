@@ -260,7 +260,13 @@ describe("provisionRepoLabels", () => {
 
 describe("provisionCanonicalLabels", () => {
   test("provisions every configured repo and aggregates the report", async () => {
-    setConfig({ ...TEST_CONFIG, repos: ["orgA/core", "orgA/web"] });
+    setConfig({
+      ...TEST_CONFIG,
+      repos: [
+        { repo: "orgA/core", shortcode: "CORE" },
+        { repo: "orgA/web", shortcode: "WEB" },
+      ],
+    });
 
     const report = await provisionCanonicalLabels();
 
@@ -273,7 +279,10 @@ describe("provisionCanonicalLabels", () => {
   test("isolates a failing repo so the others still reconcile", async () => {
     const config: FunnelConfig = {
       ...TEST_CONFIG,
-      repos: ["good/core", "bad/core"],
+      repos: [
+        { repo: "good/core", shortcode: "GOOD" },
+        { repo: "bad/core", shortcode: "BAD" },
+      ],
     };
     setConfig(config);
 

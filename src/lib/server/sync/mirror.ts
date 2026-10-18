@@ -168,6 +168,15 @@ export function getRepoCursor(repoId: number): number | null {
 // Users & repo labels
 // ---------------------------------------------------------------------------
 
+/** One mirrored person by GitHub id, or `undefined` before they are seen. */
+export function getUser(githubId: number): UserRecord | undefined {
+  return db
+    .select()
+    .from(mirrorGithubUser)
+    .where(eq(mirrorGithubUser.githubId, githubId))
+    .get();
+}
+
 export function upsertUser(user: UserRecord): void {
   db.insert(mirrorGithubUser)
     .values(user)

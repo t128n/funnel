@@ -13,6 +13,8 @@
 export interface ClientFilter {
   /** `owner/name` slugs. */
   repos: string[];
+  /** `open` and/or `closed`; absence means the server's default (`open`). */
+  states: string[];
   /** Canonical status names and/or `none`. */
   statuses: string[];
   /** GitHub logins, numeric ids, or `me`. */
@@ -29,6 +31,7 @@ export interface ClientFilter {
 
 export const EMPTY_CLIENT_FILTER: ClientFilter = {
   repos: [],
+  states: [],
   statuses: [],
   assignees: [],
   priorities: [],
@@ -43,6 +46,7 @@ export const NONE = "none";
 /** The query keys owned by the filter bar; everything else is preserved. */
 export const FILTER_KEYS = [
   "repo",
+  "state",
   "status",
   "assignee",
   "priority",
@@ -77,6 +81,7 @@ function collect(params: FilterParams, key: string): string[] {
 export function parseFilterParams(params: FilterParams): ClientFilter {
   return {
     repos: collect(params, "repo"),
+    states: collect(params, "state"),
     statuses: collect(params, "status"),
     assignees: collect(params, "assignee"),
     priorities: collect(params, "priority"),
@@ -94,6 +99,7 @@ export function toFilterParams(filter: ClientFilter): URLSearchParams {
   const params = new URLSearchParams();
   const groups: Array<[string, readonly string[]]> = [
     ["repo", filter.repos],
+    ["state", filter.states],
     ["status", filter.statuses],
     ["assignee", filter.assignees],
     ["priority", filter.priorities],
@@ -139,6 +145,7 @@ export function toggleValue(
 export function activeFilterCount(filter: ClientFilter): number {
   return (
     (filter.repos.length > 0 ? 1 : 0) +
+    (filter.states.length > 0 ? 1 : 0) +
     (filter.statuses.length > 0 ? 1 : 0) +
     (filter.assignees.length > 0 ? 1 : 0) +
     (filter.priorities.length > 0 ? 1 : 0) +

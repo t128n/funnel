@@ -139,7 +139,13 @@ describe("reconcileRepo", () => {
 
 describe("runReconciliation", () => {
   test("isolates a failing repo and still reports the others", async () => {
-    setConfig({ ...TEST_CONFIG, repos: ["recon/core", "ghost/nope"] });
+    setConfig({
+      ...TEST_CONFIG,
+      repos: [
+        { repo: "recon/core", shortcode: "RECON" },
+        { repo: "ghost/nope", shortcode: "GHOST" },
+      ],
+    });
     seedStaleIssue();
 
     const report = await runReconciliation();
