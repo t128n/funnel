@@ -29,6 +29,8 @@ export interface IssueListItem {
   size: string | null;
   /** Ambiguous reserved-label timeline flagged for the UI (SPEC §5.2.2). */
   labelConflict: boolean;
+  /** When the issue was opened (from GitHub); drives the "opened … ago" label. */
+  createdAt: number;
   updatedAt: number;
   closedAt: number | null;
   author: UserRef | null;

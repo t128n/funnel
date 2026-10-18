@@ -5,6 +5,7 @@
 const MINUTE = 60_000;
 const HOUR = 60 * MINUTE;
 const DAY = 24 * HOUR;
+const WEEK = 7 * DAY;
 const YEAR = 365 * DAY;
 
 export function relativeTime(fromMs: number, nowMs: number = Date.now()): string {
@@ -12,7 +13,8 @@ export function relativeTime(fromMs: number, nowMs: number = Date.now()): string
   if (delta < MINUTE) return "just now";
   if (delta < HOUR) return `${Math.floor(delta / MINUTE)}m ago`;
   if (delta < DAY) return `${Math.floor(delta / HOUR)}h ago`;
-  if (delta < YEAR) return `${Math.floor(delta / DAY)}d ago`;
+  if (delta < WEEK) return `${Math.floor(delta / DAY)}d ago`;
+  if (delta < YEAR) return `${Math.floor(delta / WEEK)}w ago`;
   return new Date(fromMs).toISOString().slice(0, 10);
 }
 

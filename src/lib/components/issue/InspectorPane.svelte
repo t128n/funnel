@@ -1,6 +1,5 @@
 <script lang="ts">
 	import Avatar from '#lib/components/common/Avatar.svelte';
-	import Chip from '#lib/components/common/Chip.svelte';
 	import MultiSelect from '#lib/components/common/MultiSelect.svelte';
 	import SingleSelect from '#lib/components/common/SingleSelect.svelte';
 	import Spinner from '#lib/components/common/Spinner.svelte';
@@ -24,13 +23,15 @@
 		type UpdateIssuePatch
 	} from '#lib/client/mutations';
 	import { refreshSignal } from '#lib/client/refresh';
+	import { timeAgo } from '#lib/client/clock.svelte';
 	import {
 		PRIORITY_OPTIONS,
 		SIZE_OPTIONS,
 		STATUS_OPTIONS,
 		canonicalLabel
 	} from '#lib/labels';
-	import { absoluteTime, relativeTime } from '#lib/time';
+	import { absoluteTime } from '#lib/time';
+	import { issueKey } from '#lib/repo-shortcode';
 	import type { RenderedIssueDetail, UserRef } from '#lib/server/issues/types';
 	import { cn } from '#lib/utils';
 	import CircleDashedIcon from '@lucide/svelte/icons/circle-dashed';
@@ -379,21 +380,49 @@
 	footer={canEdit ? composer : undefined}
 >
 	{#snippet header()}
-		<div class="flex min-w-0 items-center gap-2">
-			<span class="mono text-muted-foreground truncate text-xs" title={repo}>{repo}</span>
-			<span class="text-muted-foreground text-xs">/</span>
-			<span class="mono text-muted-foreground text-xs">#{number}</span>
-			{#if issue}
-				<Chip
-					label={issue.state === 'closed' ? 'closed' : 'open'}
-					color={issue.state === 'closed' ? 'var(--syntax-constant)' : 'var(--syntax-string)'}
-				/>
-				{#if issue.author}
-					<span class="text-muted-foreground truncate text-xs">
-						opened by <strong class="text-foreground font-medium">{issue.author.login}</strong>
-						· <span title={absoluteTime(issue.updatedAt)}>{relativeTime(issue.updatedAt)}</span>
-					</span>
+		<div class="flex min-w-0 flex-1 flex-col gap-1 py-0.5">
+			<div class="flex min-w-0 items-center gap-2">
+				<span class="text-muted-foreground shrink-0 text-sm font-medium" title={repo}>
+					{issueKey(repo, number)}
+				</span>
+				{#if issue}
+					<Input
+						class="hover:bg-accent/50 focus-visible:border-input h-auto min-w-0 flex-1 border-transparent bg-transparent px-1 text-xl leading-tight font-semibold tracking-tight shadow-none md:text-xl dark:bg-transparent"
+						value={title}
+						oninput={(e) => (title = e.currentTarget.value)}
+						onblur={saveTitle}
+						onkeydown={(e) => {
+							if (e.key === 'Enter') {
+								e.preventDefault();
+								e.currentTarget.blur();
+							}
+						}}
+						aria-label="Issue title"
+						disabled={busy === 'title'}
+					/>
+					{#if busy === 'title'}
+						<Spinner size={14} />
+					{:else if titleDirty}
+						<Button variant="secondary" size="sm" onclick={saveTitle}>Save</Button>
+					{/if}
 				{/if}
+			</div>
+			{#if issue}
+				<div class="text-muted-foreground flex min-w-0 items-center gap-1.5 text-xs">
+					{#if issue.author}
+						<span class="truncate">
+							opened by <strong class="text-foreground font-medium">{issue.author.login}</strong>
+						</span>
+						<span aria-hidden="true">·</span>
+					{/if}
+					<span class="shrink-0" title={absoluteTime(issue.createdAt)}>
+						{timeAgo(issue.createdAt)}
+					</span>
+					<span aria-hidden="true">·</span>
+					<span class="shrink-0" title={absoluteTime(issue.updatedAt)}>
+						last updated {timeAgo(issue.updatedAt)}
+					</span>
+				</div>
 			{/if}
 		</div>
 		<div class="flex shrink-0 items-center gap-1">
@@ -424,28 +453,6 @@
 			</Alert.Root>
 		</div>
 	{:else if issue && detail}
-		<div class="flex items-center gap-2">
-			<Input
-				class="hover:bg-accent/50 focus-visible:border-input -ml-2 h-auto border-transparent bg-transparent px-2 text-xl font-semibold tracking-tight shadow-none dark:bg-transparent"
-				value={title}
-				oninput={(e) => (title = e.currentTarget.value)}
-				onblur={saveTitle}
-				onkeydown={(e) => {
-					if (e.key === 'Enter') {
-						e.preventDefault();
-						e.currentTarget.blur();
-					}
-				}}
-				aria-label="Issue title"
-				disabled={busy === 'title'}
-			/>
-			{#if busy === 'title'}
-				<Spinner size={14} />
-			{:else if titleDirty}
-				<Button variant="secondary" size="sm" onclick={saveTitle}>Save</Button>
-			{/if}
-		</div>
-
 		{#if actionError}
 			<Alert.Root variant="destructive">
 				<Alert.Description>{actionError}</Alert.Description>
@@ -459,6 +466,55 @@
 				</Alert.Description>
 			</Alert.Root>
 		{/if}
+
+		<section class="flex flex-col" aria-label="Description">
+			{#if editingBody}
+				<Textarea
+					class="min-h-32"
+					value={body}
+					oninput={(e) => (body = e.currentTarget.value)}
+					onkeydown={onBodyKeydown}
+					placeholder="Describe the issue…"
+					rows={6}
+				></Textarea>
+				<div class="mt-2 flex items-center justify-end gap-1">
+					{#if busy === 'body'}
+						<Spinner size={13} />
+					{:else}
+						<Button variant="ghost" size="xs" onclick={cancelBody}>Cancel</Button>
+						<Button variant="secondary" size="xs" onclick={saveBody} disabled={!bodyDirty}>
+							Save
+						</Button>
+					{/if}
+				</div>
+			{:else}
+				<div
+					class={cn(
+						'hover:bg-accent/40 -mx-2 min-h-12 cursor-text px-2 py-1 text-sm leading-relaxed text-foreground transition-colors',
+						bodyHtml !== null && 'markdown',
+						bodyHtml === null && 'plain-text'
+					)}
+					role="button"
+					tabindex="0"
+					aria-label="Issue description; activate to edit"
+					onclick={() => (editingBody = true)}
+					onkeydown={(e) => {
+						if (e.key === 'Enter' || e.key === ' ') {
+							e.preventDefault();
+							editingBody = true;
+						}
+					}}
+				>
+					{#if body.trim().length === 0}
+						<span class="text-muted-foreground">Add a description…</span>
+					{:else if bodyHtml !== null}
+						{@html bodyHtml}
+					{:else}
+						{body}
+					{/if}
+				</div>
+			{/if}
+		</section>
 
 		<section class="flex flex-wrap items-center gap-1.5" aria-label="Issue properties">
 			<SingleSelect
@@ -540,58 +596,9 @@
 			</MultiSelect>
 		</section>
 
-		<section class="border-border bg-muted/20 flex flex-col border p-4" aria-label="Description">
-			{#if editingBody}
-				<Textarea
-					class="min-h-32"
-					value={body}
-					oninput={(e) => (body = e.currentTarget.value)}
-					onkeydown={onBodyKeydown}
-					placeholder="Describe the issue…"
-					rows={6}
-				></Textarea>
-				<div class="mt-2 flex items-center justify-end gap-1">
-					{#if busy === 'body'}
-						<Spinner size={13} />
-					{:else}
-						<Button variant="ghost" size="xs" onclick={cancelBody}>Cancel</Button>
-						<Button variant="secondary" size="xs" onclick={saveBody} disabled={!bodyDirty}>
-							Save
-						</Button>
-					{/if}
-				</div>
-			{:else}
-				<div
-					class={cn(
-						'hover:bg-accent/40 min-h-12 cursor-text px-1 py-0.5 text-sm leading-relaxed text-foreground transition-colors',
-						bodyHtml !== null && 'markdown',
-						bodyHtml === null && 'plain-text'
-					)}
-					role="button"
-					tabindex="0"
-					aria-label="Issue description; activate to edit"
-					onclick={() => (editingBody = true)}
-					onkeydown={(e) => {
-						if (e.key === 'Enter' || e.key === ' ') {
-							e.preventDefault();
-							editingBody = true;
-						}
-					}}
-				>
-					{#if body.trim().length === 0}
-						<span class="text-muted-foreground">Add a description…</span>
-					{:else if bodyHtml !== null}
-						{@html bodyHtml}
-					{:else}
-						{body}
-					{/if}
-				</div>
-			{/if}
-		</section>
-
 		<section class="flex flex-col gap-3" aria-label="Activity">
 			<div class="flex items-center justify-between">
-				<h2 class="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
+				<h2 class="text-foreground text-base font-semibold">
 					Activity
 				</h2>
 				<span class="mono text-muted-foreground text-xs">{detail.comments.length}</span>

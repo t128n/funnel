@@ -2,7 +2,8 @@
 	import Avatar from '#lib/components/common/Avatar.svelte';
 	import * as Bubble from '#lib/components/ui/bubble';
 	import * as Message from '#lib/components/ui/message';
-	import { absoluteTime, relativeTime } from '#lib/time';
+	import { timeAgo } from '#lib/client/clock.svelte';
+	import { absoluteTime } from '#lib/time';
 	import type { RenderedComment } from '#lib/server/issues/types';
 
 	/**
@@ -36,7 +37,7 @@
 								{entry.author?.login ?? 'ghost'}
 							</strong>
 							<span title={absoluteTime(entry.createdAt)}>
-								{relativeTime(entry.createdAt)}
+								{timeAgo(entry.createdAt)}
 							</span>
 						</Message.Header>
 						<Bubble.Root variant="muted">
@@ -62,7 +63,7 @@
 					<div class="flex items-baseline gap-2 text-xs">
 						<strong class="font-medium">{entry.author?.login ?? 'ghost'}</strong>
 						<span class="text-muted-foreground" title={absoluteTime(entry.createdAt)}>
-							{relativeTime(entry.createdAt)}
+							{timeAgo(entry.createdAt)}
 						</span>
 					</div>
 					<div class="markdown text-foreground text-sm">{@html entry.bodyHtml}</div>

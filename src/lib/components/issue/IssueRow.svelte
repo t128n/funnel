@@ -2,8 +2,9 @@
 	import Avatar from '#lib/components/common/Avatar.svelte';
 	import Chip from '#lib/components/common/Chip.svelte';
 	import { selectIssue } from '#lib/client/selection.svelte';
+	import { timeAgo } from '#lib/client/clock.svelte';
 	import { canonicalLabel } from '#lib/labels';
-	import { relativeTime } from '#lib/time';
+	import { issueKey } from '#lib/repo-shortcode';
 	import type { IssueListItem } from '#lib/server/issues/types';
 	import { cn } from '#lib/utils';
 	import TriangleAlertIcon from '@lucide/svelte/icons/triangle-alert';
@@ -52,7 +53,7 @@
 			class={cn('size-2 shrink-0 rounded-full', closed ? 'bg-muted-foreground' : 'bg-primary')}
 			title={closed ? 'Closed' : 'Open'}
 		></span>
-		<span class="mono text-muted-foreground text-xs">#{issue.number}</span>
+		<span class="mono text-muted-foreground text-xs">{issueKey(issue.repo, issue.number)}</span>
 		<span
 			class={cn(
 				'flex-1 truncate text-sm',
@@ -69,30 +70,31 @@
 			/>
 		{/if}
 		<span class="text-muted-foreground shrink-0 text-xs" title={new Date(issue.updatedAt).toLocaleString()}>
-			{relativeTime(issue.updatedAt)}
+			{timeAgo(issue.updatedAt)}
 		</span>
 	</div>
-	<div class="flex min-w-0 items-center gap-2 pl-4">
-		<span class="mono text-muted-foreground min-w-0 flex-1 truncate text-xs">{issue.repo}</span>
-		{#if issue.status || issue.priority || issue.size}
-			<div class="flex shrink-0 items-center gap-1">
-				{#if issue.status}
-					<Chip label={issue.status} color={statusColor} />
-				{/if}
-				{#if issue.priority}
-					<Chip label={issue.priority.toUpperCase()} color={priorityColor} mono />
-				{/if}
-				{#if issue.size}
-					<Chip label={issue.size} color={sizeColor} variant="outline" mono />
-				{/if}
-			</div>
-		{/if}
-		{#if issue.assignees.length > 0}
-			<div class="ml-auto flex shrink-0 items-center gap-0.5">
-				{#each issue.assignees.slice(0, 3) as person (person.githubId)}
-					<Avatar login={person.login} avatarUrl={person.avatarUrl} size={16} />
-				{/each}
-			</div>
-		{/if}
-	</div>
+	{#if issue.status || issue.priority || issue.size || issue.assignees.length > 0}
+		<div class="flex min-w-0 items-center gap-2 pl-4">
+			{#if issue.status || issue.priority || issue.size}
+				<div class="flex shrink-0 items-center gap-1">
+					{#if issue.status}
+						<Chip label={issue.status} color={statusColor} />
+					{/if}
+					{#if issue.priority}
+						<Chip label={issue.priority.toUpperCase()} color={priorityColor} mono />
+					{/if}
+					{#if issue.size}
+						<Chip label={issue.size} color={sizeColor} variant="outline" mono />
+					{/if}
+				</div>
+			{/if}
+			{#if issue.assignees.length > 0}
+				<div class="ml-auto flex shrink-0 items-center gap-0.5">
+					{#each issue.assignees.slice(0, 3) as person (person.githubId)}
+						<Avatar login={person.login} avatarUrl={person.avatarUrl} size={16} />
+					{/each}
+				</div>
+			{/if}
+		</div>
+	{/if}
 </div>

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { selectSubmission } from '#lib/client/selection.svelte';
-	import { relativeTime } from '#lib/time';
+	import { timeAgo } from '#lib/client/clock.svelte';
 	import type { StagedSubmission } from '#lib/server/intake/staging';
 	import { cn } from '#lib/utils';
 
@@ -42,7 +42,7 @@
 			{submission.title}
 		</span>
 		<span class="text-muted-foreground shrink-0 text-xs" title={new Date(submission.createdAt).toLocaleString()}>
-			{relativeTime(submission.createdAt)}
+			{timeAgo(submission.createdAt)}
 		</span>
 	</div>
 	<div class="mono text-muted-foreground truncate pl-0.5 text-xs">

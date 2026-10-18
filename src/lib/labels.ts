@@ -107,7 +107,12 @@ const SIZE_DISPLAY: Record<string, string> = { sm: "S", md: "M", lg: "L" };
 
 /** The five open board columns, in order; `done` is appended by the board. */
 export const STATUS_OPTIONS = options("status", STATUS_DISPLAY);
-export const PRIORITY_OPTIONS = options("priority", PRIORITY_DISPLAY);
+/**
+ * Displayed low → high so priority and size read the same way. The canonical
+ * list keeps the p1 → p3 order the GitHub provisioning uses; `options()`
+ * returns a fresh array, so reversing here does not mutate it.
+ */
+export const PRIORITY_OPTIONS = options("priority", PRIORITY_DISPLAY).reverse();
 export const SIZE_OPTIONS = options("size", SIZE_DISPLAY);
 
 /** Board columns including Done (SPEC §9.3). */

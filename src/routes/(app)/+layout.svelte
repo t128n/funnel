@@ -7,6 +7,7 @@
 	import SettingsDialog from '#lib/components/settings/settings-dialog.svelte';
 	import * as Sidebar from '#lib/components/ui/sidebar/index.js';
 	import { connectEvents } from '#lib/client/events';
+	import { startClock } from '#lib/client/clock.svelte';
 	import { bumpRefresh } from '#lib/client/refresh';
 	import { clearSelection, parseSelection, selectedIssue } from '#lib/client/selection.svelte';
 	import { openSettings } from '#lib/client/settings.svelte';
@@ -24,13 +25,19 @@
 	);
 
 	// Realtime bridge: any server-side mirror change refreshes the streams and
-	// signals the Inspector to refetch (SPEC §3.2).
-	onMount(() =>
-		connectEvents(() => {
+	// signals the Inspector to refetch (SPEC §3.2). The shared clock keeps the
+	// relative-time labels ticking even when no change arrives.
+	onMount(() => {
+		const stopClock = startClock();
+		const stopEvents = connectEvents(() => {
 			void refreshAll();
 			bumpRefresh();
-		})
-	);
+		});
+		return () => {
+			stopEvents();
+			stopClock();
+		};
+	});
 
 	/** Focus the view's filter-bar search, navigating to Issues if needed. */
 	async function focusSearch() {

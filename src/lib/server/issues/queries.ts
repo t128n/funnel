@@ -80,6 +80,7 @@ const issueColumns = {
   priority: mirrorGithubIssue.priority,
   size: mirrorGithubIssue.size,
   labelConflict: mirrorGithubIssue.labelConflict,
+  createdAt: mirrorGithubIssue.createdAt,
   updatedAt: mirrorGithubIssue.updatedAt,
   closedAt: mirrorGithubIssue.closedAt,
   org: mirrorGithubRepo.org,
@@ -99,6 +100,7 @@ interface RawRow {
   priority: string | null;
   size: string | null;
   labelConflict: number;
+  createdAt: number;
   updatedAt: number;
   closedAt: number | null;
   org: string;
@@ -227,6 +229,7 @@ function hydrate(rows: RawRow[]): IssueListItem[] {
       priority: row.priority,
       size: row.size,
       labelConflict: row.labelConflict === 1,
+      createdAt: row.createdAt,
       updatedAt: row.updatedAt,
       closedAt: row.closedAt,
       author:

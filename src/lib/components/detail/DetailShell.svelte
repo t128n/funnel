@@ -32,7 +32,7 @@
 </script>
 
 <aside class={cn('bg-background flex h-full flex-col', className)} aria-label={ariaLabel}>
-	<header class="flex h-10 shrink-0 items-center justify-between gap-2 border-b px-3">
+	<header class="flex min-h-10 shrink-0 items-center justify-between gap-2 border-b px-3 py-1.5">
 		{@render header()}
 	</header>
 

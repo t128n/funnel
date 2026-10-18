@@ -9,7 +9,8 @@
 	import * as NativeSelect from '#lib/components/ui/native-select';
 	import { PRIORITY_OPTIONS, SIZE_OPTIONS } from '#lib/labels';
 	import { clearSelection } from '#lib/client/selection.svelte';
-	import { absoluteTime, relativeTime } from '#lib/time';
+	import { timeAgo } from '#lib/client/clock.svelte';
+	import { absoluteTime } from '#lib/time';
 	import type { RenderedSubmission } from '#lib/server/issues/types';
 	import XIcon from '@lucide/svelte/icons/x';
 
@@ -81,7 +82,7 @@
 	<div class="text-muted-foreground text-xs">
 		Staged
 		<span title={absoluteTime(submission.createdAt)}>
-			· {relativeTime(submission.createdAt)}
+			· {timeAgo(submission.createdAt)}
 		</span>
 	</div>
 
