@@ -30,22 +30,28 @@
 <style>
 	.board {
 		display: flex;
-		gap: var(--space-md);
+		gap: var(--space-sm);
 		flex: 1;
 		min-height: 0;
-		padding: var(--space-md);
+		padding: var(--space-sm);
 		overflow-x: auto;
 		overflow-y: hidden;
 	}
 
+	/* Lanes live inside the board island, so they use a surface step and a
+	   nested radius rather than becoming islands of their own. */
 	.column {
 		display: flex;
 		flex-direction: column;
 		width: 240px;
 		flex: none;
 		min-height: 0;
-		background: var(--color-surface-layer-1);
-		border-radius: var(--island-radius);
+		background: color-mix(
+			in srgb,
+			var(--color-surface-layer-2) 40%,
+			var(--color-surface-layer-1)
+		);
+		border-radius: var(--radius-md);
 		overflow: hidden;
 	}
 
@@ -54,7 +60,7 @@
 		align-items: center;
 		justify-content: space-between;
 		height: var(--island-header-height);
-		padding: 0 var(--space-md);
+		padding: 0 var(--space-sm);
 		background: var(--color-island-header);
 		flex: none;
 	}
