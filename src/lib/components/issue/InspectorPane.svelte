@@ -4,6 +4,8 @@
 	import MultiSelect from '#lib/components/common/MultiSelect.svelte';
 	import SingleSelect from '#lib/components/common/SingleSelect.svelte';
 	import Spinner from '#lib/components/common/Spinner.svelte';
+	import CommentList from '#lib/components/issue/CommentList.svelte';
+	import CommentThread from '#lib/components/issue/CommentThread.svelte';
 	import IssueActionDialog from '#lib/components/issue/IssueActionDialog.svelte';
 	import * as Alert from '#lib/components/ui/alert';
 	import { Button } from '#lib/components/ui/button';
@@ -45,9 +47,11 @@
 		onclose: () => void;
 		/** Fill the parent column instead of docking beside it. */
 		fill?: boolean;
+		/** Render comments as chat bubbles instead of the compact list. */
+		commentBubbles?: boolean;
 	}
 
-	let { repo, number, githubUrl, onclose, fill = false }: Props = $props();
+	let { repo, number, githubUrl, onclose, fill = false, commentBubbles = false }: Props = $props();
 
 	let detail = $state<RenderedIssueDetail | null>(null);
 	let loading = $state(false);
@@ -451,7 +455,7 @@
 					disabled={busy === 'status'}
 				>
 					{#snippet icon()}
-						<CircleDashedIcon size={14} style={statusTint} />
+						<CircleDashedIcon class="size-3.5" style={statusTint} />
 					{/snippet}
 				</SingleSelect>
 
@@ -465,7 +469,7 @@
 					disabled={busy === 'priority'}
 				>
 					{#snippet icon()}
-						<SignalIcon size={14} style={tintStyle(priorityValue)} />
+						<SignalIcon class="size-3.5" style={tintStyle(priorityValue)} />
 					{/snippet}
 				</SingleSelect>
 
@@ -479,7 +483,7 @@
 					disabled={busy === 'size'}
 				>
 					{#snippet icon()}
-						<RulerIcon size={14} style={tintStyle(sizeValue)} />
+						<RulerIcon class="size-3.5" style={tintStyle(sizeValue)} />
 					{/snippet}
 				</SingleSelect>
 
@@ -499,7 +503,7 @@
 						{#if first}
 							<Avatar login={first.login} avatarUrl={first.avatarUrl} size={16} />
 						{:else}
-							<CircleUserIcon size={14} />
+							<CircleUserIcon class="size-3.5" />
 						{/if}
 					{/snippet}
 				</MultiSelect>
@@ -516,7 +520,7 @@
 					disabled={busy === 'labels'}
 				>
 					{#snippet icon()}
-						<TagIcon size={14} />
+						<TagIcon class="size-3.5" />
 					{/snippet}
 				</MultiSelect>
 			</section>
@@ -578,27 +582,10 @@
 				</span>
 				{#if detail.comments.length === 0}
 					<div class="text-muted-foreground text-xs">No comments yet.</div>
+				{:else if commentBubbles}
+					<CommentThread comments={detail.comments} />
 				{:else}
-					<ul class="flex flex-col gap-3">
-						{#each detail.comments as entry (entry.githubId)}
-							<li class="flex gap-2">
-								<Avatar
-									login={entry.author?.login ?? 'ghost'}
-									avatarUrl={entry.author?.avatarUrl}
-									size={20}
-								/>
-								<div class="flex min-w-0 flex-1 flex-col gap-0.5">
-									<div class="flex items-baseline gap-2 text-xs">
-										<strong class="font-medium">{entry.author?.login ?? 'ghost'}</strong>
-										<span class="text-muted-foreground" title={absoluteTime(entry.createdAt)}>
-											{relativeTime(entry.createdAt)}
-										</span>
-									</div>
-									<div class="markdown text-foreground text-sm">{@html entry.bodyHtml}</div>
-								</div>
-							</li>
-						{/each}
-					</ul>
+					<CommentList comments={detail.comments} />
 				{/if}
 			</section>
 		</div>

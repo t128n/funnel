@@ -36,6 +36,19 @@ export const variables = defineEnvVars({
       "./data/funnel.db",
     ),
   },
+  FUNNEL_COMMENT_UI: {
+    description:
+      "Default issue-comment rendering: 'compact' (dense list) or 'bubbles' (chat-style). Browsers can override it per session.",
+    schema: v.optional(
+      v.pipe(
+        v.string(),
+        v.trim(),
+        v.toLowerCase(),
+        v.picklist(["compact", "bubbles"]),
+      ),
+      "compact",
+    ),
+  },
 
   GITHUB_APP_ID: {
     description: "The GitHub App ID.",

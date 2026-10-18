@@ -21,11 +21,20 @@
 		/** Repo slugs for the submission triage forms (Inbox). */
 		repos?: string[];
 		defaultRepo?: string;
+		/** Render issue comments as chat bubbles instead of the compact list. */
+		commentBubbles?: boolean;
 		/** The feed column. */
 		children: Snippet;
 	}
 
-	let { githubUrl, submission = null, repos = [], defaultRepo = '', children }: Props = $props();
+	let {
+		githubUrl,
+		submission = null,
+		repos = [],
+		defaultRepo = '',
+		commentBubbles = false,
+		children
+	}: Props = $props();
 
 	const selection = $derived(parseSelection());
 	const issue = $derived(selectedIssue(selection));
@@ -56,6 +65,7 @@
 				number={issue.number}
 				{githubUrl}
 				onclose={clearSelection}
+				{commentBubbles}
 				fill
 			/>
 		{:else if selection?.kind === 'submission'}

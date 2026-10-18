@@ -19,7 +19,7 @@
 	<Card.Root class="w-80">
 		<Card.Header class="items-center text-center">
 			<Card.Title class="flex items-center justify-center gap-2 text-xl">
-				<span class="bg-primary text-primary-foreground inline-flex size-8 items-center justify-center">
+				<span class="bg-foreground text-background inline-flex size-8 items-center justify-center">
 					<FunnelIcon class="size-5" />
 				</span>
 				Funnel

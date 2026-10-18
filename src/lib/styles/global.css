@@ -55,13 +55,13 @@
     color: inherit;
   }
 
+  /* Anchors inherit their context's colour rather than being tinted globally.
+     Prose links opt into the accent explicitly in `markdown.css`
+     (`.markdown a`); navigation chrome must not pick up link styling. The
+     sidebar menu items are `<a>` elements and were rendering primary blue. */
   a {
-    @apply text-primary underline-offset-4;
+    @apply text-inherit underline-offset-4;
     text-decoration: none;
-  }
-
-  a:hover {
-    text-decoration: underline;
   }
 
   :focus-visible {
@@ -109,6 +109,16 @@
   .mono {
     @apply font-mono tabular-nums;
   }
+
+  /* Icon size ladder — keep icons on one of these three steps:
+     - 16px (`size-4`) is the default: navigation, buttons, bars, list rows.
+     - 14px (`size-3.5`) is for dense meta only: issue-row markers and the
+       Inspector's attribute strip.
+     - 20px (`size-5`) is the login hero mark.
+     Lucide renders a 24×24 viewBox, so the apparent stroke weight scales with
+     the rendered size (stroke-2 is ~1.33px at 16px, ~1.17px at 14px). Mixing
+     sizes within one row is what reads as "inconsistent icons" — prefer the
+     default unless a denser row genuinely needs the smaller step. */
 
   /* Plain-text fallback: preserved author formatting for a body that has been
      saved but whose server-rendered HTML is not in the mirror yet (SPEC §2.2). */

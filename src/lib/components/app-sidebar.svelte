@@ -8,14 +8,24 @@
 	import PlusIcon from "@lucide/svelte/icons/plus";
 	import type { ComponentProps } from "svelte";
 	import * as Sidebar from "#lib/components/ui/sidebar/index.js";
+	import { cn } from "#lib/utils.js";
+	import NavCommentUi from "./nav-comment-ui.svelte";
 	import NavTheme from "./nav-theme.svelte";
 	import NavUser from "./nav-user.svelte";
 
 	interface Props extends ComponentProps<typeof Sidebar.Root> {
 		user: { id: string; name: string; email: string; image: string | null };
+		/** Whether the issue comment thread renders as chat bubbles. */
+		commentBubbles: boolean;
 	}
 
-	let { ref = $bindable(null), user, collapsible = "icon", ...restProps }: Props = $props();
+	let {
+		ref = $bindable(null),
+		user,
+		commentBubbles,
+		collapsible = "icon",
+		...restProps
+	}: Props = $props();
 
 	// Flat information architecture: three sibling views. "My Issues" is not a
 	// root link — it lives as a segmented filter on the Issues view
@@ -49,7 +59,7 @@
 					{#snippet child({ props })}
 						<a href="/inbox" {...props}>
 							<div
-								class="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground"
+								class="flex aspect-square size-8 items-center justify-center rounded-lg bg-foreground text-background"
 							>
 								<FunnelIcon class="size-4" />
 							</div>
@@ -65,18 +75,29 @@
 		<Sidebar.Group>
 			<Sidebar.Menu>
 				<Sidebar.MenuItem>
-					<Sidebar.MenuButton tooltipContent="New issue (C)" onclick={openNew}>
+					<Sidebar.MenuButton
+						variant="outline"
+						tooltipContent="New issue (C)"
+						onclick={openNew}
+					>
 						<PlusIcon />
 						<span>New issue</span>
+						<span class="text-muted-foreground ms-auto text-xs">C</span>
 					</Sidebar.MenuButton>
 				</Sidebar.MenuItem>
 			</Sidebar.Menu>
 		</Sidebar.Group>
 
 		<Sidebar.Group>
+			<Sidebar.GroupLabel>Views</Sidebar.GroupLabel>
 			<Sidebar.Menu>
 				{#each views as view (view.href)}
-					<Sidebar.MenuItem>
+					<Sidebar.MenuItem
+						class={cn(
+							"before:absolute before:inset-y-0 before:start-0 before:w-0.5 before:bg-sidebar-primary",
+							isActive(view.href) ? "before:opacity-100" : "before:opacity-0"
+						)}
+					>
 						<Sidebar.MenuButton isActive={isActive(view.href)} tooltipContent={view.label}>
 							{#snippet child({ props })}
 								<a
@@ -96,6 +117,7 @@
 	</Sidebar.Content>
 
 	<Sidebar.Footer>
+		<NavCommentUi value={commentBubbles ? "bubbles" : "compact"} />
 		<NavTheme />
 		<NavUser {user} />
 	</Sidebar.Footer>

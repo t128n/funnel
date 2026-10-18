@@ -16,6 +16,7 @@ mock.module("$app/env/private", () => ({
   FUNNEL_URL: "http://localhost:5173",
   FUNNEL_SECRET: "0123456789abcdef0123456789abcdef",
   FUNNEL_DB: ":memory:",
+  FUNNEL_COMMENT_UI: "compact",
   GITHUB_APP_ID: "123456",
   GITHUB_APP_PRIVATE_KEY: privateKey,
   GITHUB_CLIENT_ID: "Iv1.0123456789abcdef",

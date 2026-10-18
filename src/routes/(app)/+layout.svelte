@@ -77,7 +77,7 @@
 <svelte:window onkeydown={onKeydown} />
 
 <Sidebar.Provider class="h-svh overflow-hidden" style="--sidebar-width: 220px">
-	<AppSidebar user={data.user} />
+	<AppSidebar user={data.user} commentBubbles={data.commentBubbles} />
 
 	<div class="relative flex min-h-0 min-w-0 flex-1 overflow-hidden">
 		<Sidebar.Inset class="min-h-0 overflow-hidden">
@@ -97,6 +97,7 @@
 				number={issue.number}
 				githubUrl={data.githubUrl}
 				onclose={clearSelection}
+				commentBubbles={data.commentBubbles}
 			/>
 		{/if}
 	</div>

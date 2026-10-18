@@ -41,6 +41,7 @@
 	submission={selectedSubmission}
 	repos={data.options.repos.map((repo) => repo.slug)}
 	defaultRepo={data.defaultRepo}
+	commentBubbles={data.commentBubbles}
 >
 	<header class="flex h-11 shrink-0 items-center gap-2 border-b px-2">
 		<h1 class="text-base font-semibold tracking-tight">Inbox</h1>
