@@ -1,9 +1,10 @@
 /**
  * Filter + search evaluation for the local issue streams (SPEC §9.4).
  *
- * Six multi-select dimensions (Repo, Status, Assignee, Priority, Size, Labels)
- * combine as **OR within a group, AND across groups**, plus a plain SQL `LIKE`
- * search over titles, bodies, and comments (FTS5 is deferred; INTERVIEW Q16/Q17).
+ * Seven multi-select dimensions (Repo, State, Status, Assignee, Priority, Size,
+ * Labels) combine as **OR within a group, AND across groups**, plus a plain SQL
+ * `LIKE` search over titles, bodies, and comments (FTS5 is deferred; INTERVIEW
+ * Q16/Q17).
  *
  * Parsing is pure over an injected {@link FilterContext} so it is unit-testable
  * without a database; {@link buildIssueWhere} turns the parsed filter into a
@@ -40,9 +41,13 @@ export const STATUS_VALUES = [
 export const PRIORITY_VALUES = ["p1", "p2", "p3"] as const;
 export const SIZE_VALUES = ["sm", "md", "lg"] as const;
 
+/** GitHub issue states. The Issues view defaults to `open` (SPEC §9.2). */
+export const STATE_VALUES = ["open", "closed"] as const;
+
 export type StatusValue = (typeof STATUS_VALUES)[number];
 export type PriorityValue = (typeof PRIORITY_VALUES)[number];
 export type SizeValue = (typeof SIZE_VALUES)[number];
+export type StateValue = (typeof STATE_VALUES)[number];
 
 /** Sentinel selecting items missing the label for a dimension. */
 export const NONE = "none";
@@ -55,11 +60,14 @@ export const RESERVED_GROUP = new Map<string, LabelGroup>(
 const STATUS_SET = new Set<string>(STATUS_VALUES);
 const PRIORITY_SET = new Set<string>(PRIORITY_VALUES);
 const SIZE_SET = new Set<string>(SIZE_VALUES);
+const STATE_SET = new Set<string>(STATE_VALUES);
 
 /** Parsed, validated filter state. Empty arrays mean "no constraint". */
 export interface IssueFilter {
   /** `mirror_github_repo.github_id` values. */
   repos: number[];
+  /** `open` and/or `closed`; absence means "all states". */
+  states: string[];
   /** Canonical status names and/or {@link NONE}. */
   statuses: string[];
   /** `mirror_github_user.github_id` values. */
@@ -86,6 +94,7 @@ export interface FilterContext {
 
 export const EMPTY_FILTER: IssueFilter = {
   repos: [],
+  states: [],
   statuses: [],
   assignees: [],
   priorities: [],
@@ -174,6 +183,9 @@ export function parseIssueFilter(
 ): IssueFilter {
   return {
     repos: resolveRepos(multi(params, "repo"), ctx.repos),
+    states: vocab(multi(params, "state"), STATE_SET).filter(
+      (value) => value !== NONE,
+    ),
     statuses: vocab(multi(params, "status"), STATUS_SET),
     assignees: resolveAssignees(multi(params, "assignee"), ctx),
     priorities: vocab(multi(params, "priority"), PRIORITY_SET),
@@ -245,6 +257,7 @@ export function buildIssueWhere(filter: IssueFilter): SQL | undefined {
   }
 
   for (const [column, values] of [
+    [mirrorGithubIssue.state, filter.states],
     [mirrorGithubIssue.status, filter.statuses],
     [mirrorGithubIssue.priority, filter.priorities],
     [mirrorGithubIssue.size, filter.sizes],

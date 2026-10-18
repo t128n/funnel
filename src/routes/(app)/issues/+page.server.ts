@@ -6,5 +6,8 @@ import type { PageServerLoad } from "./$types";
 export const load: PageServerLoad = async ({ url, parent }) => {
   const { viewerGithubId } = await parent();
   const filter = parseIssueFilter(url.searchParams, filterContext(viewerGithubId));
+  // Issues default to the open state, matching the cockpit's "what needs
+  // attention" focus; `?state=closed` or `?state=open&state=closed` opt out.
+  if (filter.states.length === 0) filter.states = ["open"];
   return { issues: allIssues(filter) };
 };

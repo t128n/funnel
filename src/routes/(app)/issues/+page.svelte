@@ -1,6 +1,7 @@
 <script lang="ts">
 	import FeedSearch from '#lib/components/filter/FeedSearch.svelte';
 	import FilterPopover from '#lib/components/filter/FilterPopover.svelte';
+	import StateSegment from '#lib/components/filter/StateSegment.svelte';
 	import ViewSegment from '#lib/components/filter/ViewSegment.svelte';
 	import IssueList from '#lib/components/issue/IssueList.svelte';
 	import SplitView from '#lib/components/shell/SplitView.svelte';
@@ -16,13 +17,14 @@
 			<span class="feed-count mono">{data.issues.length}</span>
 			<div class="feed-head__actions">
 				<ViewSegment />
-				<FilterPopover options={data.options} />
+				<FilterPopover options={data.options} allowNoStatus={false} />
 			</div>
 		</div>
 	</header>
 
 	<div class="feed-tools">
 		<FeedSearch />
+		<StateSegment />
 	</div>
 
 	<IssueList issues={data.issues} empty="No issues match these filters." />
@@ -70,7 +72,13 @@
 	.feed-tools {
 		display: flex;
 		align-items: center;
+		gap: var(--space-sm);
 		padding: var(--space-sm);
 		flex: none;
+	}
+
+	.feed-tools :global(.search) {
+		flex: 1;
+		min-width: 0;
 	}
 </style>

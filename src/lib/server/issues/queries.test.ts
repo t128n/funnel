@@ -154,7 +154,12 @@ beforeEach(() => {
 
 describe("allIssues", () => {
   test("sorts priority (p1 first, unprioritized last) then updated", () => {
-    expect(numbers(allIssues(parse("")))).toEqual([1, 3, 6, 5, 4, 2]);
+    expect(numbers(allIssues(parse("")))).toEqual([1, 3, 6]);
+  });
+
+  test("excludes untriaged issues (they belong to the Inbox)", () => {
+    const untriaged = allIssues(parse("status=none"));
+    expect(untriaged).toEqual([]);
   });
 
   test("hydrates repo, labels, assignees, and author", () => {
@@ -168,18 +173,26 @@ describe("allIssues", () => {
   });
 
   test("applies the repo dimension", () => {
-    expect(numbers(allIssues(parse("repo=orgA/web")))).toEqual([3, 4]);
+    expect(numbers(allIssues(parse("repo=orgA/web")))).toEqual([3]);
+  });
+
+  test("applies the state dimension incl. both", () => {
+    expect(numbers(allIssues(parse("state=open")))).toEqual([1, 3, 6]);
+    expect(numbers(allIssues(parse("state=closed")))).toEqual([]);
+    expect(numbers(allIssues(parse("state=open,closed")))).toEqual([
+      1, 3, 6,
+    ]);
   });
 
   test("applies the status dimension incl. none", () => {
     expect(numbers(allIssues(parse("status=todo")))).toEqual([1]);
-    expect(numbers(allIssues(parse("status=none")))).toEqual([5, 4, 2]);
+    expect(numbers(allIssues(parse("status=none")))).toEqual([]);
     expect(numbers(allIssues(parse("status=backlog,blocked")))).toEqual([6]);
   });
 
   test("applies priority and size dimensions", () => {
     expect(numbers(allIssues(parse("priority=p1")))).toEqual([1]);
-    expect(numbers(allIssues(parse("size=lg")))).toEqual([6, 4]);
+    expect(numbers(allIssues(parse("size=lg")))).toEqual([6]);
   });
 
   test("applies the non-reserved label dimension", () => {
@@ -203,7 +216,7 @@ describe("allIssues", () => {
   });
 
   test("searches titles, bodies, and comments with LIKE", () => {
-    expect(numbers(allIssues(parse("q=beta")))).toEqual([2]);
+    expect(numbers(allIssues(parse("q=gamma")))).toEqual([3]);
     expect(numbers(allIssues(parse("q=repro")))).toEqual([1]);
     expect(numbers(allIssues(parse("q=stack")))).toEqual([1]);
     expect(numbers(allIssues(parse("q=nomatch")))).toEqual([]);

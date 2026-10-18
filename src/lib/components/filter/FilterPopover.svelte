@@ -20,28 +20,48 @@
 	 */
 	interface Props {
 		options: FilterOptions;
+		/** The Issues view turns this off: it lists triaged issues only. */
+		allowNoStatus?: boolean;
 	}
 
-	let { options }: Props = $props();
+	let { options, allowNoStatus = true }: Props = $props();
 
 	const filter = $derived(parseFilterParams(page.url.searchParams));
-	const count = $derived(activeFilterCount(filter));
+
+	// "Me" is owned by the All/Mine scope switch (ViewSegment), so the Assignee
+	// multi-select only offers other people and ignores the scope when it counts
+	// active filters. Selecting a specific person replaces the scope.
+	const ME = 'me';
+	const scopedAssignees = $derived(
+		filter.assignees.filter((value) => value !== ME)
+	);
+	const count = $derived(
+		activeFilterCount({ ...filter, assignees: scopedAssignees })
+	);
 
 	const repoOptions = $derived(
 		options.repos.map((repo) => ({ value: repo.slug, label: repo.slug }))
 	);
-	const assigneeOptions = $derived([
-		{ value: 'me', label: 'Me' },
-		...options.assignees.map((user) => ({ value: user.login, label: user.login }))
-	]);
+	const assigneeOptions = $derived(
+		options.assignees.map((user) => ({ value: user.login, label: user.login }))
+	);
 	const labelOptions = $derived(
 		options.labels.map((name) => ({ value: name, label: name }))
 	);
 
 	const statusOptions = $derived([
 		...STATUS_OPTIONS,
-		{ value: NONE, label: 'No status', color: null }
+		...(allowNoStatus
+			? [{ value: NONE, label: 'No status', color: null }]
+			: [])
 	]);
+	// The Issues view never offers `none`, so a stale `?status=none` must not
+	// render an unknown chip in the trigger.
+	const selectedStatuses = $derived(
+		allowNoStatus
+			? filter.statuses
+			: filter.statuses.filter((value) => value !== NONE)
+	);
 	const priorityOptions = $derived([
 		...PRIORITY_OPTIONS,
 		{ value: NONE, label: 'No priority', color: null }
@@ -71,7 +91,8 @@
 		apply({
 			repos: [],
 			statuses: [],
-			assignees: [],
+			// Keep the All/Mine scope: the popover does not own `assignee=me`.
+			assignees: filter.assignees.filter((value) => value === ME),
 			priorities: [],
 			sizes: [],
 			labels: [],
@@ -139,14 +160,13 @@
 				<MultiSelect
 					label="Status"
 					options={statusOptions}
-					selected={filter.statuses}
+					selected={selectedStatuses}
 					onselect={(values) => set('statuses', values)}
 				/>
 				<MultiSelect
 					label="Assignee"
 					options={assigneeOptions}
-					pinned={['me']}
-					selected={filter.assignees}
+					selected={scopedAssignees}
 					onselect={(values) => set('assignees', values)}
 				/>
 				<MultiSelect

@@ -4,7 +4,7 @@
  * Every cockpit view is a query against SQLite — no network on the read path.
  * Four views are exposed:
  *   - {@link inbox}: pending intake submissions + untriaged open issues;
- *   - {@link allIssues}: every mirrored issue (open + closed in the window);
+ *   - {@link allIssues}: every triaged mirrored issue (open + closed);
  *   - {@link myIssues}: All Issues restricted to the signed-in viewer;
  *   - {@link statusBoard}: the six-column board (`board.done_days` window).
  *
@@ -17,6 +17,7 @@ import {
   desc,
   eq,
   gte,
+  isNotNull,
   isNull,
   sql,
   type SQL,
@@ -242,12 +243,18 @@ function hydrate(rows: RawRow[]): IssueListItem[] {
   });
 }
 
-/** All Issues: every mirrored issue (open + closed inside the window). */
+/**
+ * All Issues: every mirrored issue that has been triaged (carries a status
+ * label). Untriaged issues belong to the Inbox instead, so they are excluded
+ * here to keep the two views a clean partition.
+ */
 export function allIssues(
   filter: IssueFilter,
   opts: ListOptions = {},
 ): IssueListItem[] {
-  return hydrate(rawQuery(buildIssueWhere(filter), opts));
+  const base = buildIssueWhere(filter);
+  const triaged = isNotNull(mirrorGithubIssue.status);
+  return hydrate(rawQuery(base ? and(base, triaged) : triaged, opts));
 }
 
 /** My Issues: All Issues restricted to issues assigned to `viewerGithubId`. */

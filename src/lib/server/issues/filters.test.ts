@@ -49,6 +49,15 @@ describe("parseIssueFilter", () => {
     ).toEqual([]);
   });
 
+  test("validates the state dimension", () => {
+    expect(
+      parseIssueFilter(new URLSearchParams("state=OPEN,closed"), ctx).states,
+    ).toEqual(["open", "closed"]);
+    expect(
+      parseIssueFilter(new URLSearchParams("state=none&state=bogus"), ctx).states,
+    ).toEqual([]);
+  });
+
   test("keeps the none sentinel and validates vocabularies", () => {
     const filter = parseIssueFilter(
       new URLSearchParams("status=none&priority=nope&size=lg,xxl"),
