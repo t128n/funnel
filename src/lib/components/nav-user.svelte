@@ -2,11 +2,13 @@
 	import { goto } from "$app/navigation";
 	import ChevronsUpDownIcon from "@lucide/svelte/icons/chevrons-up-down";
 	import LogOutIcon from "@lucide/svelte/icons/log-out";
+	import SettingsIcon from "@lucide/svelte/icons/settings";
 	import * as Avatar from "#lib/components/ui/avatar/index.js";
 	import * as DropdownMenu from "#lib/components/ui/dropdown-menu/index.js";
 	import * as Sidebar from "#lib/components/ui/sidebar/index.js";
 	import { useSidebar } from "#lib/components/ui/sidebar/index.js";
 	import { signOut } from "#lib/client/auth";
+	import { openSettings } from "#lib/client/settings.svelte";
 
 	let {
 		user
@@ -19,6 +21,12 @@
 	async function handleSignOut() {
 		await signOut();
 		await goto("/login");
+	}
+
+	/** Close the mobile sheet before opening the (also modal) settings dialog. */
+	function handleSettings() {
+		if (sidebar.isMobile) sidebar.setOpenMobile(false);
+		openSettings();
 	}
 </script>
 
@@ -61,6 +69,11 @@
 						{@render profile()}
 					</div>
 				</DropdownMenu.Label>
+				<DropdownMenu.Separator />
+				<DropdownMenu.Item onSelect={handleSettings}>
+					<SettingsIcon />
+					Settings
+				</DropdownMenu.Item>
 				<DropdownMenu.Separator />
 				<DropdownMenu.Item onSelect={() => void handleSignOut()}>
 					<LogOutIcon />

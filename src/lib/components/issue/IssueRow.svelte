@@ -64,7 +64,7 @@
 		</span>
 		{#if issue.labelConflict}
 			<TriangleAlertIcon
-				class="text-amber-500 size-3.5 shrink-0"
+				class="text-warning size-3.5 shrink-0"
 				title="Conflicting reserved labels on GitHub"
 			/>
 		{/if}

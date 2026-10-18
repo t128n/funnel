@@ -20,52 +20,52 @@ export const CANONICAL_LABELS: readonly CanonicalLabel[] = [
   // Status (SPEC §5.1). Absence of a status label means "untriaged" (Inbox).
   {
     name: "backlog",
-    color: "525252",
+    color: "6f737a",
     description: "Status: Backlog",
     group: "status",
   },
-  { name: "todo", color: "78a9ff", description: "Status: Todo", group: "status" },
+  { name: "todo", color: "56a8f5", description: "Status: Todo", group: "status" },
   {
     name: "in-progress",
-    color: "33b1ff",
+    color: "3574f0",
     description: "Status: In Progress",
     group: "status",
   },
   {
     name: "in-review",
-    color: "be95ff",
+    color: "b389f5",
     description: "Status: In Review",
     group: "status",
   },
   {
     name: "blocked",
-    color: "ee5396",
+    color: "fa6675",
     description: "Status: Blocked",
     group: "status",
   },
   // Priority. Absence means "no priority".
   {
     name: "p1",
-    color: "ee5396",
+    color: "fa6675",
     description: "Priority: 1 (critical)",
     group: "priority",
   },
   {
     name: "p2",
-    color: "FF6F00",
+    color: "cf8e6d",
     description: "Priority: 2 (high)",
     group: "priority",
   },
   {
     name: "p3",
-    color: "42be65",
+    color: "6aab73",
     description: "Priority: 3 (normal)",
     group: "priority",
   },
   // Size. Absence means "unestimated".
-  { name: "sm", color: "42be65", description: "Size: Small", group: "size" },
-  { name: "md", color: "3ddbd9", description: "Size: Medium", group: "size" },
-  { name: "lg", color: "ff7eb6", description: "Size: Large", group: "size" },
+  { name: "sm", color: "6aab73", description: "Size: Small", group: "size" },
+  { name: "md", color: "2aacb8", description: "Size: Medium", group: "size" },
+  { name: "lg", color: "e28d78", description: "Size: Large", group: "size" },
 ];
 
 const BY_NAME = new Map(CANONICAL_LABELS.map((l) => [l.name.toLowerCase(), l]));

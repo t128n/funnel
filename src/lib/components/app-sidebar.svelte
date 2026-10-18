@@ -9,20 +9,15 @@
 	import type { ComponentProps } from "svelte";
 	import * as Sidebar from "#lib/components/ui/sidebar/index.js";
 	import { cn } from "#lib/utils.js";
-	import NavCommentUi from "./nav-comment-ui.svelte";
-	import NavTheme from "./nav-theme.svelte";
 	import NavUser from "./nav-user.svelte";
 
 	interface Props extends ComponentProps<typeof Sidebar.Root> {
 		user: { id: string; name: string; email: string; image: string | null };
-		/** Whether the issue comment thread renders as chat bubbles. */
-		commentBubbles: boolean;
 	}
 
 	let {
 		ref = $bindable(null),
 		user,
-		commentBubbles,
 		collapsible = "icon",
 		...restProps
 	}: Props = $props();
@@ -117,8 +112,6 @@
 	</Sidebar.Content>
 
 	<Sidebar.Footer>
-		<NavCommentUi value={commentBubbles ? "bubbles" : "compact"} />
-		<NavTheme />
 		<NavUser {user} />
 	</Sidebar.Footer>
 

@@ -145,7 +145,7 @@ describe("provisionRepoLabels", () => {
       owner: "orgA",
       repo: "core",
       name: "in-progress",
-      color: "33b1ff",
+      color: "3574f0",
       description: "Status: In Progress",
     });
   });

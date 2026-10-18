@@ -4,10 +4,12 @@
 	import { page } from '$app/state';
 	import AppSidebar from '#lib/components/app-sidebar.svelte';
 	import InspectorPane from '#lib/components/issue/InspectorPane.svelte';
+	import SettingsDialog from '#lib/components/settings/settings-dialog.svelte';
 	import * as Sidebar from '#lib/components/ui/sidebar/index.js';
 	import { connectEvents } from '#lib/client/events';
 	import { bumpRefresh } from '#lib/client/refresh';
 	import { clearSelection, parseSelection, selectedIssue } from '#lib/client/selection.svelte';
+	import { openSettings } from '#lib/client/settings.svelte';
 	import type { LayoutProps } from './$types';
 
 	let { data, children }: LayoutProps = $props();
@@ -45,11 +47,17 @@
 		void goto('/submit');
 	}
 
-	/** Global shortcuts: ⌘/Ctrl+K search, bare `C` quick-create. */
+	/** Global shortcuts: ⌘/Ctrl+K search, ⌘/Ctrl+, settings, bare `C` quick-create. */
 	function onKeydown(event: KeyboardEvent) {
 		if (event.key === 'k' && (event.metaKey || event.ctrlKey)) {
 			event.preventDefault();
 			void focusSearch();
+			return;
+		}
+
+		if (event.key === ',' && (event.metaKey || event.ctrlKey)) {
+			event.preventDefault();
+			openSettings();
 			return;
 		}
 
@@ -77,7 +85,7 @@
 <svelte:window onkeydown={onKeydown} />
 
 <Sidebar.Provider class="h-svh overflow-hidden" style="--sidebar-width: 220px">
-	<AppSidebar user={data.user} commentBubbles={data.commentBubbles} />
+	<AppSidebar user={data.user} />
 
 	<div class="relative flex min-h-0 min-w-0 flex-1 overflow-hidden">
 		<Sidebar.Inset class="min-h-0 overflow-hidden">
@@ -101,4 +109,6 @@
 			/>
 		{/if}
 	</div>
+
+	<SettingsDialog commentUi={data.commentBubbles ? 'bubbles' : 'compact'} />
 </Sidebar.Provider>

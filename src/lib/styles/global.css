@@ -8,10 +8,13 @@
 /**
  * Global base styles for the Funnel cockpit.
  *
- * Theming is the stock shadcn-svelte setup from preset `buH7Ks4` (lyra style,
- * neutral base, blue primary, radius 0, Inter): `:root` holds the light
- * variables and `.dark` the dark ones, and `#lib/client/theme` toggles the
- * `.dark` class on <html>. This file only resets the document and wires a few
+ * Theming follows the JetBrains "Islands" palette (lyra style, 10px island
+ * radius, Inter): `:root` holds the light variables and `.dark` the dark ones,
+ * and `#lib/client/theme` toggles the `.dark` class on <html>. Values are the
+ * official hex tokens (Editor/MainWindow/ToolWindow backgrounds, Border.color,
+ * Label.infoForeground, EditorTabs accent, DEFAULT_* syntax hues). A few Base16
+ * accents with no stock slot are exposed as `--success`, `--warning`, `--info`
+ * and the `--syntax-*` set. This file only resets the document and wires a few
  * shared primitives; component styling is co-located in each `.svelte` file and
  * rendered Markdown prose lives in `markdown.css`.
  */
@@ -114,7 +117,8 @@
      - 16px (`size-4`) is the default: navigation, buttons, bars, list rows.
      - 14px (`size-3.5`) is for dense meta only: issue-row markers and the
        Inspector's attribute strip.
-     - 20px (`size-5`) is the login hero mark.
+     - 20px (`size-5`) is the dense-meta ceiling; the login hero mark is the
+       one deliberate exception at 40px (`size-10`).
      Lucide renders a 24×24 viewBox, so the apparent stroke weight scales with
      the rendered size (stroke-2 is ~1.33px at 16px, ~1.17px at 14px). Mixing
      sizes within one row is what reads as "inconsistent icons" — prefer the
@@ -128,72 +132,100 @@
 }
 
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.488 0.243 264.376);
-  --primary-foreground: oklch(0.97 0.014 254.604);
-  --secondary: oklch(0.967 0.001 286.375);
-  --secondary-foreground: oklch(0.21 0.006 285.885);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --radius: 0rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.546 0.245 262.881);
-  --sidebar-primary-foreground: oklch(0.97 0.014 254.604);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --background: #ffffff;
+  --foreground: #000000;
+  --card: #ffffff;
+  --card-foreground: #000000;
+  --popover: #ffffff;
+  --popover-foreground: #000000;
+  --primary: #3574f0;
+  --primary-foreground: #ffffff;
+  --secondary: #ebecf0;
+  --secondary-foreground: #000000;
+  --muted: #ebecf0;
+  --muted-foreground: #818594;
+  --accent: #f0f4fc;
+  --accent-foreground: #000000;
+  --destructive: #db5860;
+  --border: #d1d4d9;
+  --input: #d1d4d9;
+  --ring: #3574f0;
+  --chart-1: #3574f0;
+  --chart-2: #067d17;
+  --chart-3: #2aacb8;
+  --chart-4: #c6a455;
+  --chart-5: #7a3e9d;
+  --radius: 0.625rem;
+  --sidebar: #ebecf0;
+  --sidebar-foreground: #000000;
+  --sidebar-primary: #3574f0;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #f0f4fc;
+  --sidebar-accent-foreground: #000000;
+  --sidebar-border: transparent;
+  --sidebar-ring: #3574f0;
+
+  /* Base16 accents without a stock slot. */
+  --success: #067d17;
+  --success-foreground: #ffffff;
+  --warning: #c27b00;
+  --warning-foreground: #ffffff;
+  --info: #00627a;
+  --info-foreground: #ffffff;
+  --syntax-keyword: #0033b3;
+  --syntax-string: #067d17;
+  --syntax-number: #1750eb;
+  --syntax-function: #00627a;
+  --syntax-comment: #8c8c8c;
+  --syntax-constant: #7a3e9d;
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.424 0.199 265.638);
-  --primary-foreground: oklch(0.97 0.014 254.604);
-  --secondary: oklch(0.274 0.006 286.033);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.623 0.214 259.815);
-  --sidebar-primary-foreground: oklch(0.97 0.014 254.604);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --background: #191a1c;
+  --foreground: #bcbec4;
+  --card: #26282b;
+  --card-foreground: #bcbec4;
+  --popover: #26282b;
+  --popover-foreground: #bcbec4;
+  --primary: #3574f0;
+  --primary-foreground: #ffffff;
+  --secondary: #2b2d30;
+  --secondary-foreground: #dfe1e5;
+  --muted: #26282b;
+  --muted-foreground: #6f737a;
+  --accent: #393b40;
+  --accent-foreground: #dfe1e5;
+  --destructive: #fa6675;
+  --border: #393b40;
+  --input: #393b40;
+  --ring: #3574f0;
+  --chart-1: #3574f0;
+  --chart-2: #6aab73;
+  --chart-3: #c6a455;
+  --chart-4: #b389f5;
+  --chart-5: #56a8f5;
+  --sidebar: #26282b;
+  --sidebar-foreground: #bcbec4;
+  --sidebar-primary: #3574f0;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #393b40;
+  --sidebar-accent-foreground: #dfe1e5;
+  --sidebar-border: transparent;
+  --sidebar-ring: #3574f0;
+
+  /* Base16 accents without a stock slot. */
+  --success: #6aab73;
+  --success-foreground: #191a1c;
+  --warning: #c6a455;
+  --warning-foreground: #191a1c;
+  --info: #56a8f5;
+  --info-foreground: #191a1c;
+  --syntax-keyword: #cf8e6d;
+  --syntax-string: #6aab73;
+  --syntax-number: #2aacb8;
+  --syntax-function: #56a8f5;
+  --syntax-comment: #7a7e85;
+  --syntax-constant: #b389f5;
 }
 
 @theme inline {
@@ -215,6 +247,12 @@
   --color-input: var(--input);
   --color-border: var(--border);
   --color-destructive: var(--destructive);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-info: var(--info);
+  --color-info-foreground: var(--info-foreground);
   --color-accent-foreground: var(--accent-foreground);
   --color-accent: var(--accent);
   --color-muted-foreground: var(--muted-foreground);

@@ -85,14 +85,16 @@
 	const closed = $derived(issue?.state === 'closed');
 	const statusOptions = [
 		...STATUS_OPTIONS,
-		{ value: 'done', label: 'Done', color: 'be95ff' }
+		{ value: 'done', label: 'Done', color: 'var(--syntax-constant)' }
 	];
 	const statusValue = $derived(closed ? 'done' : (issue?.status ?? null));
 	const priorityValue = $derived(issue?.priority ?? null);
 	const sizeValue = $derived(issue?.size ?? null);
 
 	/** Done has no canonical label, so tint its pill explicitly. */
-	const statusTint = $derived(closed ? 'color: #be95ff' : tintStyle(issue?.status ?? null));
+	const statusTint = $derived(
+		closed ? 'color: var(--syntax-constant)' : tintStyle(issue?.status ?? null)
+	);
 
 	const assigneeLogins = $derived(issue?.assignees.map((a) => a.login) ?? []);
 	const assignees = $derived(issue?.assignees ?? []);
@@ -370,7 +372,7 @@
 			{#if issue}
 				<Chip
 					label={issue.state === 'closed' ? 'closed' : 'open'}
-					color={issue.state === 'closed' ? 'be95ff' : '42be65'}
+					color={issue.state === 'closed' ? 'var(--syntax-constant)' : 'var(--syntax-string)'}
 				/>
 				{#if issue.author}
 					<span class="text-muted-foreground truncate text-xs">

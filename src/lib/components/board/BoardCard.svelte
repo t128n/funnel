@@ -44,7 +44,7 @@
 
 	const statusOptions = [
 		...STATUS_OPTIONS,
-		{ value: 'done', label: 'Done', color: 'be95ff' }
+		{ value: 'done', label: 'Done', color: 'var(--syntax-constant)' }
 	];
 	const statusValue = $derived(closed ? 'done' : (issue.status ?? ''));
 
@@ -143,7 +143,7 @@
 			<Chip label={issue.size} color={sizeColor} variant="outline" mono />
 		{/if}
 		{#if issue.labelConflict}
-			<TriangleAlertIcon class="text-amber-500 size-3.5" title="Conflicting reserved labels" />
+			<TriangleAlertIcon class="text-warning size-3.5" title="Conflicting reserved labels" />
 		{/if}
 		<div class="ml-auto flex items-center gap-0.5">
 			{#each issue.assignees.slice(0, 3) as person (person.githubId)}
