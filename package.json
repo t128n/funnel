@@ -23,6 +23,8 @@
 		"@sveltejs/kit": "^3.0.0",
 		"@sveltejs/vite-plugin-svelte": "^7.2.0",
 		"@types/bun": "^1.4.3",
+		"@types/sanitize-html": "^2.16.2",
+		"@valibot/to-json-schema": "^1.8.0",
 		"bun-types": "^1.4.3",
 		"drizzle-kit": "^1.0.0-rc.4",
 		"pino-pretty": "^13.2.0",
@@ -30,7 +32,8 @@
 		"svelte-check": "^4.6.0",
 		"typescript": "^6.0.3",
 		"unplugin-icons": "^24.0.0",
-		"vite": "^8.3.0"
+		"vite": "^8.3.0",
+		"yaml": "^2.9.1"
 	},
 	"imports": {
 		"#/*": "./src/*",
@@ -51,6 +54,8 @@
 		"lru-cache": "^11.5.3",
 		"octokit": "^5.0.5",
 		"pino": "^10.4.0",
+		"sanitize-html": "^2.18.1",
+		"satteri": "^0.10.5",
 		"valibot": "^1.5.0"
 	}
 }
