@@ -39,6 +39,7 @@ export const DEFAULT_CONFIG = {
   },
   board: {
     done_days: 14,
+    wip_limits: {} as Record<string, number>,
   },
   session: {
     idle_days: 30,
@@ -66,6 +67,14 @@ export const configSchema = v.pipe(
     }),
     board: v.object({
       done_days: count("board.done_days"),
+      /**
+       * Optional per-stage Work-in-Progress caps, keyed by the open status
+       * names. A missing entry means "no limit". Done is never capped.
+       */
+      wip_limits: v.record(
+        v.picklist(["backlog", "todo", "in-progress", "in-review"] as const),
+        count("board.wip_limits"),
+      ),
     }),
     session: v.object({
       idle_days: count("session.idle_days"),

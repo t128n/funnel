@@ -211,6 +211,7 @@ export async function hydrateAndStore(
       status: derived.status,
       priority: derived.priority,
       size: derived.size,
+      blocked: derived.blocked,
       labelConflict: derived.conflicts.length > 0,
     });
   }

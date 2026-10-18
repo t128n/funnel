@@ -14,6 +14,7 @@ describe("deriveMetadata", () => {
       status: "todo",
       priority: "p1",
       size: "md",
+      blocked: false,
       conflicts: [],
     });
   });
@@ -23,6 +24,17 @@ describe("deriveMetadata", () => {
       status: null,
       priority: "p2",
       size: null,
+      blocked: false,
+      conflicts: [],
+    });
+  });
+
+  test("reads the blocked flag as orthogonal to status", () => {
+    expect(deriveMetadata(["in-progress", "blocked", "p1"])).toEqual({
+      status: "in-progress",
+      priority: "p1",
+      size: null,
+      blocked: true,
       conflicts: [],
     });
   });
@@ -44,6 +56,7 @@ describe("deriveMetadata", () => {
       status: null,
       priority: null,
       size: null,
+      blocked: false,
       conflicts: [],
     });
   });
@@ -174,6 +187,7 @@ describe("resolveIssueConflict", () => {
         status: "todo",
         priority: null,
         size: null,
+        blocked: false,
         conflicts: [],
       },
       removed: [],

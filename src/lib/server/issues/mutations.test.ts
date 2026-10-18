@@ -50,6 +50,7 @@ describe("normalizeReserved", () => {
   test("keeps the first label of each reserved group", () => {
     expect(normalizeReserved(["todo", "blocked", "bug", "p1", "p2"])).toEqual([
       "todo",
+      "blocked",
       "bug",
       "p1",
     ]);
@@ -71,6 +72,18 @@ describe("withReserved", () => {
 
   test("clears the group when the target is null", () => {
     expect(withReserved(["todo", "bug"], "status", null)).toEqual(["bug"]);
+  });
+
+  test("toggles the orthogonal blocked flag without touching status", () => {
+    expect(withReserved(["todo", "bug"], "flags", "blocked")).toEqual([
+      "todo",
+      "bug",
+      "blocked",
+    ]);
+    expect(withReserved(["todo", "blocked", "bug"], "flags", null)).toEqual([
+      "todo",
+      "bug",
+    ]);
   });
 });
 
@@ -331,7 +344,7 @@ describe("addIssueLabels", () => {
     expect(calls[1].params.labels).toEqual(["todo", "bug"]);
   });
 
-  test("swaps a reserved sibling when adding a status", async () => {
+  test("adds the blocked flag without disturbing the status", async () => {
     const { client, calls } = stubOctokit((call) =>
       call.route.startsWith("GET")
         ? { data: { labels: [{ name: "todo" }, { name: "bug" }] } }
@@ -345,7 +358,7 @@ describe("addIssueLabels", () => {
       labels: ["blocked"],
     });
 
-    expect(calls[1].params.labels).toEqual(["bug", "blocked"]);
+    expect(calls[1].params.labels).toEqual(["todo", "bug", "blocked"]);
   });
 
   test("rejects an empty label list", async () => {

@@ -34,7 +34,7 @@ function seedIssue(number: number, updatedAt: number) {
       assignees: [],
       comments: [],
     },
-    { status: "todo", priority: null, size: null, labelConflict: false },
+    { status: "todo", priority: null, size: null, blocked: false, labelConflict: false },
   );
 }
 
@@ -90,7 +90,7 @@ describe("issue upsert", () => {
         assignees: [],
         comments: [],
       },
-      { status: "in-progress", priority: null, size: null, labelConflict: false },
+      { status: "in-progress", priority: null, size: null, blocked: false, labelConflict: false },
     );
 
     expect(mirror.getIssue(1, 1)?.body).toBe("edited");

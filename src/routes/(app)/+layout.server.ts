@@ -4,15 +4,15 @@ import { requireUser } from "#lib/server/auth/guard";
 import { COMMENT_UI_COOKIE, parseCommentUi } from "#lib/comment-ui";
 import { getConfig } from "#lib/server/config";
 import { commentBubbles } from "#lib/server/flags";
-import { filterOptions } from "#lib/server/issues/queries";
+import { attentionIssues, filterOptions } from "#lib/server/issues/queries";
 import type { LayoutServerLoad } from "./$types";
 
 /**
  * Shared data for every cockpit view: the signed-in user (also enforcing the
  * session gate), the filter option lists, and host/board configuration used by
- * the Inspector's outbound links and the board's Done window. It also resolves
- * the comment-rendering flag, honouring a per-browser cookie before the
- * `FUNNEL_COMMENT_UI` default.
+ * the Inspector's outbound links, the board's Done window, and the per-stage
+ * Work-in-Progress caps. It also resolves the comment-rendering flag, honouring
+ * a per-browser cookie before the `FUNNEL_COMMENT_UI` default.
  */
 export const load: LayoutServerLoad = async ({ locals, url, cookies }) => {
   const user = requireUser(locals, url);
@@ -29,9 +29,11 @@ export const load: LayoutServerLoad = async ({ locals, url, cookies }) => {
     user,
     viewerGithubId,
     options,
+    attention: attentionIssues(),
     githubUrl: config.github.url,
     defaultRepo: config.intake.default_repo ?? config.repos[0] ?? "",
     doneDays: config.board.done_days,
+    wipLimits: config.board.wip_limits,
     commentBubbles: chatComments,
   };
 };

@@ -73,6 +73,8 @@ export interface StoredMetadata {
   status: string | null;
   priority: string | null;
   size: string | null;
+  /** Orthogonal `blocked` flag, stored as 0/1 (SPEC §5.1). */
+  blocked: boolean;
   labelConflict: boolean;
 }
 
@@ -288,6 +290,7 @@ export function upsertIssue(issue: IssueRecord, metadata: StoredMetadata): void 
         status: metadata.status,
         priority: metadata.priority,
         size: metadata.size,
+        blocked: metadata.blocked ? 1 : 0,
         labelConflict: metadata.labelConflict ? 1 : 0,
       })
       .onConflictDoUpdate({
@@ -306,6 +309,7 @@ export function upsertIssue(issue: IssueRecord, metadata: StoredMetadata): void 
           status: metadata.status,
           priority: metadata.priority,
           size: metadata.size,
+          blocked: metadata.blocked ? 1 : 0,
           labelConflict: metadata.labelConflict ? 1 : 0,
         },
       })
@@ -386,6 +390,7 @@ export function setIssueMetadata(
       status: metadata.status,
       priority: metadata.priority,
       size: metadata.size,
+      blocked: metadata.blocked ? 1 : 0,
       labelConflict: metadata.labelConflict ? 1 : 0,
     })
     .where(

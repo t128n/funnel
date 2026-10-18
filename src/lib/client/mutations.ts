@@ -7,6 +7,12 @@
  * stream catches the cockpit up shortly after the response resolves.
  */
 import type { IssueOption, RenderedIssueDetail } from "#lib/server/issues/types";
+import {
+  formatBlockComment,
+  formatUnblockComment,
+  writeBlocked,
+  type BlockInfo,
+} from "#lib/funnel-metadata";
 
 export type MutationResult<T> =
   | { ok: true; value: T }
@@ -76,6 +82,8 @@ export interface UpdateIssuePatch {
   status?: string | null;
   priority?: string | null;
   size?: string | null;
+  /** Toggles the orthogonal `blocked` flag (SPEC §5.1). */
+  blocked?: boolean;
 }
 
 export function updateIssue(
@@ -128,6 +136,40 @@ export function reopenIssue(
     note,
     status ? { state: "open", status } : { state: "open" },
   );
+}
+
+/**
+ * Block an issue with structured metadata (SPEC §5.1). The blocker summary is
+ * posted as a comment, the body's `funnel_metadata` envelope records the
+ * structured fields, and the `blocked` flag is applied — the comment goes first
+ * so a blocker is never recorded without its explanation.
+ */
+export function blockIssue(
+  repo: string,
+  number: number,
+  body: string,
+  info: BlockInfo,
+): Promise<MutationResult<{ number: number; htmlUrl: string }>> {
+  return commentThenUpdate(repo, number, formatBlockComment(info), {
+    body: writeBlocked(body, info),
+    blocked: true,
+  });
+}
+
+/**
+ * Unblock an issue, recording the resolution as a comment first and clearing the
+ * structured blocker fields from the body metadata.
+ */
+export function unblockIssue(
+  repo: string,
+  number: number,
+  body: string,
+  note: string,
+): Promise<MutationResult<{ number: number; htmlUrl: string }>> {
+  return commentThenUpdate(repo, number, formatUnblockComment(note), {
+    body: writeBlocked(body, null),
+    blocked: false,
+  });
 }
 
 /**

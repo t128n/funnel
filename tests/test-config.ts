@@ -19,7 +19,7 @@ export const TEST_CONFIG: FunnelConfig = {
     poll_interval_active_seconds: 30,
     poll_interval_idle_seconds: 300,
   },
-  board: { done_days: 14 },
+  board: { done_days: 14, wip_limits: {} },
   session: { idle_days: 30 },
 };
 

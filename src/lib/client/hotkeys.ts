@@ -25,6 +25,10 @@ export const appHotkeys = defineAppHotkeys({
     hotkey: 'C',
     meta: { name: 'New issue', group: 'Issues' }
   },
+  'issue.status': {
+    hotkey: 'S',
+    meta: { name: 'Change status of focused card', group: 'Issues' }
+  },
   'sidebar.toggle': {
     hotkey: 'Mod+B',
     meta: { name: 'Toggle sidebar', group: 'Navigation' }

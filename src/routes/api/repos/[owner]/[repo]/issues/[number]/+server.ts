@@ -64,6 +64,7 @@ const updateSchema = v.object({
   status: v.optional(v.nullable(v.picklist(STATUS_VALUES))),
   priority: v.optional(v.nullable(v.picklist(PRIORITY_VALUES))),
   size: v.optional(v.nullable(v.picklist(SIZE_VALUES))),
+  blocked: v.optional(v.boolean()),
 });
 
 export const PATCH: RequestHandler = async ({
@@ -105,6 +106,7 @@ export const PATCH: RequestHandler = async ({
     status: parsed.output.status,
     priority: parsed.output.priority,
     size: parsed.output.size,
+    blocked: parsed.output.blocked,
   });
   if (result.ok) scheduleRefresh(params.owner, params.repo, number);
   return outcomeResponse(result);

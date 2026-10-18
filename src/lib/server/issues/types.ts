@@ -27,6 +27,8 @@ export interface IssueListItem {
   status: string | null;
   priority: string | null;
   size: string | null;
+  /** Orthogonal `blocked` flag (SPEC §5.1); not a workflow stage. */
+  blocked: boolean;
   /** Ambiguous reserved-label timeline flagged for the UI (SPEC §5.2.2). */
   labelConflict: boolean;
   /** When the issue was opened (from GitHub); drives the "opened … ago" label. */
@@ -44,13 +46,28 @@ export type InboxEntry =
   | { kind: "submission"; submission: StagedSubmission }
   | { kind: "issue"; issue: IssueListItem };
 
+/**
+ * A blocked issue whose body metadata carries a re-check date (SPEC §5.1).
+ * Drives the Attention view and its sidebar badge.
+ */
+export interface AttentionItem {
+  issue: IssueListItem;
+  /** One-line blocker description from the body metadata. */
+  blocker: string;
+  /** The concrete step that must happen to unblock it (SPEC §5.1). */
+  needs: string;
+  /** What is being attempted in the meantime (may be empty). */
+  trying: string;
+  /** Re-check date, `YYYY-MM-DD`. */
+  recheck: string;
+}
+
 /** Canonical board column keys; `done` is the closed-completed window. */
 export type StatusKey =
   | "backlog"
   | "todo"
   | "in-progress"
   | "in-review"
-  | "blocked"
   | "done";
 
 export interface BoardColumn {

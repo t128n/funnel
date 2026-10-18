@@ -63,7 +63,7 @@ session:
         poll_interval_active_seconds: 10,
         poll_interval_idle_seconds: 120,
       },
-      board: { done_days: 7 },
+      board: { done_days: 7, wip_limits: {} },
       session: { idle_days: 1 },
     });
   });

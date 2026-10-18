@@ -36,6 +36,7 @@ import {
 } from "#lib/server/db/schema";
 import { listSubmissions } from "#lib/server/intake/staging";
 import { listRepos } from "#lib/server/sync/mirror";
+import { readBlocked } from "#lib/funnel-metadata";
 import {
   assigneeExists,
   buildIssueWhere,
@@ -45,6 +46,7 @@ import {
   STATUS_VALUES,
 } from "./filters";
 import type {
+  AttentionItem,
   BoardColumn,
   CommentItem,
   FilterOptions,
@@ -64,7 +66,6 @@ const BOARD_LABELS: Record<StatusKey, string> = {
   todo: "Todo",
   "in-progress": "In Progress",
   "in-review": "In Review",
-  blocked: "Blocked",
   done: "Done",
 };
 
@@ -80,6 +81,7 @@ const issueColumns = {
   status: mirrorGithubIssue.status,
   priority: mirrorGithubIssue.priority,
   size: mirrorGithubIssue.size,
+  blocked: mirrorGithubIssue.blocked,
   labelConflict: mirrorGithubIssue.labelConflict,
   createdAt: mirrorGithubIssue.createdAt,
   updatedAt: mirrorGithubIssue.updatedAt,
@@ -100,6 +102,7 @@ interface RawRow {
   status: string | null;
   priority: string | null;
   size: string | null;
+  blocked: number;
   labelConflict: number;
   createdAt: number;
   updatedAt: number;
@@ -229,6 +232,7 @@ function hydrate(rows: RawRow[]): IssueListItem[] {
       status: row.status,
       priority: row.priority,
       size: row.size,
+      blocked: row.blocked === 1,
       labelConflict: row.labelConflict === 1,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
@@ -333,8 +337,9 @@ export function inbox(
 }
 
 /**
- * Status Board (SPEC §9.3): five open columns by status label plus a Done
- * column of issues closed as completed within `board.done_days`. Canceled
+ * Status Board (SPEC §9.3): four open columns by status label plus a Done
+ * column of issues closed as completed within `board.done_days`. Blocking is an
+ * orthogonal flag on the card, not a lane, so it never appears here. Canceled
  * issues are omitted. The status filter dimension is ignored here — the columns
  * already partition by status — while every other dimension applies.
  */
@@ -372,6 +377,50 @@ export async function statusBoard(
   });
 
   return { columns };
+}
+
+/**
+ * Attention (SPEC §5.1): open issues flagged `blocked` whose body metadata
+ * carries a re-check date. The mirror stores the body, so the date is parsed on
+ * read with the shared `funnel-metadata` helper rather than cached in a column;
+ * blocked issues are few, so the scan is cheap. Sorted by re-check date.
+ */
+export function attentionIssues(): AttentionItem[] {
+  const rows = db
+    .select({ ...issueColumns, body: mirrorGithubIssue.body })
+    .from(mirrorGithubIssue)
+    .innerJoin(
+      mirrorGithubRepo,
+      eq(mirrorGithubIssue.repoId, mirrorGithubRepo.githubId),
+    )
+    .leftJoin(
+      mirrorGithubUser,
+      eq(mirrorGithubIssue.authorId, mirrorGithubUser.githubId),
+    )
+    .where(
+      and(eq(mirrorGithubIssue.state, "open"), eq(mirrorGithubIssue.blocked, 1)),
+    )
+    .orderBy(asc(mirrorGithubIssue.updatedAt))
+    .all();
+
+  const bodies = new Map<string, string>();
+  for (const row of rows) bodies.set(rowKey(row.repoId, row.number), row.body);
+
+  const items: AttentionItem[] = [];
+  for (const issue of hydrate(rows as unknown as RawRow[])) {
+    const blocked = readBlocked(bodies.get(rowKey(issue.repoId, issue.number)) ?? "");
+    const recheck = blocked.info?.recheck ?? "";
+    if (!blocked.isBlocked || !/^\d{4}-\d{2}-\d{2}$/.test(recheck)) continue;
+    items.push({
+      issue,
+      blocker: blocked.info?.blocker ?? "",
+      needs: blocked.info?.needs ?? "",
+      trying: blocked.info?.trying ?? "",
+      recheck,
+    });
+  }
+
+  return items.sort((a, b) => a.recheck.localeCompare(b.recheck));
 }
 
 /**

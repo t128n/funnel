@@ -42,6 +42,7 @@ export interface IssuePatch {
   status?: string | null;
   priority?: string | null;
   size?: string | null;
+  blocked?: boolean;
   assignees?: IssueListItem["assignees"];
   labels?: string[];
   closedAt?: number | null;
@@ -142,6 +143,7 @@ function satisfied(issue: IssueListItem, patch: IssuePatch): boolean {
     return false;
   }
   if (patch.size !== undefined && issue.size !== patch.size) return false;
+  if (patch.blocked !== undefined && issue.blocked !== patch.blocked) return false;
   if (
     patch.assignees !== undefined &&
     !sameSet(

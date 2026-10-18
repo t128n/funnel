@@ -36,7 +36,6 @@ export const STATUS_VALUES = [
   "todo",
   "in-progress",
   "in-review",
-  "blocked",
 ] as const;
 export const PRIORITY_VALUES = ["p1", "p2", "p3"] as const;
 export const SIZE_VALUES = ["sm", "md", "lg"] as const;

@@ -1,0 +1,1 @@
+ALTER TABLE `mirror_github_issue` ADD `blocked` integer DEFAULT 0 NOT NULL;

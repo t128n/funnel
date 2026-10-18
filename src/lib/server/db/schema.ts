@@ -158,6 +158,7 @@ export const mirrorGithubIssue = sqliteTable(
     status: text("status"),
     priority: text("priority"),
     size: text("size"),
+    blocked: integer("blocked").notNull().default(0),
     labelConflict: integer("label_conflict").notNull().default(0),
   },
   (t) => [

@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { page } from "$app/state";
+	import BellIcon from "@lucide/svelte/icons/bell";
 	import CircleDotIcon from "@lucide/svelte/icons/circle-dot";
 	import FunnelIcon from "@lucide/svelte/icons/funnel";
 	import InboxIcon from "@lucide/svelte/icons/inbox";
@@ -12,11 +13,14 @@
 
 	interface Props extends ComponentProps<typeof Sidebar.Root> {
 		user: { id: string; name: string; email: string; image: string | null };
+		/** Count of overdue + due-today re-checks, for the Attention badge. */
+		dueCount?: number;
 	}
 
 	let {
 		ref = $bindable(null),
 		user,
+		dueCount = 0,
 		collapsible = "icon",
 		...restProps
 	}: Props = $props();
@@ -41,6 +45,9 @@
 		// `/issues/<owner>/<repo>/<n>` keeps Issues active.
 		return viewOf(page.url.pathname) === href.slice(1);
 	}
+
+	// Attention is a plain page (not a `viewOf` view), so it tests the prefix.
+	const attentionActive = $derived(page.url.pathname.startsWith("/attention"));
 </script>
 
 <Sidebar.Root bind:ref {collapsible} {...restProps}>
@@ -88,6 +95,28 @@
 						</Sidebar.MenuButton>
 					</Sidebar.MenuItem>
 				{/each}
+				<Sidebar.MenuItem
+					class={cn(
+						"before:absolute before:inset-y-0 before:start-0 before:w-0.5 before:bg-sidebar-primary",
+						attentionActive ? "before:opacity-100" : "before:opacity-0"
+					)}
+				>
+					<Sidebar.MenuButton isActive={attentionActive} tooltipContent="Attention">
+						{#snippet child({ props })}
+							<a
+								href="/attention"
+								aria-current={attentionActive ? "page" : undefined}
+								{...props}
+							>
+								<BellIcon />
+								<span>Attention</span>
+							</a>
+						{/snippet}
+					</Sidebar.MenuButton>
+					{#if dueCount > 0}
+						<Sidebar.MenuBadge class="bg-destructive text-white">{dueCount}</Sidebar.MenuBadge>
+					{/if}
+				</Sidebar.MenuItem>
 			</Sidebar.Menu>
 		</Sidebar.Group>
 	</Sidebar.Content>

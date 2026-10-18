@@ -70,6 +70,8 @@ export interface UpdateIssueInput {
   status?: string | null;
   priority?: string | null;
   size?: string | null;
+  /** Toggles the orthogonal `blocked` flag (SPEC §5.1). */
+  blocked?: boolean;
 }
 
 export interface AddLabelsInput {
@@ -104,6 +106,11 @@ const GROUP_VALUES: Record<LabelGroup, ReadonlySet<string>> = {
   status: new Set(STATUS_VALUES),
   priority: new Set(PRIORITY_VALUES),
   size: new Set(SIZE_VALUES),
+  flags: new Set(
+    CANONICAL_LABELS.filter((label) => label.group === "flags").map((label) =>
+      label.name.toLowerCase(),
+    ),
+  ),
 };
 
 function isCanonical(group: LabelGroup, value: string): boolean {
@@ -283,7 +290,8 @@ export async function updateIssue(
   const reservedRequested =
     input.status !== undefined ||
     input.priority !== undefined ||
-    input.size !== undefined;
+    input.size !== undefined ||
+    input.blocked !== undefined;
 
   if (Object.keys(patch).length === 0 && !reservedRequested) {
     return badRequest("No changes provided");
@@ -329,6 +337,9 @@ export async function updateIssue(
       }
       if (input.size !== undefined) {
         labels = withReserved(labels, "size", input.size);
+      }
+      if (input.blocked !== undefined) {
+        labels = withReserved(labels, "flags", input.blocked ? "blocked" : null);
       }
       const replaced = await replaceIssueLabels(
         input.octokit,

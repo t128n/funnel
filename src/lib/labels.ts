@@ -6,7 +6,7 @@
  * `src/lib/server/**` and client components. `src/lib/server/github/labels.ts`
  * re-exports these so the server keeps a single source of truth.
  */
-export type LabelGroup = "status" | "priority" | "size";
+export type LabelGroup = "status" | "priority" | "size" | "flags";
 
 export interface CanonicalLabel {
   name: string;
@@ -37,11 +37,13 @@ export const CANONICAL_LABELS: readonly CanonicalLabel[] = [
     description: "Status: In Review",
     group: "status",
   },
+  // Flags (SPEC §5.1). Orthogonal to status: an issue keeps its stage and
+  // carries a flag alongside it. Absence means "not flagged".
   {
     name: "blocked",
     color: "fa6675",
-    description: "Status: Blocked",
-    group: "status",
+    description: "Flag: Blocked",
+    group: "flags",
   },
   // Priority. Absence means "no priority".
   {
@@ -116,8 +118,9 @@ const STATUS_DISPLAY: Record<string, string> = {
   todo: "Todo",
   "in-progress": "In Progress",
   "in-review": "In Review",
-  blocked: "Blocked",
 };
+
+const FLAG_DISPLAY: Record<string, string> = { blocked: "Blocked" };
 
 const PRIORITY_DISPLAY: Record<string, string> = {
   p1: "P1",
@@ -127,7 +130,7 @@ const PRIORITY_DISPLAY: Record<string, string> = {
 
 const SIZE_DISPLAY: Record<string, string> = { sm: "S", md: "M", lg: "L" };
 
-/** The five open board columns, in order; `done` is appended by the board. */
+/** The four open workflow stages, in order; `done` is appended by the board. */
 export const STATUS_OPTIONS = options("status", STATUS_DISPLAY);
 /**
  * Displayed low → high so priority and size read the same way. The canonical
@@ -136,13 +139,17 @@ export const STATUS_OPTIONS = options("status", STATUS_DISPLAY);
  */
 export const PRIORITY_OPTIONS = options("priority", PRIORITY_DISPLAY).reverse();
 export const SIZE_OPTIONS = options("size", SIZE_DISPLAY);
+/** Orthogonal flags carried alongside a status (SPEC §5.1). */
+export const FLAG_OPTIONS = options("flags", FLAG_DISPLAY);
 
-/** Board columns including Done (SPEC §9.3). */
+/** The canonical reserved-label name for the "blocked" flag. */
+export const BLOCKED_LABEL = "blocked";
+
+/** Board columns including Done (SPEC §9.3); blocking is not a column. */
 export const BOARD_COLUMNS: readonly { key: string; label: string }[] = [
   { key: "backlog", label: "Backlog" },
   { key: "todo", label: "Todo" },
   { key: "in-progress", label: "In Progress" },
   { key: "in-review", label: "In Review" },
-  { key: "blocked", label: "Blocked" },
   { key: "done", label: "Done" },
 ];

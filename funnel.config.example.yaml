@@ -23,6 +23,8 @@ sync:
 
 board:
   done_days: 14                         # Retention window for the Done column
+  wip_limits:                           # Optional per-stage Work-in-Progress caps
+    in-progress: 3                      # Omitted stages have no limit; Done is never capped
 
 session:
   idle_days: 30                         # User session lifetime

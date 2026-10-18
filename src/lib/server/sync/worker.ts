@@ -158,6 +158,7 @@ async function resolveConflicts(
       status: resolved.metadata.status,
       priority: resolved.metadata.priority,
       size: resolved.metadata.size,
+      blocked: resolved.metadata.blocked,
       labelConflict: resolved.ambiguous,
     });
     if (resolved.removed.length > 0) {

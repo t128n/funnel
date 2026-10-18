@@ -22,7 +22,7 @@ describe("parseIssueFilter", () => {
       new URLSearchParams("status=todo,blocked&status=in-review&priority=p1"),
       ctx,
     );
-    expect(filter.statuses).toEqual(["todo", "blocked", "in-review"]);
+    expect(filter.statuses).toEqual(["todo", "in-review"]);
     expect(filter.priorities).toEqual(["p1"]);
   });
 

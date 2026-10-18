@@ -19,11 +19,18 @@ export interface DerivedMetadata {
   status: string | null;
   priority: string | null;
   size: string | null;
+  /** Whether the orthogonal `blocked` flag is present (SPEC §5.1). */
+  blocked: boolean;
   /** Groups carrying more than one label. */
   conflicts: LabelGroup[];
 }
 
-export const GROUP_ORDER: readonly LabelGroup[] = ["status", "priority", "size"];
+export const GROUP_ORDER: readonly LabelGroup[] = [
+  "status",
+  "priority",
+  "size",
+  "flags",
+];
 
 /** Canonical label name (lowercase) -> group, for fast lookups. */
 const GROUP_BY_NAME = new Map<string, LabelGroup>(
@@ -68,6 +75,7 @@ export function deriveMetadata(labelNames: readonly string[]): DerivedMetadata {
     status: null,
     priority: null,
     size: null,
+    blocked: false,
     conflicts: [],
   };
   for (const group of GROUP_ORDER) {
@@ -76,7 +84,8 @@ export function deriveMetadata(labelNames: readonly string[]): DerivedMetadata {
     const winner = names.length === 1 ? names[0] : firstCanonical(names);
     if (group === "status") metadata.status = winner;
     else if (group === "priority") metadata.priority = winner;
-    else metadata.size = winner;
+    else if (group === "size") metadata.size = winner;
+    else metadata.blocked = true;
     if (names.length > 1) metadata.conflicts.push(group);
   }
   return metadata;

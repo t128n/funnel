@@ -25,6 +25,7 @@ function issueEntry(number: number, status: string | null = null) {
       status,
       priority: null,
       size: null,
+      blocked: false,
       labelConflict: false,
       createdAt: 0,
       updatedAt: 0,

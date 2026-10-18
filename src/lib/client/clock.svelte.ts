@@ -25,6 +25,15 @@ export function timeAgo(fromMs: number): string {
   return relativeTime(fromMs);
 }
 
+/**
+ * Subscribe to the shared minute clock. Call this inside a `$derived` when a
+ * value depends on wall-clock time (e.g. "today" rolling over at midnight) so
+ * it re-evaluates even when no data changes.
+ */
+export function clockTick(): number {
+  return tick;
+}
+
 /** Start (or join) the shared clock; returns a stop function. No-op during SSR. */
 export function startClock(): () => void {
   if (typeof window === "undefined") return () => {};

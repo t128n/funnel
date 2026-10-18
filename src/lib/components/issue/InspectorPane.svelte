@@ -3,8 +3,10 @@
 	import { toast } from 'svelte-sonner';
 	import Avatar from '#lib/components/common/Avatar.svelte';
 	import MultiSelect from '#lib/components/common/MultiSelect.svelte';
+	import { selectTriggerClass } from '#lib/components/common/select-trigger';
 	import SingleSelect from '#lib/components/common/SingleSelect.svelte';
 	import Spinner from '#lib/components/common/Spinner.svelte';
+	import BlockActionDialog from '#lib/components/board/BlockActionDialog.svelte';
 	import Composer from '#lib/components/detail/Composer.svelte';
 	import DetailShell from '#lib/components/detail/DetailShell.svelte';
 	import CommentTimeline from '#lib/components/issue/CommentTimeline.svelte';
@@ -16,10 +18,12 @@
 	import {
 		addIssueComment,
 		addIssueLabels,
+		blockIssue,
 		closeIssue,
 		fetchIssueDetail,
 		removeIssueLabel,
 		reopenIssue,
+		unblockIssue,
 		updateIssue,
 		type CloseReason,
 		type UpdateIssuePatch
@@ -33,6 +37,13 @@
 		type IssuePatch
 	} from '#lib/client/optimistic.svelte';
 	import { refreshSignal } from '#lib/client/refresh';
+	import type { BlockPayload } from '#lib/client/issue-actions.svelte';
+	import {
+		composeFunnelMetadata,
+		readBlocked,
+		splitFunnelMetadata,
+		writeBlocked
+	} from '#lib/funnel-metadata';
 	import { timeAgo } from '#lib/client/clock.svelte';
 	import {
 		PRIORITY_OPTIONS,
@@ -46,6 +57,7 @@
 	import type { RenderedIssueDetail, UserRef } from '#lib/server/issues/types';
 	import { cn } from '#lib/utils';
 	import CircleDashedIcon from '@lucide/svelte/icons/circle-dashed';
+	import BanIcon from '@lucide/svelte/icons/ban';
 	import CircleUserIcon from '@lucide/svelte/icons/circle-user';
 	import ExternalLinkIcon from '@lucide/svelte/icons/external-link';
 	import RulerIcon from '@lucide/svelte/icons/ruler';
@@ -83,16 +95,26 @@
 	let editingBody = $state(false);
 	/** Raw Markdown the server-rendered `bodyHtml` was produced from. */
 	let renderedBody = $state('');
+	/** The trailing `funnel_metadata` envelope, kept out of the body editor. */
+	let metadataBlock = $state<string | null>(null);
+
+	/** Structured block/unblock dialog (SPEC §5.1). */
+	let blockedDialogMode = $state<'block' | 'unblock' | null>(null);
+	let blockError = $state<string | null>(null);
 
 	// `detail` is the raw fetched payload; `issue` reflects pending overlays so
 	// optimistic edits show instantly and reconcile on the next SSE refresh.
 	const issue = $derived(projectDetail(detail)?.issue ?? null);
 	const titleDirty = $derived(issue !== null && title.trim() !== issue.title);
-	const bodyDirty = $derived(detail !== null && body !== detail.body);
+	const bodyDirty = $derived(detail !== null && body !== renderedBody);
+	/** The structured `blocked` state parsed from the body metadata. */
+	const blockedState = $derived(readBlocked(detail?.body ?? ''));
 	// A just-saved body is not in the mirror yet, so its HTML is stale; fall
 	// back to plain text until the SSE refresh delivers a fresh render.
 	const bodyHtml = $derived(
-		detail !== null && detail.body === renderedBody ? detail.bodyHtml : null
+		detail !== null && splitFunnelMetadata(detail.body).content === renderedBody
+			? detail.bodyHtml
+			: null
 	);
 
 	/** Done is the closed state; the pill surfaces it beside the open statuses. */
@@ -143,8 +165,10 @@
 			const projected = projectDetail(result.value) ?? result.value;
 			detail = projected;
 			title = projected.issue.title;
-			body = projected.body;
-			renderedBody = projected.body;
+			const split = splitFunnelMetadata(projected.body);
+			body = split.content;
+			renderedBody = split.content;
+			metadataBlock = split.block;
 			editingBody = false;
 		} else {
 			detail = null;
@@ -187,6 +211,7 @@
 		if (patch.status !== undefined) next.status = patch.status;
 		if (patch.priority !== undefined) next.priority = patch.priority;
 		if (patch.size !== undefined) next.size = patch.size;
+		if (patch.blocked !== undefined) next.blocked = patch.blocked;
 		if (patch.assignees !== undefined) {
 			next.assignees = localAssigneeList(patch.assignees);
 		}
@@ -291,12 +316,17 @@
 
 	async function saveBody() {
 		if (!bodyDirty || busy) return;
-		const ok = await runPatch({ body }, 'body');
-		if (ok) editingBody = false;
+		// The `funnel_metadata` envelope is hidden from the editor; re-attach it
+		// verbatim so editing the description never drops it.
+		const ok = await runPatch({ body: composeFunnelMetadata(body, metadataBlock) }, 'body');
+		if (ok) {
+			renderedBody = body;
+			editingBody = false;
+		}
 	}
 
 	function cancelBody() {
-		body = detail?.body ?? '';
+		body = renderedBody;
 		editingBody = false;
 	}
 
@@ -344,6 +374,46 @@
 
 	async function setSize(value: string | null) {
 		await runPatch({ size: value }, 'size');
+	}
+
+	/** Open the structured block/unblock dialog (SPEC §5.1). */
+	function openBlockDialog(mode: 'block' | 'unblock') {
+		if (!issue) return;
+		blockError = null;
+		blockedDialogMode = mode;
+	}
+
+	/**
+	 * Record the blocker (or its resolution) as a comment and in the body
+	 * metadata, then apply the flag. The overlay flips the indicator at once and
+	 * rolls back on failure, with the error shown inline in the dialog.
+	 */
+	async function confirmBlocked(payload: BlockPayload) {
+		if (!detail) return;
+		busy = 'blocked';
+		blockError = null;
+		const blocked = payload.kind === 'block';
+		const current = detail.body;
+		const outcome = await mutate({
+			key: overlayKey(repo, number),
+			patch: { blocked },
+			failure: blocked ? 'Could not block issue' : 'Could not unblock issue',
+			notify: false,
+			commit: () =>
+				payload.kind === 'block'
+					? blockIssue(repo, number, current, payload.info)
+					: unblockIssue(repo, number, current, payload.note)
+		});
+		busy = null;
+		if (!outcome.ok) {
+			blockError = outcome.error;
+			return;
+		}
+		const nextBody =
+			payload.kind === 'block' ? writeBlocked(current, payload.info) : writeBlocked(current, null);
+		detail = { ...detail, body: nextBody, issue: { ...detail.issue, blocked } };
+		metadataBlock = splitFunnelMetadata(nextBody).block;
+		blockedDialogMode = null;
 	}
 
 	async function setAssignees(logins: string[]) {
@@ -548,6 +618,24 @@
 		</section>
 
 		<section class="flex flex-wrap items-center gap-1.5" aria-label="Issue properties">
+			<button
+				class={selectTriggerClass(
+					'pill',
+					cn(
+						'gap-1.5',
+						issue?.blocked &&
+							'border-destructive/40 bg-destructive/10 text-destructive hover:bg-destructive/20'
+					)
+				)}
+				onclick={() => openBlockDialog(issue?.blocked ? 'unblock' : 'block')}
+				disabled={busy === 'blocked' || !canEdit}
+				title="Blocked flag"
+				aria-pressed={issue?.blocked ?? false}
+			>
+				<BanIcon class="size-3.5" />
+				Blocked
+			</button>
+
 			<SingleSelect
 				variant="pill"
 				label="No status"
@@ -627,6 +715,36 @@
 			</MultiSelect>
 		</section>
 
+		{#if blockedState.isBlocked && blockedState.info}
+			<section
+				class="border-destructive/30 bg-destructive/5 flex flex-col gap-1 rounded-lg border p-3 text-xs"
+				aria-label="Blocker"
+			>
+				<div class="text-destructive flex items-center gap-1.5 font-medium">
+					<BanIcon class="size-3.5" />
+					Blocked
+					{#if blockedState.info.recheck}
+						<span class="text-muted-foreground ml-auto font-normal">
+							Re-check {blockedState.info.recheck}
+						</span>
+					{/if}
+				</div>
+				<p class="text-foreground">{blockedState.info.blocker}</p>
+				{#if blockedState.info.needs}
+					<p class="text-muted-foreground">
+						<span class="font-medium">Needs to unblock:</span>
+						{blockedState.info.needs}
+					</p>
+				{/if}
+				{#if blockedState.info.trying}
+					<p class="text-muted-foreground">
+						<span class="font-medium">Currently trying:</span>
+						{blockedState.info.trying}
+					</p>
+				{/if}
+			</section>
+		{/if}
+
 		<section class="flex flex-col gap-3" aria-label="Activity">
 			<div class="flex items-center justify-between">
 				<h2 class="text-foreground text-base font-semibold">
@@ -662,4 +780,18 @@
 		if (dialogMode === 'reopen') void confirmReopen(payload);
 		else void confirmClose(payload);
 	}}
+/>
+
+<BlockActionDialog
+	open={blockedDialogMode !== null}
+	mode={blockedDialogMode ?? 'block'}
+	busy={busy === 'blocked'}
+	error={blockError}
+	onopenchange={(open) => {
+		if (!open && busy === null) {
+			blockedDialogMode = null;
+			blockError = null;
+		}
+	}}
+	onconfirm={(payload) => void confirmBlocked(payload)}
 />

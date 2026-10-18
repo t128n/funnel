@@ -4,11 +4,13 @@ import { db } from "#lib/server/db/index";
 import { stateIntakeSubmission } from "#lib/server/db/schema";
 import { createSubmission } from "#lib/server/intake/staging";
 import { upsertIssue, upsertRepo, type UserRecord } from "#lib/server/sync/mirror";
+import { writeBlocked } from "#lib/funnel-metadata";
 import { clearMirror } from "#tests/mirror-helpers";
 import { TEST_CONFIG } from "#tests/test-config";
 import { parseIssueFilter } from "./filters";
 import {
   allIssues,
+  attentionIssues,
   filterContext,
   getIssueListItem,
   inbox,
@@ -54,7 +56,7 @@ function seed(): void {
         { githubId: 1001, author: user(7, "octocat"), body: "repro steps", createdAt: 11, updatedAt: 11 },
       ],
     },
-    { status: "todo", priority: "p1", size: "sm", labelConflict: false },
+    { status: "todo", priority: "p1", size: "sm", blocked: false, labelConflict: false },
   );
 
   upsertIssue(
@@ -69,7 +71,7 @@ function seed(): void {
       closedAt: null,
       labels: [],
     },
-    { status: null, priority: null, size: null, labelConflict: false },
+    { status: null, priority: null, size: null, blocked: false, labelConflict: false },
   );
 
   upsertIssue(
@@ -85,7 +87,7 @@ function seed(): void {
       labels: ["in-progress", "p2", "frontend"],
       assignees: [user(7, "octocat")],
     },
-    { status: "in-progress", priority: "p2", size: null, labelConflict: false },
+    { status: "in-progress", priority: "p2", size: null, blocked: false, labelConflict: false },
   );
 
   upsertIssue(
@@ -102,7 +104,7 @@ function seed(): void {
       closedAt: Date.now() - DAY_MS,
       labels: ["lg"],
     },
-    { status: null, priority: null, size: "lg", labelConflict: false },
+    { status: null, priority: null, size: "lg", blocked: false, labelConflict: false },
   );
 
   upsertIssue(
@@ -119,7 +121,7 @@ function seed(): void {
       closedAt: Date.now() - 2 * DAY_MS,
       labels: [],
     },
-    { status: null, priority: null, size: null, labelConflict: false },
+    { status: null, priority: null, size: null, blocked: false, labelConflict: false },
   );
 
   upsertIssue(
@@ -135,7 +137,7 @@ function seed(): void {
       labels: ["backlog", "p3", "lg", "bug"],
       assignees: [user(7, "octocat"), user(8, "alice")],
     },
-    { status: "backlog", priority: "p3", size: "lg", labelConflict: false },
+    { status: "backlog", priority: "p3", size: "lg", blocked: false, labelConflict: false },
   );
 }
 
@@ -187,7 +189,7 @@ describe("allIssues", () => {
   test("applies the status dimension incl. none", () => {
     expect(numbers(allIssues(parse("status=todo")))).toEqual([1]);
     expect(numbers(allIssues(parse("status=none")))).toEqual([]);
-    expect(numbers(allIssues(parse("status=backlog,blocked")))).toEqual([6]);
+    expect(numbers(allIssues(parse("status=backlog")))).toEqual([6]);
   });
 
   test("applies priority and size dimensions", () => {
@@ -265,7 +267,7 @@ describe("inbox", () => {
 });
 
 describe("statusBoard", () => {
-  test("partitions the five statuses plus a Done window", async () => {
+  test("partitions the four statuses plus a Done window", async () => {
     const board = await statusBoard(parse(""));
     const byKey = Object.fromEntries(
       board.columns.map((column) => [column.key, numbers(column.issues)]),
@@ -275,7 +277,6 @@ describe("statusBoard", () => {
       todo: [1],
       "in-progress": [3],
       "in-review": [],
-      blocked: [],
       done: [4],
     });
   });
@@ -294,6 +295,61 @@ describe("statusBoard", () => {
     expect(byKey["in-progress"]).toEqual([3]);
     expect(byKey.todo).toEqual([]);
     expect(byKey.done).toEqual([4]);
+  });
+});
+
+describe("attentionIssues", () => {
+  function seedBlockedIssue(
+    number: number,
+    githubId: number,
+    body: string,
+    blocked: boolean,
+  ): void {
+    upsertIssue(
+      {
+        githubId,
+        repoId: 1,
+        number,
+        title: `Blocked ${number}`,
+        body,
+        state: "open",
+        stateReason: null,
+        author: null,
+        milestoneName: null,
+        createdAt: 1,
+        updatedAt: 600,
+        closedAt: null,
+        labels: ["in-progress", "blocked"],
+        assignees: [],
+        comments: [],
+      },
+      { status: "in-progress", priority: null, size: null, blocked, labelConflict: false },
+    );
+  }
+
+  const withRecheck = (recheck: string) =>
+    writeBlocked("desc", { blocker: "Upstream API key", needs: "Token", trying: "", recheck });
+
+  test("returns only blocked issues that carry a re-check date", () => {
+    seedBlockedIssue(7, 107, withRecheck("2026-10-25"), true);
+    // Blocked but no metadata date.
+    seedBlockedIssue(8, 108, "plain body", true);
+    // Has a date in the body but is not flagged blocked.
+    seedBlockedIssue(9, 109, withRecheck("2026-10-20"), false);
+
+    const items = attentionIssues();
+    expect(items.map((item) => item.issue.number)).toEqual([7]);
+    expect(items[0].blocker).toBe("Upstream API key");
+    expect(items[0].recheck).toBe("2026-10-25");
+  });
+
+  test("sorts by re-check date", () => {
+    seedBlockedIssue(7, 107, withRecheck("2026-11-01"), true);
+    seedBlockedIssue(8, 108, withRecheck("2026-10-19"), true);
+    expect(attentionIssues().map((item) => item.recheck)).toEqual([
+      "2026-10-19",
+      "2026-11-01",
+    ]);
   });
 });
 
