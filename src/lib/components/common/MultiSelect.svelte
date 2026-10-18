@@ -30,8 +30,9 @@
 		display?: 'label' | 'selection';
 		/** Shown in `selection` display mode when nothing is selected. */
 		placeholder?: string;
-		/** Trigger styling: `default` (filter toolbar) or `ghost` (borderless pill). */
-		variant?: 'default' | 'ghost';
+		/** Trigger styling: `default` (filter toolbar), `ghost` (borderless), or
+		 *  `pill` (contained toolbar pill). */
+		variant?: 'default' | 'ghost' | 'pill';
 		/** Optional leading glyph rendered inside the trigger. */
 		icon?: Snippet;
 	}
@@ -87,8 +88,11 @@
 			'focus-visible:border-ring focus-visible:ring-ring/50 flex h-7 shrink-0 items-center gap-1.5 border px-2 text-xs outline-none transition-colors focus-visible:ring-1 disabled:pointer-events-none disabled:opacity-50',
 			variant === 'ghost'
 				? 'text-muted-foreground hover:bg-accent hover:text-foreground w-auto border-transparent bg-transparent'
-				: 'bg-background text-muted-foreground hover:bg-muted w-auto',
-			variant !== 'ghost' && selected.length > 0 && 'border-primary text-foreground'
+				: variant === 'pill'
+					? 'text-muted-foreground hover:bg-accent hover:text-foreground w-auto border-border bg-muted/50'
+					: 'bg-background text-muted-foreground hover:bg-muted w-auto',
+			variant === 'default' && selected.length > 0 && 'border-primary text-foreground',
+			variant === 'pill' && selected.length > 0 && 'text-foreground'
 		)}
 	>
 		{#if icon}

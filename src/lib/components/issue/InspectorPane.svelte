@@ -4,8 +4,9 @@
 	import MultiSelect from '#lib/components/common/MultiSelect.svelte';
 	import SingleSelect from '#lib/components/common/SingleSelect.svelte';
 	import Spinner from '#lib/components/common/Spinner.svelte';
-	import CommentList from '#lib/components/issue/CommentList.svelte';
-	import CommentThread from '#lib/components/issue/CommentThread.svelte';
+	import Composer from '#lib/components/detail/Composer.svelte';
+	import DetailShell from '#lib/components/detail/DetailShell.svelte';
+	import CommentTimeline from '#lib/components/issue/CommentTimeline.svelte';
 	import IssueActionDialog from '#lib/components/issue/IssueActionDialog.svelte';
 	import * as Alert from '#lib/components/ui/alert';
 	import { Button } from '#lib/components/ui/button';
@@ -109,6 +110,8 @@
 	);
 
 	const githubLink = $derived(`${githubUrl}/${repo}/issues/${number}`);
+	/** Only show the composer once the issue has loaded. */
+	const canEdit = $derived(issue !== null && detail !== null);
 
 	/** Inline `color:` tint for a canonical label value, or undefined. */
 	function tintStyle(name: string | null | undefined): string | undefined {
@@ -355,16 +358,27 @@
 	}
 </script>
 
-<aside
+{#snippet composer()}
+	<Composer
+		bind:value={comment}
+		busy={busy === 'comment'}
+		label="Comment"
+		placeholder="Add a comment…"
+		onsubmit={submitComment}
+	/>
+{/snippet}
+
+<DetailShell
+	ariaLabel="Issue inspector"
 	class={cn(
-		'bg-background flex h-full flex-col border-l',
 		fill
 			? 'min-w-0 flex-1 border-l-0'
-			: 'w-120 max-[1100px]:absolute max-[1100px]:inset-y-0 max-[1100px]:right-0 max-[1100px]:z-40 max-[1100px]:w-[min(480px,100%)] max-[1100px]:shadow-lg'
+			: 'w-120 border-l max-[1100px]:absolute max-[1100px]:inset-y-0 max-[1100px]:right-0 max-[1100px]:z-40 max-[1100px]:w-[min(480px,100%)] max-[1100px]:shadow-lg'
 	)}
-	aria-label="Issue inspector"
+	contentKey={`${repo}#${number}:${detail?.bodyHtml ?? ''}:${detail?.comments.length ?? 0}`}
+	footer={canEdit ? composer : undefined}
 >
-	<header class="flex h-10 shrink-0 items-center justify-between gap-2 border-b px-3">
+	{#snippet header()}
 		<div class="flex min-w-0 items-center gap-2">
 			<span class="mono text-muted-foreground truncate text-xs" title={repo}>{repo}</span>
 			<span class="text-muted-foreground text-xs">/</span>
@@ -397,239 +411,217 @@
 				<XIcon />
 			</Button>
 		</div>
-	</header>
+	{/snippet}
 
 	{#if loading && !detail}
 		<div class="text-muted-foreground flex flex-1 items-center justify-center p-6">
 			<Spinner size={16} label="Loading issue" />
 		</div>
 	{:else if error}
-		<div class="flex flex-1 items-start justify-center p-6">
+		<div class="flex flex-1 items-start justify-center">
 			<Alert.Root variant="destructive">
 				<Alert.Description>{error}</Alert.Description>
 			</Alert.Root>
 		</div>
 	{:else if issue && detail}
-		<div class="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4">
-			<div class="flex items-center gap-2">
-				<Input
-					class="hover:bg-accent/50 focus-visible:border-input h-auto rounded-none border-transparent bg-transparent px-1.5 text-lg font-semibold tracking-tight shadow-none dark:bg-transparent"
-					value={title}
-					oninput={(e) => (title = e.currentTarget.value)}
-					onblur={saveTitle}
-					onkeydown={(e) => {
-						if (e.key === 'Enter') {
-							e.preventDefault();
-							e.currentTarget.blur();
-						}
-					}}
-					aria-label="Issue title"
-					disabled={busy === 'title'}
-				/>
-				{#if busy === 'title'}
-					<Spinner size={14} />
-				{:else if titleDirty}
-					<Button variant="secondary" size="sm" onclick={saveTitle}>Save</Button>
-				{/if}
-			</div>
-
-			{#if actionError}
-				<Alert.Root variant="destructive">
-					<Alert.Description>{actionError}</Alert.Description>
-				</Alert.Root>
+		<div class="flex items-center gap-2">
+			<Input
+				class="hover:bg-accent/50 focus-visible:border-input -ml-2 h-auto border-transparent bg-transparent px-2 text-xl font-semibold tracking-tight shadow-none dark:bg-transparent"
+				value={title}
+				oninput={(e) => (title = e.currentTarget.value)}
+				onblur={saveTitle}
+				onkeydown={(e) => {
+					if (e.key === 'Enter') {
+						e.preventDefault();
+						e.currentTarget.blur();
+					}
+				}}
+				aria-label="Issue title"
+				disabled={busy === 'title'}
+			/>
+			{#if busy === 'title'}
+				<Spinner size={14} />
+			{:else if titleDirty}
+				<Button variant="secondary" size="sm" onclick={saveTitle}>Save</Button>
 			{/if}
-			{#if issue.labelConflict}
-				<Alert.Root>
-					<Alert.Description>
-						Conflicting reserved labels were detected on GitHub; the mirror used the latest
-						timeline entry.
-					</Alert.Description>
-				</Alert.Root>
-			{/if}
-
-			<section class="flex flex-wrap items-center gap-1" aria-label="Issue properties">
-				<SingleSelect
-					variant="ghost"
-					label="No status"
-					options={statusOptions}
-					value={statusValue}
-					onselect={setStatus}
-					disabled={busy === 'status'}
-				>
-					{#snippet icon()}
-						<CircleDashedIcon class="size-3.5" style={statusTint} />
-					{/snippet}
-				</SingleSelect>
-
-				<SingleSelect
-					variant="ghost"
-					label="No priority"
-					options={PRIORITY_OPTIONS}
-					value={priorityValue}
-					onselect={setPriority}
-					allowClear
-					disabled={busy === 'priority'}
-				>
-					{#snippet icon()}
-						<SignalIcon class="size-3.5" style={tintStyle(priorityValue)} />
-					{/snippet}
-				</SingleSelect>
-
-				<SingleSelect
-					variant="ghost"
-					label="No size"
-					options={SIZE_OPTIONS}
-					value={sizeValue}
-					onselect={setSize}
-					allowClear
-					disabled={busy === 'size'}
-				>
-					{#snippet icon()}
-						<RulerIcon class="size-3.5" style={tintStyle(sizeValue)} />
-					{/snippet}
-				</SingleSelect>
-
-				<MultiSelect
-					variant="ghost"
-					hideCount
-					label="Assignee"
-					placeholder="Unassigned"
-					display="selection"
-					options={assigneeOptions.map((u) => ({ value: u.login, label: u.login }))}
-					selected={assigneeLogins}
-					onselect={setAssignees}
-					disabled={busy === 'assignees'}
-				>
-					{#snippet icon()}
-						{@const first = assignees[0]}
-						{#if first}
-							<Avatar login={first.login} avatarUrl={first.avatarUrl} size={16} />
-						{:else}
-							<CircleUserIcon class="size-3.5" />
-						{/if}
-					{/snippet}
-				</MultiSelect>
-
-				<MultiSelect
-					variant="ghost"
-					hideCount
-					label="Labels"
-					placeholder="No labels"
-					display="selection"
-					options={labelOptions}
-					selected={selectedLabels}
-					onselect={setLabels}
-					disabled={busy === 'labels'}
-				>
-					{#snippet icon()}
-						<TagIcon class="size-3.5" />
-					{/snippet}
-				</MultiSelect>
-			</section>
-
-			<section class="flex flex-col gap-2">
-				{#if busy === 'body' || editingBody}
-					<div class="flex items-center justify-end gap-1">
-						{#if busy === 'body'}
-							<Spinner size={13} />
-						{:else}
-							<Button variant="ghost" size="xs" onclick={cancelBody}>Cancel</Button>
-							<Button variant="secondary" size="xs" onclick={saveBody} disabled={!bodyDirty}>
-								Save
-							</Button>
-						{/if}
-					</div>
-				{/if}
-				{#if editingBody}
-					<Textarea
-						class="min-h-32"
-						value={body}
-						oninput={(e) => (body = e.currentTarget.value)}
-						onkeydown={onBodyKeydown}
-						placeholder="Describe the issue…"
-						rows={6}
-					></Textarea>
-				{:else}
-					<div
-						class={cn(
-							'hover:bg-accent/50 -mx-2 min-h-12 cursor-text px-2 py-1 text-sm leading-relaxed text-foreground transition-colors',
-							bodyHtml !== null && 'markdown',
-							bodyHtml === null && 'plain-text'
-						)}
-						role="button"
-						tabindex="0"
-						aria-label="Issue description; activate to edit"
-						onclick={() => (editingBody = true)}
-						onkeydown={(e) => {
-							if (e.key === 'Enter' || e.key === ' ') {
-								e.preventDefault();
-								editingBody = true;
-							}
-						}}
-					>
-						{#if body.trim().length === 0}
-							<span class="text-muted-foreground">Add a description…</span>
-						{:else if bodyHtml !== null}
-							{@html bodyHtml}
-						{:else}
-							{body}
-						{/if}
-					</div>
-				{/if}
-			</section>
-
-			<section class="flex flex-col gap-2">
-				<span class="text-muted-foreground text-xs font-semibold">
-					Comments ({detail.comments.length})
-				</span>
-				{#if detail.comments.length === 0}
-					<div class="text-muted-foreground text-xs">No comments yet.</div>
-				{:else if commentBubbles}
-					<CommentThread comments={detail.comments} />
-				{:else}
-					<CommentList comments={detail.comments} />
-				{/if}
-			</section>
 		</div>
 
-		<section class="flex shrink-0 flex-col gap-2 border-t p-3">
-			<Textarea
-				class="min-h-16"
-				value={comment}
-				oninput={(e) => (comment = e.currentTarget.value)}
-				placeholder="Add a comment…"
-				rows={2}
-			></Textarea>
-			<div class="flex justify-end">
-				<Button
-					onclick={submitComment}
-					disabled={comment.trim().length === 0 || busy === 'comment'}
-				>
-					{#if busy === 'comment'}
-						<span data-icon="inline-start" class="inline-flex items-center">
-							<Spinner size={13} />
-						</span>
+		{#if actionError}
+			<Alert.Root variant="destructive">
+				<Alert.Description>{actionError}</Alert.Description>
+			</Alert.Root>
+		{/if}
+		{#if issue.labelConflict}
+			<Alert.Root>
+				<Alert.Description>
+					Conflicting reserved labels were detected on GitHub; the mirror used the latest
+					timeline entry.
+				</Alert.Description>
+			</Alert.Root>
+		{/if}
+
+		<section class="flex flex-wrap items-center gap-1.5" aria-label="Issue properties">
+			<SingleSelect
+				variant="pill"
+				label="No status"
+				options={statusOptions}
+				value={statusValue}
+				onselect={setStatus}
+				disabled={busy === 'status'}
+			>
+				{#snippet icon()}
+					<CircleDashedIcon class="size-3.5" style={statusTint} />
+				{/snippet}
+			</SingleSelect>
+
+			<SingleSelect
+				variant="pill"
+				label="No priority"
+				options={PRIORITY_OPTIONS}
+				value={priorityValue}
+				onselect={setPriority}
+				allowClear
+				disabled={busy === 'priority'}
+			>
+				{#snippet icon()}
+					<SignalIcon class="size-3.5" style={tintStyle(priorityValue)} />
+				{/snippet}
+			</SingleSelect>
+
+			<SingleSelect
+				variant="pill"
+				label="No size"
+				options={SIZE_OPTIONS}
+				value={sizeValue}
+				onselect={setSize}
+				allowClear
+				disabled={busy === 'size'}
+			>
+				{#snippet icon()}
+					<RulerIcon class="size-3.5" style={tintStyle(sizeValue)} />
+				{/snippet}
+			</SingleSelect>
+
+			<MultiSelect
+				variant="pill"
+				hideCount
+				label="Assignee"
+				placeholder="Unassigned"
+				display="selection"
+				options={assigneeOptions.map((u) => ({ value: u.login, label: u.login }))}
+				selected={assigneeLogins}
+				onselect={setAssignees}
+				disabled={busy === 'assignees'}
+			>
+				{#snippet icon()}
+					{@const first = assignees[0]}
+					{#if first}
+						<Avatar login={first.login} avatarUrl={first.avatarUrl} size={16} />
+					{:else}
+						<CircleUserIcon class="size-3.5" />
 					{/if}
-					Comment
-				</Button>
+				{/snippet}
+			</MultiSelect>
+
+			<MultiSelect
+				variant="pill"
+				hideCount
+				label="Labels"
+				placeholder="No labels"
+				display="selection"
+				options={labelOptions}
+				selected={selectedLabels}
+				onselect={setLabels}
+				disabled={busy === 'labels'}
+			>
+				{#snippet icon()}
+					<TagIcon class="size-3.5" />
+				{/snippet}
+			</MultiSelect>
+		</section>
+
+		<section class="border-border bg-muted/20 flex flex-col border p-4" aria-label="Description">
+			{#if editingBody}
+				<Textarea
+					class="min-h-32"
+					value={body}
+					oninput={(e) => (body = e.currentTarget.value)}
+					onkeydown={onBodyKeydown}
+					placeholder="Describe the issue…"
+					rows={6}
+				></Textarea>
+				<div class="mt-2 flex items-center justify-end gap-1">
+					{#if busy === 'body'}
+						<Spinner size={13} />
+					{:else}
+						<Button variant="ghost" size="xs" onclick={cancelBody}>Cancel</Button>
+						<Button variant="secondary" size="xs" onclick={saveBody} disabled={!bodyDirty}>
+							Save
+						</Button>
+					{/if}
+				</div>
+			{:else}
+				<div
+					class={cn(
+						'hover:bg-accent/40 min-h-12 cursor-text px-1 py-0.5 text-sm leading-relaxed text-foreground transition-colors',
+						bodyHtml !== null && 'markdown',
+						bodyHtml === null && 'plain-text'
+					)}
+					role="button"
+					tabindex="0"
+					aria-label="Issue description; activate to edit"
+					onclick={() => (editingBody = true)}
+					onkeydown={(e) => {
+						if (e.key === 'Enter' || e.key === ' ') {
+							e.preventDefault();
+							editingBody = true;
+						}
+					}}
+				>
+					{#if body.trim().length === 0}
+						<span class="text-muted-foreground">Add a description…</span>
+					{:else if bodyHtml !== null}
+						{@html bodyHtml}
+					{:else}
+						{body}
+					{/if}
+				</div>
+			{/if}
+		</section>
+
+		<section class="flex flex-col gap-3" aria-label="Activity">
+			<div class="flex items-center justify-between">
+				<h2 class="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
+					Activity
+				</h2>
+				<span class="mono text-muted-foreground text-xs">{detail.comments.length}</span>
 			</div>
+			{#if detail.comments.length === 0}
+				<div
+					class="border-border text-muted-foreground border border-dashed px-3 py-6 text-center text-xs"
+				>
+					No comments yet.
+				</div>
+			{:else}
+				<CommentTimeline comments={detail.comments} bubbles={commentBubbles} />
+			{/if}
 		</section>
 	{/if}
+</DetailShell>
 
-	<IssueActionDialog
-		open={dialogMode !== null}
-		mode={dialogMode ?? 'close'}
-		busy={busy === 'close' || busy === 'reopen'}
-		error={resolveError}
-		onopenchange={(open) => {
-			if (!open && busy === null) {
-				dialogMode = null;
-				pendingStatus = null;
-			}
-		}}
-		onconfirm={(payload) => {
-			if (dialogMode === 'reopen') void confirmReopen(payload);
-			else void confirmClose(payload);
-		}}
-	/>
-</aside>
+<IssueActionDialog
+	open={dialogMode !== null}
+	mode={dialogMode ?? 'close'}
+	busy={busy === 'close' || busy === 'reopen'}
+	error={resolveError}
+	onopenchange={(open) => {
+		if (!open && busy === null) {
+			dialogMode = null;
+			pendingStatus = null;
+		}
+	}}
+	onconfirm={(payload) => {
+		if (dialogMode === 'reopen') void confirmReopen(payload);
+		else void confirmClose(payload);
+	}}
+/>

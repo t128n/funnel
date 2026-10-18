@@ -148,6 +148,127 @@
   white-space: pre;
 }
 
+/* ── Syntax highlighting ──────────────────────────────────────────────────
+   `hljs-*` token classes emitted server-side by `#lib/server/markdown/highlight`
+   are mapped onto the Islands syntax tokens so code flips with the theme. */
+.hljs-comment,
+.hljs-quote {
+  color: var(--syntax-comment);
+  font-style: italic;
+}
+
+.hljs-keyword,
+.hljs-selector-tag,
+.hljs-doctag,
+.hljs-meta {
+  color: var(--syntax-keyword);
+}
+
+.hljs-string,
+.hljs-regexp,
+.hljs-addition,
+.hljs-attribute {
+  color: var(--syntax-string);
+}
+
+.hljs-number,
+.hljs-literal,
+.hljs-symbol,
+.hljs-bullet,
+.hljs-link {
+  color: var(--syntax-number);
+}
+
+.hljs-title,
+.hljs-section,
+.hljs-name,
+.hljs-selector-id,
+.hljs-selector-class,
+.hljs-built_in,
+.hljs-type {
+  color: var(--syntax-function);
+}
+
+.hljs-variable,
+.hljs-template-variable,
+.hljs-params,
+.hljs-property,
+.hljs-attr {
+  color: var(--syntax-constant);
+}
+
+.hljs-emphasis {
+  font-style: italic;
+}
+
+.hljs-strong {
+  font-weight: 600;
+}
+
+.hljs-deletion {
+  color: var(--destructive);
+}
+
+/* ── Code block chrome ────────────────────────────────────────────────────
+   A client-side enhancer (`#lib/client/code-blocks`) wraps each `pre` in
+   `.code-block` and injects the `.code-block-bar` header. The bare `pre` styles
+   above remain the fallback before hydration / without JS. */
+.markdown .code-block {
+  position: relative;
+  margin: 0 0 1rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--muted);
+  overflow: hidden;
+}
+
+.markdown .code-block pre {
+  margin: 0;
+  padding: 0.75rem 1rem;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.markdown .code-block-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.1875rem 0.375rem 0.1875rem 0.75rem;
+  border-bottom: 1px solid var(--border);
+  background: color-mix(in srgb, var(--muted) 55%, var(--background));
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 0.6875rem;
+  color: var(--muted-foreground);
+}
+
+.code-block-lang {
+  text-transform: lowercase;
+  letter-spacing: 0.02em;
+}
+
+.code-block-copy {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.0625rem 0.375rem;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  transition: color 0.15s;
+}
+
+.code-block-copy:hover {
+  color: var(--foreground);
+}
+
+.code-block-copy[data-copied="true"] {
+  color: var(--success);
+}
+
 .markdown kbd,
 .markdown samp {
   font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);

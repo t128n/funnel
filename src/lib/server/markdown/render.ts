@@ -15,6 +15,7 @@
  */
 import sanitizeHtml from "sanitize-html";
 import { markdownToHtml } from "satteri";
+import { highlightCode } from "./highlight";
 
 /**
  * Tags GitHub renders from issue Markdown, kept close to its own sanitizer so
@@ -52,6 +53,8 @@ const ALLOWED_TAGS = [
   "samp",
   "abbr",
   "code",
+  // Syntax-highlight token spans emitted by `highlightCode` (class-gated).
+  "span",
   // Lists (task lists add a disabled checkbox input).
   "ul",
   "ol",
@@ -85,6 +88,7 @@ const ALLOWED_ATTRIBUTES: sanitizeHtml.IOptions["allowedAttributes"] = {
   input: ["type", "checked", "disabled"],
   details: ["open"],
   code: ["class"],
+  span: ["class"],
   ul: ["class"],
   li: ["class"],
   th: ["align", "style"],
@@ -106,9 +110,11 @@ const SANITIZE_OPTIONS: sanitizeHtml.IOptions = {
   allowedAttributes: ALLOWED_ATTRIBUTES,
   allowedStyles: ALLOWED_STYLES,
   // Sätteri marks task lists with these two classes; code fences carry a
-  // `language-*` class for downstream syntax highlighting.
+  // `language-*` class for downstream syntax highlighting, and `highlightCode`
+  // adds `hljs` to the block plus `hljs-*` to each token span.
   allowedClasses: {
-    code: [/^language-/],
+    code: [/^language-/, "hljs"],
+    span: [/^hljs-/],
     ul: ["contains-task-list"],
     li: ["task-list-item"],
   },
@@ -144,6 +150,9 @@ export function renderMarkdown(source: string): string {
       // (Sätteri would otherwise re-emit raw HTML verbatim).
       rawHtml: true,
     },
+    // Tokenize fenced code blocks before rendering; the allowlist below keeps
+    // only the `hljs-*` spans lowlight emits.
+    hastPlugins: [highlightCode],
   });
   return sanitizeHtml(html, SANITIZE_OPTIONS);
 }

@@ -24,10 +24,16 @@ describe("renderMarkdown", () => {
 		expect(html).toContain('<input type="checkbox" disabled />');
 	});
 
-	test("renders fenced code with a language class", () => {
+	test("highlights fenced code while keeping the language class", () => {
 		const html = renderMarkdown("```js\nconst x = 1;\n```");
-		expect(html).toContain('<code class="language-js">');
-		expect(html).toContain("const x = 1;");
+		expect(html).toContain('<code class="hljs language-js">');
+		expect(html).toContain('class="hljs-keyword">const</span>');
+		expect(html).toContain('class="hljs-number">1</span>');
+	});
+
+	test("leaves unlabelled or unknown fences as plain code", () => {
+		expect(renderMarkdown("```\nplain\n```")).toContain("<code>plain");
+		expect(renderMarkdown("```nope\nplain\n```")).toContain('class="language-nope"');
 	});
 
 	test("autolinks bare URLs", () => {
@@ -80,13 +86,23 @@ describe("renderMarkdown sanitization", () => {
 
 	test("strips event handlers and unknown tags", () => {
 		const html = renderMarkdown(
-			'<img src="x" onerror="alert(1)">\n\n<iframe src="https://evil.example"></iframe>\n\n<span onclick="x">span</span>',
+			'<img src="x" onerror="alert(1)">\n\n<iframe src="https://evil.example"></iframe>\n\n<custom-thing>kept text</custom-thing>',
 		);
 		expect(html).not.toContain("onerror");
 		expect(html).not.toContain("<iframe");
+		expect(html).not.toContain("custom-thing");
+		expect(html).toContain("kept text");
+	});
+
+	test("keeps bare spans but strips their attributes", () => {
+		// `span` is allowlisted for syntax highlighting; only `hljs-*` classes
+		// survive, so reportable raw spans cannot smuggle handlers or styles.
+		const html = renderMarkdown(
+			'<span onclick="alert(1)" style="color:red">plain</span>',
+		);
+		expect(html).toContain("<span>plain</span>");
 		expect(html).not.toContain("onclick");
-		expect(html).not.toContain("<span");
-		expect(html).toContain("span");
+		expect(html).not.toContain("color:red");
 	});
 
 	test("neutralizes dangerous URL schemes", () => {
