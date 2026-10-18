@@ -1,14 +1,18 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
-	import { onMount, tick, untrack } from 'svelte';
+	import { goto } from '$app/navigation';
+	import { page } from '$app/state';
+	import { onDestroy, onMount, tick, untrack } from 'svelte';
+	import { toast } from 'svelte-sonner';
 	import Spinner from '#lib/components/common/Spinner.svelte';
 	import IntakeTag from '#lib/components/common/IntakeTag.svelte';
+	import SingleSelect from '#lib/components/common/SingleSelect.svelte';
 	import * as Alert from '#lib/components/ui/alert';
 	import { Button } from '#lib/components/ui/button';
 	import { Input } from '#lib/components/ui/input';
 	import * as Kbd from '#lib/components/ui/kbd';
-	import * as NativeSelect from '#lib/components/ui/native-select';
 	import { Textarea } from '#lib/components/ui/textarea';
+	import { encodeSubmitDeeplinkQuery } from '#lib/client/intake-deeplink';
 	import {
 		hasSubmitPrefill,
 		INTAKE_BODY_MAX,
@@ -16,8 +20,10 @@
 		INTAKE_TITLE_MAX,
 		normalizeIntakeSource
 	} from '#lib/intake-prefill';
+	import CheckIcon from '@lucide/svelte/icons/check';
 	import CircleAlertIcon from '@lucide/svelte/icons/circle-alert';
 	import CircleCheckIcon from '@lucide/svelte/icons/circle-check';
+	import CopyIcon from '@lucide/svelte/icons/copy';
 	import FunnelIcon from '@lucide/svelte/icons/funnel';
 	import LinkIcon from '@lucide/svelte/icons/link';
 	import type { PageProps } from './$types';
@@ -32,6 +38,10 @@
 
 	let submitting = $state(false);
 	let isMac = $state(true);
+	let copied = $state(false);
+	let dirty = $state(false);
+	let copyTimeout: ReturnType<typeof setTimeout> | undefined;
+	let syncSeq = 0;
 	let formEl = $state<HTMLFormElement | null>(null);
 	let titleEl = $state<HTMLElement | null>(null);
 	let bodyEl = $state<HTMLElement | null>(null);
@@ -45,9 +55,14 @@
 		untrack(() => normalizeIntakeSource(form?.source ?? data.prefill.source))
 	);
 
+	// The strip marks a shared prefilled link. It follows the loaded prefill
+	// (so `Clear` and real navigations reset it) but is suppressed for URLs the
+	// page wrote to itself, and disappears once the user starts editing.
 	const hasPrefill = $derived(hasSubmitPrefill(data.prefill));
+	const showPrefillStrip = $derived(hasPrefill && !data.selfSynced && !dirty);
 	const titleLength = $derived(title.length);
 	const showCounter = $derived(titleLength >= INTAKE_TITLE_MAX - 56);
+	const hasContent = $derived(Boolean(title.trim() || body.trim() || source));
 
 	/** Keep unknown prefill sources selectable instead of silently dropping them. */
 	const sourceOptions = $derived.by((): { value: string; label: string }[] => {
@@ -73,6 +88,24 @@
 		title = form?.title ?? data.prefill.title;
 		body = form?.body ?? data.prefill.body;
 		source = normalizeIntakeSource(form?.source ?? data.prefill.source);
+	});
+
+	/**
+	 * Mirror the draft into the address bar so it is itself a shareable link.
+	 * Debounced (compression runs on each pass) and written as a shallow,
+	 * replacing navigation so the back button is not polluted and no `load`
+	 * re-runs (which would autofill the form from its own URL). A sequence guard
+	 * drops stale writes.
+	 */
+	$effect(() => {
+		if (!dirty || form?.submitted) return;
+
+		const snapshot = { title, body, source };
+		const timer = setTimeout(() => {
+			void syncUrlToAddressBar(snapshot);
+		}, 500);
+
+		return () => clearTimeout(timer);
 	});
 
 	/**
@@ -135,6 +168,58 @@
 		event.preventDefault();
 		bodyEl?.focus();
 	}
+
+	/** Mark the draft as user-edited so the address bar starts tracking it. */
+	function markDirty() {
+		dirty = true;
+	}
+
+	/** Replace the address bar with the compact form of the current draft. */
+	async function syncUrlToAddressBar(values: { title: string; body: string; source: string }) {
+		if (form?.submitted || submitting) return;
+
+		const seq = ++syncSeq;
+		const query = await encodeSubmitDeeplinkQuery(values);
+		if (seq !== syncSeq) return;
+
+		const url = new URL(window.location.href);
+		url.search = query ? `?${query}&s=1` : '';
+
+		// Shallow + replace: updates `page.url` without re-running `load`, so the
+		// form is never autofilled from the URL it just wrote.
+		await goto(url, {
+			state: untrack(() => page.state),
+			shallow: true,
+			replace: true
+		});
+	}
+
+	/** Copy a shareable link that reopens the composer with the current values. */
+	async function copyDeeplink() {
+		const query = await encodeSubmitDeeplinkQuery({ title, body, source });
+		if (!query) {
+			toast.error(
+				hasContent
+					? 'This submission is too large to share as a link.'
+					: 'Add a title, description, or source first.'
+			);
+			return;
+		}
+
+		const url = new URL(window.location.href);
+		url.search = `?${query}`;
+
+		try {
+			await navigator.clipboard.writeText(url.toString());
+			copied = true;
+			clearTimeout(copyTimeout);
+			copyTimeout = setTimeout(() => (copied = false), 2000);
+		} catch {
+			toast.error("Couldn't copy the link.");
+		}
+	}
+
+	onDestroy(() => clearTimeout(copyTimeout));
 </script>
 
 <svelte:head>
@@ -174,9 +259,25 @@
 				>
 					{form?.submitted ? 'Submission received' : 'New submission'}
 				</h1>
-				<span class="ml-auto shrink-0">
+				<span class="ml-auto flex shrink-0 items-center gap-1">
+					<Button
+						variant="ghost"
+						size="icon-sm"
+						title="Copy deeplink"
+						aria-label="Copy deeplink"
+						disabled={!hasContent}
+						onclick={copyDeeplink}
+						class="focus-visible:outline-[color:var(--surface-accent)] focus-visible:ring-0 focus-visible:outline focus-visible:outline-[1.5px] focus-visible:outline-offset-2"
+					>
+						{#if copied}
+							<CheckIcon class="size-3.5" />
+						{:else}
+							<CopyIcon class="size-3.5" />
+						{/if}
+					</Button>
 					<IntakeTag />
 				</span>
+				<span class="sr-only" aria-live="polite">{copied ? 'Deeplink copied' : ''}</span>
 			</header>
 
 			{#if form?.submitted}
@@ -208,7 +309,7 @@
 					class="border-[color:var(--surface-divider)] flex items-center justify-end border-t px-4 py-3"
 				>
 					<Button
-						href="/submit"
+						href="/intake"
 						class="focus-visible:outline-[color:var(--surface-accent)] focus-visible:ring-0 focus-visible:outline focus-visible:outline-[1.5px] focus-visible:outline-offset-2"
 					>
 						Submit another
@@ -231,14 +332,14 @@
 						};
 					}}
 				>
-					{#if hasPrefill}
+					{#if showPrefillStrip}
 						<div
 							class="border-[color:var(--surface-divider)] text-muted-foreground flex h-8 items-center gap-1.5 border-b px-4 text-xs dark:text-[#9ca3af]"
 						>
 							<LinkIcon class="size-3 shrink-0" aria-hidden="true" />
 							<span>Prefilled from link</span>
 							<a
-								href="/submit"
+								href="/intake"
 								class="hover:text-foreground focus-visible:outline-[color:var(--surface-accent)] ml-auto rounded px-1.5 py-1 underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-[1.5px] focus-visible:outline-offset-2 dark:hover:text-[#f3f4f6]"
 							>
 								Clear
@@ -274,6 +375,7 @@
 								aria-invalid={form?.error ? true : undefined}
 								aria-errormessage={form?.error ? 'submit-error' : undefined}
 								onkeydown={onTitleKeydown}
+								oninput={markDirty}
 								class="[@media(hover:hover)]:hover:bg-[color:var(--surface-card-hover)] focus-visible:outline-[color:var(--surface-accent)] h-auto rounded-md border-transparent bg-transparent px-2 py-1.5 text-lg font-medium tracking-tight shadow-none transition-colors duration-150 ease-out placeholder:text-muted-foreground focus-visible:border-transparent focus-visible:ring-0 focus-visible:outline focus-visible:outline-[1.5px] focus-visible:outline-offset-2 md:text-lg dark:bg-transparent dark:text-[#f3f4f6] dark:placeholder:text-[#6b6e76] {showCounter
 									? 'pr-16'
 									: ''}"
@@ -297,6 +399,7 @@
 								name="body"
 								maxlength={INTAKE_BODY_MAX}
 								placeholder="Add a description…"
+								oninput={markDirty}
 								class="focus-visible:outline-[color:var(--surface-accent)] min-h-44 resize-none rounded-md border-transparent bg-transparent px-2 py-2 text-base leading-relaxed shadow-none transition-colors duration-150 ease-out placeholder:text-muted-foreground focus-visible:border-transparent focus-visible:ring-0 focus-visible:outline focus-visible:outline-[1.5px] focus-visible:outline-offset-2 md:text-sm dark:bg-transparent dark:text-[#d4d6db] dark:placeholder:text-[#6b6e76]"
 							></Textarea>
 						</div>
@@ -305,24 +408,31 @@
 					<footer
 						class="border-[color:var(--surface-divider)] flex flex-wrap items-center justify-between gap-2 border-t px-3 py-2 sm:px-4"
 					>
-						<div class="flex min-w-0 items-center gap-1.5">
-							<LinkIcon
-								class="text-muted-foreground size-3.5 shrink-0 dark:text-[#9ca3af]"
-								aria-hidden="true"
-							/>
-							<NativeSelect.Root
-								name="source"
-								bind:value={source}
-								size="sm"
-								class="focus-visible:outline-[color:var(--surface-accent)] w-32 [&>select]:text-base [&>select]:focus-visible:ring-0 [&>select]:focus-visible:outline [&>select]:focus-visible:outline-[1.5px] [&>select]:focus-visible:outline-offset-2 sm:[&>select]:text-xs dark:[&>select]:text-[#9ca3af]"
-								aria-label="Source"
-								title="Where this submission came from"
+						<!--
+							The SingleSelect is JavaScript-only; the hidden input keeps the
+							source in the payload for the no-JS path (where it stays empty).
+						-->
+						<div
+							class="flex min-w-0 items-center [&_[data-slot=select-trigger]]:focus-visible:ring-0 [&_[data-slot=select-trigger]]:focus-visible:outline [&_[data-slot=select-trigger]]:focus-visible:outline-[1.5px] [&_[data-slot=select-trigger]]:focus-visible:outline-offset-2 [&_[data-slot=select-trigger]]:focus-visible:outline-[color:var(--surface-accent)]"
+						>
+							<input type="hidden" name="source" value={source} />
+							<SingleSelect
+								variant="pill"
+								label="Add source…"
+								options={sourceOptions}
+								value={source || null}
+								onselect={(value) => {
+									source = value ?? '';
+									markDirty();
+								}}
+								allowClear
+								clearLabel="No source"
+								disabled={submitting}
 							>
-								<option value="">Add source…</option>
-								{#each sourceOptions as option (option.value)}
-									<option value={option.value}>{option.label}</option>
-								{/each}
-							</NativeSelect.Root>
+								{#snippet icon()}
+									<LinkIcon class="size-3.5" />
+								{/snippet}
+							</SingleSelect>
 						</div>
 
 						<div class="ml-auto flex items-center gap-3">
@@ -355,5 +465,14 @@
 				</form>
 			{/if}
 		</div>
+
+		<p class="text-muted-foreground mt-4 text-center text-[11px] dark:text-[#9ca3af]">
+			Funnel v{__APP_VERSION__}. <a
+				href="/login"
+				class="hover:text-foreground focus-visible:outline-[color:var(--surface-accent)] rounded underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-[1.5px] focus-visible:outline-offset-2 dark:hover:text-[#f3f4f6]"
+			>
+				Login
+			</a>
+		</p>
 	</div>
 </main>

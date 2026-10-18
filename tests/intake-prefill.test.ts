@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import {
+  clampSubmitPrefill,
   hasSubmitPrefill,
   INTAKE_BODY_MAX,
   INTAKE_SOURCE_MAX,
@@ -7,6 +8,22 @@ import {
   normalizeIntakeSource,
   readSubmitPrefill,
 } from "#lib/intake-prefill";
+
+describe("clampSubmitPrefill", () => {
+  test("applies the shared limits and source normalisation", () => {
+    expect(clampSubmitPrefill({ title: "  T  ", body: "B", source: "EMAIL" })).toEqual({
+      title: "T",
+      body: "B",
+      source: "email",
+    });
+  });
+
+  test("tolerates a partial payload", () => {
+    const prefill = clampSubmitPrefill({ body: "only a body" });
+
+    expect(prefill).toEqual({ title: "", body: "only a body", source: "" });
+  });
+});
 
 describe("readSubmitPrefill", () => {
   test("returns empty values when no params are present", () => {
@@ -21,13 +38,13 @@ describe("readSubmitPrefill", () => {
     const params = new URLSearchParams({
       title: "  Crash on save  ",
       body: "  line one\nline two  ",
-      source: "  CLI  ",
+      source: "  Meeting  ",
     });
 
     expect(readSubmitPrefill(params)).toEqual({
       title: "Crash on save",
       body: "  line one\nline two  ",
-      source: "cli",
+      source: "meeting",
     });
   });
 
@@ -48,7 +65,7 @@ describe("readSubmitPrefill", () => {
 describe("normalizeIntakeSource", () => {
   test("matches known sources case-insensitively", () => {
     expect(normalizeIntakeSource("Email")).toBe("email");
-    expect(normalizeIntakeSource("  cLi  ")).toBe("cli");
+    expect(normalizeIntakeSource("  sElF-sErViCe  ")).toBe("self-service");
   });
 
   test("preserves unknown provenance labels", () => {

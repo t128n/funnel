@@ -6,7 +6,7 @@
  * cockpit views require a session. Unauthenticated visitors are redirected to
  * `/login` with a `redirectTo` back to the page they tried to open.
  *
- * The public surface stays open: `/login`, `/submit`, `POST /api/intake`, and
+ * The public surface stays open: `/login`, `/intake`, `POST /api/intake`, and
  * the `/api/events` stream are deliberately ungated.
  */
 import { redirect } from "@sveltejs/kit";

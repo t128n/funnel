@@ -7,7 +7,7 @@
  * sync worker publishes on.
  *
  * Access is intentionally ungated: Funnel is expected to sit behind enterprise
- * network segmentation / SSO, matching how `/submit` and `/api/intake` are
+ * network segmentation / SSO, matching how `/intake` and `/api/intake` are
  * optionally exposed (SPEC §8). This is a deliberate deviation from the
  * "reads open to the authenticated team" wording for the realtime channel.
  */

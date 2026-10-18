@@ -1,5 +1,6 @@
 import { fail } from "@sveltejs/kit";
-import { INTAKE_BODY_MAX, readSubmitPrefill } from "#lib/intake-prefill";
+import { INTAKE_BODY_MAX } from "#lib/intake-prefill";
+import { readSubmissionPrefill } from "#lib/server/intake/prefill";
 import { createSubmission } from "#lib/server/intake/staging";
 import { publish } from "#lib/server/sync/events";
 import type { Actions, PageServerLoad } from "./$types";
@@ -10,10 +11,14 @@ import type { Actions, PageServerLoad } from "./$types";
  * `intake` event. No repo selectors or internal metadata are exposed.
  *
  * `GET ?title=…&body=…&source=…` renders a prefilled draft so external tools can
- * link straight into the form. Parsing is clamped in `#lib/intake-prefill`.
+ * link straight into the form. The composer also self-hosts a compact
+ * `?d=base64url(deflate-raw(json))` deeplink; both are clamped in
+ * `#lib/intake-prefill`. The `s=1` marker means the URL was written by the page
+ * itself, so it is not presented as a shared link.
  */
 export const load: PageServerLoad = ({ url }) => ({
-  prefill: readSubmitPrefill(url.searchParams),
+  prefill: readSubmissionPrefill(url.searchParams),
+  selfSynced: url.searchParams.has("s"),
 });
 
 export const actions: Actions = {
