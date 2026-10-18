@@ -1,5 +1,6 @@
 <script lang="ts">
 	import * as Select from '#lib/components/ui/select';
+	import { selectTriggerClass } from '#lib/components/common/select-trigger';
 	import { cn } from '#lib/utils';
 	import type { Snippet } from 'svelte';
 
@@ -61,14 +62,12 @@
 >
 	<Select.Trigger
 		size="sm"
-		class={cn(
-			'focus-visible:border-ring focus-visible:ring-ring/50 shrink-0 gap-1.5 focus-visible:ring-1',
-			variant === 'ghost'
-				? 'text-muted-foreground hover:bg-accent hover:text-foreground w-auto border-transparent bg-transparent'
-				: variant === 'pill'
-					? 'text-muted-foreground hover:bg-accent hover:text-foreground w-auto border-border bg-muted/50'
-					: 'bg-background text-muted-foreground hover:bg-muted w-full',
-			variant !== 'ghost' && value !== null && 'text-foreground'
+		class={selectTriggerClass(
+			variant,
+			cn(
+				variant === 'default' ? 'w-full' : 'w-auto',
+				variant !== 'ghost' && value !== null && 'text-foreground'
+			)
 		)}
 	>
 		{#if icon}

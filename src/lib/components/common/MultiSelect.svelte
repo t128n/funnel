@@ -2,6 +2,10 @@
 	import { Badge } from '#lib/components/ui/badge';
 	import * as Command from '#lib/components/ui/command';
 	import * as Popover from '#lib/components/ui/popover';
+	import {
+		selectTriggerChevron,
+		selectTriggerClass
+	} from '#lib/components/common/select-trigger';
 	import { cn } from '#lib/utils';
 	import ChevronDownIcon from '@lucide/svelte/icons/chevron-down';
 	import type { Snippet } from 'svelte';
@@ -103,15 +107,13 @@
 <Popover.Root bind:open>
 	<Popover.Trigger
 		{disabled}
-		class={cn(
-			'focus-visible:border-ring focus-visible:ring-ring/50 flex h-7 shrink-0 items-center gap-1.5 border px-2 text-xs outline-none transition-colors focus-visible:ring-1 disabled:pointer-events-none disabled:opacity-50',
-			variant === 'ghost'
-				? 'text-muted-foreground hover:bg-accent hover:text-foreground w-auto border-transparent bg-transparent'
-				: variant === 'pill'
-					? 'text-muted-foreground hover:bg-accent hover:text-foreground w-auto border-border bg-muted/50'
-					: 'bg-background text-muted-foreground hover:bg-muted w-auto',
-			variant === 'default' && selected.length > 0 && 'border-primary text-foreground',
-			variant === 'pill' && selected.length > 0 && 'text-foreground'
+		class={selectTriggerClass(
+			variant,
+			cn(
+				'w-auto',
+				variant === 'default' && selected.length > 0 && 'border-primary text-foreground',
+				variant === 'pill' && selected.length > 0 && 'text-foreground'
+			)
 		)}
 	>
 		{#if icon}
@@ -127,7 +129,7 @@
 				{selected.length}
 			</Badge>
 		{/if}
-		<ChevronDownIcon class="size-3.5 shrink-0 opacity-60" />
+		<ChevronDownIcon class={selectTriggerChevron} />
 	</Popover.Trigger>
 
 	<Popover.Content
