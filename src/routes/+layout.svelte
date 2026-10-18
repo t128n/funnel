@@ -2,9 +2,6 @@
 	import { onMount } from 'svelte';
 	import favicon from '#lib/assets/favicon.svg';
 	import { initTheme } from '#lib/client/theme';
-	import '@fontsource-variable/inter';
-	import '@fontsource-variable/jetbrains-mono';
-	import '#lib/styles/tokens.css';
 	import '#lib/styles/global.css';
 	import '#lib/styles/markdown.css';
 	import type { LayoutProps } from './$types';

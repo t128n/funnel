@@ -2,10 +2,15 @@
 	import { untrack } from 'svelte';
 	import { enhance } from '$app/forms';
 	import Spinner from '#lib/components/common/Spinner.svelte';
+	import { Badge } from '#lib/components/ui/badge';
+	import { Button } from '#lib/components/ui/button';
+	import { Input } from '#lib/components/ui/input';
+	import * as NativeSelect from '#lib/components/ui/native-select';
 	import { PRIORITY_OPTIONS, SIZE_OPTIONS } from '#lib/labels';
 	import { clearSelection } from '#lib/client/selection.svelte';
 	import { absoluteTime, relativeTime } from '#lib/time';
 	import type { RenderedSubmission } from '#lib/server/issues/types';
+	import XIcon from '@lucide/svelte/icons/x';
 
 	/**
 	 * Document-style detail pane for a staged intake submission (SPEC §6.2).
@@ -43,46 +48,49 @@
 	}
 </script>
 
-<aside class="submission-detail" aria-label="Intake submission">
-	<header class="sd__head">
-		<div class="sd__crumb">
-			<span class="badge">intake</span>
+<aside class="bg-background flex h-full min-w-0 flex-1 flex-col" aria-label="Intake submission">
+	<header class="flex h-10 shrink-0 items-center justify-between gap-2 border-b px-3">
+		<div class="flex min-w-0 items-center gap-2 overflow-hidden">
+			<Badge
+				variant="secondary"
+				class="px-1 text-[0.625rem] font-semibold tracking-wider uppercase"
+			>
+				intake
+			</Badge>
 			{#if submission.source}
-				<span class="badge badge--muted mono">{submission.source}</span>
+				<Badge variant="outline" class="mono truncate">{submission.source}</Badge>
 			{/if}
 		</div>
-		<div class="sd__actions">
-			<button
-				class="icon-btn"
-				type="button"
-				title="Close"
-				aria-label="Close detail"
-				onclick={clearSelection}
-			>
-				<svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true">
-					<path d="M4 4l8 8M12 4l-8 8" fill="none" stroke="currentColor" stroke-width="1.4" />
-				</svg>
-			</button>
-		</div>
+		<Button
+			variant="ghost"
+			size="icon-sm"
+			title="Close"
+			aria-label="Close detail"
+			onclick={clearSelection}
+		>
+			<XIcon />
+		</Button>
 	</header>
 
-	<div class="sd__body">
-		<h1 class="sd__title">{submission.title}</h1>
-		<div class="sd__meta">
+	<div class="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto p-4">
+		<h1 class="text-xl font-semibold tracking-tight">{submission.title}</h1>
+		<div class="text-muted-foreground text-xs">
 			Staged
-			<span title={absoluteTime(submission.createdAt)}>· {relativeTime(submission.createdAt)}</span>
+			<span title={absoluteTime(submission.createdAt)}>
+				· {relativeTime(submission.createdAt)}
+			</span>
 		</div>
 
 		{#if submission.body.trim().length > 0}
-			<div class="sd__content markdown">{@html submission.bodyHtml}</div>
+			<div class="markdown text-foreground mt-2 text-sm">{@html submission.bodyHtml}</div>
 		{:else}
-			<div class="sd__content muted">No description provided.</div>
+			<div class="text-muted-foreground text-sm">No description provided.</div>
 		{/if}
 	</div>
 
-	<footer class="sd__triage">
+	<footer class="bg-card flex shrink-0 flex-col gap-2 border-t p-3">
 		<form
-			class="triage-row"
+			class="flex flex-wrap items-center gap-1"
 			method="POST"
 			action="?/accept"
 			use:enhance={() => {
@@ -94,80 +102,93 @@
 		>
 			<input type="hidden" name="id" value={submission.id} />
 
-			<select name="repo" bind:value={acceptRepo} aria-label="Target repository">
+			<NativeSelect.Root name="repo" bind:value={acceptRepo} size="sm" aria-label="Target repository">
 				{#each repos as repo (repo)}
 					<option value={repo}>{repo}</option>
 				{/each}
-			</select>
+			</NativeSelect.Root>
 
-			<select name="priority" bind:value={priority} aria-label="Priority">
+			<NativeSelect.Root name="priority" bind:value={priority} size="sm" aria-label="Priority">
 				<option value="">No priority</option>
 				{#each PRIORITY_OPTIONS as option (option.value)}
 					<option value={option.value}>{option.label}</option>
 				{/each}
-			</select>
+			</NativeSelect.Root>
 
-			<select name="size" bind:value={size} aria-label="Size">
+			<NativeSelect.Root name="size" bind:value={size} size="sm" aria-label="Size">
 				<option value="">No size</option>
 				{#each SIZE_OPTIONS as option (option.value)}
 					<option value={option.value}>{option.label}</option>
 				{/each}
-			</select>
+			</NativeSelect.Root>
 
-			<button class="btn btn--primary" type="submit" disabled={pending !== null}>
-				{#if pending === 'accept'}<Spinner size={12} />{/if}
+			<Button type="submit" size="sm" disabled={pending !== null}>
+				{#if pending === 'accept'}
+					<span data-icon="inline-start" class="inline-flex items-center">
+						<Spinner size={12} />
+					</span>
+				{/if}
 				Accept
-			</button>
+			</Button>
 		</form>
 
-		<div class="triage-row triage-row--secondary">
+		<div class="flex flex-wrap items-center gap-2">
 			<form
 				method="POST"
 				action="?/dismiss"
 				use:enhance={() => {
 					pending = 'dismiss';
 					return async ({ result, update }) => {
-					await settle(result, update);
-				};
+						await settle(result, update);
+					};
 				}}
 			>
 				<input type="hidden" name="id" value={submission.id} />
-				<button class="btn" type="submit" disabled={pending !== null}>
-					{#if pending === 'dismiss'}<Spinner size={12} />{/if}
+				<Button variant="outline" size="sm" type="submit" disabled={pending !== null}>
+					{#if pending === 'dismiss'}
+						<span data-icon="inline-start" class="inline-flex items-center">
+							<Spinner size={12} />
+						</span>
+					{/if}
 					Dismiss
-				</button>
+				</Button>
 			</form>
 
-			<button
-				class="btn"
-				type="button"
+			<Button
+				variant="outline"
+				size="sm"
 				onclick={() => (duplicating = !duplicating)}
 				aria-expanded={duplicating}
 			>
 				Duplicate
-			</button>
+			</Button>
 		</div>
 
 		{#if duplicating}
 			<form
-				class="triage-row triage-row--duplicate"
+				class="flex flex-wrap items-center gap-1 border-t border-dashed pt-2"
 				method="POST"
 				action="?/duplicate"
 				use:enhance={() => {
 					pending = 'duplicate';
 					return async ({ result, update }) => {
-					await settle(result, update);
-				};
+						await settle(result, update);
+					};
 				}}
 			>
 				<input type="hidden" name="id" value={submission.id} />
-				<select name="repo" bind:value={duplicateRepo} aria-label="Existing issue repository">
+				<NativeSelect.Root
+					name="repo"
+					bind:value={duplicateRepo}
+					size="sm"
+					aria-label="Existing issue repository"
+				>
 					{#each repos as repo (repo)}
 						<option value={repo}>{repo}</option>
 					{/each}
-				</select>
-				<input
-					class="number-input"
+				</NativeSelect.Root>
+				<Input
+					class="w-24"
 					name="number"
 					type="number"
 					min="1"
@@ -175,185 +196,15 @@
 					bind:value={duplicateNumber}
 					aria-label="Existing issue number"
 				/>
-				<button class="btn btn--primary" type="submit" disabled={pending !== null}>
-					{#if pending === 'duplicate'}<Spinner size={12} />{/if}
+				<Button type="submit" size="sm" disabled={pending !== null}>
+					{#if pending === 'duplicate'}
+						<span data-icon="inline-start" class="inline-flex items-center">
+							<Spinner size={12} />
+						</span>
+					{/if}
 					Duplicate
-				</button>
+				</Button>
 			</form>
 		{/if}
 	</footer>
 </aside>
-
-<style>
-	.submission-detail {
-		display: flex;
-		flex-direction: column;
-		flex: 1;
-		min-width: 0;
-		height: 100%;
-		background: var(--color-surface-layer-1);
-		overflow: hidden;
-	}
-
-	.sd__head {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		gap: var(--space-sm);
-		height: var(--island-header-height);
-		padding: 0 var(--space-lg);
-		background: var(--color-island-header);
-		flex: none;
-	}
-
-	.sd__crumb {
-		display: flex;
-		align-items: center;
-		gap: var(--space-sm);
-		overflow: hidden;
-	}
-
-	.badge {
-		display: inline-flex;
-		align-items: center;
-		height: 18px;
-		padding: 0 var(--space-xs);
-		border-radius: var(--radius-xs);
-		background: color-mix(in srgb, var(--color-accent-cyan) 18%, transparent);
-		color: var(--color-accent-cyan);
-		font-size: var(--text-xs);
-		font-weight: var(--weight-medium);
-		text-transform: uppercase;
-		letter-spacing: 0.05em;
-	}
-
-	.badge--muted {
-		background: var(--color-surface-layer-2);
-		color: var(--color-text-muted);
-		text-transform: none;
-	}
-
-	.sd__actions {
-		display: flex;
-		align-items: center;
-		gap: var(--space-xs);
-	}
-
-	.icon-btn {
-		display: inline-flex;
-		align-items: center;
-		justify-content: center;
-		width: 26px;
-		height: 26px;
-		border-radius: var(--radius-sm);
-		border: 1px solid transparent;
-		background: transparent;
-		color: var(--color-text-muted);
-		cursor: pointer;
-	}
-
-	.icon-btn:hover {
-		background: var(--color-surface-layer-2);
-		color: var(--color-text-primary);
-	}
-
-	.sd__body {
-		flex: 1;
-		min-height: 0;
-		overflow-y: auto;
-		display: flex;
-		flex-direction: column;
-		gap: var(--space-sm);
-		padding: var(--space-xl) var(--space-lg);
-	}
-
-	.sd__title {
-		margin: 0;
-		font-size: var(--text-xl);
-		font-weight: var(--weight-semibold);
-		letter-spacing: -0.015em;
-		line-height: 1.2;
-		color: var(--color-text-primary);
-	}
-
-	.sd__meta {
-		font-size: var(--text-sm);
-		color: var(--color-text-muted);
-	}
-
-	.sd__content {
-		margin-top: var(--space-sm);
-		font-size: var(--text-base);
-		line-height: 1.6;
-		color: var(--color-text-secondary);
-	}
-
-	.muted {
-		color: var(--color-text-muted);
-	}
-
-	.sd__triage {
-		display: flex;
-		flex-direction: column;
-		gap: var(--space-sm);
-		padding: var(--space-md) var(--space-lg);
-		background: var(--color-island-header);
-		flex: none;
-	}
-
-	.triage-row {
-		display: flex;
-		align-items: center;
-		gap: var(--space-xs);
-		flex-wrap: wrap;
-	}
-
-	.triage-row--secondary {
-		gap: var(--space-sm);
-	}
-
-	.triage-row--duplicate {
-		padding-top: var(--space-xs);
-		border-top: 1px dashed var(--color-border-subtle);
-	}
-
-	.triage-row select,
-	.number-input {
-		height: 28px;
-		padding: 0 var(--space-sm);
-		background: var(--color-surface-layer-2);
-		border: 1px solid var(--color-border-subtle);
-		border-radius: var(--radius-sm);
-		font-size: var(--text-sm);
-	}
-
-	.number-input {
-		width: 96px;
-	}
-
-	.btn {
-		display: inline-flex;
-		align-items: center;
-		gap: var(--space-xs);
-		height: 28px;
-		padding: 0 var(--space-md);
-		background: var(--color-surface-layer-2);
-		border: 1px solid var(--color-border-strong);
-		border-radius: var(--radius-sm);
-		color: var(--color-text-primary);
-		font-size: var(--text-sm);
-		cursor: pointer;
-	}
-
-	.btn--primary {
-		background: var(--color-primary);
-		border-color: var(--color-primary);
-		color: var(--color-on-primary);
-		font-weight: var(--weight-medium);
-	}
-
-	.btn:disabled {
-		opacity: 0.5;
-		cursor: not-allowed;
-	}
-</style>

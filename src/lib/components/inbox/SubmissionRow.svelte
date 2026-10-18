@@ -2,6 +2,7 @@
 	import { selectSubmission } from '#lib/client/selection.svelte';
 	import { relativeTime } from '#lib/time';
 	import type { StagedSubmission } from '#lib/server/intake/staging';
+	import { cn } from '#lib/utils';
 
 	interface Props {
 		submission: StagedSubmission;
@@ -16,8 +17,10 @@
 </script>
 
 <div
-	class="row"
-	class:row--selected={selected}
+	class={cn(
+		'focus-visible:ring-ring/50 hover:bg-accent flex cursor-pointer flex-col gap-0.5 p-2 outline-none transition-colors select-none focus-visible:ring-1',
+		selected && 'bg-accent'
+	)}
 	role="button"
 	tabindex="0"
 	aria-current={selected ? 'true' : undefined}
@@ -29,81 +32,20 @@
 		}
 	}}
 >
-	<div class="row__top">
-		<span class="badge">intake</span>
-		<span class="title" title={submission.title}>{submission.title}</span>
-		<span class="time" title={new Date(submission.createdAt).toLocaleString()}>
+	<div class="flex min-w-0 items-center gap-2">
+		<span
+			class="bg-primary/10 text-primary shrink-0 px-1 py-0.5 text-[0.625rem] font-semibold tracking-wider uppercase"
+		>
+			intake
+		</span>
+		<span class="text-foreground flex-1 truncate text-sm" title={submission.title}>
+			{submission.title}
+		</span>
+		<span class="text-muted-foreground shrink-0 text-xs" title={new Date(submission.createdAt).toLocaleString()}>
 			{relativeTime(submission.createdAt)}
 		</span>
 	</div>
-	<div class="row__sub mono">{submission.source ?? 'via intake'}</div>
+	<div class="mono text-muted-foreground truncate pl-0.5 text-xs">
+		{submission.source ?? 'via intake'}
+	</div>
 </div>
-
-<style>
-	.row {
-		display: flex;
-		flex-direction: column;
-		gap: 2px;
-		padding: var(--space-sm);
-		border-radius: var(--radius-sm);
-		cursor: pointer;
-		user-select: none;
-		outline: none;
-		transition: background var(--transition-fast);
-	}
-
-	.row:hover,
-	.row:focus-visible {
-		background: var(--color-row-hover);
-	}
-
-	.row--selected {
-		background: color-mix(in srgb, var(--color-accent-cyan) 12%, var(--color-row-active));
-	}
-
-	.row__top {
-		display: flex;
-		align-items: center;
-		gap: var(--space-sm);
-		min-width: 0;
-	}
-
-	.badge {
-		display: inline-flex;
-		align-items: center;
-		height: 16px;
-		padding: 0 var(--space-xs);
-		border-radius: var(--radius-xs);
-		background: color-mix(in srgb, var(--color-accent-cyan) 18%, transparent);
-		color: var(--color-accent-cyan);
-		font-size: 10px;
-		font-weight: var(--weight-semibold);
-		text-transform: uppercase;
-		letter-spacing: 0.05em;
-		flex: none;
-	}
-
-	.title {
-		flex: 1;
-		min-width: 0;
-		overflow: hidden;
-		text-overflow: ellipsis;
-		white-space: nowrap;
-		font-size: var(--text-base);
-		color: var(--color-text-primary);
-	}
-
-	.time {
-		flex: none;
-		font-size: var(--text-xs);
-		color: var(--color-text-muted);
-	}
-
-	.row__sub {
-		padding-left: 2px;
-		color: var(--color-text-muted);
-		overflow: hidden;
-		text-overflow: ellipsis;
-		white-space: nowrap;
-	}
-</style>

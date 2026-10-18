@@ -1,9 +1,10 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
-	import { refreshAll } from '$app/navigation';
+	import { onMount, tick } from 'svelte';
+	import { goto, refreshAll } from '$app/navigation';
 	import { page } from '$app/state';
+	import AppSidebar from '#lib/components/app-sidebar.svelte';
 	import InspectorPane from '#lib/components/issue/InspectorPane.svelte';
-	import Sidebar from '#lib/components/shell/Sidebar.svelte';
+	import * as Sidebar from '#lib/components/ui/sidebar/index.js';
 	import { connectEvents } from '#lib/client/events';
 	import { bumpRefresh } from '#lib/client/refresh';
 	import { clearSelection, parseSelection, selectedIssue } from '#lib/client/selection.svelte';
@@ -28,108 +29,75 @@
 			bumpRefresh();
 		})
 	);
+
+	/** Focus the view's filter-bar search, navigating to Issues if needed. */
+	async function focusSearch() {
+		let input = document.getElementById('issue-search');
+		if (!input) {
+			await goto('/issues');
+			await tick();
+			input = document.getElementById('issue-search');
+		}
+		input?.focus();
+	}
+
+	function openNew() {
+		void goto('/submit');
+	}
+
+	/** Global shortcuts: ⌘/Ctrl+K search, bare `C` quick-create. */
+	function onKeydown(event: KeyboardEvent) {
+		if (event.key === 'k' && (event.metaKey || event.ctrlKey)) {
+			event.preventDefault();
+			void focusSearch();
+			return;
+		}
+
+		const target = event.target;
+		const typing =
+			target instanceof HTMLElement &&
+			(target.tagName === 'INPUT' ||
+				target.tagName === 'TEXTAREA' ||
+				target.tagName === 'SELECT' ||
+				target.isContentEditable);
+
+		if (
+			!typing &&
+			!event.metaKey &&
+			!event.ctrlKey &&
+			!event.altKey &&
+			(event.key === 'c' || event.key === 'C')
+		) {
+			event.preventDefault();
+			openNew();
+		}
+	}
 </script>
 
-<div class="shell" class:shell--inspecting={!ownsDetailCanvas && issue !== null}>
-	<Sidebar user={data.user} />
+<svelte:window onkeydown={onKeydown} />
 
-	<main class="main">
-		{@render children()}
-	</main>
+<Sidebar.Provider class="h-svh overflow-hidden" style="--sidebar-width: 220px">
+	<AppSidebar user={data.user} />
 
-	{#if !ownsDetailCanvas && issue}
-		<InspectorPane
-			repo={issue.repo}
-			number={issue.number}
-			githubUrl={data.githubUrl}
-			onclose={clearSelection}
-		/>
-	{/if}
-</div>
+	<div class="relative flex min-h-0 min-w-0 flex-1 overflow-hidden">
+		<Sidebar.Inset class="min-h-0 overflow-hidden">
+			<!-- Below `md` the sidebar renders as a Sheet with no other affordance,
+			     so the cockpit needs its own trigger. -->
+			<div class="flex shrink-0 items-center gap-2 border-b p-2 md:hidden">
+				<Sidebar.Trigger />
+				<span class="text-muted-foreground text-sm font-medium">funnel</span>
+			</div>
 
-<style>
-	.shell {
-		position: relative;
-		display: flex;
-		gap: var(--island-gap);
-		height: 100vh;
-		height: 100dvh;
-		overflow: hidden;
-		padding: var(--island-gap);
-		background: var(--color-surface-base);
-	}
+			{@render children()}
+		</Sidebar.Inset>
 
-	.main {
-		flex: 1;
-		min-width: 0;
-		display: flex;
-		flex-direction: column;
-		overflow: hidden;
-	}
-
-	/* Below the widescreen breakpoint the inspector floats over the stream
-	   rather than shrinking it (docs/DESIGN.md §Layout). */
-	@media (max-width: 1100px) {
-		.shell--inspecting :global(.inspector) {
-			position: absolute;
-			top: var(--island-gap);
-			right: var(--island-gap);
-			bottom: var(--island-gap);
-			z-index: 40;
-			max-width: 100%;
-			box-shadow: var(--shadow-overlay);
-		}
-	}
-
-	@media (max-width: 900px) {
-		.shell :global(.sidebar) {
-			width: 56px;
-		}
-
-		.shell :global(.sidebar .instance__name),
-		.shell :global(.sidebar .nav__label),
-		.shell :global(.sidebar .profile__meta),
-		.shell :global(.sidebar .theme-trigger__label),
-		.shell :global(.sidebar .theme-trigger__value),
-		.shell :global(.sidebar .theme-trigger__caret) {
-			display: none;
-		}
-
-		/* Collapsed rail: stack the header controls and center every glyph. */
-		.shell :global(.sidebar .side-head) {
-			flex-direction: column;
-			height: auto;
-			gap: var(--space-sm);
-			padding: var(--space-sm) var(--space-xs);
-		}
-
-		.shell :global(.sidebar .side-head .instance) {
-			flex: none;
-			justify-content: center;
-			padding: var(--space-xs);
-			margin-left: 0;
-		}
-
-		.shell :global(.sidebar .side-head__actions) {
-			flex-direction: column;
-			gap: var(--space-xs);
-		}
-
-		.shell :global(.sidebar .nav__item) {
-			justify-content: center;
-			padding: 0;
-		}
-
-		/* Collapsed rail: the theme trigger narrows to its glyph. */
-		.shell :global(.sidebar .theme-trigger) {
-			justify-content: center;
-			gap: 0;
-			padding: var(--space-xs);
-		}
-
-		.shell :global(.sidebar .profile) {
-			flex-direction: column;
-			gap: var(--space-xs);
-		}
-	}
-</style>
+		{#if !ownsDetailCanvas && issue}
+			<InspectorPane
+				repo={issue.repo}
+				number={issue.number}
+				githubUrl={data.githubUrl}
+				onclose={clearSelection}
+			/>
+		{/if}
+	</div>
+</Sidebar.Provider>

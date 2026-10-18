@@ -5,6 +5,7 @@
 	import SingleSelect from '#lib/components/common/SingleSelect.svelte';
 	import Spinner from '#lib/components/common/Spinner.svelte';
 	import IssueActionDialog from '#lib/components/issue/IssueActionDialog.svelte';
+	import * as Alert from '#lib/components/ui/alert';
 	import {
 		closeIssue,
 		reopenIssue,
@@ -15,6 +16,8 @@
 	import { selectIssue } from '#lib/client/selection.svelte';
 	import { canonicalLabel, STATUS_OPTIONS } from '#lib/labels';
 	import type { IssueListItem } from '#lib/server/issues/types';
+	import { cn } from '#lib/utils';
+	import TriangleAlertIcon from '@lucide/svelte/icons/triangle-alert';
 
 	interface Props {
 		issue: IssueListItem;
@@ -109,8 +112,7 @@
 </script>
 
 <div
-	class="card"
-	class:card--closed={closed}
+	class="bg-card hover:bg-accent focus-visible:ring-ring/50 flex cursor-pointer flex-col gap-2 border p-2 outline-none transition-colors focus-visible:ring-1"
 	role="button"
 	tabindex="0"
 	onclick={open}
@@ -121,15 +123,19 @@
 		}
 	}}
 >
-	<div class="card__top">
-		<span class="mono repo">{issue.repo}</span>
-		<span class="mono number">#{issue.number}</span>
-		{#if busy}<Spinner size={12} />{/if}
+	<div class="flex items-center gap-1">
+		<span class="mono text-muted-foreground truncate text-xs" title={issue.repo}>{issue.repo}</span>
+		<span class="mono text-muted-foreground/70 text-xs">#{issue.number}</span>
+		{#if busy}
+			<span class="ml-auto inline-flex"><Spinner size={12} /></span>
+		{/if}
 	</div>
 
-	<div class="card__title" title={issue.title}>{issue.title}</div>
+	<div class={cn('line-clamp-2 text-sm', closed ? 'text-muted-foreground' : 'text-foreground')} title={issue.title}>
+		{issue.title}
+	</div>
 
-	<div class="card__chips">
+	<div class="flex flex-wrap items-center gap-1">
 		{#if issue.priority}
 			<Chip label={issue.priority.toUpperCase()} color={priorityColor} mono />
 		{/if}
@@ -137,9 +143,9 @@
 			<Chip label={issue.size} color={sizeColor} variant="outline" mono />
 		{/if}
 		{#if issue.labelConflict}
-			<span class="conflict" title="Conflicting reserved labels">⚠</span>
+			<TriangleAlertIcon class="text-amber-500 size-3.5" title="Conflicting reserved labels" />
 		{/if}
-		<div class="card__assignees">
+		<div class="ml-auto flex items-center gap-0.5">
 			{#each issue.assignees.slice(0, 3) as person (person.githubId)}
 				<Avatar login={person.login} avatarUrl={person.avatarUrl} size={16} />
 			{/each}
@@ -148,7 +154,7 @@
 
 	<!-- Stop click/keyboard from bubbling so the picker doesn't open the pane. -->
 	<div
-		class="card__picker"
+		class="flex"
 		role="presentation"
 		onclick={(e) => e.stopPropagation()}
 		onkeydown={(e) => e.stopPropagation()}
@@ -163,7 +169,9 @@
 	</div>
 
 	{#if error}
-		<div class="card__error">{error}</div>
+		<Alert.Root variant="destructive">
+			<Alert.Description>{error}</Alert.Description>
+		</Alert.Root>
 	{/if}
 </div>
 
@@ -180,77 +188,3 @@
 	}}
 	onconfirm={(payload) => void confirmDialog(payload)}
 />
-
-<style>
-	.card {
-		display: flex;
-		flex-direction: column;
-		gap: var(--space-sm);
-		padding: var(--space-sm);
-		background: var(--color-surface-layer-2);
-		border: 1px solid var(--color-border-subtle);
-		border-radius: var(--radius-sm);
-		cursor: pointer;
-		outline: none;
-		transition: background var(--transition-fast);
-	}
-
-	.card:hover,
-	.card:focus-visible {
-		background: var(--color-surface-overlay);
-		border-color: var(--color-border-strong);
-	}
-
-	.card--closed .card__title {
-		color: var(--color-text-muted);
-	}
-
-	.card__top {
-		display: flex;
-		align-items: center;
-		gap: var(--space-xs);
-	}
-
-	.repo {
-		color: var(--color-text-secondary);
-		overflow: hidden;
-		text-overflow: ellipsis;
-		white-space: nowrap;
-	}
-
-	.number {
-		color: var(--color-text-muted);
-	}
-
-	.card__title {
-		font-size: var(--text-base);
-		color: var(--color-text-primary);
-		display: -webkit-box;
-		-webkit-line-clamp: 2;
-		line-clamp: 2;
-		-webkit-box-orient: vertical;
-		overflow: hidden;
-	}
-
-	.card__chips {
-		display: flex;
-		align-items: center;
-		gap: var(--space-xs);
-		flex-wrap: wrap;
-	}
-
-	.card__assignees {
-		display: flex;
-		gap: 2px;
-		margin-left: auto;
-	}
-
-	.conflict {
-		color: var(--color-accent-amber);
-	}
-
-	.card__error {
-		font-size: var(--text-xs);
-		color: var(--color-accent-red);
-	}
-</style>

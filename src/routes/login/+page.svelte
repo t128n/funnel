@@ -1,7 +1,8 @@
 <script lang="ts">
 	import { signInWithGitHub } from '#lib/client/auth';
-	import CarbonFunnelSequence from '~icons/carbon/funnel-sequence';
-	import CarbonLogoGithub from '~icons/carbon/logo-github';
+	import { Button } from '#lib/components/ui/button';
+	import * as Card from '#lib/components/ui/card';
+	import FunnelIcon from '@lucide/svelte/icons/funnel';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
@@ -14,107 +15,31 @@
 	}
 </script>
 
-<div class="page">
-	<div class="card">
-		<div class="brand">
-			<span class="brand__mark"><CarbonFunnelSequence width="20" height="20" aria-hidden="true" /></span>
-			<span class="brand__name">Funnel</span>
-		</div>
-		<p class="tagline">High-density GitHub triage.</p>
+<div class="bg-background flex min-h-svh items-center justify-center p-4">
+	<Card.Root class="w-80">
+		<Card.Header class="items-center text-center">
+			<Card.Title class="flex items-center justify-center gap-2 text-xl">
+				<span class="bg-primary text-primary-foreground inline-flex size-8 items-center justify-center">
+					<FunnelIcon class="size-5" />
+				</span>
+				Funnel
+			</Card.Title>
+			<Card.Description>High-density GitHub triage.</Card.Description>
+		</Card.Header>
 
-		<button class="github" type="button" onclick={signIn} disabled={pending}>
-			<CarbonLogoGithub width="16" height="16" aria-hidden="true" />
-			{pending ? 'Redirecting…' : 'Sign in with GitHub'}
-		</button>
+		<Card.Content>
+			<Button size="lg" class="w-full" onclick={signIn} disabled={pending}>
+				<svg viewBox="0 0 16 16" aria-hidden="true" fill="currentColor">
+					<path
+						d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-2.91-.88-2.91-2.89 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.4 7.4 0 0 1 2-.27c.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 2.01-1.14 2.69-2.91 2.89.35.3.66.89.66 1.8 0 1.3-.01 2.35-.01 2.67 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"
+					/>
+				</svg>
+				{pending ? 'Redirecting…' : 'Sign in with GitHub'}
+			</Button>
+		</Card.Content>
 
-		<p class="footnote">Access is limited to your GitHub organization.</p>
-	</div>
+		<Card.Footer class="justify-center">
+			<p class="text-muted-foreground text-xs">Access is limited to your GitHub organization.</p>
+		</Card.Footer>
+	</Card.Root>
 </div>
-
-<style>
-	.page {
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		min-height: 100vh;
-		min-height: 100dvh;
-		background: var(--color-surface-base);
-		padding: var(--space-lg);
-	}
-
-	.card {
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		gap: var(--space-md);
-		width: 320px;
-		padding: var(--space-xxl);
-		background: var(--color-surface-layer-1);
-		border: 1px solid var(--color-border-subtle);
-		border-radius: var(--radius-lg);
-		box-shadow: var(--shadow-overlay);
-		text-align: center;
-	}
-
-	.brand {
-		display: flex;
-		align-items: center;
-		gap: var(--space-sm);
-	}
-
-	.brand__mark {
-		display: inline-flex;
-		align-items: center;
-		justify-content: center;
-		width: 32px;
-		height: 32px;
-		border-radius: var(--radius-md);
-		background: var(--color-primary);
-		color: var(--color-on-primary);
-		font-size: var(--text-lg);
-		font-weight: var(--weight-semibold);
-	}
-
-	.brand__name {
-		font-size: var(--text-xl);
-		font-weight: var(--weight-semibold);
-		letter-spacing: -0.015em;
-	}
-
-	.tagline {
-		margin: 0;
-		color: var(--color-text-muted);
-		font-size: var(--text-sm);
-	}
-
-	.github {
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		gap: var(--space-sm);
-		width: 100%;
-		height: 38px;
-		background: var(--color-surface-layer-2);
-		border: 1px solid var(--color-border-strong);
-		border-radius: var(--radius-sm);
-		color: var(--color-text-primary);
-		font-size: var(--text-base);
-		font-weight: var(--weight-medium);
-		cursor: pointer;
-	}
-
-	.github:hover {
-		border-color: var(--color-primary);
-	}
-
-	.github:disabled {
-		opacity: 0.6;
-		cursor: progress;
-	}
-
-	.footnote {
-		margin: 0;
-		color: var(--color-text-muted);
-		font-size: var(--text-xs);
-	}
-</style>

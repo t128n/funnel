@@ -1,5 +1,6 @@
 <script lang="ts">
 	import IssueRow from './IssueRow.svelte';
+	import * as Empty from '#lib/components/ui/empty';
 	import { parseSelection, selectedIssue } from '#lib/client/selection.svelte';
 	import type { IssueListItem } from '#lib/server/issues/types';
 
@@ -22,33 +23,13 @@
 </script>
 
 {#if issues.length === 0}
-	<div class="empty">{empty}</div>
+	<Empty.Root class="flex-1 border-0">
+		<Empty.Description>{empty}</Empty.Description>
+	</Empty.Root>
 {:else}
-	<div class="list" role="list">
+	<div class="flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto p-2" role="list">
 		{#each issues as issue (`${issue.repoId}:${issue.number}`)}
 			<IssueRow {issue} selected={isSelected(issue)} />
 		{/each}
 	</div>
 {/if}
-
-<style>
-	.list {
-		flex: 1;
-		min-height: 0;
-		overflow-y: auto;
-		display: flex;
-		flex-direction: column;
-		gap: 2px;
-		padding: var(--space-sm);
-	}
-
-	.empty {
-		display: flex;
-		flex: 1;
-		align-items: center;
-		justify-content: center;
-		padding: var(--space-xl);
-		color: var(--color-text-muted);
-		font-size: var(--text-sm);
-	}
-</style>

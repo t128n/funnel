@@ -1,6 +1,10 @@
 <script lang="ts">
-	import { Dialog } from 'bits-ui';
 	import Spinner from '#lib/components/common/Spinner.svelte';
+	import * as Alert from '#lib/components/ui/alert';
+	import { Button } from '#lib/components/ui/button';
+	import * as Dialog from '#lib/components/ui/dialog';
+	import * as Field from '#lib/components/ui/field';
+	import { Textarea } from '#lib/components/ui/textarea';
 	import type { CloseReason } from '#lib/client/mutations';
 
 	/**
@@ -48,29 +52,29 @@
 		if (!busy) onopenchange(next);
 	}}
 >
-	<Dialog.Portal>
-		<Dialog.Overlay class="overlay" />
-		<Dialog.Content class="dialog" aria-describedby={undefined}>
-			<Dialog.Title class="dialog__title">
+	<Dialog.Content aria-describedby={undefined} class="sm:max-w-md">
+		<Dialog.Header>
+			<Dialog.Title class="text-base font-semibold">
 				{isClose ? 'Close issue' : 'Reopen issue'}
 			</Dialog.Title>
-			<p class="dialog__hint">
+			<Dialog.Description class="text-muted-foreground text-xs">
 				{#if isClose}
-					Closing records a resolution. The note is posted as a comment on GitHub
-					before the issue is closed.
+					Closing records a resolution. The note is posted as a comment on GitHub before the
+					issue is closed.
 				{:else}
-					Reopening restores the issue. The note is posted as a comment on GitHub
-					before it is reopened.
+					Reopening restores the issue. The note is posted as a comment on GitHub before it is
+					reopened.
 				{/if}
-			</p>
+			</Dialog.Description>
+		</Dialog.Header>
 
+		<div class="flex flex-col gap-4">
 			{#if isClose}
-				<div class="field">
-					<span class="field__label">Resolution</span>
-					<div class="segmented" role="radiogroup" aria-label="Resolution">
-						<label
-							class="segmented__option"
-							class:segmented__option--active={reason === 'completed'}
+				<Field.Set>
+					<Field.Legend variant="label">Resolution</Field.Legend>
+					<div class="flex gap-2" role="radiogroup" aria-label="Resolution">
+						<Field.Label
+							class="has-data-checked:border-ring flex-1 cursor-pointer flex-row items-center gap-2 border p-2 text-xs font-normal"
 						>
 							<input
 								type="radio"
@@ -79,11 +83,10 @@
 								checked={reason === 'completed'}
 								onchange={() => (reason = 'completed')}
 							/>
-							Completed
-						</label>
-						<label
-							class="segmented__option"
-							class:segmented__option--active={reason === 'not_planned'}
+							<span>Completed</span>
+						</Field.Label>
+						<Field.Label
+							class="has-data-checked:border-ring flex-1 cursor-pointer flex-row items-center gap-2 border p-2 text-xs font-normal"
 						>
 							<input
 								type="radio"
@@ -92,185 +95,45 @@
 								checked={reason === 'not_planned'}
 								onchange={() => (reason = 'not_planned')}
 							/>
-							Not planned
-						</label>
+							<span>Not planned</span>
+						</Field.Label>
 					</div>
-				</div>
+				</Field.Set>
 			{/if}
 
-			<label class="field">
-				<span class="field__label">
+			<Field.Field>
+				<Field.Label for="resolve-note">
 					{isClose ? 'Resolution note' : 'Reopen note'}
-					<span class="field__required">required</span>
-				</span>
-				<textarea
-					class="field__input"
-					rows="4"
+					<span class="text-destructive font-normal">required</span>
+				</Field.Label>
+				<Textarea
+					id="resolve-note"
+					rows={4}
 					placeholder={isClose ? 'What resolved this issue?' : 'Why is this being reopened?'}
 					value={note}
 					oninput={(e) => (note = e.currentTarget.value)}
-				></textarea>
-			</label>
+				></Textarea>
+			</Field.Field>
+		</div>
 
-			{#if error}
-				<div class="dialog__error">{error}</div>
-			{/if}
+		{#if error}
+			<Alert.Root variant="destructive">
+				<Alert.Description>{error}</Alert.Description>
+			</Alert.Root>
+		{/if}
 
-			<div class="dialog__actions">
-				<button class="btn" type="button" onclick={() => onopenchange(false)} disabled={busy}>
-					Cancel
-				</button>
-				<button class="btn btn--primary" type="button" onclick={confirm} disabled={!canConfirm}>
-					{#if busy}<Spinner size={13} />{/if}
-					{isClose ? 'Close issue' : 'Reopen issue'}
-				</button>
-			</div>
-		</Dialog.Content>
-	</Dialog.Portal>
+		<Dialog.Footer>
+			<Button variant="outline" onclick={() => onopenchange(false)} disabled={busy}>
+				Cancel
+			</Button>
+			<Button onclick={confirm} disabled={!canConfirm}>
+				{#if busy}
+					<span data-icon="inline-start" class="inline-flex items-center">
+						<Spinner size={13} />
+					</span>
+				{/if}
+				{isClose ? 'Close issue' : 'Reopen issue'}
+			</Button>
+		</Dialog.Footer>
+	</Dialog.Content>
 </Dialog.Root>
-
-<style>
-	:global(.overlay) {
-		position: fixed;
-		inset: 0;
-		z-index: 70;
-		background: color-mix(in srgb, #000 55%, transparent);
-	}
-
-	:global(.dialog) {
-		position: fixed;
-		top: 50%;
-		left: 50%;
-		z-index: 71;
-		transform: translate(-50%, -50%);
-		display: flex;
-		flex-direction: column;
-		gap: var(--space-md);
-		width: min(440px, calc(100vw - var(--space-xl)));
-		padding: var(--space-lg);
-		background: var(--color-surface-layer-1);
-		border: 1px solid var(--color-border-subtle);
-		border-radius: var(--radius-md);
-		box-shadow: var(--shadow-overlay);
-	}
-
-	:global(.dialog__title) {
-		margin: 0;
-		font-size: var(--text-lg);
-		font-weight: var(--weight-semibold);
-		color: var(--color-text-primary);
-	}
-
-	.dialog__hint {
-		margin: 0;
-		font-size: var(--text-sm);
-		line-height: 1.5;
-		color: var(--color-text-muted);
-	}
-
-	.field {
-		display: flex;
-		flex-direction: column;
-		gap: var(--space-xs);
-	}
-
-	.field__label {
-		display: flex;
-		align-items: center;
-		gap: var(--space-sm);
-		font-size: var(--text-xs);
-		font-weight: var(--weight-semibold);
-		text-transform: uppercase;
-		letter-spacing: 0.06em;
-		color: var(--color-text-muted);
-	}
-
-	.field__required {
-		font-weight: var(--weight-regular);
-		text-transform: none;
-		letter-spacing: 0;
-		color: var(--color-accent-amber);
-	}
-
-	.segmented {
-		display: flex;
-		gap: var(--space-xs);
-	}
-
-	.segmented__option {
-		display: inline-flex;
-		align-items: center;
-		gap: var(--space-xs);
-		flex: 1;
-		padding: var(--space-sm);
-		background: var(--color-surface-layer-2);
-		border: 1px solid var(--color-border-subtle);
-		border-radius: var(--radius-sm);
-		font-size: var(--text-sm);
-		color: var(--color-text-secondary);
-		cursor: pointer;
-	}
-
-	.segmented__option--active {
-		border-color: var(--color-primary);
-		color: var(--color-text-primary);
-	}
-
-	.segmented__option input {
-		margin: 0;
-	}
-
-	.field__input {
-		width: 100%;
-		padding: var(--space-sm);
-		background: var(--color-surface-layer-2);
-		border: 1px solid var(--color-border-subtle);
-		border-radius: var(--radius-sm);
-		font-family: var(--font-sans);
-		font-size: var(--text-base);
-		line-height: 1.5;
-		color: var(--color-text-primary);
-		resize: vertical;
-	}
-
-	.dialog__error {
-		padding: var(--space-sm);
-		border-radius: var(--radius-sm);
-		font-size: var(--text-sm);
-		background: color-mix(in srgb, var(--color-accent-red) 14%, transparent);
-		border: 1px solid color-mix(in srgb, var(--color-accent-red) 40%, transparent);
-		color: var(--color-accent-red);
-	}
-
-	.dialog__actions {
-		display: flex;
-		justify-content: flex-end;
-		gap: var(--space-sm);
-	}
-
-	.btn {
-		display: inline-flex;
-		align-items: center;
-		gap: var(--space-xs);
-		height: 28px;
-		padding: 0 var(--space-md);
-		background: var(--color-surface-layer-2);
-		border: 1px solid var(--color-border-strong);
-		border-radius: var(--radius-sm);
-		color: var(--color-text-primary);
-		font-size: var(--text-sm);
-		cursor: pointer;
-	}
-
-	.btn--primary {
-		background: var(--color-primary);
-		border-color: var(--color-primary);
-		color: var(--color-on-primary);
-		font-weight: var(--weight-medium);
-	}
-
-	.btn:disabled {
-		opacity: 0.5;
-		cursor: not-allowed;
-	}
-</style>

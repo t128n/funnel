@@ -11,74 +11,19 @@
 </script>
 
 <SplitView githubUrl={data.githubUrl}>
-	<header class="feed-head">
-		<div class="feed-head__row">
-			<h1 class="feed-title">Issues</h1>
-			<span class="feed-count mono">{data.issues.length}</span>
-			<div class="feed-head__actions">
-				<ViewSegment />
-				<FilterPopover options={data.options} allowNoStatus={false} />
-			</div>
+	<header class="flex h-11 shrink-0 items-center gap-2 border-b px-2">
+		<h1 class="text-base font-semibold tracking-tight">Issues</h1>
+		<span class="mono text-muted-foreground text-xs">{data.issues.length}</span>
+		<div class="ml-auto flex items-center gap-1">
+			<ViewSegment />
+			<FilterPopover options={data.options} allowNoStatus={false} />
 		</div>
 	</header>
 
-	<div class="feed-tools">
-		<FeedSearch />
+	<div class="flex shrink-0 items-center gap-2 border-b p-2">
+		<div class="min-w-0 flex-1"><FeedSearch /></div>
 		<StateSegment />
 	</div>
 
 	<IssueList issues={data.issues} empty="No issues match these filters." />
 </SplitView>
-
-<style>
-	.feed-head {
-		display: flex;
-		align-items: center;
-		gap: var(--space-sm);
-		height: var(--island-header-height);
-		padding: 0 var(--space-sm);
-		background: var(--color-island-header);
-		flex: none;
-	}
-
-	.feed-head__row {
-		display: flex;
-		align-items: center;
-		gap: var(--space-sm);
-		flex: 1;
-		min-width: 0;
-	}
-
-	.feed-title {
-		margin: 0;
-		font-size: var(--text-lg);
-		font-weight: var(--weight-semibold);
-		letter-spacing: -0.01em;
-	}
-
-	.feed-count {
-		color: var(--color-text-muted);
-	}
-
-	.feed-head__actions {
-		margin-left: auto;
-		display: flex;
-		align-items: center;
-		gap: var(--space-xs);
-	}
-
-	/* Secondary toolbar: the feed's search sits below the header band, on the
-	   island surface, so every island header stays the same height. */
-	.feed-tools {
-		display: flex;
-		align-items: center;
-		gap: var(--space-sm);
-		padding: var(--space-sm);
-		flex: none;
-	}
-
-	.feed-tools :global(.search) {
-		flex: 1;
-		min-width: 0;
-	}
-</style>

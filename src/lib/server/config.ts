@@ -21,9 +21,9 @@ const count = (label: string) =>
   );
 
 /**
- * Defaults mirror `docs/SPEC.md` §4.1 and §10.1. These are merged in at the
- * lowest priority by c12 *before* validation, so the schema can require the
- * fully-resolved shape while a config file only specifies what it overrides.
+ * The configuration defaults. These are merged in at the lowest priority by c12
+ * *before* validation, so the schema can require the fully-resolved shape while
+ * a config file only specifies what it overrides.
  */
 export const DEFAULT_CONFIG = {
   github: {

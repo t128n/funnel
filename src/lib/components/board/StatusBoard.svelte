@@ -1,94 +1,39 @@
 <script lang="ts">
 	import BoardCard from './BoardCard.svelte';
 	import type { StatusBoard as StatusBoardData } from '#lib/server/issues/types';
+	import { cn } from '#lib/utils';
 
 	interface Props {
 		board: StatusBoardData;
 	}
 
 	let { board }: Props = $props();
+
+	const isDone = (key: string) => key === 'done';
 </script>
 
-<div class="board" role="region" aria-label="Status board">
+<div class="flex min-h-0 flex-1 gap-2 overflow-x-auto overflow-y-hidden p-2" role="region" aria-label="Status board">
 	{#each board.columns as column (column.key)}
-		<section class="column" aria-label={column.label}>
-			<header class="column__head">
-				<span class="column__label">{column.label}</span>
-				<span class="column__count mono">{column.issues.length}</span>
+		<section
+			class={cn(
+				'bg-muted/40 flex w-60 shrink-0 flex-col overflow-hidden border',
+				isDone(column.key) && 'bg-muted/20'
+			)}
+			aria-label={column.label}
+		>
+			<header class="flex h-10 shrink-0 items-center justify-between border-b px-2">
+				<span class="text-muted-foreground text-xs font-semibold tracking-wider uppercase">
+					{column.label}
+				</span>
+				<span class="mono text-muted-foreground text-xs">{column.issues.length}</span>
 			</header>
-			<div class="column__body">
+			<div class="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto p-2">
 				{#each column.issues as issue (`${issue.repoId}:${issue.number}`)}
 					<BoardCard {issue} />
 				{:else}
-					<div class="column__empty">—</div>
+					<div class="text-muted-foreground p-3 text-center text-xs">—</div>
 				{/each}
 			</div>
 		</section>
 	{/each}
 </div>
-
-<style>
-	.board {
-		display: flex;
-		gap: var(--space-sm);
-		flex: 1;
-		min-height: 0;
-		padding: var(--space-sm);
-		overflow-x: auto;
-		overflow-y: hidden;
-	}
-
-	/* Lanes live inside the board island, so they use a surface step and a
-	   nested radius rather than becoming islands of their own. */
-	.column {
-		display: flex;
-		flex-direction: column;
-		width: 240px;
-		flex: none;
-		min-height: 0;
-		background: color-mix(
-			in srgb,
-			var(--color-surface-layer-2) 40%,
-			var(--color-surface-layer-1)
-		);
-		border-radius: var(--radius-md);
-		overflow: hidden;
-	}
-
-	.column__head {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		height: var(--island-header-height);
-		padding: 0 var(--space-sm);
-		background: var(--color-island-header);
-		flex: none;
-	}
-
-	.column__label {
-		font-size: var(--text-sm);
-		font-weight: var(--weight-semibold);
-		color: var(--color-text-secondary);
-		text-transform: uppercase;
-		letter-spacing: 0.05em;
-	}
-
-	.column__count {
-		color: var(--color-text-muted);
-	}
-
-	.column__body {
-		display: flex;
-		flex-direction: column;
-		gap: var(--space-sm);
-		padding: var(--space-sm);
-		overflow-y: auto;
-		flex: 1;
-	}
-
-	.column__empty {
-		text-align: center;
-		color: var(--color-text-muted);
-		padding: var(--space-md);
-	}
-</style>

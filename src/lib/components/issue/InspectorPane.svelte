@@ -5,6 +5,10 @@
 	import SingleSelect from '#lib/components/common/SingleSelect.svelte';
 	import Spinner from '#lib/components/common/Spinner.svelte';
 	import IssueActionDialog from '#lib/components/issue/IssueActionDialog.svelte';
+	import * as Alert from '#lib/components/ui/alert';
+	import { Button } from '#lib/components/ui/button';
+	import { Input } from '#lib/components/ui/input';
+	import { Textarea } from '#lib/components/ui/textarea';
 	import {
 		addIssueComment,
 		addIssueLabels,
@@ -25,18 +29,21 @@
 	} from '#lib/labels';
 	import { absoluteTime, relativeTime } from '#lib/time';
 	import type { RenderedIssueDetail, UserRef } from '#lib/server/issues/types';
-	import IconPriority from '~icons/carbon/signal-strength';
-	import IconSize from '~icons/carbon/scales';
-	import IconStatus from '~icons/carbon/circle-dash';
-	import IconTag from '~icons/carbon/tag';
-	import IconUser from '~icons/carbon/user-avatar';
+	import { cn } from '#lib/utils';
+	import CircleDashedIcon from '@lucide/svelte/icons/circle-dashed';
+	import CircleUserIcon from '@lucide/svelte/icons/circle-user';
+	import ExternalLinkIcon from '@lucide/svelte/icons/external-link';
+	import RulerIcon from '@lucide/svelte/icons/ruler';
+	import SignalIcon from '@lucide/svelte/icons/signal';
+	import TagIcon from '@lucide/svelte/icons/tag';
+	import XIcon from '@lucide/svelte/icons/x';
 
 	interface Props {
 		repo: string;
 		number: number;
 		githubUrl: string;
 		onclose: () => void;
-		/** Fill the parent column instead of docking at `--inspector-width`. */
+		/** Fill the parent column instead of docking beside it. */
 		fill?: boolean;
 	}
 
@@ -81,9 +88,7 @@
 	const sizeValue = $derived(issue?.size ?? null);
 
 	/** Done has no canonical label, so tint its pill explicitly. */
-	const statusTint = $derived(
-		closed ? 'color: #be95ff' : tintStyle(issue?.status ?? null)
-	);
+	const statusTint = $derived(closed ? 'color: #be95ff' : tintStyle(issue?.status ?? null));
 
 	const assigneeLogins = $derived(issue?.assignees.map((a) => a.login) ?? []);
 	const assignees = $derived(issue?.assignees ?? []);
@@ -345,58 +350,64 @@
 </script>
 
 <aside
-	class="inspector"
-	class:inspector--fill={fill}
+	class={cn(
+		'bg-background flex h-full flex-col border-l',
+		fill
+			? 'min-w-0 flex-1 border-l-0'
+			: 'w-120 max-[1100px]:absolute max-[1100px]:inset-y-0 max-[1100px]:right-0 max-[1100px]:z-40 max-[1100px]:w-[min(480px,100%)] max-[1100px]:shadow-lg'
+	)}
 	aria-label="Issue inspector"
 >
-	<header class="inspector__head">
-		<div class="crumb">
-			<span class="mono crumb__repo" title={repo}>{repo}</span>
-			<span class="crumb__sep">/</span>
-			<span class="mono crumb__number">#{number}</span>
+	<header class="flex h-10 shrink-0 items-center justify-between gap-2 border-b px-3">
+		<div class="flex min-w-0 items-center gap-2">
+			<span class="mono text-muted-foreground truncate text-xs" title={repo}>{repo}</span>
+			<span class="text-muted-foreground text-xs">/</span>
+			<span class="mono text-muted-foreground text-xs">#{number}</span>
 			{#if issue}
 				<Chip
 					label={issue.state === 'closed' ? 'closed' : 'open'}
 					color={issue.state === 'closed' ? 'be95ff' : '42be65'}
 				/>
 				{#if issue.author}
-					<span class="crumb__meta">
-						opened by <strong>{issue.author.login}</strong>
+					<span class="text-muted-foreground truncate text-xs">
+						opened by <strong class="text-foreground font-medium">{issue.author.login}</strong>
 						· <span title={absoluteTime(issue.updatedAt)}>{relativeTime(issue.updatedAt)}</span>
 					</span>
 				{/if}
 			{/if}
 		</div>
-		<div class="inspector__actions">
-			<a class="icon-link" href={githubLink} target="_blank" rel="noreferrer" title="Open on GitHub">
-				<svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true">
-					<path
-						d="M6 3h7v7M13 3L6 10M11 9v4H3V5h4"
-						fill="none"
-						stroke="currentColor"
-						stroke-width="1.4"
-						stroke-linecap="round"
-						stroke-linejoin="round"
-					/>
-				</svg>
-			</a>
-			<button class="icon-link" type="button" title="Close inspector" onclick={onclose}>
-				<svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true">
-					<path d="M4 4l8 8M12 4l-8 8" fill="none" stroke="currentColor" stroke-width="1.4" />
-				</svg>
-			</button>
+		<div class="flex shrink-0 items-center gap-1">
+			<Button
+				variant="ghost"
+				size="icon-sm"
+				href={githubLink}
+				target="_blank"
+				rel="noreferrer"
+				title="Open on GitHub"
+			>
+				<ExternalLinkIcon />
+			</Button>
+			<Button variant="ghost" size="icon-sm" title="Close inspector" onclick={onclose}>
+				<XIcon />
+			</Button>
 		</div>
 	</header>
 
 	{#if loading && !detail}
-		<div class="placeholder"><Spinner size={16} label="Loading issue" /></div>
+		<div class="text-muted-foreground flex flex-1 items-center justify-center p-6">
+			<Spinner size={16} label="Loading issue" />
+		</div>
 	{:else if error}
-		<div class="placeholder placeholder--error">{error}</div>
+		<div class="flex flex-1 items-start justify-center p-6">
+			<Alert.Root variant="destructive">
+				<Alert.Description>{error}</Alert.Description>
+			</Alert.Root>
+		</div>
 	{:else if issue && detail}
-		<div class="inspector__body">
-			<div class="title-edit">
-				<input
-					class="title-input"
+		<div class="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4">
+			<div class="flex items-center gap-2">
+				<Input
+					class="hover:bg-accent/50 focus-visible:border-input h-auto rounded-none border-transparent bg-transparent px-1.5 text-lg font-semibold tracking-tight shadow-none dark:bg-transparent"
 					value={title}
 					oninput={(e) => (title = e.currentTarget.value)}
 					onblur={saveTitle}
@@ -412,21 +423,25 @@
 				{#if busy === 'title'}
 					<Spinner size={14} />
 				{:else if titleDirty}
-					<button class="save-btn" type="button" onclick={saveTitle}>Save</button>
+					<Button variant="secondary" size="sm" onclick={saveTitle}>Save</Button>
 				{/if}
 			</div>
 
 			{#if actionError}
-				<div class="banner banner--error">{actionError}</div>
+				<Alert.Root variant="destructive">
+					<Alert.Description>{actionError}</Alert.Description>
+				</Alert.Root>
 			{/if}
 			{#if issue.labelConflict}
-				<div class="banner banner--warn">
-					Conflicting reserved labels were detected on GitHub; the mirror used the
-					latest timeline entry.
-				</div>
+				<Alert.Root>
+					<Alert.Description>
+						Conflicting reserved labels were detected on GitHub; the mirror used the latest
+						timeline entry.
+					</Alert.Description>
+				</Alert.Root>
 			{/if}
 
-			<section class="meta" aria-label="Issue properties">
+			<section class="flex flex-wrap items-center gap-1" aria-label="Issue properties">
 				<SingleSelect
 					variant="ghost"
 					label="No status"
@@ -436,7 +451,7 @@
 					disabled={busy === 'status'}
 				>
 					{#snippet icon()}
-						<IconStatus width={14} height={14} style={statusTint} />
+						<CircleDashedIcon size={14} style={statusTint} />
 					{/snippet}
 				</SingleSelect>
 
@@ -450,7 +465,7 @@
 					disabled={busy === 'priority'}
 				>
 					{#snippet icon()}
-						<IconPriority width={14} height={14} style={tintStyle(priorityValue)} />
+						<SignalIcon size={14} style={tintStyle(priorityValue)} />
 					{/snippet}
 				</SingleSelect>
 
@@ -464,7 +479,7 @@
 					disabled={busy === 'size'}
 				>
 					{#snippet icon()}
-						<IconSize width={14} height={14} style={tintStyle(sizeValue)} />
+						<RulerIcon size={14} style={tintStyle(sizeValue)} />
 					{/snippet}
 				</SingleSelect>
 
@@ -484,7 +499,7 @@
 						{#if first}
 							<Avatar login={first.login} avatarUrl={first.avatarUrl} size={16} />
 						{:else}
-							<IconUser width={14} height={14} />
+							<CircleUserIcon size={14} />
 						{/if}
 					{/snippet}
 				</MultiSelect>
@@ -501,40 +516,40 @@
 					disabled={busy === 'labels'}
 				>
 					{#snippet icon()}
-						<IconTag width={14} height={14} />
+						<TagIcon size={14} />
 					{/snippet}
 				</MultiSelect>
 			</section>
 
-			<section class="block">
+			<section class="flex flex-col gap-2">
 				{#if busy === 'body' || editingBody}
-					<div class="block__head">
-						<div class="block__tools">
-							{#if busy === 'body'}
-								<Spinner size={13} />
-							{:else}
-								<button class="save-btn" type="button" onclick={cancelBody}>Cancel</button>
-								<button class="save-btn" type="button" onclick={saveBody} disabled={!bodyDirty}>
-									Save
-								</button>
-							{/if}
-						</div>
+					<div class="flex items-center justify-end gap-1">
+						{#if busy === 'body'}
+							<Spinner size={13} />
+						{:else}
+							<Button variant="ghost" size="xs" onclick={cancelBody}>Cancel</Button>
+							<Button variant="secondary" size="xs" onclick={saveBody} disabled={!bodyDirty}>
+								Save
+							</Button>
+						{/if}
 					</div>
 				{/if}
 				{#if editingBody}
-					<textarea
-						class="body-edit"
+					<Textarea
+						class="min-h-32"
 						value={body}
 						oninput={(e) => (body = e.currentTarget.value)}
 						onkeydown={onBodyKeydown}
 						placeholder="Describe the issue…"
-						rows="6"
-					></textarea>
+						rows={6}
+					></Textarea>
 				{:else}
 					<div
-						class="body-render"
-						class:markdown={bodyHtml !== null}
-						class:plain-text={bodyHtml === null}
+						class={cn(
+							'hover:bg-accent/50 -mx-2 min-h-12 cursor-text px-2 py-1 text-sm leading-relaxed text-foreground transition-colors',
+							bodyHtml !== null && 'markdown',
+							bodyHtml === null && 'plain-text'
+						)}
 						role="button"
 						tabindex="0"
 						aria-label="Issue description; activate to edit"
@@ -547,7 +562,7 @@
 						}}
 					>
 						{#if body.trim().length === 0}
-							<span class="body-placeholder">Add a description…</span>
+							<span class="text-muted-foreground">Add a description…</span>
 						{:else if bodyHtml !== null}
 							{@html bodyHtml}
 						{:else}
@@ -557,27 +572,29 @@
 				{/if}
 			</section>
 
-			<section class="block">
-				<span class="block__title">Comments ({detail.comments.length})</span>
+			<section class="flex flex-col gap-2">
+				<span class="text-muted-foreground text-xs font-semibold">
+					Comments ({detail.comments.length})
+				</span>
 				{#if detail.comments.length === 0}
-					<div class="muted comment-empty">No comments yet.</div>
+					<div class="text-muted-foreground text-xs">No comments yet.</div>
 				{:else}
-					<ul class="comments">
+					<ul class="flex flex-col gap-3">
 						{#each detail.comments as entry (entry.githubId)}
-							<li class="comment">
+							<li class="flex gap-2">
 								<Avatar
 									login={entry.author?.login ?? 'ghost'}
 									avatarUrl={entry.author?.avatarUrl}
 									size={20}
 								/>
-								<div class="comment__main">
-									<div class="comment__head">
-										<strong>{entry.author?.login ?? 'ghost'}</strong>
-										<span class="muted" title={absoluteTime(entry.createdAt)}>
+								<div class="flex min-w-0 flex-1 flex-col gap-0.5">
+									<div class="flex items-baseline gap-2 text-xs">
+										<strong class="font-medium">{entry.author?.login ?? 'ghost'}</strong>
+										<span class="text-muted-foreground" title={absoluteTime(entry.createdAt)}>
 											{relativeTime(entry.createdAt)}
 										</span>
 									</div>
-									<div class="comment__body markdown">{@html entry.bodyHtml}</div>
+									<div class="markdown text-foreground text-sm">{@html entry.bodyHtml}</div>
 								</div>
 							</li>
 						{/each}
@@ -586,24 +603,26 @@
 			</section>
 		</div>
 
-		<section class="composer">
-			<textarea
-				class="composer__input"
+		<section class="flex shrink-0 flex-col gap-2 border-t p-3">
+			<Textarea
+				class="min-h-16"
 				value={comment}
 				oninput={(e) => (comment = e.currentTarget.value)}
 				placeholder="Add a comment…"
-				rows="2"
-			></textarea>
-			<div class="composer__actions">
-				<button
-					class="primary-btn"
-					type="button"
+				rows={2}
+			></Textarea>
+			<div class="flex justify-end">
+				<Button
 					onclick={submitComment}
 					disabled={comment.trim().length === 0 || busy === 'comment'}
 				>
-					{#if busy === 'comment'}<Spinner size={13} />{/if}
+					{#if busy === 'comment'}
+						<span data-icon="inline-start" class="inline-flex items-center">
+							<Spinner size={13} />
+						</span>
+					{/if}
 					Comment
-				</button>
+				</Button>
 			</div>
 		</section>
 	{/if}
@@ -625,318 +644,3 @@
 		}}
 	/>
 </aside>
-
-<style>
-	.inspector {
-		display: flex;
-		flex-direction: column;
-		width: var(--inspector-width);
-		flex: none;
-		height: 100%;
-		background: var(--color-surface-layer-1);
-		border-radius: var(--island-radius);
-		overflow: hidden;
-	}
-
-	/* Embedded in the master–detail split: fill the flexible detail column. */
-	.inspector--fill {
-		width: 100%;
-		flex: 1;
-		min-width: 0;
-	}
-
-	.inspector__head {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		gap: var(--space-sm);
-		height: var(--island-header-height);
-		padding: 0 var(--space-lg);
-		background: var(--color-island-header);
-		flex: none;
-	}
-
-	.crumb {
-		display: flex;
-		align-items: center;
-		gap: var(--space-sm);
-		overflow: hidden;
-		min-width: 0;
-	}
-
-	.crumb__repo {
-		color: var(--color-text-secondary);
-		overflow: hidden;
-		text-overflow: ellipsis;
-		white-space: nowrap;
-	}
-
-	.crumb__sep {
-		color: var(--color-text-muted);
-	}
-
-	.crumb__number {
-		color: var(--color-text-muted);
-	}
-
-	.crumb__meta {
-		font-size: var(--text-sm);
-		color: var(--color-text-muted);
-		overflow: hidden;
-		text-overflow: ellipsis;
-		white-space: nowrap;
-	}
-
-	.inspector__actions {
-		display: flex;
-		align-items: center;
-		gap: var(--space-xs);
-		flex: none;
-	}
-
-	.icon-link {
-		display: inline-flex;
-		align-items: center;
-		justify-content: center;
-		width: 26px;
-		height: 26px;
-		border-radius: var(--radius-sm);
-		border: 1px solid transparent;
-		background: transparent;
-		color: var(--color-text-muted);
-		cursor: pointer;
-	}
-
-	.icon-link:hover {
-		background: var(--color-surface-layer-2);
-		color: var(--color-text-primary);
-	}
-
-	.inspector__body {
-		flex: 1;
-		min-height: 0;
-		display: flex;
-		flex-direction: column;
-		gap: var(--space-lg);
-		padding: var(--space-xl) var(--space-lg);
-		overflow-y: auto;
-	}
-
-	.placeholder {
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		padding: var(--space-xl);
-		color: var(--color-text-muted);
-	}
-
-	.placeholder--error {
-		color: var(--color-accent-red);
-	}
-
-	.title-edit {
-		display: flex;
-		align-items: center;
-		gap: var(--space-sm);
-	}
-
-	.title-input {
-		flex: 1;
-		min-width: 0;
-		padding: var(--space-xs) var(--space-sm);
-		margin-left: calc(var(--space-sm) * -1);
-		background: transparent;
-		border: 1px solid transparent;
-		border-radius: var(--radius-sm);
-		font-size: var(--text-xl);
-		font-weight: var(--weight-semibold);
-		letter-spacing: -0.02em;
-		line-height: 1.25;
-		color: var(--color-nav-title);
-		transition: background var(--transition-fast);
-	}
-
-	.title-input:hover {
-		background: var(--color-row-hover);
-	}
-
-	.title-input:focus {
-		background: var(--color-surface-layer-2);
-		border-color: var(--color-border-subtle);
-		outline: none;
-	}
-
-	.save-btn,
-	.primary-btn {
-		display: inline-flex;
-		align-items: center;
-		gap: var(--space-xs);
-		height: 28px;
-		padding: 0 var(--space-md);
-		background: var(--color-surface-layer-2);
-		border: 1px solid var(--color-border-strong);
-		border-radius: var(--radius-sm);
-		color: var(--color-text-primary);
-		font-size: var(--text-sm);
-		cursor: pointer;
-	}
-
-	.primary-btn {
-		background: var(--color-primary);
-		border-color: var(--color-primary);
-		color: var(--color-on-primary);
-		font-weight: var(--weight-medium);
-	}
-
-	.primary-btn:disabled {
-		opacity: 0.5;
-		cursor: not-allowed;
-	}
-
-	.banner {
-		padding: var(--space-sm);
-		border-radius: var(--radius-sm);
-		font-size: var(--text-sm);
-		border: 1px solid transparent;
-	}
-
-	.banner--error {
-		background: color-mix(in srgb, var(--color-accent-red) 14%, transparent);
-		border-color: color-mix(in srgb, var(--color-accent-red) 40%, transparent);
-		color: var(--color-accent-red);
-	}
-
-	.banner--warn {
-		background: color-mix(in srgb, var(--color-accent-amber) 14%, transparent);
-		border-color: color-mix(in srgb, var(--color-accent-amber) 40%, transparent);
-		color: var(--color-accent-amber);
-	}
-
-	/* Borderless property pills (Linear-style) — no container, no uppercase
-	   labels; the semantic icon and value text carry the meaning. */
-	.meta {
-		display: flex;
-		flex-wrap: wrap;
-		align-items: center;
-		gap: var(--space-xs);
-	}
-
-	.block {
-		display: flex;
-		flex-direction: column;
-		gap: var(--space-sm);
-	}
-
-	.block__head {
-		display: flex;
-		align-items: center;
-		justify-content: flex-end;
-	}
-
-	.block__tools {
-		display: flex;
-		gap: var(--space-xs);
-	}
-
-	.block__title {
-		font-size: var(--text-xs);
-		font-weight: var(--weight-semibold);
-		color: var(--color-text-muted);
-	}
-
-	/* Description renders as an open document, not a boxed field. */
-	.body-render {
-		min-height: 48px;
-		padding: var(--space-xs) var(--space-sm);
-		margin: 0 calc(var(--space-sm) * -1);
-		border-radius: var(--radius-sm);
-		font-family: var(--font-sans);
-		font-size: var(--text-md);
-		line-height: 1.6;
-		color: var(--color-text-secondary);
-		cursor: text;
-		transition: background var(--transition-fast);
-	}
-
-	.body-render:hover {
-		background: var(--color-row-hover);
-	}
-
-	.body-placeholder {
-		color: var(--color-text-muted);
-	}
-
-	.body-render:hover .body-placeholder {
-		color: var(--color-text-secondary);
-	}
-
-	.body-edit,
-	.composer__input {
-		width: 100%;
-		padding: var(--space-sm);
-		background: var(--color-surface-layer-2);
-		border: 1px solid var(--color-border-subtle);
-		border-radius: var(--radius-sm);
-		font-family: var(--font-sans);
-		font-size: var(--text-base);
-		line-height: 1.5;
-		color: var(--color-text-primary);
-		resize: vertical;
-	}
-
-	.muted {
-		color: var(--color-text-muted);
-	}
-
-	.comments {
-		display: flex;
-		flex-direction: column;
-		gap: var(--space-md);
-		list-style: none;
-		margin: 0;
-		padding: 0;
-	}
-
-	.comment {
-		display: flex;
-		gap: var(--space-sm);
-	}
-
-	.comment__main {
-		flex: 1;
-		min-width: 0;
-		display: flex;
-		flex-direction: column;
-		gap: var(--space-xxs);
-	}
-
-	.comment__head {
-		display: flex;
-		align-items: baseline;
-		gap: var(--space-sm);
-		font-size: var(--text-sm);
-	}
-
-	.comment__body {
-		font-size: var(--text-base);
-		color: var(--color-text-secondary);
-	}
-
-	.comment-empty {
-		font-size: var(--text-sm);
-	}
-
-	.composer {
-		display: flex;
-		flex-direction: column;
-		gap: var(--space-sm);
-		padding: var(--space-md) var(--space-lg);
-		background: var(--color-island-header);
-		flex: none;
-	}
-
-	.composer__actions {
-		display: flex;
-		justify-content: flex-end;
-	}
-</style>

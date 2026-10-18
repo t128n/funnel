@@ -5,6 +5,7 @@
 	import SubmissionRow from '#lib/components/inbox/SubmissionRow.svelte';
 	import IssueRow from '#lib/components/issue/IssueRow.svelte';
 	import SplitView from '#lib/components/shell/SplitView.svelte';
+	import * as Alert from '#lib/components/ui/alert';
 	import { parseSelection, selectedIssue } from '#lib/client/selection.svelte';
 	import type { RenderedSubmission } from '#lib/server/issues/types';
 	import type { PageProps } from './$types';
@@ -41,25 +42,27 @@
 	repos={data.options.repos.map((repo) => repo.slug)}
 	defaultRepo={data.defaultRepo}
 >
-	<header class="feed-head">
-		<div class="feed-head__row">
-			<h1 class="feed-title">Inbox</h1>
-			<span class="feed-count mono">{data.inbox.entries.length}</span>
-			<div class="feed-head__actions">
-				<FilterPopover options={data.options} />
-			</div>
+	<header class="flex h-11 shrink-0 items-center gap-2 border-b px-2">
+		<h1 class="text-base font-semibold tracking-tight">Inbox</h1>
+		<span class="mono text-muted-foreground text-xs">{data.inbox.entries.length}</span>
+		<div class="ml-auto flex items-center gap-1">
+			<FilterPopover options={data.options} />
 		</div>
 	</header>
 
-	<div class="feed-tools">
-		<FeedSearch />
+	<div class="flex shrink-0 items-center gap-2 border-b p-2">
+		<div class="min-w-0 flex-1"><FeedSearch /></div>
 	</div>
 
 	{#if formError}
-		<div class="banner banner--error">{formError}</div>
+		<div class="p-2">
+			<Alert.Root variant="destructive">
+				<Alert.Description>{formError}</Alert.Description>
+			</Alert.Root>
+		</div>
 	{/if}
 
-	<div class="stream" role="list">
+	<div class="flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto p-2" role="list">
 		{#each data.inbox.entries as entry (entry.kind === 'submission' ? entry.submission.id : `${entry.issue.repoId}:${entry.issue.number}`)}
 			{#if entry.kind === 'submission'}
 				<SubmissionRow
@@ -74,84 +77,9 @@
 				/>
 			{/if}
 		{:else}
-			<div class="empty">Inbox zero. Nothing staged or untriaged.</div>
+			<div class="text-muted-foreground flex flex-1 items-center justify-center p-8 text-center text-sm">
+				Inbox zero. Nothing staged or untriaged.
+			</div>
 		{/each}
 	</div>
 </SplitView>
-
-<style>
-	.feed-head {
-		display: flex;
-		align-items: center;
-		gap: var(--space-sm);
-		height: var(--island-header-height);
-		padding: 0 var(--space-sm);
-		background: var(--color-island-header);
-		flex: none;
-	}
-
-	.feed-head__row {
-		display: flex;
-		align-items: center;
-		gap: var(--space-sm);
-		flex: 1;
-		min-width: 0;
-	}
-
-	.feed-title {
-		margin: 0;
-		font-size: var(--text-lg);
-		font-weight: var(--weight-semibold);
-		letter-spacing: -0.01em;
-	}
-
-	.feed-count {
-		color: var(--color-text-muted);
-	}
-
-	.feed-head__actions {
-		margin-left: auto;
-	}
-
-	/* Secondary toolbar: the feed's search sits below the header band, on the
-	   island surface, so every island header stays the same height. */
-	.feed-tools {
-		display: flex;
-		align-items: center;
-		padding: var(--space-sm);
-		flex: none;
-	}
-
-	.stream {
-		flex: 1;
-		min-height: 0;
-		overflow-y: auto;
-		display: flex;
-		flex-direction: column;
-		gap: 2px;
-		padding: var(--space-sm);
-	}
-
-	.banner {
-		margin: var(--space-sm) var(--space-sm) 0;
-		padding: var(--space-sm);
-		border-radius: var(--radius-sm);
-		font-size: var(--text-sm);
-	}
-
-	.banner--error {
-		background: color-mix(in srgb, var(--color-accent-red) 14%, transparent);
-		border: 1px solid color-mix(in srgb, var(--color-accent-red) 40%, transparent);
-		color: var(--color-accent-red);
-	}
-
-	.empty {
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		padding: var(--space-xxl);
-		color: var(--color-text-muted);
-		font-size: var(--text-sm);
-		text-align: center;
-	}
-</style>

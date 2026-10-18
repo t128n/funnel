@@ -1,10 +1,10 @@
 /**
  * Client-side theme controller (System / Dark / Light).
  *
- * The pre-paint script in `src/app.html` sets the initial `data-theme`
- * attribute; this module owns every subsequent change, persists the choice to
- * `localStorage` under `funnel:theme`, and keeps a `system` choice in sync with
- * the OS via `prefers-color-scheme`.
+ * The pre-paint script in `src/app.html` sets the initial `.dark` class; this
+ * module owns every subsequent change, persists the choice to `localStorage`
+ * under `funnel:theme`, and keeps a `system` choice in sync with the OS via
+ * `prefers-color-scheme`.
  */
 import { get, writable } from "svelte/store";
 
@@ -39,7 +39,7 @@ function resolve(choice: ThemeChoice): ResolvedTheme {
 
 function apply(theme: ResolvedTheme): void {
   if (!isBrowser()) return;
-  document.documentElement.setAttribute("data-theme", theme);
+  document.documentElement.classList.toggle("dark", theme === "dark");
 }
 
 /** The user's chosen preference (what the switcher highlights). */
