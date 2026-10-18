@@ -123,7 +123,7 @@
   color: var(--muted-foreground);
 }
 
-.markdown code {
+.markdown code:not([data-slot='code-block-code']) {
   font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
   font-size: 0.875em;
   padding: 0.1em 0.35em;
@@ -131,7 +131,7 @@
   border-radius: var(--radius);
 }
 
-.markdown pre {
+.markdown pre:not([data-slot='code-block-content']) {
   margin: 0 0 1rem;
   padding: 0.75rem 1rem;
   background: var(--muted);
@@ -140,7 +140,7 @@
   overflow-x: auto;
 }
 
-.markdown pre code {
+.markdown pre:not([data-slot='code-block-content']) code {
   padding: 0;
   background: none;
   font-size: 0.8125rem;
@@ -207,66 +207,6 @@
 
 .hljs-deletion {
   color: var(--destructive);
-}
-
-/* ── Code block chrome ────────────────────────────────────────────────────
-   A client-side enhancer (`#lib/client/code-blocks`) wraps each `pre` in
-   `.code-block` and injects the `.code-block-bar` header. The bare `pre` styles
-   above remain the fallback before hydration / without JS. */
-.markdown .code-block {
-  position: relative;
-  margin: 0 0 1rem;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--muted);
-  overflow: hidden;
-}
-
-.markdown .code-block pre {
-  margin: 0;
-  padding: 0.75rem 1rem;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-}
-
-.markdown .code-block-bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-  padding: 0.1875rem 0.375rem 0.1875rem 0.75rem;
-  border-bottom: 1px solid var(--border);
-  background: color-mix(in srgb, var(--muted) 55%, var(--background));
-  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
-  font-size: 0.6875rem;
-  color: var(--muted-foreground);
-}
-
-.code-block-lang {
-  text-transform: lowercase;
-  letter-spacing: 0.02em;
-}
-
-.code-block-copy {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.25rem;
-  padding: 0.0625rem 0.375rem;
-  border: 0;
-  background: transparent;
-  color: inherit;
-  font: inherit;
-  cursor: pointer;
-  transition: color 0.15s;
-}
-
-.code-block-copy:hover {
-  color: var(--foreground);
-}
-
-.code-block-copy[data-copied="true"] {
-  color: var(--success);
 }
 
 .markdown kbd,

@@ -1,10 +1,11 @@
 <script lang="ts">
-	import { cn } from '#lib/utils';
+	import { goto } from '$app/navigation';
+	import * as ToggleGroup from '#lib/components/ui/toggle-group/index.js';
 
 	/**
-	 * Presentational segmented control: a pill of mutually exclusive, link-based
-	 * options. Callers own the URLs and the active flag, so it works for both the
-	 * Issues `All`/`Mine` scope and its `Open`/`Closed`/`All` state switch.
+	 * Presentational segmented control: a set of mutually exclusive options.
+	 * Callers own the URLs and the active flag, so it works for both the Issues
+	 * `All`/`Mine` scope and its `Open`/`Closed`/`All` state switch.
 	 */
 	export interface SegmentItem {
 		label: string;
@@ -19,23 +20,26 @@
 	}
 
 	let { items, label }: Props = $props();
+
+	const active = $derived(items.find((item) => item.active)?.label ?? '');
+
+	function onChange(value: string) {
+		const next = items.find((item) => item.label === value);
+		if (next && !next.active) {
+			void goto(next.href, { reset: false });
+		}
+	}
 </script>
 
-<div
-	class="bg-muted inline-flex h-7 shrink-0 items-center gap-0.5 p-0.5"
-	role="group"
+<ToggleGroup.Root
+	type="single"
+	size="sm"
+	variant="outline"
+	value={active}
+	onValueChange={onChange}
 	aria-label={label}
 >
 	{#each items as item (item.label)}
-		<a
-			class={cn(
-				'text-muted-foreground hover:text-foreground inline-flex h-full items-center px-2 text-xs no-underline transition-colors hover:bg-background hover:no-underline',
-				item.active && 'bg-background text-foreground font-medium'
-			)}
-			href={item.href}
-			aria-current={item.active ? 'true' : undefined}
-		>
-			{item.label}
-		</a>
+		<ToggleGroup.Item value={item.label}>{item.label}</ToggleGroup.Item>
 	{/each}
-</div>
+</ToggleGroup.Root>

@@ -2,8 +2,10 @@
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import { Badge } from '#lib/components/ui/badge';
-	import { Button } from '#lib/components/ui/button';
+	import { Button, buttonVariants } from '#lib/components/ui/button';
+	import * as Popover from '#lib/components/ui/popover';
 	import MultiSelect from '#lib/components/common/MultiSelect.svelte';
+	import { cn } from '#lib/utils';
 	import { PRIORITY_OPTIONS, SIZE_OPTIONS, STATUS_OPTIONS } from '#lib/labels';
 	import type { FilterOptions } from '#lib/server/issues/types';
 	import {
@@ -61,8 +63,6 @@
 	const sizeOptions = $derived([...SIZE_OPTIONS, { value: NONE, label: 'No size', color: null }]);
 
 	let open = $state(false);
-	let panel = $state<HTMLElement | null>(null);
-	let trigger = $state<HTMLElement | null>(null);
 
 	function apply(next: ClientFilter) {
 		void goto(buildFilterUrl(page.url.pathname, page.url.searchParams, next), { reset: false });
@@ -86,40 +86,30 @@
 		});
 	}
 
-	// Outside-interaction detection runs on `pointerdown`, matching bits-ui's own
-	// floating layers. A `click` listener would react after nested menus have
-	// already changed the DOM / pointer-events, so the target may no longer
-	// reflect what the user actually pressed.
-	function onWindowPointerDown(event: PointerEvent) {
-		if (!open) return;
-		const target = event.target as Node;
-		if (panel?.contains(target) || trigger?.contains(target)) return;
-		// Keep the panel open while the user is picking inside a portaled menu.
+	/**
+	 * Keep the panel open while a nested menu is in use. The multi-selects render
+	 * their lists in a portal, so a click there reads as "outside" this popover;
+	 * bits-ui itself guards floating layers the same way.
+	 */
+	function onInteractOutside(event: PointerEvent) {
+		const target = event.target;
 		if (
 			target instanceof Element &&
-			target.closest('[data-slot="dropdown-menu-content"], [data-slot="dropdown-menu-trigger"]')
+			target.closest(
+				'[data-slot="dropdown-menu-content"], [data-slot="dropdown-menu-trigger"], [data-slot="popover-content"], [data-slot="command"]'
+			)
 		) {
-			return;
+			event.preventDefault();
 		}
-		open = false;
-	}
-
-	function onKeydown(event: KeyboardEvent) {
-		if (event.key === 'Escape') open = false;
 	}
 </script>
 
-<svelte:window onpointerdown={onWindowPointerDown} onkeydown={onKeydown} />
-
-<div class="relative shrink-0">
-	<Button
-		variant="outline"
-		size="sm"
-		bind:ref={trigger}
-		aria-expanded={open}
-		aria-haspopup="true"
-		class={count > 0 ? 'border-primary text-foreground' : undefined}
-		onclick={() => (open = !open)}
+<Popover.Root bind:open>
+	<Popover.Trigger
+		class={cn(
+			buttonVariants({ variant: 'outline', size: 'sm' }),
+			count > 0 && 'border-primary text-foreground'
+		)}
 	>
 		<FilterIcon data-icon="inline-start" />
 		<span>Filter</span>
@@ -128,59 +118,54 @@
 				{count}
 			</Badge>
 		{/if}
-	</Button>
+	</Popover.Trigger>
 
-	{#if open}
-		<div
-			class="bg-popover text-popover-foreground absolute top-[calc(100%+6px)] right-0 z-30 flex w-65 flex-col gap-2 border p-2 shadow-md"
-			bind:this={panel}
-		>
-			<div class="flex items-center justify-between">
-				<span class="text-muted-foreground text-xs font-medium tracking-wider uppercase">
-					Filters
-				</span>
-				{#if count > 0}
-					<Button variant="link" size="xs" onclick={clearAll}>Clear</Button>
-				{/if}
-			</div>
-			<div class="flex flex-wrap gap-1">
-				<MultiSelect
-					label="Repo"
-					options={repoOptions}
-					selected={filter.repos}
-					onselect={(values) => set('repos', values)}
-				/>
-				<MultiSelect
-					label="Status"
-					options={statusOptions}
-					selected={selectedStatuses}
-					onselect={(values) => set('statuses', values)}
-				/>
-				<MultiSelect
-					label="Assignee"
-					options={assigneeOptions}
-					selected={scopedAssignees}
-					onselect={(values) => set('assignees', values)}
-				/>
-				<MultiSelect
-					label="Priority"
-					options={priorityOptions}
-					selected={filter.priorities}
-					onselect={(values) => set('priorities', values)}
-				/>
-				<MultiSelect
-					label="Size"
-					options={sizeOptions}
-					selected={filter.sizes}
-					onselect={(values) => set('sizes', values)}
-				/>
-				<MultiSelect
-					label="Labels"
-					options={labelOptions}
-					selected={filter.labels}
-					onselect={(values) => set('labels', values)}
-				/>
-			</div>
+	<Popover.Content align="end" class="w-65 gap-2 p-2" {onInteractOutside}>
+		<div class="flex items-center justify-between">
+			<span class="text-muted-foreground text-xs font-medium tracking-wider uppercase">
+				Filters
+			</span>
+			{#if count > 0}
+				<Button variant="link" size="xs" onclick={clearAll}>Clear</Button>
+			{/if}
 		</div>
-	{/if}
-</div>
+		<div class="flex flex-wrap gap-1">
+			<MultiSelect
+				label="Repo"
+				options={repoOptions}
+				selected={filter.repos}
+				onselect={(values) => set('repos', values)}
+			/>
+			<MultiSelect
+				label="Status"
+				options={statusOptions}
+				selected={selectedStatuses}
+				onselect={(values) => set('statuses', values)}
+			/>
+			<MultiSelect
+				label="Assignee"
+				options={assigneeOptions}
+				selected={scopedAssignees}
+				onselect={(values) => set('assignees', values)}
+			/>
+			<MultiSelect
+				label="Priority"
+				options={priorityOptions}
+				selected={filter.priorities}
+				onselect={(values) => set('priorities', values)}
+			/>
+			<MultiSelect
+				label="Size"
+				options={sizeOptions}
+				selected={filter.sizes}
+				onselect={(values) => set('sizes', values)}
+			/>
+			<MultiSelect
+				label="Labels"
+				options={labelOptions}
+				selected={filter.labels}
+				onselect={(values) => set('labels', values)}
+			/>
+		</div>
+	</Popover.Content>
+</Popover.Root>

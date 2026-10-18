@@ -7,7 +7,7 @@
 </script>
 
 <span
-	class="bg-primary/10 text-primary shrink-0 px-1 py-0.5 text-[0.625rem] font-semibold tracking-wider uppercase"
+	class="bg-primary/10 text-primary shrink-0 rounded-sm px-1 py-0.5 text-[0.625rem] font-semibold tracking-wider uppercase"
 >
 	intake
 </span>

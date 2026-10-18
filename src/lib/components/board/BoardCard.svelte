@@ -16,6 +16,7 @@
 	import type { IssueListItem } from '#lib/server/issues/types';
 	import { cn } from '#lib/utils';
 	import TriangleAlertIcon from '@lucide/svelte/icons/triangle-alert';
+	import * as Item from '#lib/components/ui/item/index.js';
 
 	interface Props {
 		issue: IssueListItem;
@@ -112,10 +113,12 @@
 	}
 </script>
 
-<div
-	class="bg-card hover:bg-accent focus-visible:ring-ring/50 flex cursor-pointer flex-col gap-2 border p-2 outline-none transition-colors focus-visible:ring-1"
+<Item.Root
+	variant="outline"
+	size="sm"
+	class="bg-card hover:bg-accent cursor-pointer flex-col items-stretch gap-2 p-2"
 	role="button"
-	tabindex="0"
+	tabindex={0}
 	onclick={open}
 	onkeydown={(e) => {
 		if (e.key === 'Enter' || e.key === ' ') {
@@ -124,37 +127,49 @@
 		}
 	}}
 >
-	<div class="flex items-center gap-1">
-		<span
-			class="mono text-muted-foreground min-w-0 truncate text-xs"
-			title={`${issue.repo}#${issue.number}`}
-		>
-			{issue.repo}#{issue.number}
-		</span>
-		{#if busy}
-			<span class="ml-auto inline-flex"><Spinner size={12} /></span>
-		{/if}
-	</div>
+	<div class="flex items-start gap-2">
+		<Item.Content class="min-w-0 gap-1">
+			<div class="flex items-center gap-1">
+				<span
+					class="mono text-muted-foreground min-w-0 truncate text-xs"
+					title={`${issue.repo}#${issue.number}`}
+				>
+					{issue.repo}#{issue.number}
+				</span>
+			</div>
 
-	<div class={cn('line-clamp-2 text-sm', closed ? 'text-muted-foreground' : 'text-foreground')} title={issue.title}>
-		{issue.title}
-	</div>
+			<div
+				class={cn('line-clamp-2 text-sm', closed ? 'text-muted-foreground' : 'text-foreground')}
+				title={issue.title}
+			>
+				{issue.title}
+			</div>
 
-	<div class="flex flex-wrap items-center gap-1">
-		{#if issue.priority}
-			<Chip label={issue.priority.toUpperCase()} color={priorityColor} mono />
-		{/if}
-		{#if issue.size}
-			<Chip label={issue.size} color={sizeColor} variant="outline" mono />
-		{/if}
-		{#if issue.labelConflict}
-			<TriangleAlertIcon class="text-warning size-3.5" title="Conflicting reserved labels" />
-		{/if}
-		<div class="ml-auto flex items-center gap-0.5">
-			{#each issue.assignees.slice(0, 3) as person (person.githubId)}
-				<Avatar login={person.login} avatarUrl={person.avatarUrl} size={16} />
-			{/each}
-		</div>
+			<div class="flex flex-wrap items-center gap-1">
+				{#if issue.priority}
+					<Chip label={issue.priority} color={priorityColor} mono />
+				{/if}
+				{#if issue.size}
+					<Chip label={issue.size} color={sizeColor} variant="outline" mono />
+				{/if}
+				{#if issue.labelConflict}
+					<TriangleAlertIcon class="text-warning size-3.5" title="Conflicting reserved labels" />
+				{/if}
+			</div>
+		</Item.Content>
+
+		<Item.Actions class="shrink-0 flex-col items-end gap-1">
+			{#if busy}
+				<span class="inline-flex"><Spinner size={12} /></span>
+			{/if}
+			{#if issue.assignees.length > 0}
+				<div class="flex items-center gap-0.5">
+					{#each issue.assignees.slice(0, 3) as person (person.githubId)}
+						<Avatar login={person.login} avatarUrl={person.avatarUrl} size={16} />
+					{/each}
+				</div>
+			{/if}
+		</Item.Actions>
 	</div>
 
 	<!-- Stop click/keyboard from bubbling so the picker doesn't open the pane. -->
@@ -172,7 +187,7 @@
 			disabled={busy}
 		/>
 	</div>
-</div>
+</Item.Root>
 
 <IssueActionDialog
 	open={dialogMode !== null}

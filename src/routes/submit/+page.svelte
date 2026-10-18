@@ -6,6 +6,7 @@
 	import { Badge } from '#lib/components/ui/badge';
 	import { Button } from '#lib/components/ui/button';
 	import { Input } from '#lib/components/ui/input';
+	import * as Kbd from '#lib/components/ui/kbd';
 	import * as NativeSelect from '#lib/components/ui/native-select';
 	import { Textarea } from '#lib/components/ui/textarea';
 	import CircleCheckIcon from '@lucide/svelte/icons/circle-check';
@@ -41,7 +42,9 @@
 <div class="bg-background flex min-h-svh items-center justify-center p-6">
 	<div class="flex w-full max-w-2xl flex-col">
 		<header class="flex items-center gap-2 px-4 py-3">
-			<span class="bg-primary text-primary-foreground inline-flex size-5 items-center justify-center">
+			<span
+				class="bg-primary text-primary-foreground inline-flex size-5 items-center justify-center rounded-md"
+			>
 				<FunnelIcon class="size-3" />
 			</span>
 			<span class="text-muted-foreground text-xs font-medium tracking-tight">Funnel</span>
@@ -89,7 +92,7 @@
 
 					<!-- The `md:` size is required: `Input` bakes in `md:text-xs`. -->
 					<Input
-						class="hover:bg-accent/50 h-auto rounded-none border-transparent bg-transparent px-2 text-2xl font-semibold tracking-tight shadow-none md:text-2xl dark:bg-transparent"
+						class="hover:bg-accent/50 h-auto rounded-sm border-transparent bg-transparent px-2 text-2xl font-semibold tracking-tight shadow-none md:text-2xl dark:bg-transparent"
 						name="title"
 						type="text"
 						required
@@ -100,7 +103,7 @@
 					/>
 
 					<Textarea
-						class="min-h-48 resize-none rounded-none border-transparent bg-transparent px-2 py-2 text-sm shadow-none md:text-sm dark:bg-transparent"
+						class="min-h-48 resize-none rounded-sm border-transparent bg-transparent px-2 py-2 text-sm shadow-none md:text-sm dark:bg-transparent"
 						name="body"
 						placeholder="Add description..."
 						aria-label="Description"
@@ -133,12 +136,12 @@
 							</span>
 						{/if}
 						Submit
-						<kbd
-							class="border-primary-foreground/30 text-primary-foreground/80 ml-0.5 rounded-none border px-1 font-sans text-[0.625rem] leading-4 font-normal"
+						<Kbd.Root
+							class="border-primary-foreground/30 text-primary-foreground/80 ml-0.5 border bg-transparent text-[0.625rem] leading-4 font-normal"
 							aria-hidden="true"
 						>
 							⌘↵
-						</kbd>
+						</Kbd.Root>
 					</Button>
 				</footer>
 			</form>

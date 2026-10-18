@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { Badge } from '#lib/components/ui/badge';
-	import * as DropdownMenu from '#lib/components/ui/dropdown-menu';
+	import * as Command from '#lib/components/ui/command';
+	import * as Popover from '#lib/components/ui/popover';
 	import { cn } from '#lib/utils';
 	import ChevronDownIcon from '@lucide/svelte/icons/chevron-down';
 	import type { Snippet } from 'svelte';
@@ -52,6 +53,8 @@
 		icon
 	}: Props = $props();
 
+	let open = $state(false);
+
 	const triggerText = $derived.by(() => {
 		if (display !== 'selection') return label;
 		if (selected.length === 0) return placeholder ?? label;
@@ -79,10 +82,26 @@
 				: [...selected, value]
 		);
 	}
+
+	/**
+	 * Keep the popover open while a click lands inside a nested menu it triggered
+	 * (e.g. a second filter toolbar). Mirrors bits-ui's own floating-layer guard.
+	 */
+	function onInteractOutside(event: PointerEvent) {
+		const target = event.target;
+		if (
+			target instanceof Element &&
+			target.closest(
+				'[data-slot="dropdown-menu-content"], [data-slot="dropdown-menu-trigger"], [data-slot="command"]'
+			)
+		) {
+			event.preventDefault();
+		}
+	}
 </script>
 
-<DropdownMenu.Root>
-	<DropdownMenu.Trigger
+<Popover.Root bind:open>
+	<Popover.Trigger
 		{disabled}
 		class={cn(
 			'focus-visible:border-ring focus-visible:ring-ring/50 flex h-7 shrink-0 items-center gap-1.5 border px-2 text-xs outline-none transition-colors focus-visible:ring-1 disabled:pointer-events-none disabled:opacity-50',
@@ -109,46 +128,44 @@
 			</Badge>
 		{/if}
 		<ChevronDownIcon class="size-3.5 shrink-0 opacity-60" />
-	</DropdownMenu.Trigger>
+	</Popover.Trigger>
 
-	<!--
-		`preventScroll={false}` keeps the menu non-modal: bits-ui locks the body
-		(and sets `pointer-events: none` on it) when `preventScroll` is true, which
-		retargets the follow-up click to <html> and makes an enclosing popover treat
-		it as an outside click. `strategy="fixed"` preserves the fixed positioning.
-	-->
-	<DropdownMenu.Content
+	<Popover.Content
 		{align}
 		sideOffset={6}
-		class="max-h-80 w-auto min-w-50 overflow-y-auto"
 		preventScroll={false}
-		strategy="fixed"
+		class="w-auto min-w-50 gap-0 p-0"
+		{onInteractOutside}
 	>
-		{#if ordered.length === 0}
-			<div class="text-muted-foreground p-2 text-xs">No options</div>
-		{:else}
-			{#each ordered as option (option.value)}
-				<DropdownMenu.CheckboxItem
-					class="gap-2"
-					checked={selected.includes(option.value)}
-					closeOnSelect={false}
-					onCheckedChange={() => toggle(option.value)}
-				>
-					<span
-						class="size-2 shrink-0 rounded-full"
-						class:invisible={!option.color}
-						style={cssColor(option.color) ? `background:${cssColor(option.color)}` : undefined}
-					></span>
-					<span class="flex-1 truncate">{option.label}</span>
-				</DropdownMenu.CheckboxItem>
-			{/each}
-		{/if}
+		<Command.Root class="rounded-lg! bg-transparent">
+			<Command.Input placeholder="Search…" />
+			<Command.List class="max-h-80 overflow-x-hidden overflow-y-auto">
+				<Command.Empty>No options</Command.Empty>
+				<Command.Group>
+					{#each ordered as option (option.value)}
+						<Command.Item
+							value={option.value}
+							data-checked={selected.includes(option.value)}
+							onSelect={() => toggle(option.value)}
+							class="gap-2"
+						>
+							<span
+								class="size-2 shrink-0 rounded-full"
+								class:invisible={!option.color}
+								style={cssColor(option.color) ? `background:${cssColor(option.color)}` : undefined}
+							></span>
+							<span class="flex-1 truncate">{option.label}</span>
+						</Command.Item>
+					{/each}
+				</Command.Group>
 
-		{#if selected.length > 0}
-			<DropdownMenu.Separator />
-			<DropdownMenu.Item class="text-muted-foreground" onSelect={() => onselect([])}>
-				Clear
-			</DropdownMenu.Item>
-		{/if}
-	</DropdownMenu.Content>
-</DropdownMenu.Root>
+				{#if selected.length > 0}
+					<Command.Separator />
+					<Command.Item value="__clear__" onSelect={() => onselect([])}>
+						<span class="text-muted-foreground">Clear</span>
+					</Command.Item>
+				{/if}
+			</Command.List>
+		</Command.Root>
+	</Popover.Content>
+</Popover.Root>

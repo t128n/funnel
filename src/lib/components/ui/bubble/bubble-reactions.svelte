@@ -2,7 +2,7 @@
 	import { tv, type VariantProps } from "tailwind-variants";
 
 	export const bubbleReactionsVariants = tv({
-		base: "rounded-none ring-2 ring-card bg-muted shrink-0 gap-1 px-1.5 py-0.5 has-[button]:p-0 text-xs absolute z-10 flex w-fit items-center justify-center",
+		base: "rounded-full ring-3 ring-card bg-muted shrink-0 gap-1 px-1.5 py-0.5 has-[button]:p-0 text-sm absolute z-10 flex w-fit items-center justify-center",
 		variants: {
 			side: {
 				top: "top-0 -translate-y-3/4",

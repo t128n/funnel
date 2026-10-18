@@ -422,7 +422,7 @@
 			{#if issue}
 				<div class="flex min-w-0 items-center gap-2">
 					<Input
-						class="hover:bg-accent/50 h-auto -ml-1 min-w-0 flex-1 border-0 bg-transparent px-1 text-xl leading-tight font-semibold tracking-tight shadow-none md:text-xl dark:bg-transparent"
+						class="hover:bg-accent/50 h-auto -ml-1 min-w-0 flex-1 rounded-sm border-0 bg-transparent px-1 text-xl leading-tight font-semibold tracking-tight shadow-none md:text-xl dark:bg-transparent"
 						value={title}
 						oninput={(e) => (title = e.currentTarget.value)}
 						onblur={saveTitle}
@@ -636,7 +636,7 @@
 			</div>
 			{#if detail.comments.length === 0}
 				<div
-					class="border-border text-muted-foreground border border-dashed px-3 py-6 text-center text-xs"
+					class="border-border text-muted-foreground rounded-lg border border-dashed px-3 py-6 text-center text-xs"
 				>
 					No comments yet.
 				</div>

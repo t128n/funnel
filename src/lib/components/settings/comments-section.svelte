@@ -34,7 +34,7 @@
 	<div class="flex flex-col gap-2" role="radiogroup" aria-label="Comment rendering">
 		{#each COMMENT_UI_OPTIONS as option (option.value)}
 			<Field.Label
-				class="has-[:checked]:border-ring has-[:checked]:bg-muted/50 w-full cursor-pointer flex-row items-center gap-2.5 border p-2.5 text-xs font-normal"
+				class="has-[:checked]:border-ring has-[:checked]:bg-muted/50 w-full cursor-pointer flex-row items-center gap-2.5 rounded-md border p-2.5 text-xs font-normal"
 			>
 				<input
 					type="radio"

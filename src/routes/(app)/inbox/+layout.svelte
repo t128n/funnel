@@ -8,6 +8,7 @@
 	import SubmissionRow from '#lib/components/inbox/SubmissionRow.svelte';
 	import IssueRow from '#lib/components/issue/IssueRow.svelte';
 	import * as Alert from '#lib/components/ui/alert';
+	import * as Item from '#lib/components/ui/item/index.js';
 	import {
 		projectInboxEntries,
 		reconcileIssues,
@@ -76,7 +77,7 @@
 			</div>
 		{/if}
 
-		<div class="flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto p-2" role="list">
+		<Item.Group class="min-h-0 flex-1 gap-0.5 overflow-y-auto p-2">
 			{#each entries as entry (entry.kind === 'submission' ? entry.submission.id : `${entry.issue.repoId}:${entry.issue.number}`)}
 				<div
 					animate:flip={{ duration: 150 }}
@@ -100,7 +101,7 @@
 					Inbox zero. Nothing staged or untriaged.
 				</div>
 			{/each}
-		</div>
+		</Item.Group>
 	{/snippet}
 
 	{#snippet detail()}

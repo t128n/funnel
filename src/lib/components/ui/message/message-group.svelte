@@ -13,7 +13,7 @@
 <div
 	bind:this={ref}
 	data-slot="message-group"
-	class={cn("gap-1.5 flex min-w-0 flex-col", className)}
+	class={cn("gap-2 flex min-w-0 flex-col", className)}
 	{...restProps}
 >
 	{@render children?.()}

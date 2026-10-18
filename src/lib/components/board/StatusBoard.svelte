@@ -16,7 +16,7 @@
 	{#each board.columns as column (column.key)}
 		<section
 			class={cn(
-				'bg-muted/40 flex w-60 shrink-0 flex-col overflow-hidden border',
+				'bg-muted/40 flex w-60 shrink-0 flex-col overflow-hidden rounded-xl border',
 				isDone(column.key) && 'bg-muted/20'
 			)}
 			aria-label={column.label}

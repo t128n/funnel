@@ -4,6 +4,7 @@
 	import { timeAgo } from '#lib/client/clock.svelte';
 	import type { StagedSubmission } from '#lib/server/intake/staging';
 	import { cn } from '#lib/utils';
+	import * as Item from '#lib/components/ui/item/index.js';
 
 	interface Props {
 		submission: StagedSubmission;
@@ -17,13 +18,11 @@
 	}
 </script>
 
-<div
-	class={cn(
-		'focus-visible:ring-ring/50 hover:bg-accent flex cursor-pointer flex-col gap-0.5 p-2 outline-none transition-colors select-none focus-visible:ring-1',
-		selected && 'bg-accent'
-	)}
+<Item.Root
+	size="xs"
+	class={cn('cursor-pointer select-none hover:bg-accent', selected && 'bg-accent')}
 	role="button"
-	tabindex="0"
+	tabindex={0}
 	aria-current={selected ? 'true' : undefined}
 	onclick={select}
 	onkeydown={(e) => {
@@ -33,16 +32,27 @@
 		}
 	}}
 >
-	<div class="flex min-w-0 items-center gap-2">
+	<Item.Media class="pt-0.5">
 		<IntakeTag />
-		<span class="text-foreground flex-1 truncate text-sm" title={submission.title}>
-			{submission.title}
-		</span>
-		<span class="text-muted-foreground shrink-0 text-xs" title={new Date(submission.createdAt).toLocaleString()}>
+	</Item.Media>
+
+	<Item.Content class="min-w-0">
+		<Item.Title class="w-full min-w-0">
+			<span class="text-foreground min-w-0 flex-1 truncate" title={submission.title}>
+				{submission.title}
+			</span>
+		</Item.Title>
+		<div class="mono text-muted-foreground truncate text-xs">
+			{submission.source ?? 'via intake'}
+		</div>
+	</Item.Content>
+
+	<Item.Actions class="shrink-0 items-center self-start pt-0.5">
+		<span
+			class="text-muted-foreground text-xs"
+			title={new Date(submission.createdAt).toLocaleString()}
+		>
 			{timeAgo(submission.createdAt)}
 		</span>
-	</div>
-	<div class="mono text-muted-foreground truncate pl-0.5 text-xs">
-		{submission.source ?? 'via intake'}
-	</div>
-</div>
+	</Item.Actions>
+</Item.Root>

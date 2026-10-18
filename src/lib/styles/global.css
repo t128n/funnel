@@ -8,8 +8,8 @@
 /**
  * Global base styles for the Funnel cockpit.
  *
- * Theming follows the JetBrains "Islands" palette (lyra style, 10px island
- * radius, Inter): `:root` holds the light variables and `.dark` the dark ones,
+ * Theming follows the JetBrains "Islands" palette (nova style, 4.5px radius,
+ * Inter): `:root` holds the light variables and `.dark` the dark ones,
  * and `#lib/client/theme` toggles the `.dark` class on <html>. Values are the
  * official hex tokens (Editor/MainWindow/ToolWindow backgrounds, Border.color,
  * Label.infoForeground, EditorTabs accent, DEFAULT_* syntax hues). A few Base16
@@ -155,7 +155,7 @@
   --chart-3: #2aacb8;
   --chart-4: #c6a455;
   --chart-5: #7a3e9d;
-  --radius: 0.625rem;
+  --radius: 0.45rem;
   --sidebar: #ebecf0;
   --sidebar-foreground: #000000;
   --sidebar-primary: #3574f0;

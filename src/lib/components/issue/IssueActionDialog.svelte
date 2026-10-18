@@ -74,7 +74,7 @@
 					<Field.Legend variant="label">Resolution</Field.Legend>
 					<div class="flex gap-2" role="radiogroup" aria-label="Resolution">
 						<Field.Label
-							class="has-data-checked:border-ring flex-1 cursor-pointer flex-row items-center gap-2 border p-2 text-xs font-normal"
+							class="has-data-checked:border-ring flex-1 cursor-pointer flex-row items-center gap-2 rounded-md border p-2 text-xs font-normal"
 						>
 							<input
 								type="radio"
@@ -86,7 +86,7 @@
 							<span>Completed</span>
 						</Field.Label>
 						<Field.Label
-							class="has-data-checked:border-ring flex-1 cursor-pointer flex-row items-center gap-2 border p-2 text-xs font-normal"
+							class="has-data-checked:border-ring flex-1 cursor-pointer flex-row items-center gap-2 rounded-md border p-2 text-xs font-normal"
 						>
 							<input
 								type="radio"

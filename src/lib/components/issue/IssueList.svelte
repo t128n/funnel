@@ -1,6 +1,7 @@
 <script lang="ts">
 	import IssueRow from './IssueRow.svelte';
 	import * as Empty from '#lib/components/ui/empty';
+	import * as Item from '#lib/components/ui/item/index.js';
 	import type { IssueListItem } from '#lib/server/issues/types';
 
 	interface Props {
@@ -26,9 +27,9 @@
 		<Empty.Description>{empty}</Empty.Description>
 	</Empty.Root>
 {:else}
-	<div class="flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto p-2" role="list">
+	<Item.Group class="min-h-0 flex-1 gap-0.5 overflow-y-auto p-2">
 		{#each issues as issue (`${issue.repoId}:${issue.number}`)}
 			<IssueRow {issue} selected={isSelected(issue)} />
 		{/each}
-	</div>
+	</Item.Group>
 {/if}

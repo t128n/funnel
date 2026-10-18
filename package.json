@@ -31,6 +31,7 @@
 		"drizzle-kit": "^1.0.0-rc.4",
 		"pino-pretty": "^13.2.0",
 		"shadcn-svelte": "^1.7.0",
+		"shiki": "^3.20.0",
 		"svelte": "^5.57.1",
 		"svelte-check": "^4.6.0",
 		"tailwind-variants": "^3.3.1",

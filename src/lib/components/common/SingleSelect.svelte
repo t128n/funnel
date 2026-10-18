@@ -1,7 +1,6 @@
 <script lang="ts">
-	import * as DropdownMenu from '#lib/components/ui/dropdown-menu';
+	import * as Select from '#lib/components/ui/select';
 	import { cn } from '#lib/utils';
-	import ChevronDownIcon from '@lucide/svelte/icons/chevron-down';
 	import type { Snippet } from 'svelte';
 
 	export interface SingleSelectOption {
@@ -37,19 +36,33 @@
 		icon
 	}: Props = $props();
 
+	/** bits-ui needs a concrete value; a sentinel is clearer than an empty one. */
+	const CLEAR = '__clear__';
+
+	const items = $derived(options.map((option) => ({ value: option.value, label: option.label })));
 	const current = $derived(options.find((o) => o.value === value) ?? null);
 
 	function cssColor(color: string | null | undefined): string | undefined {
 		if (!color) return undefined;
 		return /^[0-9a-f]{6}$/i.test(color) ? `#${color}` : color;
 	}
+
+	function onChange(next: string) {
+		onselect(next === CLEAR ? null : next);
+	}
 </script>
 
-<DropdownMenu.Root>
-	<DropdownMenu.Trigger
-		{disabled}
+<Select.Root
+	type="single"
+	{items}
+	value={value ?? ''}
+	onValueChange={onChange}
+	{disabled}
+>
+	<Select.Trigger
+		size="sm"
 		class={cn(
-			'focus-visible:border-ring focus-visible:ring-ring/50 flex h-7 shrink-0 items-center gap-1.5 border px-2 text-xs outline-none transition-colors focus-visible:ring-1 disabled:pointer-events-none disabled:opacity-50',
+			'focus-visible:border-ring focus-visible:ring-ring/50 shrink-0 gap-1.5 focus-visible:ring-1',
 			variant === 'ghost'
 				? 'text-muted-foreground hover:bg-accent hover:text-foreground w-auto border-transparent bg-transparent'
 				: variant === 'pill'
@@ -69,37 +82,28 @@
 				style={cssColor(current?.color) ? `background:${cssColor(current?.color)}` : undefined}
 			></span>
 		{/if}
-		<span class="flex-1 truncate text-left">{current?.label ?? label}</span>
-		<ChevronDownIcon class="size-3.5 shrink-0 opacity-60" />
-	</DropdownMenu.Trigger>
+		<Select.Value placeholder={label} />
+	</Select.Trigger>
 
-	<!-- `preventScroll={false}`/`strategy="fixed"` keep the menu non-modal so an
-	     enclosing popover is not read as an outside click; see MultiSelect. -->
-	<DropdownMenu.Content
-		sideOffset={6}
-		align="start"
-		class="w-auto min-w-45"
-		preventScroll={false}
-		strategy="fixed"
-	>
-		<DropdownMenu.RadioGroup value={value ?? ''} onValueChange={(next) => onselect(next || null)}>
+	<Select.Content>
+		<Select.Group>
 			{#each options as option (option.value)}
-				<DropdownMenu.RadioItem value={option.value} class="gap-2">
+				<Select.Item value={option.value} label={option.label}>
 					<span
 						class="size-2 shrink-0 rounded-full"
 						class:invisible={!option.color}
 						style={cssColor(option.color) ? `background:${cssColor(option.color)}` : undefined}
 					></span>
 					<span class="flex-1 truncate">{option.label}</span>
-				</DropdownMenu.RadioItem>
+				</Select.Item>
 			{/each}
-		</DropdownMenu.RadioGroup>
+		</Select.Group>
 
 		{#if allowClear && value !== null}
-			<DropdownMenu.Separator />
-			<DropdownMenu.Item class="text-muted-foreground" onSelect={() => onselect(null)}>
-				{clearLabel}
-			</DropdownMenu.Item>
+			<Select.Separator />
+			<Select.Item value={CLEAR} label={clearLabel}>
+				<span class="text-muted-foreground">{clearLabel}</span>
+			</Select.Item>
 		{/if}
-	</DropdownMenu.Content>
-</DropdownMenu.Root>
+	</Select.Content>
+</Select.Root>
