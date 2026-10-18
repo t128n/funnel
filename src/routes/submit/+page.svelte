@@ -1,63 +1,78 @@
 <script lang="ts">
 	import type { PageProps } from './$types';
 	import CarbonFunnelSequence from '~icons/carbon/funnel-sequence';
+	import CarbonInformation from '~icons/carbon/information';
+	import CarbonCheckmark from '~icons/carbon/checkmark';
 
 	let { form }: PageProps = $props();
 </script>
 
 <div class="page">
-	<div class="card">
-		<header class="card__head">
-			<span class="brand__mark"><CarbonFunnelSequence width="18" height="18" aria-hidden="true" /></span>
-			<h1>Submit an issue</h1>
-		</header>
+	<div class="pane">
+		<div class="pane__top">
+			<span class="brand__mark"
+				><CarbonFunnelSequence width="14" height="14" aria-hidden="true" /></span
+			>
+			<span class="brand__name">Funnel</span>
+		</div>
 
 		{#if form?.submitted}
-			<div class="success" role="status">
-				Thanks — your submission was received and is awaiting triage.
+			<div class="done" role="status">
+				<span class="done__badge">
+					<CarbonCheckmark width="12" height="12" aria-hidden="true" />
+					Received
+				</span>
+				<h1 class="done__title">Thanks — your submission is in.</h1>
+				<p class="done__text">
+					A triager will review it shortly. Nothing is created on GitHub until it's accepted, so
+					there's nothing else you need to do.
+				</p>
+				<a class="btn btn--primary" href="/submit">Submit another</a>
 			</div>
 		{:else}
-			<p class="hint">
-				Your submission is staged locally and reviewed before it becomes a GitHub issue.
-			</p>
+			<h1 class="sr-only">Submit an issue</h1>
 
-			{#if form?.error}
-				<div class="error" role="alert">{form.error}</div>
-			{/if}
+			<form class="doc" method="POST" autocomplete="off">
+				<div class="doc__fields">
+					{#if form?.error}
+						<div class="error" role="alert">{form.error}</div>
+					{/if}
 
-			<form method="POST" class="form">
-				<label>
-					<span>Title</span>
 					<input
+						class="doc__title"
 						name="title"
 						type="text"
 						required
 						maxlength="256"
-						placeholder="Short, descriptive title"
+						placeholder="Issue title"
 						value={form?.title ?? ''}
+						aria-label="Issue title"
 					/>
-				</label>
 
-				<label>
-					<span>Details</span>
+					<p class="doc__note">
+						<CarbonInformation width="13" height="13" aria-hidden="true" />
+						Submissions are staged for triage before syncing to GitHub.
+					</p>
+
 					<textarea
+						class="doc__body"
 						name="body"
-						rows="6"
-						placeholder="What happened? What did you expect?"
-					>{form?.body ?? ''}</textarea>
-				</label>
+						placeholder="Add description..."
+						aria-label="Description">{form?.body ?? ''}</textarea>
+				</div>
 
-				<label>
-					<span>Source <em>(optional)</em></span>
-					<input
-						name="source"
-						type="text"
-						placeholder="Your email, team, or tool"
-						value={form?.source ?? ''}
-					/>
-				</label>
+				<input
+					class="doc__source"
+					name="source"
+					type="text"
+					placeholder="Add source..."
+					value={form?.source ?? ''}
+					aria-label="Source"
+				/>
 
-				<button type="submit">Submit</button>
+				<footer class="doc__foot">
+					<button class="btn btn--primary" type="submit">Submit</button>
+				</footer>
 			</form>
 		{/if}
 	</div>
@@ -67,112 +82,235 @@
 	.page {
 		display: flex;
 		align-items: center;
+		align-items: safe center;
 		justify-content: center;
 		min-height: 100vh;
 		min-height: 100dvh;
-		padding: var(--space-lg);
-		background: var(--color-surface-base);
+		padding: var(--space-xl) var(--space-lg);
+		/* Subtle atmosphere: a faint primary-tinted glow lets the pane read as
+		   floating on the canvas "sea" without a border or shadow (docs/DESIGN.md §Islands). */
+		background:
+			radial-gradient(
+				55% 45% at 50% 50%,
+				color-mix(in srgb, var(--color-primary) 8%, transparent),
+				transparent 70%
+			),
+			var(--color-surface-base);
 	}
 
-	.card {
-		width: 480px;
-		max-width: 100%;
-		padding: var(--space-xl);
+	.pane {
+		/* Single focused document canvas: one surface, no internal boxes, no
+		   border or shadow — it separates from the canvas by surface step + glow. */
+		--placeholder: color-mix(in srgb, var(--color-text-secondary) 55%, transparent);
+		--muted-line: color-mix(in srgb, var(--color-text-secondary) 70%, transparent);
+
+		display: flex;
+		flex-direction: column;
+		width: 100%;
+		max-width: 640px;
 		background: var(--color-surface-layer-1);
-		border: 1px solid var(--color-border-subtle);
-		border-radius: var(--radius-lg);
-		box-shadow: var(--shadow-overlay);
+		border-radius: var(--island-radius);
 	}
 
-	.card__head {
+	.pane__top {
 		display: flex;
 		align-items: center;
 		gap: var(--space-sm);
-		margin-bottom: var(--space-md);
+		padding: var(--space-lg) var(--space-xl) 0;
 	}
 
 	.brand__mark {
 		display: inline-flex;
 		align-items: center;
 		justify-content: center;
-		width: 28px;
-		height: 28px;
-		border-radius: var(--radius-md);
+		width: 22px;
+		height: 22px;
+		border-radius: var(--radius-sm);
 		background: var(--color-primary);
 		color: var(--color-on-primary);
+	}
+
+	.brand__name {
+		font-size: var(--text-md);
 		font-weight: var(--weight-semibold);
+		letter-spacing: -0.01em;
+		color: var(--color-text-primary);
 	}
 
-	h1 {
-		margin: 0;
-		font-size: var(--text-lg);
-		font-weight: var(--weight-semibold);
-	}
-
-	.hint {
-		margin: 0 0 var(--space-md);
-		color: var(--color-text-muted);
-		font-size: var(--text-sm);
-	}
-
-	.form {
+	.doc {
 		display: flex;
 		flex-direction: column;
-		gap: var(--space-md);
+		gap: var(--space-lg);
+		padding: var(--space-md) var(--space-xl) var(--space-lg);
 	}
 
-	label {
+	.doc__fields {
 		display: flex;
 		flex-direction: column;
+		gap: var(--space-sm);
+	}
+
+	.doc__title {
+		display: block;
+		width: auto;
+		margin: 0 calc(var(--space-sm) * -1);
+		padding: var(--space-xs) var(--space-sm);
+		background: transparent;
+		border: 0;
+		font-size: var(--text-xl);
+		font-weight: var(--weight-medium);
+		letter-spacing: -0.015em;
+		color: var(--color-text-primary);
+	}
+
+	.doc__title::placeholder {
+		color: var(--placeholder);
+	}
+
+	.doc__title:focus-visible,
+	.doc__body:focus-visible,
+	.doc__source:focus-visible {
+		outline: none;
+		border-radius: var(--radius-xs);
+		box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-border-focus) 55%, transparent);
+	}
+
+	.doc__note {
+		display: flex;
+		align-items: center;
 		gap: var(--space-xs);
+		margin: 0;
 		font-size: var(--text-sm);
+		line-height: 1.4;
+		color: var(--muted-line);
+	}
+
+	.doc__note :global(svg) {
+		flex: none;
+	}
+
+	.doc__body {
+		display: block;
+		width: auto;
+		margin: 0 calc(var(--space-sm) * -1);
+		min-height: 240px;
+		padding: var(--space-xs) var(--space-sm);
+		background: transparent;
+		border: 0;
+		font-size: var(--text-md);
+		line-height: 1.6;
+		color: var(--color-text-secondary);
+		resize: none;
+	}
+
+	.doc__body::placeholder {
+		color: var(--placeholder);
+	}
+
+	.doc__source {
+		display: block;
+		width: auto;
+		margin: 0 calc(var(--space-sm) * -1);
+		padding: var(--space-xs) var(--space-sm);
+		background: transparent;
+		border: 0;
+		font-size: var(--text-base);
 		color: var(--color-text-secondary);
 	}
 
-	label em {
-		color: var(--color-text-muted);
-		font-style: normal;
+	.doc__source::placeholder {
+		color: var(--placeholder);
 	}
 
-	input,
-	textarea {
-		padding: var(--space-sm);
-		background: var(--color-surface-layer-2);
-		border: 1px solid var(--color-border-subtle);
-		border-radius: var(--radius-sm);
-		font-size: var(--text-base);
-		color: var(--color-text-primary);
-		resize: vertical;
+	.doc__foot {
+		display: flex;
+		align-items: center;
+		justify-content: flex-end;
+		padding-top: var(--space-md);
+		border-top: 1px solid color-mix(in srgb, var(--color-text-secondary) 8%, transparent);
 	}
 
-	button {
-		align-self: flex-start;
-		height: 34px;
-		padding: 0 var(--space-lg);
-		background: var(--color-primary);
-		border: 1px solid var(--color-primary);
+	.btn {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		gap: var(--space-sm);
+		height: 30px;
+		padding: 0 var(--space-md);
+		border: 1px solid transparent;
 		border-radius: var(--radius-sm);
-		color: var(--color-on-primary);
 		font-size: var(--text-base);
 		font-weight: var(--weight-medium);
+		text-decoration: none;
 		cursor: pointer;
+		transition:
+			background var(--transition-fast),
+			border-color var(--transition-fast),
+			color var(--transition-fast),
+			opacity var(--transition-fast);
 	}
 
-	.success,
-	.error {
-		padding: var(--space-md);
-		border-radius: var(--radius-sm);
-		font-size: var(--text-base);
+	.btn:hover {
+		text-decoration: none;
 	}
 
-	.success {
-		background: color-mix(in srgb, var(--color-accent-green) 14%, transparent);
-		border: 1px solid color-mix(in srgb, var(--color-accent-green) 40%, transparent);
+	.btn--primary {
+		padding: 0 var(--space-lg);
+		background: var(--color-text-primary);
+		color: var(--color-on-primary);
+	}
+
+	.btn--primary:hover {
+		opacity: 0.9;
+	}
+
+	.done {
+		display: flex;
+		flex-direction: column;
+		align-items: flex-start;
+		gap: var(--space-sm);
+		padding: var(--space-lg) var(--space-xl) var(--space-xl);
+	}
+
+	.done__badge {
+		display: inline-flex;
+		align-items: center;
+		gap: var(--space-xs);
+		height: 22px;
+		padding: 0 var(--space-sm);
+		border-radius: var(--radius-xs);
+		background: color-mix(in srgb, var(--color-accent-green) 16%, transparent);
 		color: var(--color-accent-green);
+		font-size: var(--text-xs);
+		font-weight: var(--weight-semibold);
+		text-transform: uppercase;
+		letter-spacing: 0.05em;
+	}
+
+	.done__title {
+		margin: 0;
+		font-size: var(--text-xl);
+		font-weight: var(--weight-semibold);
+		letter-spacing: -0.015em;
+		color: var(--color-text-primary);
+	}
+
+	.done__text {
+		max-width: 60ch;
+		margin: 0;
+		font-size: var(--text-md);
+		line-height: 1.6;
+		color: var(--color-text-secondary);
+	}
+
+	.done .btn {
+		margin-top: var(--space-sm);
 	}
 
 	.error {
-		margin-bottom: var(--space-md);
+		padding: var(--space-sm) var(--space-md);
+		border-radius: var(--radius-sm);
+		font-size: var(--text-sm);
 		background: color-mix(in srgb, var(--color-accent-red) 14%, transparent);
 		border: 1px solid color-mix(in srgb, var(--color-accent-red) 40%, transparent);
 		color: var(--color-accent-red);
