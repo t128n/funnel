@@ -232,10 +232,11 @@ Every region maps to exactly one role, and every structural color key references
 | Sidebar | **Island** (tool window) |
 | Feed column (Inbox / Issues) | **Island** (tool window) |
 | Detail canvas / Inspector / Submission detail | **Island** (editor) |
-| Board columns | **Island** |
-| `feed-head`, `inspector__head`, `sd__head`, `column__head`, side-head | **Island header band** — one step off the island |
+| Board view | **Island** (tool window) |
+| Board lanes (columns) | **Surface step** inside the board island |
+| `feed-head`, `inspector__head`, `sd__head`, `view__head`, `column__head`, side-head | **Island header band** — one step off the island |
 | `composer`, `sd__triage` | **Island footer band** |
-| `FilterBar`, `view__head`, nav | **Borderless chrome** — floats on the canvas |
+| nav | **Borderless chrome** — floats on the canvas |
 
 ### Geometry tokens (`tokens.css`)
 
@@ -251,7 +252,7 @@ JetBrains stores 2× the effective arc and gap + 1, so the raw values are not th
 
 Compact viewports (`≤1280px` wide or `≤800px` tall) shrink to arc 16 → 8px, borderWidth 4 → 3px, and header height 40 → 36px.
 
-Every island header band — sidebar, feed, inspector, submission detail, board column, and the board's view/filter toolbars — is exactly `--island-header-height`. Where a band needs a second row (e.g. the feed's search), that row is a **secondary toolbar** on the island surface, not part of the band.
+Every island header band — sidebar, feed, inspector, submission detail, board view, and board lanes — is exactly `--island-header-height`. Where a band needs a second row (e.g. the feed's search), that row is a **secondary toolbar** on the island surface, not part of the band.
 
 ### The inversion rule
 
@@ -264,11 +265,11 @@ Canvas↔island contrast is kept at or above **1.20:1** luminance ratio in both 
 
 ### Borderless chrome
 
-Main toolbars, view headers, and the sidebar header have **no border** — they are part of the sea. Their surfaces come from `--color-island-header` (bands) or the canvas (chrome), never a 1px line. `--color-chrome-border` is transparent by design.
+Main toolbars and view headers have **no border**. Their surfaces come from `--color-island-header` (bands) or the island surface, never a 1px line. `--color-chrome-border` is transparent by design.
 
 ### Active tab recognition
 
-The selected tab is marked with a filled background **plus** a 2px underline (`--color-primary`), so it can be located at a glance. Applied to the All/Mine segmented control and the sidebar navigation.
+The selected item is marked with a neutral filled background (`--color-nav-bg-active`); no asymmetric accent border or underline. Applied to the All/Mine and Open/Closed/All segmented controls and the sidebar navigation.
 
 ## Layout
 
@@ -290,15 +291,15 @@ Funnel separates areas **by elevation, not by line** (Islands): working surfaces
 
 ## Shapes
 
-- **Corner Radii:** Islands (sidebar, feed, detail, inspector, board columns) use `10px` (`rounded.island`); nested controls stay at `6px` (`rounded.sm`) so no child exceeds its parent island.
+- **Corner Radii:** Islands (sidebar, feed, detail, inspector, board) use `10px` (`rounded.island`); board lanes use `8px` (`rounded.md`), and nested controls stay at `6px` (`rounded.sm`) so no child exceeds its parent island.
 - **Badges & Tokens:** `3px` (`rounded.xs`) for compact repo identifiers, issue numbers, and GitHub tags.
 - **Edge Treatment:** Crisp 1px solid hairline borders with no bevels.
 
 ## Components
 
 - **Issue Row:** Two-line master-feed card. Line one: a status dot, monospace `#id`, and a truncated title (`13px`) with the relative timestamp at the trailing edge. Line two: the muted `owner/repo` slug on the left and reserved-label chips (status, priority, size) on the right. Rounded `6px` corners with a translucent `rgba(255,255,255,0.05)` hover/active fill.
-- **Inspector Pane:** Flexible document canvas within the master–detail split (fixed `480px` when docked to the Board). Breadcrumb action bar (`owner/repo / #id / state`, "opened by … "), a `20px` inline-editable title (`-0.02em`, `1.25`), a **borderless row of icon-first property pills** (status, priority, size, assignee, labels — no container box and no uppercase labels), an open-text description with an `Add a description…` ghost prompt, a comment activity timeline, and a composer pinned to the base.
-- **Filter Bar:** In the narrow feed column the six multi-selects collapse behind a single **Filter** button that reveals an anchored panel; the Board keeps the full-width toolbar.
+- **Inspector Pane:** Flexible document canvas within the master–detail split (fixed `480px` when docked to the Board). Breadcrumb action bar (`owner/repo / #id / state`, "opened by … "), a `20px` inline-editable title (`-0.02em`, `1.25`), a **borderless row of icon-first property pills** (status, priority, size, assignee, labels — no container box and no uppercase labels), an open-text description with an `Add a description…` ghost prompt rendered as sanitized GFM, a comment activity timeline, and a composer pinned to the base.
+- **Filter Bar:** Every view collapses the six multi-selects behind a single **Filter** button that reveals an anchored panel; full-text search sits in the secondary toolbar.
 - **Quick-Action Context Menu:** Mouse-driven popup on right-click or row hover, utilizing Acrylic backdrop-filter styling and 6px rounded edges.
 
 ## Do’s and Don’ts

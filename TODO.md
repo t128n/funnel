@@ -167,7 +167,7 @@ flowchart TD
 - [x] Implement the dense 36px issue row component. `src/lib/components/issue/IssueRow.svelte` (`--row-height: 36px`), mono `repo#123`, truncated title, priority/size/status chips, assignee avatars, conflict marker.
 - [x] Build the 480px Inspector Pane (plain text rendering, inline title/body editor, comment composer). `src/lib/components/issue/InspectorPane.svelte` over `GET /api/mirror/issues/{owner}/{repo}/{number}` (`getIssueDetail`); pessimistic metadata pickers and comment composer.
 - [x] Build the 6-column Status Board with card dropdown pickers and the 14-day Done cutoff. `src/lib/components/board/StatusBoard.svelte` + `BoardCard.svelte`; Done window from `board.done_days`.
-- [x] Connect URL query parameter state to filters and search. `src/lib/url-filter.ts` + `src/lib/components/filter/FilterBar.svelte`; six multi-select dimensions + debounced search, bidirectional with the URL; inspector selection in `?issue=`.
+- [x] Connect URL query parameter state to filters and search. `src/lib/url-filter.ts` + `src/lib/components/filter/FilterPopover.svelte`/`FeedSearch.svelte`; six multi-select dimensions + debounced search, bidirectional with the URL; inspector selection in `?issue=`.
 - [x] Add structured close/reopen to the Inspector Pane. `IssueActionDialog.svelte` + `closeIssue`/`reopenIssue` client helpers: a required resolution (Completed / Not planned → GitHub `state_reason`) and a required note posted as a comment *before* the state change (SPEC §5.2.3).
 
 Also landed: `/login` (GitHub OAuth via `better-auth/svelte`) and the JavaScript-free `/submit` form. See §2.6/§2.7.

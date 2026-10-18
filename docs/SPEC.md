@@ -28,10 +28,11 @@
 
 ### 2.1 In Scope (MVP)
 - **Inbox**: Unified triage queue combining pending local intake submissions and untriaged GitHub issues (open issues missing a status label).
-- **Issue Streams**: **Issues** with an internal **All** / **Mine** segmented filter (**Mine** = assigned to the current user, i.e. `assignee=me`), sorted by Priority (`p1` first) then Updated.
+- **Issue Streams**: **Issues** with an internal **All** / **Mine** segmented filter (**Mine** = assigned to the current user, i.e. `assignee=me`) and an **Open** / **Closed** / **All** state switch defaulting to **Open** (`?state=open`), sorted by Priority (`p1` first) then Updated.
 - **Status Board**: 6-column Kanban view (`Backlog`, `Todo`, `In Progress`, `In Review`, `Blocked`, and `Done` within 14 days) with status pickers on cards.
-- **Issue Detail & Inspector Pane**: 480px docked side inspector pane for viewing plain-text issue bodies, reading comment threads, adding comments, editing title/body inline, and adjusting status/labels/assignees.
-- **Filters & Search**: Six multi-select dropdown filters (Repo, Status, Assignee, Priority, Size, Labels) combined with AND across groups and OR within groups, with complete state serialized into URL query parameters. Text search powered by standard indexed SQLite queries via Drizzle ORM.
+- **Issue Detail & Inspector Pane**: 480px docked side inspector pane for viewing rendered issue bodies, reading comment threads, adding comments, editing title/body inline, and adjusting status/labels/assignees.
+- **Sanitized Markdown Rendering**: GFM rendering of issue bodies, comments, and intake submissions (Sätteri parsed server-side, sanitized with `sanitize-html`), with the raw Markdown retained for inline editing.
+- **Filters & Search**: Six multi-select dropdown filters (Repo, Status, Assignee, Priority, Size, Labels) plus an Open / Closed state switch, combined with AND across groups and OR within groups, with complete state serialized into URL query parameters. Text search powered by standard indexed SQLite queries via Drizzle ORM.
 - **Funnel-First Intake**: Anonymous `POST /api/intake` (JSON) and `/submit` (JavaScript-free HTML form). Single-item triage actions: Accept, Dismiss, Duplicate.
 - **GitHub Enterprise & Cloud Support**: Dynamic host configuration (`github.url`, `github.api_url`) for GitHub Enterprise Server (GHES), GHE.com data residency, or standard `github.com`.
 - **Manual GitHub App Setup**: Operators register the GitHub App in GitHub settings and supply the credentials via environment variables (no built-in manifest flow).
@@ -39,7 +40,6 @@
 - **Theme Support**: Oxocarbon Dark and Light palette with an in-app System / Dark / Light switcher.
 
 ### 2.2 Post-MVP (Deferred)
-- **Sanitized Markdown Rendering**: Rich GFM rendering in issue bodies and comments (plain text with preserved whitespace used in MVP).
 - **Linked Pull Request Hydration**: PR summaries on cards/details (omitted in MVP to prevent GraphQL batch hydration timeouts).
 - **Cycles / Sprints & Burndowns**: Time-boxed sprint tracking and velocity analytics.
 - **Command Palette & Global Keyboard Shortcuts**: `⌘K` quick action menu and global hotkey navigation.
@@ -256,10 +256,10 @@ The authenticated cockpit pairs a navigation sidebar with a per-view layout:
 
 1. **Navigation Sidebar (220px fixed)**:
    - Header: instance mark plus an AGPL-3.0 source link and quick-create (`C`) action; global Search stays bound to `⌘K`.
-   - Views shown as a flat list: **Inbox**, **Issues** (with an internal **All** / **Mine** segmented filter), and **Board**.
+   - Views shown as a flat list: **Inbox**, **Issues** (with an internal **All** / **Mine** segmented filter and an **Open** / **Closed** / **All** state switch, defaulting to Open), and **Board**.
    - Footer: theme switcher (System / Dark / Light) pinned above the separator, with the user profile and sign-out below it.
 2. **Inbox / Issues — Master–Detail Split**:
-   - **Feed column (360px fixed)**: a compact vertical master list. Top toolbar carries the view title + count, a Filter popover (the six multi-selects) and full-text search. Issue cards are two-line — status dot, `#id`, truncated title, relative time, then the `owner/repo` slug and reserved-label chips (status / priority / size) — with a rounded translucent hover/active fill. Default sort: **Priority (`p1` first, unprioritized last) then Updated**.
+   - **Feed column (360px fixed)**: a compact vertical master list. Top toolbar carries the view title + count and the view scope controls (**All** / **Mine** and **Open** / **Closed** / **All**); the secondary toolbar carries the Filter popover (six multi-selects) and full-text search. Issue cards are two-line — status dot, `#id`, truncated title, relative time, then the `owner/repo` slug and reserved-label chips (status / priority / size) — with a rounded translucent hover/active fill. Default sort: **Priority (`p1` first, unprioritized last) then Updated**.
    - **Detail canvas (flexible width)**: always present; an empty state renders until a selection is made. Selecting an issue opens the Inspector; selecting a staged submission opens the intake document (body + Accept / Dismiss / Duplicate).
 3. **Inspector / Detail Canvas**:
    - Breadcrumb action bar (`owner/repo` · `#id` · state badge · "opened by … · time") with an outbound "Open on GitHub" link and a **Close / Reopen** action. Closing opens a structured dialog requiring a resolution (Completed / Not planned) and a note; reopening requires a note. The note is posted as a comment before the state change.
@@ -274,7 +274,8 @@ The authenticated cockpit pairs a navigation sidebar with a per-view layout:
 - Status changes executed via **card dropdown pickers** (no drag-and-drop in MVP).
 
 ### 9.4 Filter Bar & Search
-- Six multi-select dropdown filters: Repo, Status, Assignee (with "Me" pinned first), Priority, Size, Labels.
+- Six multi-select dropdown filters: Repo, Status, Assignee, Priority, Size, Labels. The `state` dimension is a dedicated **Open** / **Closed** / **All** switch outside the popover, defaulting to **Open**.
+- The **All** / **Mine** scope owns `assignee=me`; the Assignee dropdown therefore lists only other people, so "assigned to me" has a single affordance.
 - Logic: **OR** within the same dropdown, **AND** across different dropdowns.
 - Text search: Instant client-side / server-side standard SQL `like` queries over issue titles, bodies, and comments.
 - **URL Synchronization**: All filter and search parameters are bidirectionally mirrored to URL query parameters for bookmarking and link sharing.
