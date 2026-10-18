@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { page } from '$app/state';
+	import { toast } from 'svelte-sonner';
 	import Avatar from '#lib/components/common/Avatar.svelte';
 	import MultiSelect from '#lib/components/common/MultiSelect.svelte';
 	import SingleSelect from '#lib/components/common/SingleSelect.svelte';
@@ -40,6 +42,7 @@
 		labelTint
 	} from '#lib/labels';
 	import { absoluteTime } from '#lib/time';
+	import { viewOf } from '#lib/issue-url';
 	import type { RenderedIssueDetail, UserRef } from '#lib/server/issues/types';
 	import { cn } from '#lib/utils';
 	import CircleDashedIcon from '@lucide/svelte/icons/circle-dashed';
@@ -318,7 +321,21 @@
 			openDialog('reopen', value);
 			return;
 		}
-		await runPatch({ status: value }, 'status');
+		// Triage from the Inbox: setting the first status moves the issue out of
+		// the queue (see `projectInboxEntries`). Confirm the exit with an undo,
+		// since the row leaves immediately and the picker is the only feedback.
+		const wasUntriaged = issue?.status == null;
+		const ok = await runPatch({ status: value }, 'status');
+		if (ok && wasUntriaged && viewOf(page.url.pathname) === 'inbox') {
+			toast('Triaged · moved to Issues', {
+				description: `${repo}#${number}`,
+				duration: 6000,
+				action: {
+					label: 'Undo',
+					onClick: () => void runPatch({ status: null }, 'status')
+				}
+			});
+		}
 	}
 
 	async function setPriority(value: string | null) {
@@ -402,16 +419,10 @@
 >
 	{#snippet header()}
 		<div class="flex min-w-0 flex-1 flex-col gap-1 py-0.5">
-			<div class="flex min-w-0 items-center gap-2">
-				<span
-					class="text-muted-foreground min-w-0 truncate text-sm font-medium"
-					title={`${repo}#${number}`}
-				>
-					{repo}#{number}
-				</span>
-				{#if issue}
+			{#if issue}
+				<div class="flex min-w-0 items-center gap-2">
 					<Input
-						class="hover:bg-accent/50 focus-visible:border-input h-auto min-w-0 flex-1 border-transparent bg-transparent px-1 text-xl leading-tight font-semibold tracking-tight shadow-none md:text-xl dark:bg-transparent"
+						class="hover:bg-accent/50 h-auto -ml-1 min-w-0 flex-1 border-0 bg-transparent px-1 text-xl leading-tight font-semibold tracking-tight shadow-none md:text-xl dark:bg-transparent"
 						value={title}
 						oninput={(e) => (title = e.currentTarget.value)}
 						onblur={saveTitle}
@@ -429,25 +440,26 @@
 					{:else if titleDirty}
 						<Button variant="secondary" size="sm" onclick={saveTitle}>Save</Button>
 					{/if}
-				{/if}
-			</div>
-			{#if issue}
-				<div class="text-muted-foreground flex min-w-0 items-center gap-1.5 text-xs">
+				</div>
+			{/if}
+			<div class="text-muted-foreground flex min-w-0 items-center gap-3 text-xs">
+				<span class="min-w-0 truncate font-medium" title={`${repo}#${number}`}>
+					{repo}#{number}
+				</span>
+				{#if issue}
 					{#if issue.author}
 						<span class="truncate">
 							opened by <strong class="text-foreground font-medium">{issue.author.login}</strong>
 						</span>
-						<span aria-hidden="true">·</span>
 					{/if}
 					<span class="shrink-0" title={absoluteTime(issue.createdAt)}>
 						{timeAgo(issue.createdAt)}
 					</span>
-					<span aria-hidden="true">·</span>
 					<span class="shrink-0" title={absoluteTime(issue.updatedAt)}>
 						last updated {timeAgo(issue.updatedAt)}
 					</span>
-				</div>
-			{/if}
+				{/if}
+			</div>
 		</div>
 		<div class="flex shrink-0 items-center gap-1">
 			<Button

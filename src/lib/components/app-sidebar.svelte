@@ -6,6 +6,7 @@
 	import KanbanIcon from "@lucide/svelte/icons/kanban";
 	import type { ComponentProps } from "svelte";
 	import * as Sidebar from "#lib/components/ui/sidebar/index.js";
+	import { viewOf } from "#lib/issue-url";
 	import { cn } from "#lib/utils.js";
 	import NavUser from "./nav-user.svelte";
 
@@ -36,7 +37,9 @@
 	];
 
 	function isActive(href: string): boolean {
-		return page.url.pathname === href;
+		// Highlight the owning view for its detail sub-routes too, e.g.
+		// `/issues/<owner>/<repo>/<n>` keeps Issues active.
+		return viewOf(page.url.pathname) === href.slice(1);
 	}
 </script>
 

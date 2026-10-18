@@ -313,6 +313,8 @@ export function inbox(
     matchesSearch(filter.search, submission.title, submission.body),
   );
 
+  // SQL form of `isUntriaged` (#lib/labels), which the client projects the
+  // queue with. Keep the two in step.
   const untriaged = and(
     eq(mirrorGithubIssue.state, "open"),
     isNull(mirrorGithubIssue.status),

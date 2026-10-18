@@ -86,6 +86,17 @@ export function labelTint(name: string | null | undefined): string | undefined {
   return `color: ${/^[0-9a-f]{6}$/i.test(color) ? `#${color}` : color}`;
 }
 
+/**
+ * Inbox membership (SPEC §2.1): an open issue that carries no status label.
+ * The server query mirrors this as `state = "open" AND status IS NULL`; the
+ * client reuses it to project the queue optimistically, so setting a status
+ * moves an issue out the moment the overlay is applied rather than waiting for
+ * the mirror to catch up. Keep the two definitions in step.
+ */
+export function isUntriaged(issue: { state: string; status: string | null }): boolean {
+  return issue.state === "open" && issue.status === null;
+}
+
 export interface LabelOption {
   value: string;
   label: string;

@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { fade } from 'svelte/transition';
+	import { flip } from 'svelte/animate';
 	import { page } from '$app/state';
 	import FeedSearch from '#lib/components/filter/FeedSearch.svelte';
 	import FilterPopover from '#lib/components/filter/FilterPopover.svelte';
@@ -76,17 +78,23 @@
 
 		<div class="flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto p-2" role="list">
 			{#each entries as entry (entry.kind === 'submission' ? entry.submission.id : `${entry.issue.repoId}:${entry.issue.number}`)}
-				{#if entry.kind === 'submission'}
-					<SubmissionRow
-						submission={entry.submission}
-						selected={selectedSubmissionId === entry.submission.id}
-					/>
-				{:else}
-					<IssueRow
-						issue={entry.issue}
-						selected={isSelectedIssue(entry.issue.repo, entry.issue.number)}
-					/>
-				{/if}
+				<div
+					animate:flip={{ duration: 150 }}
+					out:fade={{ duration: 150 }}
+					role="listitem"
+				>
+					{#if entry.kind === 'submission'}
+						<SubmissionRow
+							submission={entry.submission}
+							selected={selectedSubmissionId === entry.submission.id}
+						/>
+					{:else}
+						<IssueRow
+							issue={entry.issue}
+							selected={isSelectedIssue(entry.issue.repo, entry.issue.number)}
+						/>
+					{/if}
+				</div>
 			{:else}
 				<div class="text-muted-foreground flex flex-1 items-center justify-center p-8 text-center text-sm">
 					Inbox zero. Nothing staged or untriaged.

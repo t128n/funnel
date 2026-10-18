@@ -17,7 +17,7 @@ import { untrack } from "svelte";
 import { SvelteMap, SvelteSet } from "svelte/reactivity";
 import { toast } from "svelte-sonner";
 import type { MutationResult } from "#lib/client/mutations";
-import { STATUS_OPTIONS } from "#lib/labels";
+import { STATUS_OPTIONS, isUntriaged } from "#lib/labels";
 import type {
   IssueListItem,
   RenderedInboxEntry,
@@ -246,7 +246,12 @@ export function projectBoard(board: StatusBoard): StatusBoard {
   };
 }
 
-/** Project the Inbox queue, dropping submissions optimistically removed. */
+/**
+ * Project the Inbox queue, dropping submissions optimistically removed and
+ * issues an overlay has moved out of the queue (setting a status makes an issue
+ * triaged, so it leaves the Inbox the instant the overlay is applied rather
+ * than when the mirror next refreshes).
+ */
 export function projectInboxEntries(
   entries: RenderedInboxEntry[],
 ): RenderedInboxEntry[] {
@@ -256,7 +261,9 @@ export function projectInboxEntries(
       if (removedSubmissions.has(entry.submission.id)) continue;
       projected.push(entry);
     } else {
-      projected.push({ kind: "issue", issue: projectIssue(entry.issue) });
+      const issue = projectIssue(entry.issue);
+      if (!isUntriaged(issue)) continue;
+      projected.push({ kind: "issue", issue });
     }
   }
   return projected;
