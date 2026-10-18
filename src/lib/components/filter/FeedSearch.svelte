@@ -2,7 +2,9 @@
 	import { untrack } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
+	import Hint from '#lib/components/hotkeys/Hint.svelte';
 	import * as InputGroup from '#lib/components/ui/input-group';
+	import { appHotkeys } from '#lib/client/hotkeys';
 	import { buildFilterUrl, parseFilterParams } from '#lib/url-filter';
 	import SearchIcon from '@lucide/svelte/icons/search';
 
@@ -51,4 +53,8 @@
 		onblur={() => (focused = false)}
 		aria-label="Search issues"
 	/>
+	<!-- Reveals ⌘K / Ctrl+K while the modifier is held; collapses when idle. -->
+	<InputGroup.Addon align="inline-end" class="empty:hidden">
+		<Hint hotkey={appHotkeys['nav.search']} />
+	</InputGroup.Addon>
 </InputGroup.Root>

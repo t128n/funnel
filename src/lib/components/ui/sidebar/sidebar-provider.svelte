@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { createHotkey } from "@tanstack/svelte-hotkeys";
+	import { appHotkeys } from "#lib/client/hotkeys";
 	import * as Tooltip from "#lib/components/ui/tooltip/index.js";
 	import { cn, type WithElementRef } from "#lib/utils.js";
 	import {
@@ -33,9 +35,11 @@
 			document.cookie = `${SIDEBAR_COOKIE_NAME}=${open}; path=/; max-age=${SIDEBAR_COOKIE_MAX_AGE}`;
 		},
 	});
-</script>
 
-<svelte:window onkeydown={sidebar.handleShortcutKeydown} />
+	// Owned by the shared hotkey catalog so the binding is listed and
+	// customisable alongside every other shortcut.
+	createHotkey(appHotkeys["sidebar.toggle"], () => sidebar.toggle());
+</script>
 
 <Tooltip.Provider delayDuration={0}>
 	<div

@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { goto } from "$app/navigation";
+	import { formatForDisplay } from "@tanstack/svelte-hotkeys";
 	import ChevronsUpDownIcon from "@lucide/svelte/icons/chevrons-up-down";
 	import LogOutIcon from "@lucide/svelte/icons/log-out";
 	import SettingsIcon from "@lucide/svelte/icons/settings";
@@ -8,6 +9,7 @@
 	import * as Sidebar from "#lib/components/ui/sidebar/index.js";
 	import { useSidebar } from "#lib/components/ui/sidebar/index.js";
 	import { signOut } from "#lib/client/auth";
+	import { appHotkeys } from "#lib/client/hotkeys";
 	import { openSettings } from "#lib/client/settings.svelte";
 
 	let {
@@ -17,6 +19,12 @@
 	const sidebar = useSidebar();
 
 	const initial = $derived(user.name.slice(0, 1).toUpperCase() || "?");
+
+	// The effective binding, falling back to the declared default (the catalog
+	// has no unbound entries today, but the type allows it).
+	const settingsShortcut = $derived(
+		appHotkeys["app.settings"].hotkey ?? appHotkeys["app.settings"].defaultHotkey
+	);
 
 	async function handleSignOut() {
 		await signOut();
@@ -73,6 +81,7 @@
 				<DropdownMenu.Item onSelect={handleSettings}>
 					<SettingsIcon />
 					Settings
+					<DropdownMenu.Shortcut>{formatForDisplay(settingsShortcut)}</DropdownMenu.Shortcut>
 				</DropdownMenu.Item>
 				<DropdownMenu.Separator />
 				<DropdownMenu.Item onSelect={() => void handleSignOut()}>

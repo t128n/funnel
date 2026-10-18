@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { HotkeysProvider } from '@tanstack/svelte-hotkeys';
 	import favicon from '#lib/assets/favicon.svg';
+	import { appHotkeys } from '#lib/client/hotkeys';
 	import { initTheme } from '#lib/client/theme';
 	import { Toaster } from '#lib/components/ui/sonner';
 	import '#lib/styles/global.css';
@@ -17,5 +19,7 @@
 	<link rel="icon" href={favicon} />
 </svelte:head>
 
-{@render children()}
-<Toaster />
+<HotkeysProvider {appHotkeys}>
+	{@render children()}
+	<Toaster />
+</HotkeysProvider>

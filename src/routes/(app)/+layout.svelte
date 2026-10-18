@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount, tick } from 'svelte';
 	import { goto, refreshAll } from '$app/navigation';
+	import { createHotkeys, getAppHotkeys } from '@tanstack/svelte-hotkeys';
 	import AppSidebar from '#lib/components/app-sidebar.svelte';
 	import SettingsDialog from '#lib/components/settings/settings-dialog.svelte';
 	import * as Sidebar from '#lib/components/ui/sidebar/index.js';
@@ -48,42 +49,18 @@
 		void goto('/submit');
 	}
 
-	/** Global shortcuts: ⌘/Ctrl+K search, ⌘/Ctrl+, settings, bare `C` quick-create. */
-	function onKeydown(event: KeyboardEvent) {
-		if (event.key === 'k' && (event.metaKey || event.ctrlKey)) {
-			event.preventDefault();
-			void focusSearch();
-			return;
-		}
+	// Global shortcuts come from the shared catalog, so labels, hints, and
+	// registrations can never drift. `ignoreInputs: 'auto'` (the default)
+	// already keeps the bare `C` from firing while the user types in a field,
+	// while modifier shortcuts still work inside inputs.
+	const hotkeys = getAppHotkeys();
 
-		if (event.key === ',' && (event.metaKey || event.ctrlKey)) {
-			event.preventDefault();
-			openSettings();
-			return;
-		}
-
-		const target = event.target;
-		const typing =
-			target instanceof HTMLElement &&
-			(target.tagName === 'INPUT' ||
-				target.tagName === 'TEXTAREA' ||
-				target.tagName === 'SELECT' ||
-				target.isContentEditable);
-
-		if (
-			!typing &&
-			!event.metaKey &&
-			!event.ctrlKey &&
-			!event.altKey &&
-			(event.key === 'c' || event.key === 'C')
-		) {
-			event.preventDefault();
-			openNew();
-		}
-	}
+	createHotkeys(() => [
+		{ hotkey: hotkeys.current['nav.search'], callback: () => void focusSearch() },
+		{ hotkey: hotkeys.current['app.settings'], callback: openSettings },
+		{ hotkey: hotkeys.current['issue.create'], callback: openNew }
+	]);
 </script>
-
-<svelte:window onkeydown={onKeydown} />
 
 <Sidebar.Provider class="h-svh overflow-hidden" style="--sidebar-width: 220px">
 	<AppSidebar user={data.user} />
