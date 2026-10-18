@@ -15,6 +15,41 @@
   line-height: 1.7;
 }
 
+/* ── Mermaid diagrams (Pele) ──────────────────────────────────────────────
+   `#lib/client/mermaid` mounts a Pele diagram in place of each sanitized
+   `pre > code.language-mermaid` the server emits. Pele takes its colors and
+   fonts from CSS variables and repaints them on change, so mapping the theme
+   tokens here is what makes diagrams follow the `.dark` class. `--pele-bg`
+   doubles as text color on some filled shapes, so it must stay opaque. */
+.markdown {
+  --pele-bg: var(--background);
+  --pele-fg: var(--foreground);
+  --pele-muted: var(--muted-foreground);
+  --pele-line: var(--muted-foreground);
+  --pele-surface: var(--muted);
+  --pele-surface-alt: var(--accent);
+  --pele-border: var(--border);
+  --pele-accent: var(--primary);
+  --pele-critical: var(--destructive);
+  --pele-error: var(--destructive);
+  --pele-radius: var(--radius);
+  --pele-font: var(--font-sans, "Inter Variable", sans-serif);
+  --pele-font-mono: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  --pele-series-1: var(--chart-1);
+  --pele-series-2: var(--chart-2);
+  --pele-series-3: var(--chart-3);
+  --pele-series-4: var(--chart-4);
+  --pele-series-5: var(--chart-5);
+  --pele-series-6: var(--syntax-string);
+  --pele-series-7: var(--syntax-constant);
+  --pele-series-8: var(--syntax-number);
+}
+
+.markdown .pele-diagram {
+  margin: 0 0 1rem;
+  min-width: 0;
+}
+
 /* Collapse the outer margins so the document sits flush in its pane. */
 .markdown > :first-child {
   margin-top: 0;

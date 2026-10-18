@@ -7,6 +7,8 @@
  * again whenever its parameter changes, so `{@html}` re-renders (SSE refreshes,
  * issue switches) pick up freshly injected blocks.
  *
+ * Mermaid fences are left untouched for `#lib/client/mermaid` to render.
+ *
  * Without JavaScript the lowlight-highlighted `pre` remains the fallback.
  */
 import { mount, unmount } from "svelte";
@@ -47,6 +49,8 @@ export function codeBlocks(node: HTMLElement, _key?: unknown) {
     for (const pre of node.querySelectorAll<HTMLPreElement>("pre")) {
       const code = pre.querySelector("code");
       if (!code || !pre.parentElement) continue;
+      // Mermaid diagrams get their own enhancer; keep this one off them.
+      if (code.classList.contains("language-mermaid")) continue;
 
       const host = document.createElement("div");
       pre.parentElement.insertBefore(host, pre);

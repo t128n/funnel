@@ -36,6 +36,14 @@ describe("renderMarkdown", () => {
 		expect(renderMarkdown("```nope\nplain\n```")).toContain('class="language-nope"');
 	});
 
+	test("keeps mermaid fences unhighlighted for the client renderer", () => {
+		const html = renderMarkdown("```mermaid\nflowchart LR\n  A --> B\n```");
+		expect(html).toContain('<code class="language-mermaid">');
+		expect(html).toContain("flowchart LR");
+		// `#lib/client/mermaid` reads the raw text back; no token spans here.
+		expect(html).not.toContain("hljs");
+	});
+
 	test("autolinks bare URLs", () => {
 		const html = renderMarkdown("see https://example.com now");
 		expect(html).toContain(

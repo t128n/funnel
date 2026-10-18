@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
 	import { codeBlocks } from '#lib/client/code-blocks';
+	import { mermaidDiagrams } from '#lib/client/mermaid';
 	import { cn } from '#lib/utils';
 
 	/**
@@ -10,14 +11,14 @@
 	 *
 	 * Keeping the measure here is what stops code blocks and prose from
 	 * stretching edge-to-edge when the pane takes the whole right column. The
-	 * enhancer on the body column wires up code-block chrome for whatever
-	 * `{@html}` renders inside it.
+	 * enhancers on the body column wire up code-block chrome and render Mermaid
+	 * diagrams for whatever `{@html}` puts inside it.
 	 */
 	interface Props {
 		ariaLabel: string;
 		/** Outer wrapper classes (width, borders, responsive behavior). */
 		class?: string;
-		/** Changing value that re-runs the code-block enhancer when body HTML swaps. */
+		/** Changing value that re-runs the enhancers when body HTML swaps. */
 		contentKey?: unknown;
 		/** Header bar content, laid out space-between. */
 		header: Snippet;
@@ -40,6 +41,7 @@
 		<div
 			class={cn(MEASURE, 'flex min-h-full flex-col gap-5 px-6 py-5')}
 			use:codeBlocks={contentKey}
+			use:mermaidDiagrams={contentKey}
 		>
 			{@render children()}
 		</div>
