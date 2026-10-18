@@ -1,0 +1,166 @@
+# OpenAPI description of Funnel's public HTTP surface (SPEC §6.1).
+#
+# This file is served verbatim by SvelteKit's static asset handler at
+# `GET /openapi.yml`, so a third-party page, CLI, or code generator can fetch
+# the contract without cloning the repo.
+#
+# Source of truth: the request body schema below is generated from
+# `intakeSchema` in `src/routes/api/intake/+server.ts` (valibot).
+# `tests/openapi.test.ts` fails if the two ever drift, so edit the valibot
+# schema — not this file — when the payload shape changes.
+openapi: 3.1.0
+
+info:
+  title: Funnel Intake API
+  version: 0.0.1
+  summary: Funnel-first intake staging.
+  description: |
+    Anonymous intake for the Funnel triage queue.
+
+    Submissions are staged in the instance's local database and triaged later;
+    **nothing reaches GitHub until a triager accepts it** (SPEC §1.5). The
+    response id is an opaque handle for that staged row, not a GitHub issue
+    number.
+
+    Access is intentionally ungated: there is no authentication and CORS is
+    open (`Access-Control-Allow-Origin: *`) because callers live on third-party
+    origins. The real boundary is the instance's network segmentation / SSO
+    (SPEC §8) — deploy this endpoint accordingly.
+
+servers:
+  - url: /
+    description: This Funnel instance.
+
+tags:
+  - name: Intake
+    description: Stage external submissions for triage.
+
+paths:
+  /api/intake:
+    post:
+      tags: [Intake]
+      operationId: createIntakeSubmission
+      summary: Stage a new submission
+      description: |
+        Validates and stages `{ title, body?, source? }`, returning `201` with
+        the staged row's id.
+
+        Errors are always `application/json`. A body that is not valid JSON
+        yields a single `message`; a well-formed body that fails validation
+        yields a `message` plus a non-empty `issues` array of human-readable
+        strings (see the `400` response).
+
+        Unknown properties are ignored rather than rejected, matching GitHub's
+        leniency for forward compatibility.
+
+        Every response carries the open CORS headers documented on the `204`
+        preflight response below, plus `Cache-Control: no-store`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IntakeSubmission'
+            example:
+              title: Crash when saving a board
+              body: "1. Open /board\n2. Drag a card\n3. See 500 in the console"
+              source: support-portal
+      responses:
+        '201':
+          description: Submission staged.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IntakeCreated'
+        '400':
+          description: The request body was not valid JSON, or it failed validation.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/IntakeParseError'
+                  - $ref: '#/components/schemas/IntakeValidationError'
+    options:
+      tags: [Intake]
+      operationId: intakePreflight
+      summary: CORS preflight
+      description: |
+        Answered for browser submitters with the open CORS policy. The same
+        `Access-Control-Allow-*` headers accompany the `POST` responses.
+      responses:
+        '204':
+          description: Preflight allowed; no content.
+          headers:
+            Access-Control-Allow-Origin:
+              description: Always `*`; no credentialed requests are allowed.
+              schema:
+                type: string
+                const: '*'
+            Access-Control-Allow-Methods:
+              schema:
+                type: string
+                const: 'POST, OPTIONS'
+            Access-Control-Allow-Headers:
+              schema:
+                type: string
+                const: 'Content-Type'
+            Access-Control-Max-Age:
+              schema:
+                type: string
+                const: '86400'
+
+components:
+  schemas:
+    # Generated from `intakeSchema` (valibot) in
+    # `src/routes/api/intake/+server.ts`; asserted by `tests/openapi.test.ts`.
+    IntakeSubmission:
+      type: object
+      properties:
+        title:
+          type: string
+          description: Issue title. Trimmed; must be non-empty and at most 256 characters.
+          minLength: 1
+          maxLength: 256
+        body:
+          type: string
+          description: Issue body (Markdown). At most 65536 characters.
+          maxLength: 65536
+          default: ''
+        source:
+          type: string
+          description: Free-form provenance label, e.g. the calling page or CLI. Trimmed.
+          default: ''
+      required:
+        - title
+    IntakeCreated:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Opaque handle for the staged submission.
+      required:
+        - id
+    IntakeParseError:
+      type: object
+      properties:
+        message:
+          type: string
+          const: Request body must be valid JSON
+      required:
+        - message
+    IntakeValidationError:
+      type: object
+      properties:
+        message:
+          type: string
+          const: Invalid intake submission
+        issues:
+          type: array
+          description: Human-readable validation failures.
+          items:
+            type: string
+          minItems: 1
+      required:
+        - message
+        - issues
