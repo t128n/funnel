@@ -4,7 +4,14 @@
 	import Chip from '#lib/components/common/Chip.svelte';
 	import SingleSelect from '#lib/components/common/SingleSelect.svelte';
 	import Spinner from '#lib/components/common/Spinner.svelte';
-	import { updateIssue } from '#lib/client/mutations';
+	import IssueActionDialog from '#lib/components/issue/IssueActionDialog.svelte';
+	import {
+		closeIssue,
+		reopenIssue,
+		updateIssue,
+		type CloseReason,
+		type UpdateIssuePatch
+	} from '#lib/client/mutations';
 	import { selectIssue } from '#lib/client/selection.svelte';
 	import { canonicalLabel, STATUS_OPTIONS } from '#lib/labels';
 	import type { IssueListItem } from '#lib/server/issues/types';
@@ -17,6 +24,12 @@
 
 	let busy = $state(false);
 	let error = $state<string | null>(null);
+
+	/** Structured close/reopen dialog (SPEC §5.2.3). */
+	let dialogMode = $state<'close' | 'reopen' | null>(null);
+	/** Status chosen while reopening from Done; applied after the note. */
+	let pendingStatus = $state<string | null>(null);
+	let resolveError = $state<string | null>(null);
 
 	const closed = $derived(issue.state === 'closed');
 	const priorityColor = $derived(
@@ -34,22 +47,59 @@
 
 	async function changeStatus(value: string | null) {
 		if (!value || busy) return;
+		// Done is a state transition, not a label: route it through the same
+		// structured close dialog the Inspector uses (SPEC §5.2.3).
+		if (value === 'done') {
+			if (!closed) openDialog('close');
+			return;
+		}
+		// Reopenings require a note posted before the state change.
+		if (closed) {
+			pendingStatus = value;
+			openDialog('reopen');
+			return;
+		}
+		await applyPatch({ status: value });
+	}
+
+	/** Plain pessimistic patch used for open-issue label changes. */
+	async function applyPatch(patch: UpdateIssuePatch) {
 		busy = true;
 		error = null;
-
-		const patch =
-			value === 'done'
-				? { state: 'closed' as const, state_reason: 'completed' as const }
-				: closed
-					? { state: 'open' as const, status: value }
-					: { status: value };
-
 		const result = await updateIssue(issue.repo, issue.number, patch);
 		busy = false;
 		if (!result.ok) {
 			error = result.error;
 			return;
 		}
+		await refreshAll();
+	}
+
+	function openDialog(mode: 'close' | 'reopen') {
+		resolveError = null;
+		dialogMode = mode;
+	}
+
+	/** Close/reopen with a required note, posted as a comment first. */
+	async function confirmDialog(payload: { reason: CloseReason; note: string }) {
+		busy = true;
+		resolveError = null;
+		const result =
+			dialogMode === 'reopen'
+				? await reopenIssue(
+						issue.repo,
+						issue.number,
+						payload.note,
+						pendingStatus ?? undefined
+					)
+				: await closeIssue(issue.repo, issue.number, payload.reason, payload.note);
+		busy = false;
+		if (!result.ok) {
+			resolveError = result.error;
+			return;
+		}
+		dialogMode = null;
+		pendingStatus = null;
 		await refreshAll();
 	}
 
@@ -116,6 +166,20 @@
 		<div class="card__error">{error}</div>
 	{/if}
 </div>
+
+<IssueActionDialog
+	open={dialogMode !== null}
+	mode={dialogMode ?? 'close'}
+	busy={busy}
+	error={resolveError}
+	onopenchange={(open) => {
+		if (!open && !busy) {
+			dialogMode = null;
+			pendingStatus = null;
+		}
+	}}
+	onconfirm={(payload) => void confirmDialog(payload)}
+/>
 
 <style>
 	.card {

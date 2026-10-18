@@ -51,6 +51,8 @@
 	/** Structured close/reopen dialog (SPEC §5.2.3). */
 	let dialogMode = $state<'close' | 'reopen' | null>(null);
 	let resolveError = $state<string | null>(null);
+	/** Status chosen while reopening from Done; applied after the note. */
+	let pendingStatus = $state<string | null>(null);
 
 	let title = $state('');
 	let body = $state('');
@@ -68,9 +70,20 @@
 		detail !== null && detail.body === renderedBody ? detail.bodyHtml : null
 	);
 
-	const statusValue = $derived(issue?.status ?? null);
+	/** Done is the closed state; the pill surfaces it beside the open statuses. */
+	const closed = $derived(issue?.state === 'closed');
+	const statusOptions = [
+		...STATUS_OPTIONS,
+		{ value: 'done', label: 'Done', color: 'be95ff' }
+	];
+	const statusValue = $derived(closed ? 'done' : (issue?.status ?? null));
 	const priorityValue = $derived(issue?.priority ?? null);
 	const sizeValue = $derived(issue?.size ?? null);
+
+	/** Done has no canonical label, so tint its pill explicitly. */
+	const statusTint = $derived(
+		closed ? 'color: #be95ff' : tintStyle(issue?.status ?? null)
+	);
 
 	const assigneeLogins = $derived(issue?.assignees.map((a) => a.login) ?? []);
 	const assignees = $derived(issue?.assignees ?? []);
@@ -172,8 +185,9 @@
 		return true;
 	}
 
-	function openDialog(mode: 'close' | 'reopen') {
+	function openDialog(mode: 'close' | 'reopen', status: string | null = null) {
 		resolveError = null;
+		pendingStatus = status;
 		dialogMode = mode;
 	}
 
@@ -205,7 +219,12 @@
 		if (!detail) return;
 		busy = 'reopen';
 		resolveError = null;
-		const result = await reopenIssue(repo, number, payload.note);
+		const result = await reopenIssue(
+			repo,
+			number,
+			payload.note,
+			pendingStatus ?? undefined
+		);
 		busy = null;
 		if (!result.ok) {
 			resolveError = result.error;
@@ -213,8 +232,15 @@
 		}
 		detail = {
 			...detail,
-			issue: { ...detail.issue, state: 'open', stateReason: null, closedAt: null }
+			issue: {
+				...detail.issue,
+				state: 'open',
+				stateReason: null,
+				closedAt: null,
+				status: pendingStatus ?? detail.issue.status
+			}
 		};
+		pendingStatus = null;
 		dialogMode = null;
 	}
 
@@ -242,6 +268,19 @@
 	}
 
 	async function setStatus(value: string | null) {
+		if (!value) return;
+		// Done is a state transition: reuse the structured close dialog rather
+		// than writing a label (SPEC §5.2.3).
+		if (value === 'done') {
+			openDialog('close');
+			return;
+		}
+		// Leaving Done reopens the issue, which requires a note; carry the chosen
+		// status through the dialog so it applies after the state change.
+		if (closed) {
+			openDialog('reopen', value);
+			return;
+		}
 		await runPatch({ status: value }, 'status');
 	}
 
@@ -329,27 +368,6 @@
 			{/if}
 		</div>
 		<div class="inspector__actions">
-			{#if issue}
-				{#if issue.state === 'closed'}
-					<button
-						class="save-btn"
-						type="button"
-						onclick={() => openDialog('reopen')}
-						disabled={busy !== null}
-					>
-						Reopen
-					</button>
-				{:else}
-					<button
-						class="save-btn"
-						type="button"
-						onclick={() => openDialog('close')}
-						disabled={busy !== null}
-					>
-						Close issue
-					</button>
-				{/if}
-			{/if}
 			<a class="icon-link" href={githubLink} target="_blank" rel="noreferrer" title="Open on GitHub">
 				<svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true">
 					<path
@@ -412,13 +430,13 @@
 				<SingleSelect
 					variant="ghost"
 					label="No status"
-					options={STATUS_OPTIONS}
+					options={statusOptions}
 					value={statusValue}
 					onselect={setStatus}
 					disabled={busy === 'status'}
 				>
 					{#snippet icon()}
-						<IconStatus width={14} height={14} style={tintStyle(statusValue)} />
+						<IconStatus width={14} height={14} style={statusTint} />
 					{/snippet}
 				</SingleSelect>
 
@@ -596,7 +614,10 @@
 		busy={busy === 'close' || busy === 'reopen'}
 		error={resolveError}
 		onopenchange={(open) => {
-			if (!open && busy === null) dialogMode = null;
+			if (!open && busy === null) {
+				dialogMode = null;
+				pendingStatus = null;
+			}
 		}}
 		onconfirm={(payload) => {
 			if (dialogMode === 'reopen') void confirmReopen(payload);

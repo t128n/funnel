@@ -105,14 +105,22 @@ export function closeIssue(
 
 /**
  * Reopen a closed issue, recording a required reopen note as a comment first
- * (SPEC §5.2.3).
+ * (SPEC §5.2.3). When `status` is provided it replaces the preserved status
+ * label in the same write, so reopening straight into a new workflow state is a
+ * single round trip after the note.
  */
 export function reopenIssue(
   repo: string,
   number: number,
   note: string,
+  status?: string,
 ): Promise<MutationResult<{ number: number; htmlUrl: string }>> {
-  return commentThenUpdate(repo, number, note, { state: "open" });
+  return commentThenUpdate(
+    repo,
+    number,
+    note,
+    status ? { state: "open", status } : { state: "open" },
+  );
 }
 
 /**
