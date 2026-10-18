@@ -51,6 +51,7 @@ import type {
   InboxEntry,
   IssueDetail,
   IssueListItem,
+  IssueOption,
   StatusBoard,
   StatusKey,
   UserRef,
@@ -429,6 +430,29 @@ export function filterOptions(): FilterOptions {
   ].sort((a, b) => a.localeCompare(b));
 
   return { repos, assignees, labels };
+}
+
+/**
+ * Selectable duplicate targets for one repo (intake picker, SPEC §6.2):
+ * mirrored issues ordered most recently updated first. Only identity and
+ * state are returned — the picker needs neither labels nor assignees.
+ */
+export function repoIssueOptions(
+  repoId: number,
+  opts: ListOptions = {},
+): IssueOption[] {
+  const query = db
+    .select({
+      number: mirrorGithubIssue.number,
+      title: mirrorGithubIssue.title,
+      state: mirrorGithubIssue.state,
+    })
+    .from(mirrorGithubIssue)
+    .where(eq(mirrorGithubIssue.repoId, repoId))
+    .orderBy(desc(mirrorGithubIssue.updatedAt), desc(mirrorGithubIssue.number));
+
+  const rows = opts.limit ? query.limit(opts.limit).all() : query.all();
+  return rows as IssueOption[];
 }
 
 /** Assignable users for one repo (Inspector picker, SPEC §9.2). */

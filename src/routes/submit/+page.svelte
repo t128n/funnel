@@ -73,6 +73,8 @@
 					submitting = true;
 					return async ({ update }) => {
 						submitting = false;
+						// The action's inline `form.error` alert covers both the
+						// enhanced and the JavaScript-free paths.
 						await update();
 					};
 				}}

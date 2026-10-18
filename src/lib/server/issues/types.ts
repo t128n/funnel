@@ -128,3 +128,14 @@ export interface FilterOptions {
   assignees: UserRef[];
   labels: string[];
 }
+
+/**
+ * A selectable mirrored issue for the intake "duplicate" picker (SPEC §6.2):
+ * just enough identity to choose a target, since the picker needs no labels
+ * or assignees.
+ */
+export interface IssueOption {
+  number: number;
+  title: string;
+  state: string;
+}

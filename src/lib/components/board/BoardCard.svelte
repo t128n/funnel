@@ -1,18 +1,16 @@
 <script lang="ts">
-	import { refreshAll } from '$app/navigation';
 	import Avatar from '#lib/components/common/Avatar.svelte';
 	import Chip from '#lib/components/common/Chip.svelte';
 	import SingleSelect from '#lib/components/common/SingleSelect.svelte';
 	import Spinner from '#lib/components/common/Spinner.svelte';
 	import IssueActionDialog from '#lib/components/issue/IssueActionDialog.svelte';
-	import * as Alert from '#lib/components/ui/alert';
 	import {
 		closeIssue,
 		reopenIssue,
 		updateIssue,
-		type CloseReason,
-		type UpdateIssuePatch
+		type CloseReason
 	} from '#lib/client/mutations';
+	import { mutate, overlayKey } from '#lib/client/optimistic.svelte';
 	import { selectIssue } from '#lib/client/selection.svelte';
 	import { canonicalLabel, STATUS_OPTIONS } from '#lib/labels';
 	import type { IssueListItem } from '#lib/server/issues/types';
@@ -26,13 +24,11 @@
 	let { issue }: Props = $props();
 
 	let busy = $state(false);
-	let error = $state<string | null>(null);
 
 	/** Structured close/reopen dialog (SPEC §5.2.3). */
 	let dialogMode = $state<'close' | 'reopen' | null>(null);
 	/** Status chosen while reopening from Done; applied after the note. */
 	let pendingStatus = $state<string | null>(null);
-	let resolveError = $state<string | null>(null);
 
 	const closed = $derived(issue.state === 'closed');
 	const priorityColor = $derived(
@@ -62,48 +58,53 @@
 			openDialog('reopen');
 			return;
 		}
-		await applyPatch({ status: value });
-	}
-
-	/** Plain pessimistic patch used for open-issue label changes. */
-	async function applyPatch(patch: UpdateIssuePatch) {
+		// Optimistic: the overlay moves the card to its new column at once.
 		busy = true;
-		error = null;
-		const result = await updateIssue(issue.repo, issue.number, patch);
+		await mutate({
+			key: overlayKey(issue.repo, issue.number),
+			patch: { status: value },
+			failure: 'Could not update status',
+			commit: () => updateIssue(issue.repo, issue.number, { status: value })
+		});
 		busy = false;
-		if (!result.ok) {
-			error = result.error;
-			return;
-		}
-		await refreshAll();
 	}
 
 	function openDialog(mode: 'close' | 'reopen') {
-		resolveError = null;
 		dialogMode = mode;
 	}
 
-	/** Close/reopen with a required note, posted as a comment first. */
+	/**
+	 * Close/reopen with a required note, posted as a comment first. The overlay
+	 * moves the card immediately; on failure it rolls back and the toast (the
+	 * card may have unmounted mid-flight) reports the error.
+	 */
 	async function confirmDialog(payload: { reason: CloseReason; note: string }) {
 		busy = true;
-		resolveError = null;
-		const result =
-			dialogMode === 'reopen'
-				? await reopenIssue(
-						issue.repo,
-						issue.number,
-						payload.note,
-						pendingStatus ?? undefined
-					)
-				: await closeIssue(issue.repo, issue.number, payload.reason, payload.note);
+		const reopening = dialogMode === 'reopen';
+		await mutate({
+			key: overlayKey(issue.repo, issue.number),
+			patch: reopening
+				? {
+						state: 'open',
+						stateReason: null,
+						closedAt: null,
+						...(pendingStatus ? { status: pendingStatus } : {})
+					}
+				: { state: 'closed', stateReason: payload.reason, closedAt: Date.now() },
+			failure: reopening ? 'Could not reopen issue' : 'Could not close issue',
+			commit: () =>
+				reopening
+					? reopenIssue(
+							issue.repo,
+							issue.number,
+							payload.note,
+							pendingStatus ?? undefined
+						)
+					: closeIssue(issue.repo, issue.number, payload.reason, payload.note)
+		});
 		busy = false;
-		if (!result.ok) {
-			resolveError = result.error;
-			return;
-		}
 		dialogMode = null;
 		pendingStatus = null;
-		await refreshAll();
 	}
 
 	function open() {
@@ -124,8 +125,12 @@
 	}}
 >
 	<div class="flex items-center gap-1">
-		<span class="mono text-muted-foreground truncate text-xs" title={issue.repo}>{issue.repo}</span>
-		<span class="mono text-muted-foreground/70 text-xs">#{issue.number}</span>
+		<span
+			class="mono text-muted-foreground min-w-0 truncate text-xs"
+			title={`${issue.repo}#${issue.number}`}
+		>
+			{issue.repo}#{issue.number}
+		</span>
 		{#if busy}
 			<span class="ml-auto inline-flex"><Spinner size={12} /></span>
 		{/if}
@@ -167,19 +172,13 @@
 			disabled={busy}
 		/>
 	</div>
-
-	{#if error}
-		<Alert.Root variant="destructive">
-			<Alert.Description>{error}</Alert.Description>
-		</Alert.Root>
-	{/if}
 </div>
 
 <IssueActionDialog
 	open={dialogMode !== null}
 	mode={dialogMode ?? 'close'}
 	busy={busy}
-	error={resolveError}
+	error={null}
 	onopenchange={(open) => {
 		if (!open && !busy) {
 			dialogMode = null;

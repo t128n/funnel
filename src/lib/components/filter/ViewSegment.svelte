@@ -13,7 +13,7 @@
 	const assignees = $derived(page.url.searchParams.getAll('assignee'));
 	const mineActive = $derived(assignees.length === 1 && assignees[0] === 'me');
 
-	/** Preserve every other param (filters, inspector selection) while setting
+	/** Preserve every other param (the filter dimensions) while setting
 	 *  or clearing the single `assignee=me` dimension. */
 	function href(mine: boolean): string {
 		const params = new URLSearchParams();

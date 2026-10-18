@@ -189,6 +189,20 @@ function badRequest(message: string): Outcome<never> {
 }
 
 /**
+ * Guard every write against a repo that isn't one of the configured
+ * `funnel.config.yaml` repos, so the cockpit can never target an unmapped
+ * repository. Returns a ready `Outcome` failure, or `null` when allowed.
+ */
+async function requireConfiguredRepo(
+  repo: string,
+): Promise<Outcome<never> | null> {
+  const config = await getConfig();
+  return config.repos.includes(repo)
+    ? null
+    : badRequest(`Repository ${repo} is not configured`);
+}
+
+/**
  * Create a GitHub issue with the user's token (SPEC §9.2). The repo must be one
  * of the configured `funnel.config.yaml` repos so the cockpit cannot target an
  * unmapped repository.
@@ -199,10 +213,8 @@ export async function createIssue(
   const parts = splitRepo(input.repo);
   if (!parts) return badRequest(`Invalid repository ${input.repo}`);
 
-  const config = await getConfig();
-  if (!config.repos.includes(input.repo)) {
-    return badRequest(`Repository ${input.repo} is not configured`);
-  }
+  const notConfigured = await requireConfiguredRepo(input.repo);
+  if (notConfigured) return notConfigured;
 
   let labels = normalizeReserved(input.labels ?? []);
   if (input.status) labels = withReserved(labels, "status", input.status);
@@ -257,6 +269,9 @@ export async function updateIssue(
 ): Promise<Outcome<UpdatedIssue>> {
   const parts = splitRepo(input.repo);
   if (!parts) return badRequest(`Invalid repository ${input.repo}`);
+
+  const notConfigured = await requireConfiguredRepo(input.repo);
+  if (notConfigured) return notConfigured;
 
   const patch: Record<string, unknown> = {};
   if (input.title !== undefined) patch.title = input.title;
@@ -352,6 +367,10 @@ export async function addIssueLabels(
 ): Promise<Outcome<{ labels: string[] }>> {
   const parts = splitRepo(input.repo);
   if (!parts) return badRequest(`Invalid repository ${input.repo}`);
+
+  const notConfigured = await requireConfiguredRepo(input.repo);
+  if (notConfigured) return notConfigured;
+
   if (input.labels.length === 0) return badRequest("No labels provided");
 
   let labels: string[];
@@ -394,6 +413,9 @@ export async function removeIssueLabel(
   const parts = splitRepo(input.repo);
   if (!parts) return badRequest(`Invalid repository ${input.repo}`);
 
+  const notConfigured = await requireConfiguredRepo(input.repo);
+  if (notConfigured) return notConfigured;
+
   try {
     await input.octokit.request(
       "DELETE /repos/{owner}/{repo}/issues/{issue_number}/labels/{name}",
@@ -422,6 +444,9 @@ export async function addIssueComment(
 ): Promise<Outcome<AddedComment>> {
   const parts = splitRepo(input.repo);
   if (!parts) return badRequest(`Invalid repository ${input.repo}`);
+
+  const notConfigured = await requireConfiguredRepo(input.repo);
+  if (notConfigured) return notConfigured;
 
   let data: { id?: number; html_url?: string };
   try {

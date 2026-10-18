@@ -5,37 +5,14 @@ import {
   dismissSubmission,
   duplicateSubmission,
 } from "#lib/server/intake/actions";
-import { parseIssueFilter } from "#lib/server/issues/filters";
-import { filterContext, inbox } from "#lib/server/issues/queries";
-import type { RenderedInboxEntry } from "#lib/server/issues/types";
-import { renderMarkdown } from "#lib/server/markdown/render";
-import type { Actions, PageServerLoad } from "./$types";
+import type { Actions } from "./$types";
 
 /**
- * Inbox (SPEC §6, §9.2): pending intake submissions followed by untriaged open
- * issues. Accept / Dismiss / Duplicate are SvelteKit form actions so the queue
- * works with the pessimistic UI and degrades to plain HTML without JS.
+ * Inbox triage (SPEC §6): Accept / Dismiss / Duplicate as SvelteKit form
+ * actions so the queue works with the pessimistic UI and degrades to plain HTML
+ * without JS. The forms live in the submission detail pane, so the actions are
+ * defined on this leaf route — SvelteKit only runs the leaf page's actions.
  */
-export const load: PageServerLoad = async ({ url, parent }) => {
-  const { viewerGithubId } = await parent();
-  const filter = parseIssueFilter(url.searchParams, filterContext(viewerGithubId));
-
-  // Submission bodies are anonymous, untrusted Markdown; render them to
-  // sanitized HTML at the delivery boundary (SPEC §2.2).
-  const entries: RenderedInboxEntry[] = inbox(filter).entries.map((entry) =>
-    entry.kind === "submission"
-      ? {
-          kind: "submission",
-          submission: {
-            ...entry.submission,
-            bodyHtml: renderMarkdown(entry.submission.body),
-          },
-        }
-      : entry,
-  );
-  return { inbox: { entries } };
-};
-
 export const actions: Actions = {
   async accept({ request, locals }) {
     const auth = await authenticate(locals.user?.id);
@@ -60,12 +37,16 @@ export const actions: Actions = {
     return { accepted: true, ...result.value };
   },
 
-  async dismiss({ request }) {
+  async dismiss({ request, locals }) {
+    // Dismissing only touches the local staging table, so a session is enough;
+    // unlike accept/duplicate it needs no user GitHub token.
+    if (!locals.user) return fail(401, { message: "Not authenticated" });
+
     const form = await request.formData();
     const id = String(form.get("id") ?? "");
     if (!id) return fail(400, { message: "Missing submission id" });
 
-    const result = dismissSubmission({ id });
+    const result = await dismissSubmission({ id });
     if (!result.ok) return fail(result.status, { message: result.message });
     return { dismissed: true, id };
   },

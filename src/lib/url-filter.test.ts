@@ -75,7 +75,7 @@ describe("buildFilterUrl", () => {
 	test("replaces filter keys while preserving unrelated params", () => {
 		const current = new URLSearchParams([
 			["repo", "orgA/core"],
-			["issue", "orgA/core/1"],
+			["utm_source", "newsletter"],
 		]);
 		const url = buildFilterUrl("/issues", current, {
 			...EMPTY_CLIENT_FILTER,
@@ -85,13 +85,22 @@ describe("buildFilterUrl", () => {
 		expect(parsed.pathname).toBe("/issues");
 		expect(parsed.searchParams.getAll("repo")).toEqual([]);
 		expect(parsed.searchParams.getAll("status")).toEqual(["todo"]);
-		expect(parsed.searchParams.get("issue")).toBe("orgA/core/1");
+		expect(parsed.searchParams.get("utm_source")).toBe("newsletter");
+	});
+
+	test("keeps the detail path while rewriting only the query", () => {
+		expect(
+			buildFilterUrl("/issues/orgA/core/1", new URLSearchParams(), {
+				...EMPTY_CLIENT_FILTER,
+				statuses: ["todo"],
+			}),
+		).toBe("/issues/orgA/core/1?status=todo");
 	});
 
 	test("returns a bare path when the filter is empty", () => {
-		const current = new URLSearchParams([["issue", "orgA/core/1"]]);
+		const current = new URLSearchParams([["utm_source", "newsletter"]]);
 		expect(buildFilterUrl("/inbox", current, EMPTY_CLIENT_FILTER)).toBe(
-			"/inbox?issue=orgA%2Fcore%2F1",
+			"/inbox?utm_source=newsletter",
 		);
 	});
 });

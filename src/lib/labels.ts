@@ -75,6 +75,17 @@ export function canonicalLabel(name: string): CanonicalLabel | undefined {
   return BY_NAME.get(name.toLowerCase());
 }
 
+/**
+ * Inline `color: …` declaration tinting a canonical label's icon to its own
+ * hue, or `undefined` when the name is empty or unrecognised. Shared by the
+ * Inspector and intake property pills so both read the same.
+ */
+export function labelTint(name: string | null | undefined): string | undefined {
+  const color = name ? canonicalLabel(name)?.color : undefined;
+  if (!color) return undefined;
+  return `color: ${/^[0-9a-f]{6}$/i.test(color) ? `#${color}` : color}`;
+}
+
 export interface LabelOption {
   value: string;
   label: string;

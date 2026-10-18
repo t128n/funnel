@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import favicon from '#lib/assets/favicon.svg';
 	import { initTheme } from '#lib/client/theme';
+	import { Toaster } from '#lib/components/ui/sonner';
 	import '#lib/styles/global.css';
 	import '#lib/styles/markdown.css';
 	import type { LayoutProps } from './$types';
@@ -17,3 +18,4 @@
 </svelte:head>
 
 {@render children()}
+<Toaster />

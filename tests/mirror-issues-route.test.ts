@@ -7,6 +7,7 @@ import {
 } from "#lib/server/sync/mirror";
 import type { RenderedIssueDetail } from "#lib/server/issues/types";
 import { GET as getDetail } from "#/routes/api/mirror/issues/[owner]/[repo]/[number]/+server";
+import { GET as getList } from "#/routes/api/mirror/issues/[owner]/[repo]/+server";
 import { clearMirror } from "#tests/mirror-helpers";
 import { TEST_CONFIG } from "#tests/test-config";
 
@@ -53,6 +54,10 @@ function req(owner = "orgA", repo = "core", number = "1"): Request {
 	return new Request(
 		`http://x/api/mirror/issues/${owner}/${repo}/${number}`,
 	);
+}
+
+function listReq(owner = "orgA", repo = "core", query = ""): URL {
+	return new URL(`http://x/api/mirror/issues/${owner}/${repo}${query}`);
 }
 
 beforeEach(() => {
@@ -104,5 +109,57 @@ describe("GET /api/mirror/issues/{owner}/{repo}/{number}", () => {
 		} as never);
 
 		expect(res.status).toBe(400);
+	});
+});
+
+describe("GET /api/mirror/issues/{owner}/{repo}", () => {
+	test("lists mirrored issues, most recently updated first", async () => {
+		upsertIssue(
+			{
+				githubId: 102,
+				repoId: 1,
+				number: 2,
+				title: "Beta regression",
+				body: "",
+				state: "closed",
+				stateReason: "completed",
+				author: user(7, "octocat"),
+				milestoneName: null,
+				createdAt: 2,
+				updatedAt: 200,
+				closedAt: 200,
+				labels: [],
+				assignees: [],
+				comments: [],
+			},
+			{ status: null, priority: null, size: null, labelConflict: false },
+		);
+
+		const res = await getList({
+			params: { owner: "orgA", repo: "core" },
+			url: listReq(),
+		} as never);
+
+		expect(res.status).toBe(200);
+		const issues = (await res.json()) as Array<{
+			number: number;
+			title: string;
+			state: string;
+		}>;
+		expect(issues.map((issue) => issue.number)).toEqual([2, 1]);
+		expect(issues[0]).toEqual({
+			number: 2,
+			title: "Beta regression",
+			state: "closed",
+		});
+	});
+
+	test("returns 404 for an unmirrored repo", async () => {
+		const res = await getList({
+			params: { owner: "orgA", repo: "missing" },
+			url: listReq("orgA", "missing"),
+		} as never);
+
+		expect(res.status).toBe(404);
 	});
 });

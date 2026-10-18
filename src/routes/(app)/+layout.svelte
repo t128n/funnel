@@ -1,28 +1,16 @@
 <script lang="ts">
 	import { onMount, tick } from 'svelte';
 	import { goto, refreshAll } from '$app/navigation';
-	import { page } from '$app/state';
 	import AppSidebar from '#lib/components/app-sidebar.svelte';
-	import InspectorPane from '#lib/components/issue/InspectorPane.svelte';
 	import SettingsDialog from '#lib/components/settings/settings-dialog.svelte';
 	import * as Sidebar from '#lib/components/ui/sidebar/index.js';
 	import { connectEvents } from '#lib/client/events';
 	import { startClock } from '#lib/client/clock.svelte';
 	import { bumpRefresh } from '#lib/client/refresh';
-	import { clearSelection, parseSelection, selectedIssue } from '#lib/client/selection.svelte';
 	import { openSettings } from '#lib/client/settings.svelte';
 	import type { LayoutProps } from './$types';
 
 	let { data, children }: LayoutProps = $props();
-
-	const selection = $derived(parseSelection());
-	const issue = $derived(selectedIssue(selection));
-
-	// Inbox and Issues own their detail canvas (SplitView); the shared layout
-	// only docks the Inspector Pane for the remaining views (Board).
-	const ownsDetailCanvas = $derived(
-		page.url.pathname === '/inbox' || page.url.pathname === '/issues'
-	);
 
 	// Realtime bridge: any server-side mirror change refreshes the streams and
 	// signals the Inspector to refetch (SPEC §3.2). The shared clock keeps the
@@ -30,8 +18,14 @@
 	onMount(() => {
 		const stopClock = startClock();
 		const stopEvents = connectEvents(() => {
-			void refreshAll();
-			bumpRefresh();
+			// Refresh the streams and signal the Inspector. Overlays are dropped
+			// later, by value (see `reconcileIssues`), so a refresh carrying data
+			// that does not yet reflect a write cannot bounce the UI back.
+			void refreshAll()
+				.then(() => bumpRefresh())
+				.catch(() => {
+					// A failed load leaves the current view (and overlays) intact.
+				});
 		});
 		return () => {
 			stopEvents();
@@ -105,16 +99,6 @@
 
 			{@render children()}
 		</Sidebar.Inset>
-
-		{#if !ownsDetailCanvas && issue}
-			<InspectorPane
-				repo={issue.repo}
-				number={issue.number}
-				githubUrl={data.githubUrl}
-				onclose={clearSelection}
-				commentBubbles={data.commentBubbles}
-			/>
-		{/if}
 	</div>
 
 	<SettingsDialog commentUi={data.commentBubbles ? 'bubbles' : 'compact'} />

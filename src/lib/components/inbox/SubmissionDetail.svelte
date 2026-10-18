@@ -2,22 +2,28 @@
 	import { untrack } from 'svelte';
 	import { enhance } from '$app/forms';
 	import Spinner from '#lib/components/common/Spinner.svelte';
+	import IntakeTag from '#lib/components/common/IntakeTag.svelte';
+	import SingleSelect from '#lib/components/common/SingleSelect.svelte';
 	import DetailShell from '#lib/components/detail/DetailShell.svelte';
-	import { Badge } from '#lib/components/ui/badge';
+	import DuplicateDialog from '#lib/components/inbox/DuplicateDialog.svelte';
 	import { Button } from '#lib/components/ui/button';
-	import { Input } from '#lib/components/ui/input';
-	import * as NativeSelect from '#lib/components/ui/native-select';
-	import { PRIORITY_OPTIONS, SIZE_OPTIONS } from '#lib/labels';
+	import { PRIORITY_OPTIONS, SIZE_OPTIONS, labelTint } from '#lib/labels';
+	import { removeSubmission, restoreSubmission } from '#lib/client/optimistic.svelte';
 	import { clearSelection } from '#lib/client/selection.svelte';
 	import { timeAgo } from '#lib/client/clock.svelte';
 	import { absoluteTime } from '#lib/time';
 	import type { RenderedSubmission } from '#lib/server/issues/types';
+	import GitBranchIcon from '@lucide/svelte/icons/git-branch';
+	import RulerIcon from '@lucide/svelte/icons/ruler';
+	import SignalIcon from '@lucide/svelte/icons/signal';
 	import XIcon from '@lucide/svelte/icons/x';
 
 	/**
 	 * Document-style detail pane for a staged intake submission (SPEC §6.2).
-	 * Mirrors the Inspector Pane: full body on top, triage actions pinned at the
-	 * base. The accept / dismiss / duplicate forms post to the Inbox page actions.
+	 * Mirrors the Inspector Pane: a two-line header (identity + source, title,
+	 * meta), a borderless description, a pill property strip, and triage actions
+	 * pinned at the base. The accept / dismiss / duplicate forms post to the
+	 * Inbox page actions.
 	 */
 	interface Props {
 		submission: RenderedSubmission;
@@ -27,26 +33,39 @@
 
 	let { submission, repos, defaultRepo }: Props = $props();
 
-	type Pending = 'accept' | 'dismiss' | 'duplicate' | null;
+	type Pending = 'accept' | 'dismiss' | null;
 	let pending = $state<Pending>(null);
 
 	let acceptRepo = $state(untrack(() => defaultRepo || repos[0] || ''));
 	let priority = $state('');
 	let size = $state('');
 	let duplicating = $state(false);
-	let duplicateRepo = $state(untrack(() => defaultRepo || repos[0] || ''));
-	let duplicateNumber = $state('');
 
-	/** Apply a decision's result: refresh, clear the busy flag, and — since a
-	 *  staged row is hard-deleted on every decision — drop the selection so the
-	 *  canvas returns to its empty state instead of a stale id. */
+	const repoOptions = $derived(repos.map((slug) => ({ value: slug, label: slug })));
+
+	/** Hide the row the moment a decision is submitted (optimistic triage). */
+	function begin(): void {
+		removeSubmission(submission.id);
+	}
+
+	/**
+	 * Settle a decision without re-running `load()`: a full refresh would race
+	 * the SSE reconciliation and flicker the queue. The row was already removed
+	 * optimistically, so success only needs to clear the selection; a failure
+	 * restores the row (the pane stayed open throughout). The Inbox's inline
+	 * `formError` alert surfaces the reason, with or without JavaScript.
+	 */
 	async function settle(
 		result: { type: string },
-		update: (opts?: { reset: boolean }) => Promise<void>
+		update: (opts?: { reset?: boolean; invalidateAll?: boolean }) => Promise<void>
 	) {
-		await update({ reset: false });
+		await update({ reset: false, invalidateAll: false });
 		pending = null;
-		if (result.type === 'success') clearSelection();
+		if (result.type === 'success') {
+			clearSelection();
+			return;
+		}
+		restoreSubmission(submission.id);
 	}
 </script>
 
@@ -56,16 +75,31 @@
 	contentKey={submission.bodyHtml}
 >
 	{#snippet header()}
-		<div class="flex min-w-0 items-center gap-2 overflow-hidden">
-			<Badge
-				variant="secondary"
-				class="px-1 text-[0.625rem] font-semibold tracking-wider uppercase"
-			>
-				intake
-			</Badge>
-			{#if submission.source}
-				<Badge variant="outline" class="mono truncate">{submission.source}</Badge>
-			{/if}
+		<div class="flex min-w-0 flex-1 flex-col gap-1 py-0.5">
+			<div class="flex min-w-0 items-center gap-2">
+				<IntakeTag />
+				{#if submission.source}
+					<span
+						class="mono text-muted-foreground min-w-0 truncate text-sm font-medium"
+						title={submission.source}
+					>
+						{submission.source}
+					</span>
+				{/if}
+				<h1
+					class="min-w-0 flex-1 truncate text-xl leading-tight font-semibold tracking-tight"
+					title={submission.title}
+				>
+					{submission.title}
+				</h1>
+			</div>
+			<div class="text-muted-foreground flex min-w-0 items-center gap-1.5 text-xs">
+				<span class="shrink-0">Staged</span>
+				<span aria-hidden="true">·</span>
+				<span class="shrink-0" title={absoluteTime(submission.createdAt)}>
+					{timeAgo(submission.createdAt)}
+				</span>
+			</div>
 		</div>
 		<Button
 			variant="ghost"
@@ -78,81 +112,68 @@
 		</Button>
 	{/snippet}
 
-	<h1 class="text-xl font-semibold tracking-tight">{submission.title}</h1>
-	<div class="text-muted-foreground text-xs">
-		Staged
-		<span title={absoluteTime(submission.createdAt)}>
-			· {timeAgo(submission.createdAt)}
-		</span>
-	</div>
+	<section class="flex flex-col" aria-label="Description">
+		{#if submission.body.trim().length > 0}
+			<div class="markdown text-foreground text-sm leading-relaxed">{@html submission.bodyHtml}</div>
+		{:else}
+			<div class="text-muted-foreground text-sm">No description provided.</div>
+		{/if}
+	</section>
 
-	{#if submission.body.trim().length > 0}
-		<div class="markdown text-foreground text-sm">{@html submission.bodyHtml}</div>
-	{:else}
-		<div class="text-muted-foreground text-sm">No description provided.</div>
-	{/if}
+	<section class="flex flex-wrap items-center gap-1.5" aria-label="Triage">
+		{#if repoOptions.length > 0}
+			<SingleSelect
+				variant="pill"
+				label="Repository"
+				options={repoOptions}
+				value={acceptRepo}
+				onselect={(value) => (acceptRepo = value ?? '')}
+				disabled={pending !== null}
+			>
+				{#snippet icon()}
+					<GitBranchIcon class="size-3.5" />
+				{/snippet}
+			</SingleSelect>
+		{/if}
+
+		<SingleSelect
+			variant="pill"
+			label="No priority"
+			options={PRIORITY_OPTIONS}
+			value={priority || null}
+			onselect={(value) => (priority = value ?? '')}
+			allowClear
+			disabled={pending !== null}
+		>
+			{#snippet icon()}
+				<SignalIcon class="size-3.5" style={labelTint(priority)} />
+			{/snippet}
+		</SingleSelect>
+
+		<SingleSelect
+			variant="pill"
+			label="No size"
+			options={SIZE_OPTIONS}
+			value={size || null}
+			onselect={(value) => (size = value ?? '')}
+			allowClear
+			disabled={pending !== null}
+		>
+			{#snippet icon()}
+				<RulerIcon class="size-3.5" style={labelTint(size)} />
+			{/snippet}
+		</SingleSelect>
+	</section>
 
 	{#snippet footer()}
-		<div class="flex flex-col gap-2">
-			<form
-				class="flex flex-wrap items-center gap-1"
-				method="POST"
-				action="?/accept"
-				use:enhance={() => {
-					pending = 'accept';
-					return async ({ result, update }) => {
-						await settle(result, update);
-					};
-				}}
-			>
-				<input type="hidden" name="id" value={submission.id} />
-
-				<NativeSelect.Root
-					name="repo"
-					bind:value={acceptRepo}
-					size="sm"
-					aria-label="Target repository"
-				>
-					{#each repos as repo (repo)}
-						<option value={repo}>{repo}</option>
-					{/each}
-				</NativeSelect.Root>
-
-				<NativeSelect.Root
-					name="priority"
-					bind:value={priority}
-					size="sm"
-					aria-label="Priority"
-				>
-					<option value="">No priority</option>
-					{#each PRIORITY_OPTIONS as option (option.value)}
-						<option value={option.value}>{option.label}</option>
-					{/each}
-				</NativeSelect.Root>
-
-				<NativeSelect.Root name="size" bind:value={size} size="sm" aria-label="Size">
-					<option value="">No size</option>
-					{#each SIZE_OPTIONS as option (option.value)}
-						<option value={option.value}>{option.label}</option>
-					{/each}
-				</NativeSelect.Root>
-
-				<Button type="submit" size="sm" disabled={pending !== null}>
-					{#if pending === 'accept'}
-						<span data-icon="inline-start" class="inline-flex items-center">
-							<Spinner size={12} />
-						</span>
-					{/if}
-					Accept
-				</Button>
-			</form>
-
-			<div class="flex flex-wrap items-center gap-2">
+		<div class="flex flex-wrap items-center justify-between gap-2">
+			<div class="flex items-center gap-1">
 				<form
 					method="POST"
 					action="?/dismiss"
 					use:enhance={() => {
 						pending = 'dismiss';
+						begin();
 						return async ({ result, update }) => {
 							await settle(result, update);
 						};
@@ -172,55 +193,50 @@
 				<Button
 					variant="outline"
 					size="sm"
-					onclick={() => (duplicating = !duplicating)}
-					aria-expanded={duplicating}
+					onclick={() => (duplicating = true)}
+					disabled={pending !== null}
 				>
 					Duplicate
 				</Button>
 			</div>
 
-			{#if duplicating}
-				<form
-					class="flex flex-wrap items-center gap-1 border-t border-dashed pt-2"
-					method="POST"
-					action="?/duplicate"
-					use:enhance={() => {
-						pending = 'duplicate';
-						return async ({ result, update }) => {
-							await settle(result, update);
-						};
-					}}
-				>
-					<input type="hidden" name="id" value={submission.id} />
-					<NativeSelect.Root
-						name="repo"
-						bind:value={duplicateRepo}
-						size="sm"
-						aria-label="Existing issue repository"
-					>
-						{#each repos as repo (repo)}
-							<option value={repo}>{repo}</option>
-						{/each}
-					</NativeSelect.Root>
-					<Input
-						class="w-24"
-						name="number"
-						type="number"
-						min="1"
-						placeholder="#issue"
-						bind:value={duplicateNumber}
-						aria-label="Existing issue number"
-					/>
-					<Button type="submit" size="sm" disabled={pending !== null}>
-						{#if pending === 'duplicate'}
-							<span data-icon="inline-start" class="inline-flex items-center">
-								<Spinner size={12} />
-							</span>
-						{/if}
-						Duplicate
-					</Button>
-				</form>
-			{/if}
+			<form
+				method="POST"
+				action="?/accept"
+				use:enhance={() => {
+					pending = 'accept';
+					begin();
+					return async ({ result, update }) => {
+						await settle(result, update);
+					};
+				}}
+			>
+				<input type="hidden" name="id" value={submission.id} />
+				<input type="hidden" name="repo" value={acceptRepo} />
+				<input type="hidden" name="priority" value={priority} />
+				<input type="hidden" name="size" value={size} />
+				<Button type="submit" size="sm" disabled={pending !== null}>
+					{#if pending === 'accept'}
+						<span data-icon="inline-start" class="inline-flex items-center">
+							<Spinner size={12} />
+						</span>
+					{/if}
+					Accept
+				</Button>
+			</form>
 		</div>
 	{/snippet}
 </DetailShell>
+
+<DuplicateDialog
+	open={duplicating}
+	{repos}
+	{defaultRepo}
+	id={submission.id}
+	onopenchange={(open) => (duplicating = open)}
+	onbegin={begin}
+	onresult={(ok) => {
+		if (ok) clearSelection();
+		else restoreSubmission(submission.id);
+	}}
+/>

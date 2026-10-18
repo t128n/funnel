@@ -109,8 +109,8 @@ export function toFilterParams(filter: ClientFilter): URLSearchParams {
 
 /**
  * Merge the filter into the current query string while preserving unrelated
- * params (e.g. the Inspector's `issue` selection). Filter keys present in the
- * current URL are dropped first so toggling off actually removes them.
+ * params. Filter keys present in the current URL are dropped first so toggling
+ * off actually removes them.
  */
 export function buildFilterUrl(
   pathname: string,

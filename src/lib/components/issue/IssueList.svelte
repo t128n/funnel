@@ -1,23 +1,22 @@
 <script lang="ts">
 	import IssueRow from './IssueRow.svelte';
 	import * as Empty from '#lib/components/ui/empty';
-	import { parseSelection, selectedIssue } from '#lib/client/selection.svelte';
 	import type { IssueListItem } from '#lib/server/issues/types';
 
 	interface Props {
 		issues: IssueListItem[];
+		/** The detail route's issue, highlighted in the feed. */
+		selected?: { repo: string; number: number } | null;
 		empty?: string;
 	}
 
-	let { issues, empty = 'Nothing here.' }: Props = $props();
-
-	const selection = $derived(selectedIssue(parseSelection()));
+	let { issues, selected = null, empty = 'Nothing here.' }: Props = $props();
 
 	function isSelected(issue: IssueListItem): boolean {
 		return (
-			selection !== null &&
-			selection.number === issue.number &&
-			selection.repo === issue.repo
+			selected !== null &&
+			selected.number === issue.number &&
+			selected.repo === issue.repo
 		);
 	}
 </script>

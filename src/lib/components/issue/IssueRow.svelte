@@ -4,10 +4,10 @@
 	import { selectIssue } from '#lib/client/selection.svelte';
 	import { timeAgo } from '#lib/client/clock.svelte';
 	import { canonicalLabel } from '#lib/labels';
-	import { issueKey } from '#lib/repo-shortcode';
 	import type { IssueListItem } from '#lib/server/issues/types';
 	import { cn } from '#lib/utils';
 	import TriangleAlertIcon from '@lucide/svelte/icons/triangle-alert';
+	import * as Tooltip from '#lib/components/ui/tooltip/index.js';
 
 	interface Props {
 		issue: IssueListItem;
@@ -53,7 +53,16 @@
 			class={cn('size-2 shrink-0 rounded-full', closed ? 'bg-muted-foreground' : 'bg-primary')}
 			title={closed ? 'Closed' : 'Open'}
 		></span>
-		<span class="mono text-muted-foreground text-xs">{issueKey(issue.repo, issue.number)}</span>
+		<Tooltip.Root>
+			<Tooltip.Trigger>
+				{#snippet child({ props })}
+					<span {...props} class="mono text-muted-foreground text-xs">
+						#{issue.number}
+					</span>
+				{/snippet}
+			</Tooltip.Trigger>
+			<Tooltip.Content>{issue.repo}#{issue.number}</Tooltip.Content>
+		</Tooltip.Root>
 		<span
 			class={cn(
 				'flex-1 truncate text-sm',

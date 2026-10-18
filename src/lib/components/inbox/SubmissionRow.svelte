@@ -1,4 +1,5 @@
 <script lang="ts">
+	import IntakeTag from '#lib/components/common/IntakeTag.svelte';
 	import { selectSubmission } from '#lib/client/selection.svelte';
 	import { timeAgo } from '#lib/client/clock.svelte';
 	import type { StagedSubmission } from '#lib/server/intake/staging';
@@ -33,11 +34,7 @@
 	}}
 >
 	<div class="flex min-w-0 items-center gap-2">
-		<span
-			class="bg-primary/10 text-primary shrink-0 px-1 py-0.5 text-[0.625rem] font-semibold tracking-wider uppercase"
-		>
-			intake
-		</span>
+		<IntakeTag />
 		<span class="text-foreground flex-1 truncate text-sm" title={submission.title}>
 			{submission.title}
 		</span>

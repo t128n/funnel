@@ -1,9 +1,14 @@
 import { parseIssueFilter } from "#lib/server/issues/filters";
 import { allIssues, filterContext } from "#lib/server/issues/queries";
-import type { PageServerLoad } from "./$types";
+import type { LayoutServerLoad } from "./$types";
 
-/** All Issues: every mirrored issue matching the URL filter (SPEC §9.2). */
-export const load: PageServerLoad = async ({ url, parent }) => {
+/**
+ * All Issues feed (SPEC §9.2): every mirrored issue matching the URL filter.
+ * Lives on the layout so the feed is shared by `/issues` and the
+ * `/issues/<owner>/<repo>/<n>` detail route (a child route does not run the
+ * parent `+page.server.ts`).
+ */
+export const load: LayoutServerLoad = async ({ url, parent }) => {
   const { viewerGithubId } = await parent();
   const filter = parseIssueFilter(url.searchParams, filterContext(viewerGithubId));
   // Issues default to the open state, matching the cockpit's "what needs

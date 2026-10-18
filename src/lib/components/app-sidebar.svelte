@@ -1,11 +1,9 @@
 <script lang="ts">
-	import { goto } from "$app/navigation";
 	import { page } from "$app/state";
 	import CircleDotIcon from "@lucide/svelte/icons/circle-dot";
 	import FunnelIcon from "@lucide/svelte/icons/funnel";
 	import InboxIcon from "@lucide/svelte/icons/inbox";
 	import KanbanIcon from "@lucide/svelte/icons/kanban";
-	import PlusIcon from "@lucide/svelte/icons/plus";
 	import type { ComponentProps } from "svelte";
 	import * as Sidebar from "#lib/components/ui/sidebar/index.js";
 	import { cn } from "#lib/utils.js";
@@ -40,10 +38,6 @@
 	function isActive(href: string): boolean {
 		return page.url.pathname === href;
 	}
-
-	function openNew() {
-		void goto("/submit");
-	}
 </script>
 
 <Sidebar.Root bind:ref {collapsible} {...restProps}>
@@ -67,22 +61,6 @@
 	</Sidebar.Header>
 
 	<Sidebar.Content>
-		<Sidebar.Group>
-			<Sidebar.Menu>
-				<Sidebar.MenuItem>
-					<Sidebar.MenuButton
-						variant="outline"
-						tooltipContent="New issue (C)"
-						onclick={openNew}
-					>
-						<PlusIcon />
-						<span>New issue</span>
-						<span class="text-muted-foreground ms-auto text-xs">C</span>
-					</Sidebar.MenuButton>
-				</Sidebar.MenuItem>
-			</Sidebar.Menu>
-		</Sidebar.Group>
-
 		<Sidebar.Group>
 			<Sidebar.GroupLabel>Views</Sidebar.GroupLabel>
 			<Sidebar.Menu>

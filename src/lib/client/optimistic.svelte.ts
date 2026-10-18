@@ -1,0 +1,275 @@
+/**
+ * Centralized optimistic overlay store (SPEC §9.2).
+ *
+ * Every issue write applies its change here *synchronously* — before the
+ * network request starts — and the cockpit renders `load()` data through the
+ * `project*` helpers, which lay pending deltas on top. Because the authoritative
+ * server payload is never mutated, rollback is exact: a failed write simply
+ * removes its overlay.
+ *
+ * A write publishes two SSE events (one immediately, one after the background
+ * mirror refresh), so a refresh can arrive carrying data that does not yet
+ * reflect the change. Overlays are therefore dropped by *value*, not by refresh
+ * count: {@link reconcileIssues} removes one only once the authoritative data
+ * actually satisfies it. That keeps a stale refresh from bouncing the UI back.
+ */
+import { untrack } from "svelte";
+import { SvelteMap, SvelteSet } from "svelte/reactivity";
+import { toast } from "svelte-sonner";
+import type { MutationResult } from "#lib/client/mutations";
+import { STATUS_OPTIONS } from "#lib/labels";
+import type {
+  IssueListItem,
+  RenderedInboxEntry,
+  RenderedIssueDetail,
+  StatusBoard,
+  StatusKey,
+} from "#lib/server/issues/types";
+
+/** `owner/name#number`, the identity shared by list rows, cards, and detail. */
+export type OverlayKey = `${string}#${number}`;
+
+/** Build the overlay key for an issue. */
+export function overlayKey(repo: string, number: number): OverlayKey {
+  return `${repo}#${number}`;
+}
+
+/** The subset of an issue a mutation may optimistically change. */
+export interface IssuePatch {
+  title?: string;
+  state?: string;
+  stateReason?: string | null;
+  status?: string | null;
+  priority?: string | null;
+  size?: string | null;
+  assignees?: IssueListItem["assignees"];
+  labels?: string[];
+  closedAt?: number | null;
+}
+
+const overlays = new SvelteMap<OverlayKey, IssuePatch>();
+const removedSubmissions = new SvelteSet<string>();
+
+const STATUS_KEYS = new Set(STATUS_OPTIONS.map((option) => option.value));
+
+// --- Overlay lifecycle ------------------------------------------------------
+
+function captureOverlay(key: OverlayKey): IssuePatch | null {
+  const current = overlays.get(key);
+  return current ? { ...current } : null;
+}
+
+/** Merge `patch` onto any existing overlay. */
+function applyOverlay(key: OverlayKey, patch: IssuePatch): void {
+  const current = overlays.get(key);
+  overlays.set(key, { ...(current ?? {}), ...patch });
+}
+
+/** Restore the exact pre-mutation overlay (or remove it if there was none). */
+function restoreOverlay(key: OverlayKey, snapshot: IssuePatch | null): void {
+  if (snapshot) overlays.set(key, snapshot);
+  else overlays.delete(key);
+}
+
+// --- Public mutation entry point -------------------------------------------
+
+/** The result of an optimistic write, carrying the message on failure. */
+export type MutateOutcome = { ok: true } | { ok: false; error: string };
+
+export interface MutateOptions<T> {
+  key: OverlayKey;
+  patch: IssuePatch;
+  /** Performs the network write; the overlay is applied before this runs. */
+  commit: () => Promise<MutationResult<T>>;
+  /** Toast title on failure. */
+  failure?: string;
+  /** Set `false` when the caller renders the error inline (e.g. a dialog). */
+  notify?: boolean;
+}
+
+/**
+ * Apply `patch` optimistically, run `commit`, and either keep the overlay (for
+ * reconciliation once the server catches up) or roll it back and notify. The
+ * failure message is always returned so callers can render it inline too.
+ */
+export async function mutate<T>(
+  options: MutateOptions<T>,
+): Promise<MutateOutcome> {
+  const { key, patch, commit, failure = "Update failed", notify = true } = options;
+  const snapshot = captureOverlay(key);
+  applyOverlay(key, patch);
+
+  const result = await commit();
+  if (!result.ok) {
+    restoreOverlay(key, snapshot);
+    if (notify) toast.error(failure, { description: result.error });
+    return { ok: false, error: result.error };
+  }
+
+  return { ok: true };
+}
+
+/** Surface a failure from the `use:enhance` path as a toast. */
+export function notifyFailure(title: string, description?: string): void {
+  toast.error(title, description ? { description } : undefined);
+}
+
+// --- Reconciliation ---------------------------------------------------------
+
+/** Compare two string collections as sets (order-insensitive). */
+function sameSet(a: readonly string[], b: readonly string[]): boolean {
+  if (a.length !== b.length) return false;
+  const seen = new Set(a);
+  for (const value of b) {
+    if (!seen.has(value)) return false;
+  }
+  return true;
+}
+
+/**
+ * Whether the authoritative issue already reflects `patch`. `closedAt` is
+ * excluded (the optimistic `Date.now()` never equals the server timestamp) and
+ * assignees are compared by login (optimistic `UserRef`s carry placeholder ids).
+ */
+function satisfied(issue: IssueListItem, patch: IssuePatch): boolean {
+  if (patch.title !== undefined && issue.title !== patch.title) return false;
+  if (patch.state !== undefined && issue.state !== patch.state) return false;
+  if (patch.stateReason !== undefined && issue.stateReason !== patch.stateReason) {
+    return false;
+  }
+  if (patch.status !== undefined && issue.status !== patch.status) return false;
+  if (patch.priority !== undefined && issue.priority !== patch.priority) {
+    return false;
+  }
+  if (patch.size !== undefined && issue.size !== patch.size) return false;
+  if (
+    patch.assignees !== undefined &&
+    !sameSet(
+      issue.assignees.map((person) => person.login),
+      patch.assignees.map((person) => person.login),
+    )
+  ) {
+    return false;
+  }
+  if (patch.labels !== undefined && !sameSet(issue.labels, patch.labels)) {
+    return false;
+  }
+  return true;
+}
+
+/**
+ * Drop every overlay the authoritative data already satisfies. Call this with
+ * freshly loaded issues; a refresh that still carries the old value leaves the
+ * overlay in place, so the optimistic state is not bounced back.
+ */
+export function reconcileIssues(issues: readonly IssueListItem[]): void {
+  untrack(() => {
+    for (const issue of issues) {
+      const key = overlayKey(issue.repo, issue.number);
+      const patch = overlays.get(key);
+      if (patch && satisfied(issue, patch)) overlays.delete(key);
+    }
+  });
+}
+
+/**
+ * Stop tracking optimistically removed submissions once they are genuinely
+ * absent from a fresh load (the triage deleted the row server-side).
+ */
+export function reconcileSubmissions(presentIds: Iterable<string>): void {
+  const present = new Set(presentIds);
+  untrack(() => {
+    for (const id of removedSubmissions) {
+      if (!present.has(id)) removedSubmissions.delete(id);
+    }
+  });
+}
+
+// --- Projections ------------------------------------------------------------
+
+/** Apply a pending overlay to a single issue. */
+export function projectIssue(issue: IssueListItem): IssueListItem {
+  const patch = overlays.get(overlayKey(issue.repo, issue.number));
+  return patch ? { ...issue, ...patch } : issue;
+}
+
+/** Apply pending overlays across a dense issue stream. */
+export function projectIssues(issues: IssueListItem[]): IssueListItem[] {
+  return issues.map(projectIssue);
+}
+
+/** Apply a pending overlay to the Inspector payload. */
+export function projectDetail(
+  detail: RenderedIssueDetail | null,
+): RenderedIssueDetail | null {
+  if (!detail) return detail;
+  const patch = overlays.get(
+    overlayKey(detail.issue.repo, detail.issue.number),
+  );
+  return patch
+    ? { ...detail, issue: { ...detail.issue, ...patch } }
+    : detail;
+}
+
+/** The column an issue belongs to under the board's partitioning. */
+function boardColumn(issue: IssueListItem): StatusKey | null {
+  if (issue.state === "closed") {
+    return issue.stateReason === "completed" ? "done" : null;
+  }
+  return issue.status && STATUS_KEYS.has(issue.status)
+    ? (issue.status as StatusKey)
+    : null;
+}
+
+/**
+ * Re-bucket a board after applying overlays, so an optimistic status or state
+ * change moves the card between columns immediately.
+ */
+export function projectBoard(board: StatusBoard): StatusBoard {
+  const buckets = new Map<StatusKey, IssueListItem[]>();
+  for (const column of board.columns) buckets.set(column.key, []);
+
+  for (const column of board.columns) {
+    for (const raw of column.issues) {
+      const issue = projectIssue(raw);
+      const key = boardColumn(issue);
+      if (key === null) continue;
+      buckets.get(key)?.push(issue);
+    }
+  }
+
+  return {
+    columns: board.columns.map((column) => ({
+      ...column,
+      issues: buckets.get(column.key) ?? [],
+    })),
+  };
+}
+
+/** Project the Inbox queue, dropping submissions optimistically removed. */
+export function projectInboxEntries(
+  entries: RenderedInboxEntry[],
+): RenderedInboxEntry[] {
+  const projected: RenderedInboxEntry[] = [];
+  for (const entry of entries) {
+    if (entry.kind === "submission") {
+      if (removedSubmissions.has(entry.submission.id)) continue;
+      projected.push(entry);
+    } else {
+      projected.push({ kind: "issue", issue: projectIssue(entry.issue) });
+    }
+  }
+  return projected;
+}
+
+// --- Optimistic submission removal (inbox triage) ---------------------------
+
+/** Hide a staged submission before the triage action round-trips. */
+export function removeSubmission(id: string): void {
+  removedSubmissions.add(id);
+}
+
+/** Restore a submission whose triage action failed. */
+export function restoreSubmission(id: string): void {
+  removedSubmissions.delete(id);
+}

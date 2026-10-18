@@ -1,66 +1,46 @@
 /**
  * Detail-canvas selection is URL-driven so the open pane is always shareable
- * and survives reloads. Issues live in the `?issue=<owner>/<repo>/<n>` query
- * parameter and staged intake submissions in `?submission=<id>`, alongside (and
- * independent of) the filter parameters. At most one is ever set.
+ * and survives reloads. Every master view owns its detail route:
+ *
+ *   /issues/<owner>/<repo>/<n>, /board/..., /inbox/...
+ *
+ * and staged intake submissions live at `/inbox/submission/<id>`. This module
+ * only *navigates*; components read the resolved target straight from the route
+ * params (see {@link import("#lib/issue-url").parseIssueParams}) rather than
+ * from a query parameter.
  */
 import { goto } from "$app/navigation";
 import { page } from "$app/state";
+import {
+  issuePath,
+  submissionPath,
+  viewOf,
+  type ViewId,
+} from "#lib/issue-url";
 
-export type Selection =
-  | { kind: "issue"; repo: string; number: number }
-  | { kind: "submission"; id: string };
-
-/** The selected issue, or `null` when a submission (or nothing) is selected. */
-export function selectedIssue(
-  selection: Selection | null,
-): { repo: string; number: number } | null {
-  return selection?.kind === "issue" ? selection : null;
+/** The view that owns the current route, defaulting to Issues off-view. */
+function currentView(): ViewId {
+  return viewOf(page.url.pathname) ?? "issues";
 }
 
-/** Parse the current detail selection, or `null` when none/invalid. */
-export function parseSelection(): Selection | null {
-  const raw = page.url.searchParams.get("issue");
-  if (raw) {
-    const parts = raw.split("/");
-    if (parts.length === 3) {
-      const number = Number(parts[2]);
-      if (Number.isInteger(number) && number > 0) {
-        return { kind: "issue", repo: `${parts[0]}/${parts[1]}`, number };
-      }
-    }
-  }
-
-  const submission = page.url.searchParams.get("submission");
-  if (submission) return { kind: "submission", id: submission };
-
-  return null;
-}
-
-/** Apply a selection (or clear it) while preserving every other query param. */
-function update(value: Selection | null): void {
+/** Navigate to `pathname` while preserving the current query string. */
+function go(pathname: string): void {
   const url = new URL(page.url.href);
-  url.searchParams.delete("issue");
-  url.searchParams.delete("submission");
-  if (value?.kind === "issue") {
-    url.searchParams.set("issue", `${value.repo}/${value.number}`);
-  } else if (value?.kind === "submission") {
-    url.searchParams.set("submission", value.id);
-  }
+  url.pathname = pathname;
   void goto(url, { reset: false });
 }
 
-/** Open the detail canvas for issue `repo#number`. */
+/** Open the detail canvas for issue `repo#number` in the current view. */
 export function selectIssue(repo: string, number: number): void {
-  update({ kind: "issue", repo, number });
+  go(issuePath(currentView(), repo, number));
 }
 
 /** Open the detail canvas for staged intake submission `id`. */
 export function selectSubmission(id: string): void {
-  update({ kind: "submission", id });
+  go(submissionPath(id));
 }
 
-/** Dismiss the detail canvas. */
+/** Dismiss the detail canvas, returning to the current view's list. */
 export function clearSelection(): void {
-  update(null);
+  go(`/${currentView()}`);
 }

@@ -22,16 +22,24 @@
 		type CloseReason,
 		type UpdateIssuePatch
 	} from '#lib/client/mutations';
+	import {
+		mutate,
+		notifyFailure,
+		overlayKey,
+		projectDetail,
+		reconcileIssues,
+		type IssuePatch
+	} from '#lib/client/optimistic.svelte';
 	import { refreshSignal } from '#lib/client/refresh';
 	import { timeAgo } from '#lib/client/clock.svelte';
 	import {
 		PRIORITY_OPTIONS,
 		SIZE_OPTIONS,
 		STATUS_OPTIONS,
-		canonicalLabel
+		canonicalLabel,
+		labelTint
 	} from '#lib/labels';
 	import { absoluteTime } from '#lib/time';
-	import { issueKey } from '#lib/repo-shortcode';
 	import type { RenderedIssueDetail, UserRef } from '#lib/server/issues/types';
 	import { cn } from '#lib/utils';
 	import CircleDashedIcon from '@lucide/svelte/icons/circle-dashed';
@@ -59,7 +67,6 @@
 	let loading = $state(false);
 	let error = $state<string | null>(null);
 	let busy = $state<string | null>(null);
-	let actionError = $state<string | null>(null);
 
 	/** Structured close/reopen dialog (SPEC §5.2.3). */
 	let dialogMode = $state<'close' | 'reopen' | null>(null);
@@ -74,7 +81,9 @@
 	/** Raw Markdown the server-rendered `bodyHtml` was produced from. */
 	let renderedBody = $state('');
 
-	const issue = $derived(detail?.issue ?? null);
+	// `detail` is the raw fetched payload; `issue` reflects pending overlays so
+	// optimistic edits show instantly and reconcile on the next SSE refresh.
+	const issue = $derived(projectDetail(detail)?.issue ?? null);
 	const titleDirty = $derived(issue !== null && title.trim() !== issue.title);
 	const bodyDirty = $derived(detail !== null && body !== detail.body);
 	// A just-saved body is not in the mirror yet, so its HTML is stale; fall
@@ -95,7 +104,7 @@
 
 	/** Done has no canonical label, so tint its pill explicitly. */
 	const statusTint = $derived(
-		closed ? 'color: var(--syntax-constant)' : tintStyle(issue?.status ?? null)
+		closed ? 'color: var(--syntax-constant)' : labelTint(issue?.status ?? null)
 	);
 
 	const assigneeLogins = $derived(issue?.assignees.map((a) => a.login) ?? []);
@@ -114,23 +123,25 @@
 	/** Only show the composer once the issue has loaded. */
 	const canEdit = $derived(issue !== null && detail !== null);
 
-	/** Inline `color:` tint for a canonical label value, or undefined. */
-	function tintStyle(name: string | null | undefined): string | undefined {
-		const color = name ? canonicalLabel(name)?.color : null;
-		if (!color) return undefined;
-		const hex = /^[0-9a-f]{6}$/i.test(color) ? `#${color}` : color;
-		return `color: ${hex}`;
-	}
+	/** Guards against an out-of-order fetch clobbering a newer one. */
+	let loadSeq = 0;
 
 	async function load() {
+		const seq = ++loadSeq;
 		loading = true;
 		error = null;
 		const result = await fetchIssueDetail(repo, number);
+		if (seq !== loadSeq) return;
 		if (result.ok) {
-			detail = result.value;
-			title = result.value.issue.title;
-			body = result.value.body;
-			renderedBody = result.value.body;
+			// Reconcile against the raw fetch, then bake any still-pending overlay
+			// into `detail` so a later page-side reconcile cannot expose stale
+			// fields here. A fetch that predates the mirror catching up is masked.
+			reconcileIssues([result.value.issue]);
+			const projected = projectDetail(result.value) ?? result.value;
+			detail = projected;
+			title = projected.issue.title;
+			body = projected.body;
+			renderedBody = projected.body;
 			editingBody = false;
 		} else {
 			detail = null;
@@ -147,6 +158,11 @@
 		void load();
 	});
 
+	/** Fold a just-confirmed patch into the local detail (see `load`). */
+	function bake(patch: IssuePatch): void {
+		if (detail) detail = { ...detail, issue: { ...detail.issue, ...patch } };
+	}
+
 	function localAssignee(login: string): UserRef {
 		return (
 			assigneeOptions.find((u) => u.login === login) ?? {
@@ -161,42 +177,43 @@
 		return logins.map(localAssignee);
 	}
 
+	/** Translate a wire patch into the camelCase fields an overlay carries. */
+	function toIssuePatch(patch: UpdateIssuePatch): IssuePatch {
+		const next: IssuePatch = {};
+		if (patch.title !== undefined) next.title = patch.title;
+		if (patch.status !== undefined) next.status = patch.status;
+		if (patch.priority !== undefined) next.priority = patch.priority;
+		if (patch.size !== undefined) next.size = patch.size;
+		if (patch.assignees !== undefined) {
+			next.assignees = localAssigneeList(patch.assignees);
+		}
+		if (patch.state !== undefined) {
+			next.state = patch.state;
+			if (patch.state === 'closed') next.closedAt = Date.now();
+			else if (patch.state === 'open') next.closedAt = null;
+		}
+		if (patch.state_reason !== undefined) next.stateReason = patch.state_reason;
+		return next;
+	}
+
 	async function runPatch(patch: UpdateIssuePatch, op: string): Promise<boolean> {
 		if (!detail) return false;
 		busy = op;
-		actionError = null;
-		const result = await updateIssue(repo, number, patch);
+		const issuePatch = toIssuePatch(patch);
+		const outcome = await mutate({
+			key: overlayKey(repo, number),
+			patch: issuePatch,
+			failure: 'Could not update issue',
+			commit: () => updateIssue(repo, number, patch)
+		});
 		busy = null;
-		if (!result.ok) {
-			actionError = result.error;
-			return false;
+		if (!outcome.ok) return false;
+		bake(issuePatch);
+		// The body lives only in the detail payload, so reflect it locally.
+		if (patch.body !== undefined) {
+			detail = { ...detail, body: patch.body };
+			body = patch.body;
 		}
-		// Pessimistic: reflect the confirmed change locally; SSE reconciles.
-		const issue = detail.issue;
-		detail = {
-			...detail,
-			body: patch.body ?? detail.body,
-			issue: {
-				...issue,
-				title: patch.title ?? issue.title,
-				status: 'status' in patch ? (patch.status ?? null) : issue.status,
-				priority: 'priority' in patch ? (patch.priority ?? null) : issue.priority,
-				size: 'size' in patch ? (patch.size ?? null) : issue.size,
-				assignees: patch.assignees
-					? localAssigneeList(patch.assignees)
-					: issue.assignees,
-				state: patch.state ?? issue.state,
-				stateReason:
-					'state_reason' in patch ? (patch.state_reason ?? null) : issue.stateReason,
-				closedAt:
-					patch.state === 'closed'
-						? Date.now()
-						: patch.state === 'open'
-							? null
-							: issue.closedAt
-			}
-		};
-		if (patch.body !== undefined) body = patch.body;
 		return true;
 	}
 
@@ -206,26 +223,32 @@
 		dialogMode = mode;
 	}
 
-	/** Close with a required resolution: note comment first, then the state change. */
+	/**
+	 * Close with a required resolution: note comment first, then the state
+	 * change. The dialog renders failures inline, so it opts out of the toast.
+	 */
 	async function confirmClose(payload: { reason: CloseReason; note: string }) {
 		if (!detail) return;
 		busy = 'close';
 		resolveError = null;
-		const result = await closeIssue(repo, number, payload.reason, payload.note);
+		const issuePatch: IssuePatch = {
+			state: 'closed',
+			stateReason: payload.reason,
+			closedAt: Date.now()
+		};
+		const outcome = await mutate({
+			key: overlayKey(repo, number),
+			patch: issuePatch,
+			failure: 'Could not close issue',
+			notify: false,
+			commit: () => closeIssue(repo, number, payload.reason, payload.note)
+		});
 		busy = null;
-		if (!result.ok) {
-			resolveError = result.error;
+		if (!outcome.ok) {
+			resolveError = outcome.error;
 			return;
 		}
-		detail = {
-			...detail,
-			issue: {
-				...detail.issue,
-				state: 'closed',
-				stateReason: payload.reason,
-				closedAt: Date.now()
-			}
-		};
+		bake(issuePatch);
 		dialogMode = null;
 	}
 
@@ -234,27 +257,26 @@
 		if (!detail) return;
 		busy = 'reopen';
 		resolveError = null;
-		const result = await reopenIssue(
-			repo,
-			number,
-			payload.note,
-			pendingStatus ?? undefined
-		);
+		const issuePatch: IssuePatch = {
+			state: 'open',
+			stateReason: null,
+			closedAt: null,
+			...(pendingStatus ? { status: pendingStatus } : {})
+		};
+		const outcome = await mutate({
+			key: overlayKey(repo, number),
+			patch: issuePatch,
+			failure: 'Could not reopen issue',
+			notify: false,
+			commit: () =>
+				reopenIssue(repo, number, payload.note, pendingStatus ?? undefined)
+		});
 		busy = null;
-		if (!result.ok) {
-			resolveError = result.error;
+		if (!outcome.ok) {
+			resolveError = outcome.error;
 			return;
 		}
-		detail = {
-			...detail,
-			issue: {
-				...detail.issue,
-				state: 'open',
-				stateReason: null,
-				closedAt: null,
-				status: pendingStatus ?? detail.issue.status
-			}
-		};
+		bake(issuePatch);
 		pendingStatus = null;
 		dialogMode = null;
 	}
@@ -319,38 +341,37 @@
 		const removed = [...selectedLabels].filter((name) => !target.has(name));
 		if (added.length === 0 && removed.length === 0) return;
 
+		const reserved = detail.issue.labels.filter((name) => canonicalLabel(name));
+		const issuePatch: IssuePatch = { labels: [...reserved, ...next] };
 		busy = 'labels';
-		actionError = null;
-		try {
-			if (added.length > 0) {
-				const result = await addIssueLabels(repo, number, added);
-				if (!result.ok) throw new Error(result.error);
+		const outcome = await mutate({
+			key: overlayKey(repo, number),
+			patch: issuePatch,
+			failure: 'Could not update labels',
+			commit: async () => {
+				if (added.length > 0) {
+					const result = await addIssueLabels(repo, number, added);
+					if (!result.ok) return result;
+				}
+				for (const name of removed) {
+					const result = await removeIssueLabel(repo, number, name);
+					if (!result.ok) return { ok: false as const, error: result.error };
+				}
+				return { ok: true as const, value: { labels: next } };
 			}
-			for (const name of removed) {
-				const result = await removeIssueLabel(repo, number, name);
-				if (!result.ok) throw new Error(result.error);
-			}
-			const reserved = detail.issue.labels.filter((name) => canonicalLabel(name));
-			detail = {
-				...detail,
-				issue: { ...detail.issue, labels: [...reserved, ...next] }
-			};
-		} catch (err) {
-			actionError = (err as Error).message;
-		} finally {
-			busy = null;
-		}
+		});
+		busy = null;
+		if (outcome.ok) bake(issuePatch);
 	}
 
 	async function submitComment() {
 		const text = comment.trim();
 		if (!text || busy) return;
 		busy = 'comment';
-		actionError = null;
 		const result = await addIssueComment(repo, number, text);
 		busy = null;
 		if (!result.ok) {
-			actionError = result.error;
+			notifyFailure('Could not post comment', result.error);
 			return;
 		}
 		comment = '';
@@ -382,8 +403,11 @@
 	{#snippet header()}
 		<div class="flex min-w-0 flex-1 flex-col gap-1 py-0.5">
 			<div class="flex min-w-0 items-center gap-2">
-				<span class="text-muted-foreground shrink-0 text-sm font-medium" title={repo}>
-					{issueKey(repo, number)}
+				<span
+					class="text-muted-foreground min-w-0 truncate text-sm font-medium"
+					title={`${repo}#${number}`}
+				>
+					{repo}#{number}
 				</span>
 				{#if issue}
 					<Input
@@ -453,11 +477,6 @@
 			</Alert.Root>
 		</div>
 	{:else if issue && detail}
-		{#if actionError}
-			<Alert.Root variant="destructive">
-				<Alert.Description>{actionError}</Alert.Description>
-			</Alert.Root>
-		{/if}
 		{#if issue.labelConflict}
 			<Alert.Root>
 				<Alert.Description>
@@ -540,7 +559,7 @@
 				disabled={busy === 'priority'}
 			>
 				{#snippet icon()}
-					<SignalIcon class="size-3.5" style={tintStyle(priorityValue)} />
+					<SignalIcon class="size-3.5" style={labelTint(priorityValue)} />
 				{/snippet}
 			</SingleSelect>
 
@@ -554,7 +573,7 @@
 				disabled={busy === 'size'}
 			>
 				{#snippet icon()}
-					<RulerIcon class="size-3.5" style={tintStyle(sizeValue)} />
+					<RulerIcon class="size-3.5" style={labelTint(sizeValue)} />
 				{/snippet}
 			</SingleSelect>
 

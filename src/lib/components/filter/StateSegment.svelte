@@ -22,7 +22,7 @@
 		return 'open';
 	});
 
-	/** Preserve every other param (filters, inspector selection) while replacing
+	/** Preserve every other param (the filter dimensions) while replacing
 	 *  the `state` dimension. "Open" is kept explicit for a shareable URL. */
 	function href(next: StateView): string {
 		const params = new URLSearchParams();

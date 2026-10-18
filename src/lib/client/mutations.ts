@@ -6,7 +6,7 @@
  * token and schedule a background refresh of the touched issue, so the SSE
  * stream catches the cockpit up shortly after the response resolves.
  */
-import type { RenderedIssueDetail } from "#lib/server/issues/types";
+import type { IssueOption, RenderedIssueDetail } from "#lib/server/issues/types";
 
 export type MutationResult<T> =
   | { ok: true; value: T }
@@ -58,6 +58,13 @@ export function fetchIssueDetail(
   return request<RenderedIssueDetail>(
     `/api/mirror/issues/${repoPath(repo)}/${number}`,
   );
+}
+
+/** List mirrored issues in a repo (the intake duplicate picker's options). */
+export function fetchRepoIssues(
+  repo: string,
+): Promise<MutationResult<IssueOption[]>> {
+  return request<IssueOption[]>(`/api/mirror/issues/${repoPath(repo)}`);
 }
 
 export interface UpdateIssuePatch {
