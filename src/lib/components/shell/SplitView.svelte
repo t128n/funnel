@@ -3,7 +3,7 @@
 	import InspectorPane from '#lib/components/issue/InspectorPane.svelte';
 	import SubmissionDetail from '#lib/components/inbox/SubmissionDetail.svelte';
 	import { clearSelection, parseSelection, selectedIssue } from '#lib/client/selection.svelte';
-	import type { StagedSubmission } from '#lib/server/intake/staging';
+	import type { RenderedSubmission } from '#lib/server/issues/types';
 	import IconArrowRight from '~icons/carbon/arrow-right';
 
 	/**
@@ -15,7 +15,7 @@
 	interface Props {
 		githubUrl: string;
 		/** The staged submission selected by `?submission=`, when found (Inbox). */
-		submission?: StagedSubmission | null;
+		submission?: RenderedSubmission | null;
 		/** Repo slugs for the submission triage forms (Inbox). */
 		repos?: string[];
 		defaultRepo?: string;

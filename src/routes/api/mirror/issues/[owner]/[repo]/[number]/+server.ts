@@ -1,4 +1,6 @@
 import { getIssueDetail } from "#lib/server/issues/queries";
+import type { RenderedIssueDetail } from "#lib/server/issues/types";
+import { renderMarkdown } from "#lib/server/markdown/render";
 import { getRepoByOrgName } from "#lib/server/sync/mirror";
 import type { RequestHandler } from "./$types";
 
@@ -33,5 +35,15 @@ export const GET: RequestHandler = ({ params }) => {
     );
   }
 
-  return Response.json(detail);
+  // Render untrusted Markdown to sanitized HTML at the delivery boundary; the
+  // raw body is preserved for the Inspector's inline editors (SPEC §2.2).
+  const payload: RenderedIssueDetail = {
+    ...detail,
+    bodyHtml: renderMarkdown(detail.body),
+    comments: detail.comments.map((comment) => ({
+      ...comment,
+      bodyHtml: renderMarkdown(comment.body),
+    })),
+  };
+  return Response.json(payload);
 };

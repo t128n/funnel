@@ -441,7 +441,8 @@ export function repoAssigneeOptions(repoId: number): UserRef[] {
 
 /**
  * Full Inspector Pane payload for one issue: the stream row plus the body,
- * the plain-text comment thread (oldest first), and the repo's label options.
+ * the raw comment thread (oldest first; rendered to HTML at the API boundary),
+ * and the repo's label options.
  * Returns `undefined` when the issue is not mirrored.
  */
 export function getIssueDetail(

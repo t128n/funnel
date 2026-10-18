@@ -1,10 +1,11 @@
 /**
  * Global base styles for the Funnel cockpit.
  *
- * Kept intentionally minimal: design tokens live in `tokens.css`, component
- * styling is co-located in each `.svelte` file. This file only resets the
- * document, wires the token font stacks, and styles a few shared primitives
- * (focus rings, scrollbars, plain-text rendering).
+ * Kept intentionally minimal: design tokens live in `tokens.css`, rendered
+ * Markdown prose lives in `markdown.css`, and component styling is co-located in
+ * each `.svelte` file. This file only resets the document, wires the token font
+ * stacks, and styles a few shared primitives (focus rings, scrollbars, the
+ * plain-text fallback).
  */
 
 *,
@@ -66,7 +67,8 @@ a:hover {
   letter-spacing: 0.02em;
 }
 
-/* Plain-text rendering preserves author formatting without a Markdown engine. */
+/* Plain-text fallback: preserved author formatting for a body that has been
+   saved but whose server-rendered HTML is not in the mirror yet (SPEC §2.2). */
 .plain-text {
   white-space: pre-wrap;
   overflow-wrap: anywhere;

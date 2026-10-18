@@ -5,7 +5,7 @@
 	import { PRIORITY_OPTIONS, SIZE_OPTIONS } from '#lib/labels';
 	import { clearSelection } from '#lib/client/selection.svelte';
 	import { absoluteTime, relativeTime } from '#lib/time';
-	import type { StagedSubmission } from '#lib/server/intake/staging';
+	import type { RenderedSubmission } from '#lib/server/issues/types';
 
 	/**
 	 * Document-style detail pane for a staged intake submission (SPEC §6.2).
@@ -13,7 +13,7 @@
 	 * base. The accept / dismiss / duplicate forms post to the Inbox page actions.
 	 */
 	interface Props {
-		submission: StagedSubmission;
+		submission: RenderedSubmission;
 		repos: string[];
 		defaultRepo: string;
 	}
@@ -74,7 +74,7 @@
 		</div>
 
 		{#if submission.body.trim().length > 0}
-			<div class="sd__content plain-text">{submission.body}</div>
+			<div class="sd__content markdown">{@html submission.bodyHtml}</div>
 		{:else}
 			<div class="sd__content muted">No description provided.</div>
 		{/if}

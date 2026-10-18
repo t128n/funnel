@@ -7,6 +7,8 @@ import {
 } from "#lib/server/intake/actions";
 import { parseIssueFilter } from "#lib/server/issues/filters";
 import { filterContext, inbox } from "#lib/server/issues/queries";
+import type { RenderedInboxEntry } from "#lib/server/issues/types";
+import { renderMarkdown } from "#lib/server/markdown/render";
 import type { Actions, PageServerLoad } from "./$types";
 
 /**
@@ -17,7 +19,21 @@ import type { Actions, PageServerLoad } from "./$types";
 export const load: PageServerLoad = async ({ url, parent }) => {
   const { viewerGithubId } = await parent();
   const filter = parseIssueFilter(url.searchParams, filterContext(viewerGithubId));
-  return { inbox: inbox(filter) };
+
+  // Submission bodies are anonymous, untrusted Markdown; render them to
+  // sanitized HTML at the delivery boundary (SPEC §2.2).
+  const entries: RenderedInboxEntry[] = inbox(filter).entries.map((entry) =>
+    entry.kind === "submission"
+      ? {
+          kind: "submission",
+          submission: {
+            ...entry.submission,
+            bodyHtml: renderMarkdown(entry.submission.body),
+          },
+        }
+      : entry,
+  );
+  return { inbox: { entries } };
 };
 
 export const actions: Actions = {

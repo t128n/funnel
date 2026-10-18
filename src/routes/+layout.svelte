@@ -6,6 +6,7 @@
 	import '@fontsource-variable/jetbrains-mono';
 	import '#lib/styles/tokens.css';
 	import '#lib/styles/global.css';
+	import '#lib/styles/markdown.css';
 	import type { LayoutProps } from './$types';
 
 	let { children }: LayoutProps = $props();

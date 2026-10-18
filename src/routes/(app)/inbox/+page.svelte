@@ -6,7 +6,7 @@
 	import IssueRow from '#lib/components/issue/IssueRow.svelte';
 	import SplitView from '#lib/components/shell/SplitView.svelte';
 	import { parseSelection, selectedIssue } from '#lib/client/selection.svelte';
-	import type { StagedSubmission } from '#lib/server/intake/staging';
+	import type { RenderedSubmission } from '#lib/server/issues/types';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
@@ -20,7 +20,7 @@
 	);
 
 	// The submission picked by `?submission=`, resolved from the loaded queue.
-	const selectedSubmission = $derived.by((): StagedSubmission | null => {
+	const selectedSubmission = $derived.by((): RenderedSubmission | null => {
 		if (selection?.kind !== 'submission') return null;
 		for (const entry of data.inbox.entries) {
 			if (entry.kind === 'submission' && entry.submission.id === selection.id) {

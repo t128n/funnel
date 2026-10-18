@@ -6,7 +6,7 @@
  * token and schedule a background refresh of the touched issue, so the SSE
  * stream catches the cockpit up shortly after the response resolves.
  */
-import type { IssueDetail } from "#lib/server/issues/types";
+import type { RenderedIssueDetail } from "#lib/server/issues/types";
 
 export type MutationResult<T> =
   | { ok: true; value: T }
@@ -54,8 +54,10 @@ async function request<T>(
 export function fetchIssueDetail(
   repo: string,
   number: number,
-): Promise<MutationResult<IssueDetail>> {
-  return request<IssueDetail>(`/api/mirror/issues/${repoPath(repo)}/${number}`);
+): Promise<MutationResult<RenderedIssueDetail>> {
+  return request<RenderedIssueDetail>(
+    `/api/mirror/issues/${repoPath(repo)}/${number}`,
+  );
 }
 
 export interface UpdateIssuePatch {

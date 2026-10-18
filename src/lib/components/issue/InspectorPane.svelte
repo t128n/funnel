@@ -24,7 +24,7 @@
 		canonicalLabel
 	} from '#lib/labels';
 	import { absoluteTime, relativeTime } from '#lib/time';
-	import type { IssueDetail, UserRef } from '#lib/server/issues/types';
+	import type { RenderedIssueDetail, UserRef } from '#lib/server/issues/types';
 	import IconPriority from '~icons/carbon/signal-strength';
 	import IconSize from '~icons/carbon/scales';
 	import IconStatus from '~icons/carbon/circle-dash';
@@ -42,7 +42,7 @@
 
 	let { repo, number, githubUrl, onclose, fill = false }: Props = $props();
 
-	let detail = $state<IssueDetail | null>(null);
+	let detail = $state<RenderedIssueDetail | null>(null);
 	let loading = $state(false);
 	let error = $state<string | null>(null);
 	let busy = $state<string | null>(null);
@@ -56,10 +56,17 @@
 	let body = $state('');
 	let comment = $state('');
 	let editingBody = $state(false);
+	/** Raw Markdown the server-rendered `bodyHtml` was produced from. */
+	let renderedBody = $state('');
 
 	const issue = $derived(detail?.issue ?? null);
 	const titleDirty = $derived(issue !== null && title.trim() !== issue.title);
 	const bodyDirty = $derived(detail !== null && body !== detail.body);
+	// A just-saved body is not in the mirror yet, so its HTML is stale; fall
+	// back to plain text until the SSE refresh delivers a fresh render.
+	const bodyHtml = $derived(
+		detail !== null && detail.body === renderedBody ? detail.bodyHtml : null
+	);
 
 	const statusValue = $derived(issue?.status ?? null);
 	const priorityValue = $derived(issue?.priority ?? null);
@@ -95,6 +102,7 @@
 			detail = result.value;
 			title = result.value.issue.title;
 			body = result.value.body;
+			renderedBody = result.value.body;
 			editingBody = false;
 		} else {
 			detail = null;
@@ -506,7 +514,9 @@
 					></textarea>
 				{:else}
 					<div
-						class="body-render plain-text"
+						class="body-render"
+						class:markdown={bodyHtml !== null}
+						class:plain-text={bodyHtml === null}
 						role="button"
 						tabindex="0"
 						aria-label="Issue description; activate to edit"
@@ -518,10 +528,12 @@
 							}
 						}}
 					>
-						{#if body.trim().length > 0}
-							{body}
-						{:else}
+						{#if body.trim().length === 0}
 							<span class="body-placeholder">Add a description…</span>
+						{:else if bodyHtml !== null}
+							{@html bodyHtml}
+						{:else}
+							{body}
 						{/if}
 					</div>
 				{/if}
@@ -547,7 +559,7 @@
 											{relativeTime(entry.createdAt)}
 										</span>
 									</div>
-									<div class="comment__body plain-text">{entry.body}</div>
+									<div class="comment__body markdown">{@html entry.bodyHtml}</div>
 								</div>
 							</li>
 						{/each}

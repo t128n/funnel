@@ -62,12 +62,21 @@ export interface StatusBoard {
   columns: BoardColumn[];
 }
 
-/** One comment in the Inspector Pane thread (plain text; no Markdown). */
+/**
+ * One comment in the Inspector Pane thread. `body` is the raw Markdown kept in
+ * the mirror (used for editing); the rendered, sanitized HTML is attached as
+ * `bodyHtml` at the delivery boundary — see {@link RenderedComment}.
+ */
 export interface CommentItem {
   githubId: number;
   author: UserRef | null;
   body: string;
   createdAt: number;
+}
+
+/** One comment with server-rendered, sanitized HTML for display. */
+export interface RenderedComment extends CommentItem {
+  bodyHtml: string;
 }
 
 /** A repo label option for the Inspector's label picker. */
@@ -76,7 +85,11 @@ export interface RepoLabelOption {
   color: string;
 }
 
-/** Everything the Inspector Pane renders for one issue. */
+/**
+ * Everything the Inspector Pane reads for one issue, straight from the mirror.
+ * `body` and each comment's `body` are raw Markdown; the rendered, sanitized
+ * HTML is added by the API route — see {@link RenderedIssueDetail}.
+ */
 export interface IssueDetail {
   issue: IssueListItem;
   body: string;
@@ -86,6 +99,26 @@ export interface IssueDetail {
   /** Users assignable on the issue's repo, plus current assignees (SPEC §9.2). */
   assigneeOptions: UserRef[];
 }
+
+/**
+ * The Inspector payload as delivered to the client: raw Markdown is retained
+ * for the inline editors and each prose field also carries sanitized HTML for
+ * `{@html}` (SPEC §2.2).
+ */
+export interface RenderedIssueDetail extends Omit<IssueDetail, "comments"> {
+  bodyHtml: string;
+  comments: RenderedComment[];
+}
+
+/** A staged intake submission with its sanitized HTML body for display. */
+export interface RenderedSubmission extends StagedSubmission {
+  bodyHtml: string;
+}
+
+/** An Inbox entry whose submissions carry rendered HTML. */
+export type RenderedInboxEntry =
+  | { kind: "submission"; submission: RenderedSubmission }
+  | { kind: "issue"; issue: IssueListItem };
 
 /** Option lists for the filter bar (Repo, Assignee, Labels dimensions). */
 export interface FilterOptions {
