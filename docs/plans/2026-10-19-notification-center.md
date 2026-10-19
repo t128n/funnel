@@ -148,7 +148,7 @@ critical path: T4 → T8 (7.0 min) · peak width 7 · predicted build 7.0 min ·
 **Notes:** `GET /api/notifications?limit=&unread=&after=` returns `{ items, unreadCount }`; `POST` accepts `{ id }` or `{ all: true }` and returns `{ unreadCount }`. Watch route accepts `GET`, `PUT`, `DELETE` with the `read` role. Add `watching: boolean` to `RenderedIssueDetail`, computed by the mirror detail handler. Validate a positive issue number and an existing mirrored repo.
 
 ### T6 browser notifications · Complexity 4 (O-1)
-**Owns:** src/lib/client/native-notifications.ts, src/lib/client/events.ts, src/routes/(app)/+layout.svelte
+**Owns:** src/lib/client/native-notifications.ts, src/lib/client/native-notifications.test.ts, src/lib/client/events.ts, src/routes/(app)/+layout.svelte
 **Components:** 3
 **LOC owned:** 220
 **Tests:** slow
@@ -179,7 +179,7 @@ critical path: T4 → T8 (7.0 min) · peak width 7 · predicted build 7.0 min ·
 **Model:** sonnet
 **Review Focus:** `test_docs_name_all_new_routes`: `/notifications` and the watch API appear. `test_docs_state_native_limits`: open-tab and permission limits are documented.
 **Steps:** 1 update reference tables, 2 add the how-to, 3 run `bun run check`.
-**Notes:** Describe assignment, mention, watched comments, status/priority/state changes, new intake, read state, the three settings, and the first-page comment limitation.
+**Notes:** Describe assignment, mention, watched comments, status/priority/state changes, new intake, read state, and the three settings.
 
 ## Review Focus
 
