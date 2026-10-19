@@ -2,6 +2,7 @@
 	import { page } from '$app/state';
 	import { toast } from 'svelte-sonner';
 	import Avatar from '#lib/components/common/Avatar.svelte';
+	import PriorityIcon from '#lib/components/common/PriorityIcon.svelte';
 	import MultiSelect from '#lib/components/common/MultiSelect.svelte';
 	import { selectTriggerClass } from '#lib/components/common/select-trigger';
 	import SingleSelect from '#lib/components/common/SingleSelect.svelte';
@@ -31,6 +32,7 @@
 		reopenIssue,
 		unblockIssue,
 		updateIssue,
+		updatePriority,
 		updateWorkNote,
 		uploadAttachment,
 		type CloseReason,
@@ -54,12 +56,18 @@
 	} from '#lib/funnel-metadata';
 	import { timeAgo } from '#lib/client/clock.svelte';
 	import {
-		PRIORITY_OPTIONS,
 		SIZE_OPTIONS,
 		STATUS_OPTIONS,
 		canonicalLabel,
 		labelTint
 	} from '#lib/labels';
+	import {
+		IMPACT_SCALE,
+		URGENCY_SCALE,
+		derivePriorityOrNull,
+		isRetiredPriorityLabel,
+		priorityMeta
+	} from '#lib/priority';
 	import { absoluteTime } from '#lib/time';
 	import { ATTACHMENTS_FLAG, WORK_NOTES_FLAG } from '#lib/features';
 	import { canWrite } from '#lib/roles';
@@ -164,6 +172,19 @@
 	];
 	const statusValue = $derived(closed ? 'done' : (issue?.status ?? null));
 	const priorityValue = $derived(issue?.priority ?? null);
+	const priority = $derived(priorityMeta(priorityValue));
+	const impactValue = $derived(issue?.impact ?? null);
+	const urgencyValue = $derived(issue?.urgency ?? null);
+	const impactOptions = IMPACT_SCALE.map((level) => ({
+		value: String(level.value),
+		label: `${level.value} · ${level.name}`,
+		color: null
+	}));
+	const urgencyOptions = URGENCY_SCALE.map((level) => ({
+		value: String(level.value),
+		label: `${level.value} · ${level.name}`,
+		color: null
+	}));
 	const sizeValue = $derived(issue?.size ?? null);
 	const milestoneValue = $derived(issue?.milestone ?? null);
 	const milestoneOptions = $derived(detail?.milestoneOptions ?? []);
@@ -177,11 +198,16 @@
 	const assignees = $derived(issue?.assignees ?? []);
 	const assigneeOptions = $derived(detail?.assigneeOptions ?? []);
 	const selectedLabels = $derived(
-		(issue?.labels ?? []).filter((name) => !canonicalLabel(name))
+		(issue?.labels ?? []).filter(
+			(name) => !canonicalLabel(name) && !isRetiredPriorityLabel(name)
+		)
 	);
 	const labelOptions = $derived(
 		(detail?.repoLabels ?? [])
-			.filter((label) => !canonicalLabel(label.name))
+			.filter(
+				(label) =>
+					!canonicalLabel(label.name) && !isRetiredPriorityLabel(label.name)
+			)
 			.map((label) => ({ value: label.name, label: label.name, color: label.color }))
 	);
 
@@ -252,7 +278,6 @@
 		const next: IssuePatch = {};
 		if (patch.title !== undefined) next.title = patch.title;
 		if (patch.status !== undefined) next.status = patch.status;
-		if (patch.priority !== undefined) next.priority = patch.priority;
 		if (patch.size !== undefined) next.size = patch.size;
 		if (patch.blocked !== undefined) next.blocked = patch.blocked;
 		if (patch.assignees !== undefined) {
@@ -411,8 +436,42 @@
 		}
 	}
 
-	async function setPriority(value: string | null) {
-		await runPatch({ priority: value }, 'priority');
+	/**
+	 * Persist one triage axis and apply the derived priority optimistically. The
+	 * server derives again, so the overlay reconciles against authoritative data.
+	 */
+	async function setPriorityAxis(
+		axis: 'impact' | 'urgency',
+		value: string | null
+	): Promise<boolean> {
+		if (!detail) return false;
+		const level = value === null ? null : Number(value);
+		if (level !== null && !Number.isInteger(level)) return false;
+		const next = {
+			impact: axis === 'impact' ? level : impactValue,
+			urgency: axis === 'urgency' ? level : urgencyValue
+		};
+		const derived = derivePriorityOrNull(next.impact, next.urgency);
+		const patch: IssuePatch = { ...next, priority: derived };
+		busy = axis;
+		const outcome = await mutate({
+			key: overlayKey(repo, number),
+			patch,
+			failure: 'Could not update priority',
+			commit: () => updatePriority(repo, number, next)
+		});
+		busy = null;
+		if (!outcome.ok) return false;
+		bake(patch);
+		return true;
+	}
+
+	function setImpact(value: string | null) {
+		void setPriorityAxis('impact', value);
+	}
+
+	function setUrgency(value: string | null) {
+		void setPriorityAxis('urgency', value);
 	}
 
 	async function setSize(value: string | null) {
@@ -493,7 +552,9 @@
 		const removed = [...selectedLabels].filter((name) => !target.has(name));
 		if (added.length === 0 && removed.length === 0) return;
 
-		const reserved = detail.issue.labels.filter((name) => canonicalLabel(name));
+		const reserved = detail.issue.labels.filter(
+			(name) => canonicalLabel(name) || isRetiredPriorityLabel(name)
+		);
 		const issuePatch: IssuePatch = { labels: [...reserved, ...next] };
 		busy = 'labels';
 		const outcome = await mutate({
@@ -753,8 +814,8 @@
 		{#if issue.labelConflict}
 			<Alert.Root>
 				<Alert.Description>
-					Conflicting reserved labels were detected on GitHub; the mirror used the latest
-					timeline entry.
+					GitHub carries a conflicting reserved label or a retired priority label. Funnel uses
+					the derived priority and does not trust the label.
 				</Alert.Description>
 			</Alert.Root>
 		{/if}
@@ -844,17 +905,45 @@
 
 			<SingleSelect
 				variant="pill"
-				label="No priority"
-				options={PRIORITY_OPTIONS}
-				value={priorityValue}
-				onselect={setPriority}
+				label="Impact"
+				clearLabel="No impact"
+				options={impactOptions}
+				value={impactValue === null ? null : String(impactValue)}
+				onselect={setImpact}
 				allowClear
-				disabled={busy === 'priority' || !mayWrite}
+				disabled={busy === 'impact' || !mayWrite}
 			>
 				{#snippet icon()}
-					<SignalIcon class="size-3.5" style={labelTint(priorityValue)} />
+					<SignalIcon class="size-3.5" />
 				{/snippet}
 			</SingleSelect>
+
+			<SingleSelect
+				variant="pill"
+				label="Urgency"
+				clearLabel="No urgency"
+				options={urgencyOptions}
+				value={urgencyValue === null ? null : String(urgencyValue)}
+				onselect={setUrgency}
+				allowClear
+				disabled={busy === 'urgency' || !mayWrite}
+			>
+				{#snippet icon()}
+					<SignalIcon class="size-3.5" />
+				{/snippet}
+			</SingleSelect>
+
+			<span
+				class={selectTriggerClass('pill', 'cursor-default')}
+				title="Priority is derived from impact × urgency"
+			>
+				<PriorityIcon priority={priorityValue} />
+				{#if priority}
+					<span class="text-foreground">{priority.value} · {priority.name}</span>
+				{:else}
+					<span>No priority</span>
+				{/if}
+			</span>
 
 			<SingleSelect
 				variant="pill"

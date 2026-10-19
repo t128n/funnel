@@ -27,8 +27,10 @@ import {
   mirrorGithubIssue,
   mirrorGithubIssueAssignee,
   mirrorGithubIssueLabel,
+  stateIssuePriority,
 } from "#lib/server/db/schema";
 import { CANONICAL_LABELS, type LabelGroup } from "#lib/server/github/labels";
+import { isRetiredPriorityLabel } from "#lib/priority";
 
 /** Canonical status label names; absence means "untriaged" (Inbox). */
 export const STATUS_VALUES = [
@@ -37,7 +39,11 @@ export const STATUS_VALUES = [
   "in-progress",
   "in-review",
 ] as const;
-export const PRIORITY_VALUES = ["p1", "p2", "p3"] as const;
+/**
+ * Priority filter vocabulary. The URL uses the lowercase form; the durable
+ * state stores the canonical `P0`–`P3` value.
+ */
+export const PRIORITY_VALUES = ["p0", "p1", "p2", "p3"] as const;
 export const SIZE_VALUES = ["sm", "md", "lg"] as const;
 
 /** GitHub issue states. The Issues view defaults to `open` (SPEC §9.2). */
@@ -77,7 +83,7 @@ export interface IssueFilter {
   statuses: string[];
   /** `mirror_github_user.github_id` values. */
   assignees: number[];
-  /** `p1`-`p3` and/or {@link NONE}. */
+  /** `p0`-`p3` and/or {@link NONE}. */
   priorities: string[];
   /** `sm`/`md`/`lg` and/or {@link NONE}. */
   sizes: string[];
@@ -236,7 +242,9 @@ export function parseIssueFilter(
     priorities: vocab(multi(params, "priority"), PRIORITY_SET),
     sizes: vocab(multi(params, "size"), SIZE_SET),
     labels: multi(params, "label").filter(
-      (name) => !RESERVED_GROUP.has(name.toLowerCase()),
+      (name) =>
+        !RESERVED_GROUP.has(name.toLowerCase()) &&
+        !isRetiredPriorityLabel(name),
     ),
     milestones: milestones.refs,
     noMilestone: milestones.none,
@@ -306,11 +314,22 @@ export function buildIssueWhere(filter: IssueFilter): SQL | undefined {
   for (const [column, values] of [
     [mirrorGithubIssue.state, filter.states],
     [mirrorGithubIssue.status, filter.statuses],
-    [mirrorGithubIssue.priority, filter.priorities],
     [mirrorGithubIssue.size, filter.sizes],
   ] as const) {
     const clause = dimension(column, values);
     if (clause) conditions.push(clause);
+  }
+
+  // Priority lives in durable state, not a mirrored label column.
+  if (filter.priorities.length > 0) {
+    const parts = filter.priorities
+      .filter((value) => value !== NONE)
+      .map((value) => eq(stateIssuePriority.priority, value.toUpperCase()));
+    if (filter.priorities.includes(NONE)) {
+      parts.push(isNull(stateIssuePriority.priority));
+    }
+    if (parts.length === 1) conditions.push(parts[0]);
+    else if (parts.length > 1) conditions.push(or(...parts) as SQL);
   }
 
   if (filter.assignees.length > 0) {

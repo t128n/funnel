@@ -1,6 +1,6 @@
 <script lang="ts">
 	import PriorityIcon from '#lib/components/common/PriorityIcon.svelte';
-	import { canonicalLabel } from '#lib/labels';
+	import { priorityMeta } from '#lib/priority';
 	import { cn } from '#lib/utils';
 	import SignalZeroIcon from '@lucide/svelte/icons/signal-zero';
 
@@ -18,10 +18,8 @@
 	let { priority, class: className }: Props = $props();
 
 	const color = $derived.by(() => {
-		if (!priority) return null;
-		const value = canonicalLabel(priority)?.color;
-		if (!value) return null;
-		return /^[0-9a-f]{6}$/i.test(value) ? `#${value}` : value;
+		const meta = priorityMeta(priority);
+		return meta ? `#${meta.color}` : null;
 	});
 </script>
 

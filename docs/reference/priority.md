@@ -41,30 +41,46 @@ Read the row as impact and the column as urgency. Higher impact and urgency have
 
 ### When an axis is unset
 
-If either impact or urgency is unset, malformed, or outside `1`–`4`, the derived priority is **`P3`**. Missing input is treated as “not yet assessed”, not as evidence of severity; a triager can set the missing axis to raise the result. This fallback is configurable through `PriorityRules.fallback`, but `P3` is the instance default.
+If **one** axis is unset, malformed, or outside `1`–`4`, the derived priority is **`P3`**. Missing input is treated as “not yet assessed”, not as evidence of severity; a triager can set the missing axis to raise the result. This fallback is configurable through `PriorityRules.fallback`, but `P3` is the instance default.
+
+If **both** axes are unset, the issue has *no priority* rather than `P3`: the cockpit renders the empty state so an unassessed issue is visibly distinct from one assessed as low. Clearing both axes persists that empty state, and a later sync will not resurrect a retired label.
 
 ## Where the axes live
 
-Impact and urgency are stored in the issue body's trailing `<!-- funnel_metadata -->` envelope, grouped under `priority:`. They are inputs, not labels: the `p1`–`p3` labels remain the current priority projection until the derived-priority migration lands.
+Impact and urgency are **Funnel-owned durable state**, stored in the
+`state_issue_priority` table keyed by `org/name` + issue number — the same
+pattern as work notes and attachments. They are not labels and not mirrored
+GitHub data, so mirror pruning and a full re-sync cannot lose a triager's
+assessment.
 
-```markdown
-<!-- funnel_metadata
-priority:
-  impact: 2
-  urgency: 3
-blocked:
-  is_blocked: false
--->
-```
+Each row stores `impact`, `urgency`, the derived `priority` (`P0`–`P3`, or
+`NULL` when both axes are unset), and timestamps. The Inspector writes the axes
+through the local `PATCH /api/mirror/issues/{owner}/{repo}/{number}/priority`
+endpoint; the server derives and returns the priority. Reads join the state
+table, which is why the priority filter, default sort, group-by, and P0 "Urgent"
+token all use the same derived value.
 
-Round-trip rules:
+### Retired labels and the migration
 
-- `readPriorityInputs(body)` (`readImpactUrgency`) returns `{ impact, urgency }`, with `null` for an unset or invalid axis.
-- `writePriorityInputs(body, inputs)` (`writeImpactUrgency`) writes the canonical grouped form and preserves every other section.
-- An unset axis is omitted rather than written as a placeholder.
-- Clearing both axes removes the `priority:` section. If no other section remains, the envelope is removed too.
-- The older top-level form (`impact: 2` / `urgency: 3` directly under the envelope) is still read; the next write normalises it into the `priority:` section.
-- Editing the description re-attaches the envelope verbatim, so prose edits cannot drop the axes.
+The `p1`/`p2`/`p3` labels are retired. Funnel no longer writes them, no longer
+reads them as the priority value, and no longer provisions them in repositories.
+
+- The migration seeds `state_issue_priority` from the mirrored `p1`–`p3`
+  projection so an existing board does not change overnight.
+- An issue with no state row is seeded once on first sync: impact/urgency body
+  metadata first, then a retired label.
+- A retired label that disagrees with the durable value is never trusted. The
+  mirror's `labelConflict` flag surfaces it in the cockpit, the same signal used
+  for ambiguous reserved-label conflicts.
+- The dashboard does not delete the old labels from GitHub. That is a separate,
+  explicit upstream cleanup.
+
+### Legacy body metadata
+
+The impact/urgency scale work originally wrote the axes into the issue body's
+trailing `<!-- funnel_metadata -->` envelope. Those helpers remain for importing
+existing data, but the database is authoritative. A missing state row may be
+seeded from the body; subsequent Inspector writes go to the database only.
 
 ## Per-instance matrix override
 
@@ -84,14 +100,14 @@ derivePriority(2, 3, { matrix });
 derivePriority(2, 3, { fallback: "P2" });
 ```
 
-An instance-level override can therefore be introduced later by supplying another matrix; the stored metadata keeps the same `impact`/`urgency` shape and needs no migration. The canonical values are exported as `DEFAULT_PRIORITY_MATRIX`, `DEFAULT_PRIORITY`, and `DEFAULT_PRIORITY_RULES`.
+An instance-level override can therefore be introduced later by supplying another matrix; the durable state keeps the same `impact`/`urgency` shape and needs no migration. The canonical values are exported as `DEFAULT_PRIORITY_MATRIX`, `DEFAULT_PRIORITY`, and `DEFAULT_PRIORITY_RULES`. Settings-driven matrix editing is deferred.
 
 ## Triaging consistently
 
 1. Set impact from the effect on users and flows, not from who reported it.
 2. Set urgency from the cost of waiting, independently of impact.
-3. Never choose priority by hand; read the matrix.
-4. Leave an axis unset only when it genuinely cannot be assessed yet. Either unset axis yields `P3`.
+3. Never choose priority by hand; set impact and urgency and read the result.
+4. Leave an axis unset only when it genuinely cannot be assessed yet. One unset axis yields `P3`; both unset means no priority.
 
 Spot-check the definitions against real issues before changing the matrix. If two triagers disagree, the axis definition is usually ambiguous rather than the matrix being wrong.
 

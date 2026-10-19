@@ -10,11 +10,7 @@ import {
   passthrough,
   toResponse,
 } from "#lib/server/github/api-passthrough.server";
-import {
-  PRIORITY_VALUES,
-  SIZE_VALUES,
-  STATUS_VALUES,
-} from "#lib/server/issues/filters";
+import { SIZE_VALUES, STATUS_VALUES } from "#lib/server/issues/filters";
 import { authenticate, readJson, scheduleRefresh } from "#lib/server/issues/http";
 import { apiRole } from "#lib/server/http/session";
 import { updateIssue } from "#lib/server/issues/mutations";
@@ -48,7 +44,8 @@ export const GET: RequestHandler = async ({ params, request, locals }) => {
 
 /**
  * Update an issue with the signed-in user's token (SPEC §9.2): title/body and
- * assignees, open/closed state, and the reserved status/priority/size labels.
+ * assignees, open/closed state, and the reserved status/size labels. Priority is
+ * derived local state and is not written to GitHub.
  */
 const updateSchema = v.object({
   title: v.optional(
@@ -66,7 +63,6 @@ const updateSchema = v.object({
     v.nullable(v.picklist(["completed", "not_planned"] as const)),
   ),
   status: v.optional(v.nullable(v.picklist(STATUS_VALUES))),
-  priority: v.optional(v.nullable(v.picklist(PRIORITY_VALUES))),
   size: v.optional(v.nullable(v.picklist(SIZE_VALUES))),
   blocked: v.optional(v.boolean()),
   milestone: v.optional(
@@ -114,7 +110,6 @@ export const PATCH: RequestHandler = async ({
     state: parsed.output.state,
     stateReason: parsed.output.state_reason,
     status: parsed.output.status,
-    priority: parsed.output.priority,
     size: parsed.output.size,
     blocked: parsed.output.blocked,
     milestone: parsed.output.milestone,

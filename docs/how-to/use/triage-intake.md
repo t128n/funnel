@@ -38,7 +38,7 @@ Nothing is created on GitHub until a triager accepts the submission. See [the wo
 The Inbox is a single queue with two parts, always in this order:
 
 1. **Staged** submissions, newest first. Same-millisecond ties are broken deterministically by insertion order.
-2. **Untriaged issues** — open issues with no status label. These are ordered by priority (`P1` first, unprioritised last), then by most recently updated.
+2. **Untriaged issues** — open issues with no status label. These are ordered by derived priority (`P0` first, unprioritised last), then by most recently updated.
 
 The **Staged** group can be collapsed. The issue half can be grouped with the group-by control, like the other issue streams.
 
@@ -57,7 +57,7 @@ The pane has three decisions: **Dismiss**, **Duplicate** and **Accept**.
 Accepting creates the GitHub issue and clears the staged row.
 
 1. Select the **Repository** pill. The options come from the repositories currently in the mirror; the server still rejects a target that is not in Settings → Repositories. The initial selection is `intake.default_repo`, falling back to the first configured repository, then to the first available option.
-2. Optionally choose a **priority** (`P1`–`P3`) and a **size** (`S`, `M`, `L`).
+2. Optionally choose a **size** (`S`, `M`, `L`). Priority is not set at intake: it is derived later in the Inspector from impact and urgency.
 3. Select **Accept**.
 
 What Funnel does:
@@ -65,7 +65,7 @@ What Funnel does:
 - Requires a `write` session and a resolvable GitHub user token.
 - Rejects a repository that is not in the instance settings. If no repository can be resolved, the request fails with “No target repository selected”.
 - Creates the issue with the submission's title and body, plus a provenance footer such as `_Submitted via Funnel intake (source: email)_`.
-- Applies the `backlog` status label first, followed by the selected priority and size labels.
+- Applies the `backlog` status label first, followed by the selected size label. Retired `p1`–`p3` labels are never written.
 - Hard-deletes the staged row only after GitHub confirms the create.
 - Publishes an intake event so open cockpits remove the row from the queue.
 

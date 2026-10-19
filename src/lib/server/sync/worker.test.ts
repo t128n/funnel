@@ -252,7 +252,7 @@ describe("pollRepo", () => {
         assignees: [],
         comments: [],
       },
-      { status: null, priority: null, size: null, blocked: false, labelConflict: false },
+      { status: null, size: null, blocked: false, labelConflict: false },
     );
     pages = [
       [

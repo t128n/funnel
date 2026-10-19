@@ -114,9 +114,6 @@ describe("CANONICAL_LABELS", () => {
       "in-progress",
       "in-review",
       "blocked",
-      "p1",
-      "p2",
-      "p3",
       "sm",
       "md",
       "lg",
@@ -163,7 +160,7 @@ describe("provisionRepoLabels", () => {
 
   test("patches drifted color and description, leaving others alone", async () => {
     const labels = canonicalJson().map((l) => {
-      if (l.name === "p1") return { ...l, color: "000000" };
+      if (l.name === "md") return { ...l, color: "000000" };
       if (l.name === "sm") return { ...l, description: "stale" };
       return l;
     });
@@ -173,13 +170,13 @@ describe("provisionRepoLabels", () => {
     const summary = await provisionRepoLabels("orgA", "core");
 
     expect(summary.created).toEqual([]);
-    expect(summary.updated).toEqual(["p1", "sm"]);
-    expect(summary.unchanged).toHaveLength(9);
+    expect(summary.updated).toEqual(["sm", "md"]);
+    expect(summary.unchanged).toHaveLength(6);
 
     const patches = seen.filter(
       (s) => s.route === "PATCH /repos/{owner}/{repo}/labels/{name}",
     );
-    expect(patches.map((p) => p.body?.name)).toEqual(["p1", "sm"]);
+    expect(patches.map((p) => p.body?.name)).toEqual(["sm", "md"]);
     // The non-reserved `bug` label is never touched.
     expect(writes().some((w) => w.body?.name === "bug")).toBe(false);
   });

@@ -6,7 +6,8 @@
 	import * as Popover from '#lib/components/ui/popover';
 	import MultiSelect from '#lib/components/common/MultiSelect.svelte';
 	import { cn } from '#lib/utils';
-	import { PRIORITY_OPTIONS, SIZE_OPTIONS, STATUS_OPTIONS } from '#lib/labels';
+	import { SIZE_OPTIONS, STATUS_OPTIONS } from '#lib/labels';
+	import { PRIORITY_SCALE } from '#lib/priority';
 	import type { FilterOptions } from '#lib/server/issues/types';
 	import {
 		activeFilterCount,
@@ -68,7 +69,11 @@
 		allowNoStatus ? filter.statuses : filter.statuses.filter((value) => value !== NONE)
 	);
 	const priorityOptions = $derived([
-		...PRIORITY_OPTIONS,
+		...PRIORITY_SCALE.map((level) => ({
+			value: level.value.toLowerCase(),
+			label: `${level.value} · ${level.name}`,
+			color: level.color
+		})),
 		{ value: NONE, label: 'No priority', color: null }
 	]);
 	const sizeOptions = $derived([...SIZE_OPTIONS, { value: NONE, label: 'No size', color: null }]);

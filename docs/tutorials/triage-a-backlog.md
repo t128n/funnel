@@ -37,7 +37,7 @@ Select the submission row.
 
 - the submission title and body;
 - a provenance footer recording that it came through Funnel intake (and the source, when one was chosen);
-- the `backlog` status label, plus the priority and size labels you picked.
+- the `backlog` status label, plus the size label you picked.
 
 The new issue appears in **Issues**, and in the board's **Backlog** view once the background refresh lands. If the write fails, the row stays staged and the Inbox shows the error so you can retry.
 
@@ -71,7 +71,7 @@ Click the card.
 
 - the editable title and the `owner/name#number` reference;
 - the description, with an edit affordance for writers;
-- property pills for **Blocked**, status, priority, size, assignees, and labels;
+- property pills for **Blocked**, status, impact, urgency, derived priority, size, assignees, and labels;
 - **Activity** for GitHub comments;
 - **Work notes** for Funnel-local notes;
 - **Files** for the attachment dropbox;

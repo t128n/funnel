@@ -12,6 +12,8 @@ function issue(overrides: Partial<IssueListItem> & { number: number }): IssueLis
     stateReason: null,
     status: null,
     priority: null,
+    impact: null,
+    urgency: null,
     size: null,
     blocked: false,
     labelConflict: false,
@@ -115,5 +117,24 @@ describe("buildGroups / project", () => {
     );
 
     expect(groups.map((group) => group.label)).toEqual(["CORE", "WEB"]);
+  });
+});
+
+describe("buildGroups / priority", () => {
+  test("orders derived priorities and labels P0 as Urgent", () => {
+    const groups = buildGroups(
+      [
+        issue({ number: 1, priority: "P2" }),
+        issue({ number: 2, priority: "P0" }),
+        issue({ number: 3, priority: null })
+      ],
+      "priority"
+    );
+
+    expect(groups.map((group) => [group.key, group.label])).toEqual([
+      ["P0", "P0 · Urgent"],
+      ["P2", "P2 · Medium"],
+      ["none", "No priority"]
+    ]);
   });
 });

@@ -14,6 +14,112 @@ export type Impact = (typeof IMPACT_VALUES)[number];
 export type Urgency = (typeof URGENCY_VALUES)[number];
 export type Priority = (typeof PRIORITY_VALUES)[number];
 
+/** The lowercase query-string form of each priority. */
+export const PRIORITY_FILTER_VALUES = ["p0", "p1", "p2", "p3"] as const;
+
+/**
+ * Display metadata for a derived priority. P0 is the designed "Urgent" token;
+ * the remaining tiers reuse the signal-bar metaphor from `docs/DESIGN.md`.
+ * Colours are six-digit hex without `#`, the format the label API uses.
+ */
+export interface PriorityLevel {
+  value: Priority;
+  name: string;
+  definition: string;
+  color: string;
+  urgent: boolean;
+}
+
+export const PRIORITY_SCALE: readonly PriorityLevel[] = [
+  {
+    value: "P0",
+    name: "Urgent",
+    definition: "Blocks many users or a critical path right now.",
+    color: "f87171",
+    urgent: true,
+  },
+  {
+    value: "P1",
+    name: "High",
+    definition: "Important and needed this cycle.",
+    color: "fb923c",
+    urgent: false,
+  },
+  {
+    value: "P2",
+    name: "Medium",
+    definition: "Should be handled soon; a workaround exists.",
+    color: "facc15",
+    urgent: false,
+  },
+  {
+    value: "P3",
+    name: "Low",
+    definition: "Can wait; not currently urgent.",
+    color: "94a3b8",
+    urgent: false,
+  },
+];
+
+const PRIORITY_BY_VALUE = new Map<string, PriorityLevel>(
+  PRIORITY_SCALE.map((level) => [level.value, level]),
+);
+
+/** Look up display metadata for a derived priority (case-insensitive). */
+export function priorityMeta(value: unknown): PriorityLevel | null {
+  return typeof value === "string"
+    ? (PRIORITY_BY_VALUE.get(value.toUpperCase()) ?? null)
+    : null;
+}
+
+/** A priority's display name (`P0` → `Urgent`), or `null` when unset. */
+export function priorityName(value: unknown): string | null {
+  return priorityMeta(value)?.name ?? null;
+}
+
+/**
+ * The retired reserved labels. They are read once, to seed a missing state row
+ * from the old projection, and never written back to GitHub.
+ */
+export const RETIRED_PRIORITY_LABELS: Readonly<Record<string, Priority>> = {
+  p1: "P1",
+  p2: "P2",
+  p3: "P3",
+};
+
+/** Map a retired `p1`–`p3` label name to its priority, or `null`. */
+export function retiredPriority(name: unknown): Priority | null {
+  return typeof name === "string"
+    ? (RETIRED_PRIORITY_LABELS[name.trim().toLowerCase()] ?? null)
+    : null;
+}
+
+/** Whether a label name is a retired priority label. */
+export function isRetiredPriorityLabel(name: unknown): boolean {
+  return retiredPriority(name) !== null;
+}
+
+/**
+ * The priority an issue's retired labels imply, if any. When more than one is
+ * present, the canonical P1 → P3 order wins; the mismatch is flagged by sync.
+ */
+export function legacyPriorityFromLabels(
+  labels: readonly string[],
+): Priority | null {
+  for (const value of PRIORITY_VALUES.slice(1)) {
+    const name = value.toLowerCase();
+    if (labels.some((label) => label.toLowerCase() === name)) return value;
+  }
+  return null;
+}
+
+/** Every retired priority label carried by an issue, lowercased. */
+export function legacyPriorityLabels(labels: readonly string[]): string[] {
+  return labels
+    .map((label) => label.toLowerCase())
+    .filter((label) => isRetiredPriorityLabel(label));
+}
+
 export interface ScaleLevel<T extends number> {
   value: T;
   name: string;
@@ -171,6 +277,23 @@ export function derivePriority(
   const u = parseUrgency(urgency);
   if (i === null || u === null) return resolved.fallback;
   return resolved.matrix[i][u];
+}
+
+/**
+ * Derivation with an explicit "not assessed" state: both axes absent yields
+ * `null` (the empty priority state), while a single missing or malformed axis
+ * still uses the matrix fallback. This is what the Inspector, the local write
+ * endpoint, and the optimistic overlay use.
+ */
+export function derivePriorityOrNull(
+  impact: unknown,
+  urgency: unknown,
+  rules: Partial<PriorityRules> | PriorityMatrix = DEFAULT_PRIORITY_RULES,
+): Priority | null {
+  if (impact === null || impact === undefined) {
+    if (urgency === null || urgency === undefined) return null;
+  }
+  return derivePriority(impact, urgency, rules);
 }
 
 /** Numeric rank for sorting: P0 → 0 … P3 → 3. */

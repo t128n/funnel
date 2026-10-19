@@ -25,6 +25,10 @@ import {
   mirrorGithubRepoLabel,
   mirrorGithubUser,
 } from "#lib/server/db/schema";
+import {
+  ensurePrioritySeeded,
+  retiredPriorityConflict,
+} from "#lib/server/issues/priority";
 
 export interface RepoRow {
   githubId: number;
@@ -73,7 +77,6 @@ export interface IssueRecord {
 /** Cached reserved-label derivation stored on the issue row (SPEC §5.2). */
 export interface StoredMetadata {
   status: string | null;
-  priority: string | null;
   size: string | null;
   /** Orthogonal `blocked` flag, stored as 0/1 (SPEC §5.1). */
   blocked: boolean;
@@ -396,6 +399,26 @@ export function upsertIssue(issue: IssueRecord, metadata: StoredMetadata): void 
   // Users are FK targets for author/assignee/comment rows, so they land first.
   upsertUsers(issue);
 
+  // Priority is Funnel-owned state, not a mirrored column. Seed it once from
+  // the retired label (or body metadata) and flag a label that disagrees.
+  const repo = getRepo(issue.repoId);
+  if (repo) {
+    ensurePrioritySeeded(repo.org, repo.name, issue.number, {
+      labels: issue.labels,
+      body: issue.body,
+    });
+  }
+  const labelConflict =
+    metadata.labelConflict ||
+    (repo
+      ? retiredPriorityConflict(
+          repo.org,
+          repo.name,
+          issue.number,
+          issue.labels,
+        )
+      : false);
+
   db.transaction((tx) => {
     tx.insert(mirrorGithubIssue)
       .values({
@@ -412,10 +435,9 @@ export function upsertIssue(issue: IssueRecord, metadata: StoredMetadata): void 
         updatedAt: issue.updatedAt,
         closedAt: issue.closedAt,
         status: metadata.status,
-        priority: metadata.priority,
         size: metadata.size,
         blocked: metadata.blocked ? 1 : 0,
-        labelConflict: metadata.labelConflict ? 1 : 0,
+        labelConflict: labelConflict ? 1 : 0,
       })
       .onConflictDoUpdate({
         target: [mirrorGithubIssue.repoId, mirrorGithubIssue.number],
@@ -431,10 +453,9 @@ export function upsertIssue(issue: IssueRecord, metadata: StoredMetadata): void 
           updatedAt: issue.updatedAt,
           closedAt: issue.closedAt,
           status: metadata.status,
-          priority: metadata.priority,
           size: metadata.size,
           blocked: metadata.blocked ? 1 : 0,
-          labelConflict: metadata.labelConflict ? 1 : 0,
+          labelConflict: labelConflict ? 1 : 0,
         },
       })
       .run();
@@ -512,7 +533,6 @@ export function setIssueMetadata(
   db.update(mirrorGithubIssue)
     .set({
       status: metadata.status,
-      priority: metadata.priority,
       size: metadata.size,
       blocked: metadata.blocked ? 1 : 0,
       labelConflict: metadata.labelConflict ? 1 : 0,

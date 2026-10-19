@@ -1,7 +1,7 @@
 /**
  * Reserved-label conflict resolution (SPEC §5.2).
  *
- * An issue may carry at most one label per group (status, priority, size). When
+ * An issue may carry at most one label per active group (status, size). When
  * it accumulates several, `funnel[bot]` inspects the issue timeline and the
  * **latest added label wins**; the superseded labels are removed on GitHub with
  * the App installation token. An ambiguous timeline (no `labeled` events, or a
@@ -17,7 +17,6 @@ import type { InstallationOctokit } from "#lib/server/github/app.server";
 /** Reserved-label projection cached on the issue row. */
 export interface DerivedMetadata {
   status: string | null;
-  priority: string | null;
   size: string | null;
   /** Whether the orthogonal `blocked` flag is present (SPEC §5.1). */
   blocked: boolean;
@@ -25,12 +24,7 @@ export interface DerivedMetadata {
   conflicts: LabelGroup[];
 }
 
-export const GROUP_ORDER: readonly LabelGroup[] = [
-  "status",
-  "priority",
-  "size",
-  "flags",
-];
+export const GROUP_ORDER: readonly LabelGroup[] = ["status", "size", "flags"];
 
 /** Canonical label name (lowercase) -> group, for fast lookups. */
 const GROUP_BY_NAME = new Map<string, LabelGroup>(
@@ -73,7 +67,6 @@ export function deriveMetadata(labelNames: readonly string[]): DerivedMetadata {
   const grouped = groupLabels(labelNames);
   const metadata: DerivedMetadata = {
     status: null,
-    priority: null,
     size: null,
     blocked: false,
     conflicts: [],
@@ -83,9 +76,8 @@ export function deriveMetadata(labelNames: readonly string[]): DerivedMetadata {
     if (!names || names.length === 0) continue;
     const winner = names.length === 1 ? names[0] : firstCanonical(names);
     if (group === "status") metadata.status = winner;
-    else if (group === "priority") metadata.priority = winner;
     else if (group === "size") metadata.size = winner;
-    else metadata.blocked = true;
+    else if (group === "flags") metadata.blocked = true;
     if (names.length > 1) metadata.conflicts.push(group);
   }
   return metadata;

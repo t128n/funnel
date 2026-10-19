@@ -34,12 +34,18 @@ import {
   mirrorGithubRepoAssignee,
   mirrorGithubRepoLabel,
   mirrorGithubUser,
+  stateIssuePriority,
 } from "#lib/server/db/schema";
 import { listAttachments } from "#lib/server/attachments/store";
 import { listSubmissions } from "#lib/server/intake/staging";
 import { listRepos } from "#lib/server/sync/mirror";
 import { listWorkNotes } from "#lib/server/work-notes";
 import { readBlocked } from "#lib/funnel-metadata";
+import {
+  isRetiredPriorityLabel,
+  parseImpact,
+  parseUrgency,
+} from "#lib/priority";
 import {
   assigneeExists,
   buildIssueWhere,
@@ -74,8 +80,8 @@ const BOARD_LABELS: Record<StatusKey, string> = {
   done: "Done",
 };
 
-/** Default sort: priority (p1 first, unprioritized last) then updated. */
-const PRIORITY_RANK = sql`case ${mirrorGithubIssue.priority} when 'p1' then 0 when 'p2' then 1 when 'p3' then 2 else 3 end`;
+/** Default sort: derived priority (P0 first, unprioritized last) then updated. */
+const PRIORITY_RANK = sql`case ${stateIssuePriority.priority} when 'P0' then 0 when 'P1' then 1 when 'P2' then 2 when 'P3' then 3 else 4 end`;
 
 const issueColumns = {
   repoId: mirrorGithubIssue.repoId,
@@ -84,7 +90,9 @@ const issueColumns = {
   state: mirrorGithubIssue.state,
   stateReason: mirrorGithubIssue.stateReason,
   status: mirrorGithubIssue.status,
-  priority: mirrorGithubIssue.priority,
+  priority: stateIssuePriority.priority,
+  impact: stateIssuePriority.impact,
+  urgency: stateIssuePriority.urgency,
   size: mirrorGithubIssue.size,
   blocked: mirrorGithubIssue.blocked,
   labelConflict: mirrorGithubIssue.labelConflict,
@@ -110,6 +118,8 @@ interface RawRow {
   stateReason: string | null;
   status: string | null;
   priority: string | null;
+  impact: number | null;
+  urgency: number | null;
   size: string | null;
   blocked: number;
   labelConflict: number;
@@ -167,6 +177,14 @@ function rawQuery(where: SQL | undefined, opts: ListOptions): RawRow[] {
       and(
         eq(mirrorGithubMilestone.repoId, mirrorGithubIssue.repoId),
         eq(mirrorGithubMilestone.number, mirrorGithubIssue.milestoneNumber),
+      ),
+    )
+    .leftJoin(
+      stateIssuePriority,
+      and(
+        eq(stateIssuePriority.org, mirrorGithubRepo.org),
+        eq(stateIssuePriority.name, mirrorGithubRepo.name),
+        eq(stateIssuePriority.issueNumber, mirrorGithubIssue.number),
       ),
     )
     .where(where)
@@ -252,6 +270,8 @@ function hydrate(rows: RawRow[]): IssueListItem[] {
       stateReason: row.stateReason,
       status: row.status,
       priority: row.priority,
+      impact: parseImpact(row.impact),
+      urgency: parseUrgency(row.urgency),
       size: row.size,
       blocked: row.blocked === 1,
       labelConflict: row.labelConflict === 1,
@@ -455,6 +475,14 @@ export function attentionIssues(): AttentionItem[] {
         eq(mirrorGithubMilestone.number, mirrorGithubIssue.milestoneNumber),
       ),
     )
+    .leftJoin(
+      stateIssuePriority,
+      and(
+        eq(stateIssuePriority.org, mirrorGithubRepo.org),
+        eq(stateIssuePriority.name, mirrorGithubRepo.name),
+        eq(stateIssuePriority.issueNumber, mirrorGithubIssue.number),
+      ),
+    )
     .where(
       and(eq(mirrorGithubIssue.state, "open"), eq(mirrorGithubIssue.blocked, 1)),
     )
@@ -534,7 +562,11 @@ export function filterOptions(): FilterOptions {
     ...new Set(
       labelRows
         .map((row) => row.name)
-        .filter((name) => !RESERVED_GROUP.has(name.toLowerCase())),
+        .filter(
+          (name) =>
+            !RESERVED_GROUP.has(name.toLowerCase()) &&
+            !isRetiredPriorityLabel(name),
+        ),
     ),
   ].sort((a, b) => a.localeCompare(b));
 

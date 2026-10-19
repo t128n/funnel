@@ -65,7 +65,7 @@ function seedIssue(): void {
       assignees: [],
       comments: [],
     },
-    { status: "todo", priority: null, size: null, blocked: false, labelConflict: false },
+    { status: "todo", size: null, blocked: false, labelConflict: false },
   );
 }
 

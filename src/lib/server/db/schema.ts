@@ -106,6 +106,34 @@ export const stateWorkNote = sqliteTable(
 );
 
 // ---------------------------------------------------------------------------
+// State: derived issue priority (impact × urgency).
+// GitHub no longer carries a priority label. The two triage inputs and the
+// P0–P3 result they derive live here, keyed by `org/name` + issue number so
+// they survive mirror pruning and a re-sync. `priority` is null until at least
+// one axis is assessed; a single missing axis derives the matrix fallback.
+// ---------------------------------------------------------------------------
+export const stateIssuePriority = sqliteTable(
+  "state_issue_priority",
+  {
+    org: text("org").notNull(),
+    name: text("name").notNull(),
+    issueNumber: integer("issue_number").notNull(),
+    /** `1` (Extensive) – `4` (Minor), or null when unassessed. */
+    impact: integer("impact"),
+    /** `1` (Critical) – `4` (Low), or null when unassessed. */
+    urgency: integer("urgency"),
+    /** Derived `P0`–`P3`, or null when both axes are unassessed. */
+    priority: text("priority"),
+    createdAt: integer("created_at").notNull(),
+    updatedAt: integer("updated_at").notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.org, t.name, t.issueNumber] }),
+    index("idx_state_issue_priority_priority").on(t.priority, t.updatedAt),
+  ],
+);
+
+// ---------------------------------------------------------------------------
 // State: issue attachments (the "dropbox").
 // Metadata for files stored on disk under `FUNNEL_UPLOAD_DIR`; `stored_path` is
 // server-generated (`<yyyy>/<mm>/<uuid>`) and never derived from the client's
@@ -289,9 +317,10 @@ export const mirrorGithubMilestone = sqliteTable(
 
 // ---------------------------------------------------------------------------
 // Mirror: issues (SPEC 6.1). Identity is (repoId, number); githubId is the
-// global node id for GraphQL hydration. `status`/`priority`/`size` are
-// derived caches of the reserved-label groups (SPEC 5.2) computed at sync
-// time. Done/Canceled derive from (state, stateReason).
+// global node id for GraphQL hydration. `status`/`size` are derived caches of
+// the reserved-label groups (SPEC 5.2) computed at sync time. Priority is not
+// mirrored: it is derived into `state_issue_priority`. Done/Canceled derive
+// from (state, stateReason).
 // Composite FKs from junction tables are enforced in code (delete children
 // first); single-column references below use FK cascades.
 // ---------------------------------------------------------------------------
@@ -316,7 +345,6 @@ export const mirrorGithubIssue = sqliteTable(
     updatedAt: integer("updated_at").notNull(),
     closedAt: integer("closed_at"),
     status: text("status"),
-    priority: text("priority"),
     size: text("size"),
     blocked: integer("blocked").notNull().default(0),
     labelConflict: integer("label_conflict").notNull().default(0),
@@ -324,10 +352,6 @@ export const mirrorGithubIssue = sqliteTable(
   (t) => [
     primaryKey({ columns: [t.repoId, t.number] }),
     index("idx_mirror_github_issue_status_updated").on(t.status, t.updatedAt),
-    index("idx_mirror_github_issue_priority_updated").on(
-      t.priority,
-      t.updatedAt,
-    ),
     index("idx_mirror_github_issue_state").on(t.state, t.stateReason),
     index("idx_mirror_github_issue_repo_updated").on(t.repoId, t.updatedAt),
     index("idx_mirror_github_issue_milestone").on(t.repoId, t.milestoneNumber),

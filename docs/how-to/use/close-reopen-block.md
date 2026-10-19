@@ -19,7 +19,7 @@ What Funnel does:
 
 - Posts the note as a GitHub comment first.
 - Then changes the issue to closed with the chosen state reason.
-- Leaves every label untouched, including the current status, priority and size.
+- Leaves every label untouched, including the current status and size.
 
 The order matters. If the comment fails, the issue is not closed. If the comment succeeds but the state change fails, the note remains on the issue and you can retry. The dialog shows failures inline and stays open.
 
@@ -129,12 +129,11 @@ The sidebar Attention badge counts only overdue and due-today items. The **All/M
 Each Attention row links to the issue in the Issues view and offers these actions on hover:
 
 - **Reschedule re-check** — quick dates, or a custom date through the prefilled block dialog.
-- **Priority** — set `P1`, `P2`, `P3` or no priority.
 - **Assign to me / Unassign me** — toggle your assignment.
 - **Mark done** — opens the structured close dialog.
 - **Issue actions** — **Update block…**, **Unblock…** or **Open issue**.
 
-Priority and assignment writes use the shared optimistic overlay for the issue streams, but the Attention feed is not projected through it: the row's icons update when the feed reloads after the write. Rescheduling rewrites the body metadata and likewise shows the new date on the next feed reload. Closing an item removes it from the feed after the write lands.
+Assignment writes use the shared optimistic overlay for the issue streams, but the Attention feed is not projected through it: the row's icon updates when the feed reloads after the write. Priority is display-only in Attention; edit impact and urgency in the Inspector. Rescheduling rewrites the body metadata and likewise shows the new date on the next feed reload. Closing an item removes it from the feed after the write lands.
 
 ## Related
 

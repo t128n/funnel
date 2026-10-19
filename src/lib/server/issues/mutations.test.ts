@@ -54,11 +54,11 @@ beforeEach(() => {
 
 describe("normalizeReserved", () => {
   test("keeps the first label of each reserved group", () => {
-    expect(normalizeReserved(["todo", "blocked", "bug", "p1", "p2"])).toEqual([
+    expect(normalizeReserved(["todo", "blocked", "bug", "sm", "md"])).toEqual([
       "todo",
       "blocked",
       "bug",
-      "p1",
+      "sm",
     ]);
   });
 
@@ -106,7 +106,6 @@ describe("createIssue", () => {
       body: "details",
       labels: ["bug"],
       status: "todo",
-      priority: "p1",
       assignees: ["octocat"],
     });
 
@@ -121,12 +120,24 @@ describe("createIssue", () => {
       repo: "core",
       title: "New bug",
       body: "details",
-      labels: ["bug", "todo", "p1"],
+      labels: ["bug", "todo"],
       assignees: ["octocat"],
     });
     expect(events).toContainEqual(
       expect.objectContaining({ type: "issues", repo: "orgA/core", numbers: [42] }),
     );
+  });
+
+  test("strips retired priority labels from the outbound set", async () => {
+    const { client, calls } = stubOctokit(createHandler);
+    await createIssue({
+      octokit: client,
+      repo: "orgA/core",
+      title: "Legacy label",
+      labels: ["bug", "p1", "P2"],
+    });
+
+    expect(calls[0].params.labels).toEqual(["bug"]);
   });
 
   test("rejects an unconfigured repository without a GitHub call", async () => {
@@ -281,10 +292,10 @@ describe("updateIssue", () => {
     expect(calls[1].params.labels).toEqual(["bug"]);
   });
 
-  test("swaps priority and size in the same request", async () => {
+  test("swaps the size label and leaves a retired priority label untouched", async () => {
     const { client, calls } = stubOctokit((call) =>
       call.route.startsWith("GET")
-        ? { data: { labels: [{ name: "todo" }, { name: "bug" }] } }
+        ? { data: { labels: [{ name: "todo" }, { name: "bug" }, { name: "p1" }] } }
         : { data: {} },
     );
 
@@ -292,7 +303,6 @@ describe("updateIssue", () => {
       octokit: client,
       repo: "orgA/core",
       number: 5,
-      priority: "p1",
       size: "md",
     });
 
@@ -374,6 +384,18 @@ describe("addIssueLabels", () => {
       repo: "orgA/core",
       number: 5,
       labels: [],
+    });
+    expect((result as { status: number }).status).toBe(400);
+    expect(calls).toHaveLength(0);
+  });
+
+  test("rejects a retired priority label without a GitHub call", async () => {
+    const { client, calls } = stubOctokit();
+    const result = await addIssueLabels({
+      octokit: client,
+      repo: "orgA/core",
+      number: 5,
+      labels: ["p1"],
     });
     expect((result as { status: number }).status).toBe(400);
     expect(calls).toHaveLength(0);

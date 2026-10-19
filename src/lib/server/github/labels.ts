@@ -1,20 +1,22 @@
 /**
  * Self-healing provisioning of Funnel's canonical reserved labels.
  *
- * SPEC §5.1 fixes the plain-label vocabulary (`backlog`..`blocked`, `p1`-`p3`,
- * `sm`/`md`/`lg`), and SPEC §5.2(4) requires Funnel to create any missing
- * canonical labels across the configured repositories and restore their
- * canonical colors and descriptions. Provisioning runs with the GitHub App
+ * SPEC §5.1 fixes the plain-label vocabulary (`backlog`..`blocked`, `sm`/`md`/
+ * `lg`), and SPEC §5.2(4) requires Funnel to create any missing canonical labels
+ * across the configured repositories and restore their canonical colors and
+ * descriptions. Priority is no longer a label; see
+ * `#lib/server/issues/priority`. Provisioning runs with the GitHub App
  * installation token (`funnel[bot]`), independent of any signed-in user
  * (SPEC §8), and is idempotent: a converged repo issues zero writes.
  *
  * Only the reserved names in {@link CANONICAL_LABELS} are ever created or
  * patched. Every other label (`bug`, `frontend`, monorepo domain tags, ...)
- * is preserved untouched (SPEC §5.2(5)).
+ * is preserved untouched (SPEC §5.2(5)). Retired priority labels are left in
+ * place: dropping them is a separate, explicit upstream cleanup.
  *
  * Note: writes run through the shared installation Octokit, which includes
- * octokit's throttling plugin (one write per second). A repo missing all 11
- * labels therefore takes roughly ten seconds to converge; converged repos
+ * octokit's throttling plugin (one write per second). A repo missing all eight
+ * labels therefore takes roughly eight seconds to converge; converged repos
  * issue zero writes and return immediately.
  */
 import { configuredRepoSlugs, getConfig } from "#/lib/server/config";
