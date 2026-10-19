@@ -47,7 +47,7 @@
 			<Card.Title>GitHub host</Card.Title>
 			<Card.Description>
 				Deploy-time configuration from the environment. Changing it requires editing
-				<code>FUNNEL_GITHUB_URL</code> / <code>FUNNEL_GITHUB_API_URL</code> and restarting.
+				<code>GITHUB_URL</code> / <code>GITHUB_API_URL</code> and restarting.
 			</Card.Description>
 		</Card.Header>
 		<Card.Content class="grid gap-4 sm:grid-cols-2">

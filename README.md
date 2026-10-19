@@ -44,7 +44,7 @@ A fresh install starts with no repositories — add them on the Settings page.
 
 Deploy-time values come from the environment (see `.env.example`):
 
-- `FUNNEL_GITHUB_URL` / `FUNNEL_GITHUB_API_URL` — the GitHub host. Defaults to
+- `GITHUB_URL` / `GITHUB_API_URL` — the GitHub host. Defaults to
   github.com; set both to your host for GitHub Enterprise Server.
 - `FUNNEL_SECRET`, `FUNNEL_DB`, the GitHub App credentials, and `LOG_LEVEL`.
 

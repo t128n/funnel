@@ -36,7 +36,7 @@ export const variables = defineEnvVars({
       "./data/funnel.db",
     ),
   },
-  FUNNEL_GITHUB_URL: {
+  GITHUB_URL: {
     description:
       "Base URL of the GitHub web host. Set to your enterprise host (e.g. https://acme.ghe.com) for GitHub Enterprise Server.",
     schema: v.optional(
@@ -48,7 +48,7 @@ export const variables = defineEnvVars({
       "https://github.com",
     ),
   },
-  FUNNEL_GITHUB_API_URL: {
+  GITHUB_API_URL: {
     description:
       "Base URL of the GitHub API. Set to your enterprise API (e.g. https://acme.ghe.com/api/v3) for GitHub Enterprise Server.",
     schema: v.optional(

@@ -5,8 +5,8 @@
  *
  *  - the GitHub hosts (`github.url` / `github.api_url`) come from the
  *    environment, because they are tied to the deployed GitHub App and its
- *    OAuth wiring (`src/env.ts` reads `FUNNEL_GITHUB_URL` /
- *    `FUNNEL_GITHUB_API_URL`);
+ *    OAuth wiring (`src/env.ts` reads `GITHUB_URL` /
+ *    `GITHUB_API_URL`);
  *  - everything else (repositories, projects, intake, sync cadence, board, and
  *    session) lives in the SQLite `state_setting` table and is edited from the
  *    `/settings` page via `#lib/server/settings`.
@@ -15,7 +15,7 @@
  * cross-field checks. {@link getConfig} is the process-wide cached accessor
  * that every consumer already uses.
  */
-import { FUNNEL_GITHUB_API_URL, FUNNEL_GITHUB_URL } from "$app/env/private";
+import { GITHUB_API_URL, GITHUB_URL } from "$app/env/private";
 import * as v from "valibot";
 import { deriveRepoShortcode } from "#lib/issue-ref";
 import {
@@ -195,7 +195,7 @@ export function repoShortcodeMap(
  */
 export function validateConfig(settings: SettingsInput): FunnelConfig {
   const merged = {
-    github: { url: FUNNEL_GITHUB_URL, api_url: FUNNEL_GITHUB_API_URL },
+    github: { url: GITHUB_URL, api_url: GITHUB_API_URL },
     ...settings,
   };
 
