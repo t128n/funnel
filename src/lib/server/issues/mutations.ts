@@ -8,9 +8,12 @@
  * background {@link refreshIssue} (SPEC §7.2), keeping the mirror fresh without
  * blocking the response.
  *
- * Reserved-label edits are group-aware: status/priority/size are kept to at most
- * one label per group (SPEC §5.2.1) by reading the issue's authoritative label
- * set from GitHub, swapping the sibling, and replacing the set in one `PUT`.
+ * Reserved-label edits are group-aware: status/size are kept to at most one
+ * label per group (SPEC §5.2.1) by reading the issue's authoritative label set
+ * from GitHub, swapping the sibling, and replacing the set in one `PUT`.
+ * Priority is Funnel-owned durable state. New p-labels are refused or stripped;
+ * an existing retired label is left untouched on a rewrite rather than deleted
+ * implicitly.
  */
 import type { Octokit } from "octokit";
 import { getConfig, isConfiguredRepo } from "#lib/server/config";
@@ -23,7 +26,8 @@ import { createLogger } from "#lib/server/log";
 import { CANONICAL_LABELS, type LabelGroup } from "#lib/server/github/labels";
 import { createRepoMilestone } from "#lib/server/github/milestones";
 import { publish } from "#lib/server/sync/events";
-import { groupOf, PRIORITY_VALUES, SIZE_VALUES, STATUS_VALUES } from "./filters";
+import { isRetiredPriorityLabel } from "#lib/priority";
+import { groupOf, SIZE_VALUES, STATUS_VALUES } from "./filters";
 
 const log = createLogger({ component: "issues" });
 
@@ -54,7 +58,6 @@ export interface CreateIssueInput {
   assignees?: readonly string[];
   /** Convenience reserved-label shortcuts. */
   status?: string;
-  priority?: string;
   size?: string;
 }
 
@@ -69,7 +72,6 @@ export interface UpdateIssueInput {
   stateReason?: "completed" | "not_planned" | null;
   /** `null` clears the label; `undefined` leaves the group untouched. */
   status?: string | null;
-  priority?: string | null;
   size?: string | null;
   /** Toggles the orthogonal `blocked` flag (SPEC §5.1). */
   blocked?: boolean;
@@ -116,7 +118,9 @@ function splitRepo(repo: string): { owner: string; name: string } | null {
 
 const GROUP_VALUES: Record<LabelGroup, ReadonlySet<string>> = {
   status: new Set(STATUS_VALUES),
-  priority: new Set(PRIORITY_VALUES),
+  // Priority is no longer a label group; the set stays empty so the record
+  // remains total without accepting a retired p-label as canonical.
+  priority: new Set<string>(),
   size: new Set(SIZE_VALUES),
   flags: new Set(
     CANONICAL_LABELS.filter((label) => label.group === "flags").map((label) =>
@@ -235,9 +239,10 @@ export async function createIssue(
   const notConfigured = await requireConfiguredRepo(input.repo);
   if (notConfigured) return notConfigured;
 
-  let labels = normalizeReserved(input.labels ?? []);
+  let labels = normalizeReserved(
+    (input.labels ?? []).filter((label) => !isRetiredPriorityLabel(label)),
+  );
   if (input.status) labels = withReserved(labels, "status", input.status);
-  if (input.priority) labels = withReserved(labels, "priority", input.priority);
   if (input.size) labels = withReserved(labels, "size", input.size);
 
   const params: {
@@ -302,7 +307,6 @@ export async function updateIssue(
 
   const reservedRequested =
     input.status !== undefined ||
-    input.priority !== undefined ||
     input.size !== undefined ||
     input.blocked !== undefined;
 
@@ -320,7 +324,6 @@ export async function updateIssue(
 
   for (const [group, value] of [
     ["status", input.status],
-    ["priority", input.priority],
     ["size", input.size],
   ] as const) {
     if (value !== undefined && value !== null && !isCanonical(group, value)) {
@@ -352,9 +355,6 @@ export async function updateIssue(
       );
       if (input.status !== undefined) {
         labels = withReserved(labels, "status", input.status);
-      }
-      if (input.priority !== undefined) {
-        labels = withReserved(labels, "priority", input.priority);
       }
       if (input.size !== undefined) {
         labels = withReserved(labels, "size", input.size);
@@ -404,6 +404,9 @@ export async function addIssueLabels(
   if (notConfigured) return notConfigured;
 
   if (input.labels.length === 0) return badRequest("No labels provided");
+  if (input.labels.some((label) => isRetiredPriorityLabel(label))) {
+    return badRequest("Priority labels are retired; set impact and urgency instead");
+  }
 
   let labels: string[];
   try {

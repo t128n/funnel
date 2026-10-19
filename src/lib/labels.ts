@@ -6,6 +6,8 @@
  * `src/lib/server/**` and client components. `src/lib/server/github/labels.ts`
  * re-exports these so the server keeps a single source of truth.
  */
+import { isRetiredPriorityLabel } from "./priority";
+
 export type LabelGroup = "status" | "priority" | "size" | "flags";
 
 export interface CanonicalLabel {
@@ -44,25 +46,6 @@ export const CANONICAL_LABELS: readonly CanonicalLabel[] = [
     color: "fa6675",
     description: "Flag: Blocked",
     group: "flags",
-  },
-  // Priority. Absence means "no priority".
-  {
-    name: "p1",
-    color: "fa6675",
-    description: "Priority: 1 (critical)",
-    group: "priority",
-  },
-  {
-    name: "p2",
-    color: "cf8e6d",
-    description: "Priority: 2 (high)",
-    group: "priority",
-  },
-  {
-    name: "p3",
-    color: "6aab73",
-    description: "Priority: 3 (normal)",
-    group: "priority",
   },
   // Size. Absence means "unestimated".
   { name: "sm", color: "6aab73", description: "Size: Small", group: "size" },
@@ -122,25 +105,23 @@ const STATUS_DISPLAY: Record<string, string> = {
 
 const FLAG_DISPLAY: Record<string, string> = { blocked: "Blocked" };
 
-const PRIORITY_DISPLAY: Record<string, string> = {
-  p1: "P1",
-  p2: "P2",
-  p3: "P3",
-};
-
 const SIZE_DISPLAY: Record<string, string> = { sm: "S", md: "M", lg: "L" };
 
 /** The four open workflow stages, in order; `done` is appended by the board. */
 export const STATUS_OPTIONS = options("status", STATUS_DISPLAY);
-/**
- * Displayed low → high so priority and size read the same way. The canonical
- * list keeps the p1 → p3 order the GitHub provisioning uses; `options()`
- * returns a fresh array, so reversing here does not mutate it.
- */
-export const PRIORITY_OPTIONS = options("priority", PRIORITY_DISPLAY).reverse();
 export const SIZE_OPTIONS = options("size", SIZE_DISPLAY);
 /** Orthogonal flags carried alongside a status (SPEC §5.1). */
 export const FLAG_OPTIONS = options("flags", FLAG_DISPLAY);
+
+/**
+ * Whether a label belongs to a Funnel-managed dimension, including the
+ * retired priority labels. The cockpit hides these from the generic label
+ * tracks and pickers; legacy `p1`–`p3` labels are surfaced through the
+ * priority conflict flag instead.
+ */
+export function isHiddenLabel(name: string): boolean {
+  return canonicalLabel(name) !== undefined || isRetiredPriorityLabel(name);
+}
 
 /** The canonical reserved-label name for the "blocked" flag. */
 export const BLOCKED_LABEL = "blocked";

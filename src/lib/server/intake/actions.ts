@@ -21,6 +21,7 @@ import {
 } from "#lib/server/http/outcome";
 import { createLogger } from "#lib/server/log";
 import { getIssue, getRepoByOrgName } from "#lib/server/sync/mirror";
+import { isRetiredPriorityLabel } from "#lib/priority";
 import { publish } from "#lib/server/sync/events";
 import {
   deleteSubmission,
@@ -74,9 +75,18 @@ function composeBody(body: string, source: string | null): string {
     .join("\n\n");
 }
 
-/** Status label first, then any caller labels, de-duplicated. */
+/**
+ * Status label first, then any caller labels, de-duplicated. Retired priority
+ * labels are dropped so intake can never recreate the old projection.
+ */
 function acceptLabels(labels: readonly string[] | undefined): string[] {
-  return [...new Set([DEFAULT_ACCEPT_STATUS, ...(labels ?? [])])];
+  return [
+    ...new Set(
+      [DEFAULT_ACCEPT_STATUS, ...(labels ?? [])].filter(
+        (label) => !isRetiredPriorityLabel(label),
+      ),
+    ),
+  ];
 }
 
 /** Comment body for a duplicate decision: the submission text, in full. */

@@ -85,7 +85,7 @@ Learning-oriented, with one path and expected results.
 - [CLI](reference/cli.md) — the packaged executable's flags and the Bun scripts it maps to.
 - [Build tasks](reference/build-tasks.md) — the `mise` tasks and what each one produces.
 - [Settings](reference/settings.md) — the instance settings stored in SQLite, with defaults and validation rules.
-- [Reserved labels](reference/reserved-labels.md) — the canonical status, priority, size, and flag vocabulary.
+- [Reserved labels](reference/reserved-labels.md) — the canonical status, size, and flag vocabulary plus the retired priority labels.
 - [Impact, urgency, and priority](reference/priority.md) — the input scales, the P0–P3 lookup matrix, and how the axes round-trip.
 - [Roles and permissions](reference/roles-and-permissions.md) — what `read`, `write`, and `admin` may do.
 - [HTTP API](reference/http-api.md) — the intake endpoint, mutation endpoints, mirror reads, and health probes.
@@ -98,7 +98,7 @@ Learning-oriented, with one path and expected results.
 
 - [Architecture](explanation/architecture.md) — the SvelteKit process, SQLite mirror, background worker, and SSE bridge.
 - [Sync and mirror](explanation/sync-and-mirror.md) — polling, hydration, cursors, and what the mirror deliberately does not keep.
-- [Workflow model](explanation/workflow-model.md) — status, priority, size, blocking, and Done as separate concepts.
+- [Workflow model](explanation/workflow-model.md) — status, derived priority, size, blocking, and Done as separate concepts.
 - [Intake lifecycle](explanation/intake-lifecycle.md) — staging, accepting, dismissing, duplicating, and where history lives.
 - [Security model](explanation/security-model.md) — sessions, encrypted credentials, role enforcement, and user-token writes.
 - [Deployment model](explanation/deployment-model.md) — why Funnel is one long-lived process with local state.

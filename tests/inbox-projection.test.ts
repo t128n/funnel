@@ -24,6 +24,8 @@ function issueEntry(number: number, status: string | null = null) {
       stateReason: null,
       status,
       priority: null,
+      impact: null,
+      urgency: null,
       size: null,
       blocked: false,
       labelConflict: false,

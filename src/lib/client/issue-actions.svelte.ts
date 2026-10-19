@@ -133,25 +133,6 @@ export async function moveToStatus(
 }
 
 /**
- * Quick priority write used by the board card's metadata tray. Applies the
- * optimistic overlay immediately so the glyph updates before the mirror
- * catches up.
- */
-export async function setPriority(
-  issue: IssueListItem,
-  priority: string | null,
-): Promise<boolean> {
-  if (issue.priority === priority) return true;
-  const result = await mutate({
-    key: overlayKey(issue.repo, issue.number),
-    patch: { priority },
-    failure: "Could not update priority",
-    commit: () => updateIssue(issue.repo, issue.number, { priority }),
-  });
-  return result.ok;
-}
-
-/**
  * Quick "assign to me" used by the board card's hover actions. The viewer is
  * resolved from the mirror on the server; the whole assignee list is written
  * because the GitHub endpoint replaces it.

@@ -7,7 +7,7 @@
 	import DetailShell from '#lib/components/detail/DetailShell.svelte';
 	import DuplicateDialog from '#lib/components/inbox/DuplicateDialog.svelte';
 	import { Button } from '#lib/components/ui/button';
-	import { PRIORITY_OPTIONS, SIZE_OPTIONS, labelTint } from '#lib/labels';
+	import { SIZE_OPTIONS, labelTint } from '#lib/labels';
 	import { removeSubmission, restoreSubmission } from '#lib/client/optimistic.svelte';
 	import { clearSelection } from '#lib/client/selection.svelte';
 	import { timeAgo } from '#lib/client/clock.svelte';
@@ -15,7 +15,6 @@
 	import type { RenderedSubmission } from '#lib/server/issues/types';
 	import GitBranchIcon from '@lucide/svelte/icons/git-branch';
 	import RulerIcon from '@lucide/svelte/icons/ruler';
-	import SignalIcon from '@lucide/svelte/icons/signal';
 	import XIcon from '@lucide/svelte/icons/x';
 
 	/**
@@ -37,7 +36,6 @@
 	let pending = $state<Pending>(null);
 
 	let acceptRepo = $state(untrack(() => defaultRepo || repos[0] || ''));
-	let priority = $state('');
 	let size = $state('');
 	let duplicating = $state(false);
 
@@ -138,20 +136,6 @@
 
 		<SingleSelect
 			variant="pill"
-			label="No priority"
-			options={PRIORITY_OPTIONS}
-			value={priority || null}
-			onselect={(value) => (priority = value ?? '')}
-			allowClear
-			disabled={pending !== null}
-		>
-			{#snippet icon()}
-				<SignalIcon class="size-3.5" style={labelTint(priority)} />
-			{/snippet}
-		</SingleSelect>
-
-		<SingleSelect
-			variant="pill"
 			label="No size"
 			options={SIZE_OPTIONS}
 			value={size || null}
@@ -213,7 +197,6 @@
 			>
 				<input type="hidden" name="id" value={submission.id} />
 				<input type="hidden" name="repo" value={acceptRepo} />
-				<input type="hidden" name="priority" value={priority} />
 				<input type="hidden" name="size" value={size} />
 				<Button type="submit" size="sm" disabled={pending !== null}>
 					{#if pending === 'accept'}

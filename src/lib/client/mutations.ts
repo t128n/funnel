@@ -85,12 +85,35 @@ export interface UpdateIssuePatch {
   state?: "open" | "closed";
   state_reason?: "completed" | "not_planned" | null;
   status?: string | null;
-  priority?: string | null;
   size?: string | null;
   /** Toggles the orthogonal `blocked` flag (SPEC §5.1). */
   blocked?: boolean;
   /** `null` clears the milestone; omitted leaves it untouched. */
   milestone?: number | null;
+}
+
+/** The durable priority axes behind the derived P0–P3 value. */
+export interface PriorityInputPatch {
+  impact: number | null;
+  urgency: number | null;
+}
+
+export interface PriorityStatePatch {
+  impact: number | null;
+  urgency: number | null;
+  priority: string | null;
+}
+
+/** Set impact and/or urgency; the server derives and returns the priority. */
+export function updatePriority(
+  repo: string,
+  number: number,
+  patch: PriorityInputPatch,
+): Promise<MutationResult<PriorityStatePatch>> {
+  return request<PriorityStatePatch>(
+    `/api/mirror/issues/${repoPath(repo)}/${number}/priority`,
+    { method: "PATCH", body: JSON.stringify(patch) },
+  );
 }
 
 export function updateIssue(
@@ -238,7 +261,6 @@ export interface CreateIssueInput {
   labels?: string[];
   assignees?: string[];
   status?: string;
-  priority?: string;
   size?: string;
 }
 

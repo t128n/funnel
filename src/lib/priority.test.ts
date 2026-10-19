@@ -4,15 +4,22 @@ import {
   DEFAULT_PRIORITY_MATRIX,
   IMPACT_SCALE,
   IMPACT_VALUES,
+  PRIORITY_SCALE,
   PRIORITY_VALUES,
+  RETIRED_PRIORITY_LABELS,
   URGENCY_SCALE,
   URGENCY_VALUES,
   derivePriority,
+  derivePriorityOrNull,
   isPriorityMatrix,
+  isRetiredPriorityLabel,
+  legacyPriorityFromLabels,
   parseImpact,
   parseUrgency,
+  priorityMeta,
   priorityRank,
   resolvePriorityRules,
+  retiredPriority,
   type Impact,
   type PriorityMatrix,
   type Urgency,
@@ -106,5 +113,54 @@ describe("derivePriority", () => {
       }
     }
     expect([...seen].sort()).toEqual([...PRIORITY_VALUES].sort());
+  });
+});
+
+describe("derivePriorityOrNull", () => {
+  test("treats both unset axes as the empty priority state", () => {
+    expect(derivePriorityOrNull(null, null)).toBeNull();
+    expect(derivePriorityOrNull(undefined, undefined)).toBeNull();
+  });
+
+  test("keeps the matrix fallback when only one axis is missing", () => {
+    expect(derivePriorityOrNull(null, 1)).toBe("P3");
+    expect(derivePriorityOrNull(1, null)).toBe("P3");
+    expect(derivePriorityOrNull(1, 1)).toBe("P0");
+  });
+});
+
+describe("priority display metadata", () => {
+  test("P0 is the Urgent token and every tier has a colour", () => {
+    expect(priorityMeta("P0")).toMatchObject({
+      value: "P0",
+      name: "Urgent",
+      urgent: true,
+      color: "f87171",
+    });
+    expect(priorityMeta("p2")?.name).toBe("Medium");
+    for (const level of PRIORITY_SCALE) {
+      expect(level.color).toMatch(/^[0-9a-f]{6}$/);
+    }
+  });
+
+  test("unknown priorities have no metadata", () => {
+    expect(priorityMeta("p9")).toBeNull();
+    expect(priorityMeta(null)).toBeNull();
+  });
+});
+
+describe("retired priority labels", () => {
+  test("maps p1-p3 to their derived tiers", () => {
+    expect(RETIRED_PRIORITY_LABELS).toEqual({ p1: "P1", p2: "P2", p3: "P3" });
+    expect(retiredPriority("P1")).toBe("P1");
+    expect(retiredPriority("p3")).toBe("P3");
+    expect(retiredPriority("p0")).toBeNull();
+    expect(isRetiredPriorityLabel("p2")).toBe(true);
+    expect(isRetiredPriorityLabel("todo")).toBe(false);
+  });
+
+  test("picks the canonical tier when several retired labels remain", () => {
+    expect(legacyPriorityFromLabels(["todo", "p3", "p1"])).toBe("P1");
+    expect(legacyPriorityFromLabels(["todo"])).toBeNull();
   });
 });

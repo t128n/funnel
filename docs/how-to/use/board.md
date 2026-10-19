@@ -52,7 +52,7 @@ Each card's **Issue actions** menu contains:
 - **Close issue / Reopen issue** — the same guarded flows as the inspector.
 - **Open details** — opens the card in the inspector.
 
-The card's priority metadata is also a menu: `P1`, `P2`, `P3` or **No priority**, applied optimistically. Size, labels and assignees are displayed on the card, not edited there. The hover tray can assign the issue to you.
+The card's priority metadata is display-only: a `P0`–`P3` token, with P0 rendered as **Urgent**. Open the issue's Inspector to set impact and urgency; priority is derived there. Size, labels and assignees are displayed on the card, not edited there. The hover tray can assign the issue to you.
 
 `read` users can browse the board and open cards, but dragging is disabled and the per-column **New issue** link is hidden. The server still enforces the role on every write.
 

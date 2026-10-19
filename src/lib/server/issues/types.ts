@@ -58,7 +58,11 @@ export interface IssueListItem {
   stateReason: string | null;
   /** Derived reserved-label caches (SPEC §5.2). */
   status: string | null;
+  /** Derived `P0`–`P3`, or `null` when neither axis is assessed. */
   priority: string | null;
+  /** Triage axes (`1`–`4`), or `null` when unset. */
+  impact: number | null;
+  urgency: number | null;
   size: string | null;
   /** Orthogonal `blocked` flag (SPEC §5.1); not a workflow stage. */
   blocked: boolean;

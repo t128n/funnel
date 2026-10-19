@@ -9,11 +9,7 @@ import {
   passthrough,
   toResponse,
 } from "#lib/server/github/api-passthrough.server";
-import {
-  PRIORITY_VALUES,
-  SIZE_VALUES,
-  STATUS_VALUES,
-} from "#lib/server/issues/filters";
+import { SIZE_VALUES, STATUS_VALUES } from "#lib/server/issues/filters";
 import { authenticate, readJson, scheduleRefresh } from "#lib/server/issues/http";
 import { apiRole } from "#lib/server/http/session";
 import { createIssue } from "#lib/server/issues/mutations";
@@ -79,7 +75,6 @@ const createSchema = v.object({
     [],
   ),
   status: v.optional(v.picklist(STATUS_VALUES)),
-  priority: v.optional(v.picklist(PRIORITY_VALUES)),
   size: v.optional(v.picklist(SIZE_VALUES)),
 });
 

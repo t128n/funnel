@@ -1,7 +1,6 @@
 <script lang="ts">
 	import Avatar from '#lib/components/common/Avatar.svelte';
 	import MetaTag from '#lib/components/common/MetaTag.svelte';
-	import PriorityIcon from '#lib/components/common/PriorityIcon.svelte';
 	import StatusIcon from '#lib/components/common/StatusIcon.svelte';
 	import * as DropdownMenu from '#lib/components/ui/dropdown-menu/index.js';
 	import * as Tooltip from '#lib/components/ui/tooltip/index.js';
@@ -19,12 +18,13 @@
 		requestBlock,
 		requestClose,
 		requestReopen,
-		requestUnblock,
-		setPriority
+		requestUnblock
 	} from '#lib/client/issue-actions.svelte';
 	import { selectIssue } from '#lib/client/selection.svelte';
 	import { issueRef } from '#lib/issue-ref';
-	import { canonicalLabel, PRIORITY_OPTIONS, STATUS_OPTIONS } from '#lib/labels';
+	import { canonicalLabel, STATUS_OPTIONS } from '#lib/labels';
+	import { isRetiredPriorityLabel } from '#lib/priority';
+	import { priorityMeta } from '#lib/priority';
 	import type { IssueListItem, UserRef } from '#lib/server/issues/types';
 	import { cn } from '#lib/utils';
 	import BanIcon from '@lucide/svelte/icons/ban';
@@ -32,7 +32,6 @@
 	import EllipsisIcon from '@lucide/svelte/icons/ellipsis';
 	import ExternalLinkIcon from '@lucide/svelte/icons/external-link';
 	import RotateCcwIcon from '@lucide/svelte/icons/rotate-ccw';
-	import SignalZeroIcon from '@lucide/svelte/icons/signal-zero';
 	import TriangleAlertIcon from '@lucide/svelte/icons/triangle-alert';
 	import UserPlusIcon from '@lucide/svelte/icons/user-plus';
 
@@ -78,7 +77,9 @@
 	const shortRepo = $derived(issue.repo.split('/')[1] ?? issue.repo);
 
 	/** Non-reserved labels only; reserved groups render as dedicated affordances. */
-	const labels = $derived(issue.labels.filter((label) => !canonicalLabel(label)));
+	const labels = $derived(issue.labels.filter(
+		(label) => !canonicalLabel(label) && !isRetiredPriorityLabel(label)
+	));
 	const visibleLabels = $derived(labels.slice(0, 2));
 	const extraLabels = $derived(Math.max(0, labels.length - visibleLabels.length));
 
@@ -87,23 +88,22 @@
 	);
 	const sizeColor = $derived(issue.size ? (canonicalLabel(issue.size)?.color ?? null) : null);
 
-	/** Priority reads as text on a card: no header explains a bare glyph here. */
-	const priorityLabel = $derived(issue.priority ? issue.priority.toUpperCase() : null);
-	const priorityColor = $derived(
-		issue.priority ? (canonicalLabel(issue.priority)?.color ?? null) : null
+	/** Priority reads as text on a card: P0 is the designed Urgent token. */
+	const priorityDisplay = $derived(priorityMeta(issue.priority));
+	const priorityLabel = $derived(
+		priorityDisplay ? (priorityDisplay.urgent ? priorityDisplay.name : priorityDisplay.value) : null
 	);
+	const priorityColor = $derived(priorityDisplay?.color ?? null);
 	const priorityTitle = $derived(
-		issue.priority ? (canonicalLabel(issue.priority)?.description ?? 'Priority') : 'No priority'
+		priorityDisplay
+			? `Priority ${priorityDisplay.value} · ${priorityDisplay.name}`
+			: 'No priority'
 	);
 
 	const stage = $derived(closed ? 'done' : (issue.status ?? ''));
 	const stageOptions = $derived([
 		...STATUS_OPTIONS,
 		{ value: 'done', label: 'Done', color: 'var(--syntax-constant)' }
-	]);
-	const priorityOptions = $derived([
-		{ value: 'none', label: 'No priority', color: null },
-		...PRIORITY_OPTIONS
 	]);
 
 	const canAssign = $derived(
@@ -259,7 +259,7 @@
 		{#if issue.labelConflict}
 			<TriangleAlertIcon
 				class="text-warning mt-0.5 size-3.5 shrink-0"
-				title="Conflicting reserved labels on GitHub"
+				title="Conflicting reserved label or retired priority label on GitHub"
 			/>
 		{/if}
 	</h3>
@@ -268,37 +268,17 @@
 	     trailing columns keep those fields aligned down a lane; the optional
 	     label track flexes between them instead of displacing size. -->
 	<div class="mt-2 grid grid-cols-[32px_24px_minmax(0,1fr)_36px] items-center gap-1.5">
-		<DropdownMenu.Root>
-			<DropdownMenu.Trigger
-				class="focus-visible:ring-ring/50 inline-flex w-8 items-center justify-center rounded-[4px] outline-none focus-visible:ring-1"
-				title={priorityTitle}
-				aria-label="Priority"
-			>
-				{#if priorityLabel}
-					<MetaTag label={priorityLabel} color={priorityColor} title={priorityTitle} />
-				{:else}
-					<span class="text-muted-foreground/50 text-[11px] leading-none">—</span>
-				{/if}
-			</DropdownMenu.Trigger>
-			<DropdownMenu.Content align="start" class="w-44">
-				<DropdownMenu.Label>Priority</DropdownMenu.Label>
-				<DropdownMenu.RadioGroup
-					value={issue.priority ?? 'none'}
-					onValueChange={(value) => void setPriority(issue, value === 'none' ? null : value)}
-				>
-					{#each priorityOptions as option (option.value)}
-						<DropdownMenu.RadioItem value={option.value} class="gap-2">
-							{#if option.value === 'none'}
-								<SignalZeroIcon class="text-muted-foreground/60 size-3.5" />
-							{:else}
-								<PriorityIcon priority={option.value} />
-							{/if}
-							<span class="flex-1 truncate">{option.label}</span>
-						</DropdownMenu.RadioItem>
-					{/each}
-				</DropdownMenu.RadioGroup>
-			</DropdownMenu.Content>
-		</DropdownMenu.Root>
+		<span
+			class="inline-flex w-8 items-center justify-center"
+			title={priorityTitle}
+			aria-label={priorityTitle}
+		>
+			{#if priorityLabel}
+				<MetaTag label={priorityLabel} color={priorityColor} title={priorityTitle} />
+			{:else}
+				<span class="text-muted-foreground/50 text-[11px] leading-none">—</span>
+			{/if}
+		</span>
 
 		<span class="flex items-center justify-center">
 			{#if sizeText}

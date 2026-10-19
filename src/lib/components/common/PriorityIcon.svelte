@@ -1,18 +1,21 @@
 <script lang="ts">
-	import { canonicalLabel } from '#lib/labels';
 	import { cn } from '#lib/utils';
+	import { priorityMeta } from '#lib/priority';
+	import CircleAlertIcon from '@lucide/svelte/icons/circle-alert';
 	import SignalHighIcon from '@lucide/svelte/icons/signal-high';
 	import SignalLowIcon from '@lucide/svelte/icons/signal-low';
 	import SignalMediumIcon from '@lucide/svelte/icons/signal-medium';
 
 	/**
-	 * Compact priority glyph (SPEC §5.1). Deliberately icon-only — no coloured
-	 * pill — so a card's metadata line stays legible at a glance.
+	 * Compact priority glyph (SPEC §5.1, DESIGN "Priority & Urgency Tokens").
+	 * P0 is the designed Urgent token; the other tiers use signal bars. Kept
+	 * icon-only so a card's metadata line stays legible at a glance.
 	 */
-	const PRIORITY = {
-		p1: { Icon: SignalHighIcon, label: 'Priority 1 (critical)' },
-		p2: { Icon: SignalMediumIcon, label: 'Priority 2 (high)' },
-		p3: { Icon: SignalLowIcon, label: 'Priority 3 (normal)' }
+	const ICONS = {
+		P0: CircleAlertIcon,
+		P1: SignalHighIcon,
+		P2: SignalMediumIcon,
+		P3: SignalLowIcon
 	} as const;
 
 	interface Props {
@@ -22,22 +25,19 @@
 
 	let { priority, class: className }: Props = $props();
 
-	const entry = $derived(
-		priority ? (PRIORITY[priority.toLowerCase() as keyof typeof PRIORITY] ?? null) : null
-	);
-	const color = $derived(priority ? canonicalLabel(priority)?.color : undefined);
-	const cssColor = $derived(
-		color ? (/^[0-9a-f]{6}$/i.test(color) ? `#${color}` : color) : undefined
-	);
+	const meta = $derived(priorityMeta(priority));
+	const Icon = $derived(meta ? ICONS[meta.value] : null);
+	const cssColor = $derived(meta ? `#${meta.color}` : undefined);
+	const label = $derived(meta ? `Priority ${meta.value} (${meta.name})` : null);
 </script>
 
-{#if entry}
-	<entry.Icon
+{#if Icon && label}
+	<Icon
 		class={cn('size-3.5 shrink-0', className)}
 		style={cssColor ? `color:${cssColor}` : undefined}
 		strokeWidth={1.5}
 		absoluteStrokeWidth
 		role="img"
-		aria-label={entry.label}
+		aria-label={label}
 	/>
 {/if}

@@ -17,6 +17,7 @@ export function clearMirror(): void {
     "mirror_github_repo_assignee",
     "mirror_github_user",
     "mirror_github_repo",
+    "state_issue_priority",
   ]) {
     db.$client.query(`DELETE FROM ${table}`).run();
   }

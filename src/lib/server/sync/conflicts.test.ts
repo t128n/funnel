@@ -12,7 +12,6 @@ describe("deriveMetadata", () => {
   test("projects a clean label set onto the reserved groups", () => {
     expect(deriveMetadata(["todo", "p1", "md", "bug", "frontend"])).toEqual({
       status: "todo",
-      priority: "p1",
       size: "md",
       blocked: false,
       conflicts: [],
@@ -22,7 +21,6 @@ describe("deriveMetadata", () => {
   test("treats a missing group as unset", () => {
     expect(deriveMetadata(["p2"])).toEqual({
       status: null,
-      priority: "p2",
       size: null,
       blocked: false,
       conflicts: [],
@@ -32,7 +30,6 @@ describe("deriveMetadata", () => {
   test("reads the blocked flag as orthogonal to status", () => {
     expect(deriveMetadata(["in-progress", "blocked", "p1"])).toEqual({
       status: "in-progress",
-      priority: "p1",
       size: null,
       blocked: true,
       conflicts: [],
@@ -48,13 +45,11 @@ describe("deriveMetadata", () => {
 
   test("matches label names case-insensitively", () => {
     expect(deriveMetadata(["TODO", "P1"]).status).toBe("todo");
-    expect(deriveMetadata(["TODO", "P1"]).priority).toBe("p1");
   });
 
   test("ignores non-reserved labels entirely", () => {
     expect(deriveMetadata(["bug", "help wanted"])).toEqual({
       status: null,
-      priority: null,
       size: null,
       blocked: false,
       conflicts: [],
@@ -97,9 +92,9 @@ describe("resolveWinners", () => {
   });
 
   test("flags a missing timeline as ambiguous", () => {
-    const resolution = resolveWinners(["p1", "p2"], []);
+    const resolution = resolveWinners(["todo", "in-progress"], []);
     expect(resolution.ambiguous).toBe(true);
-    expect(resolution.obsolete).toEqual(["p2"]);
+    expect(resolution.obsolete).toEqual(["in-progress"]);
   });
 
   test("single-label groups are never conflicted", () => {
@@ -185,7 +180,6 @@ describe("resolveIssueConflict", () => {
     expect(resolved).toEqual({
       metadata: {
         status: "todo",
-        priority: null,
         size: null,
         blocked: false,
         conflicts: [],
