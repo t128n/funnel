@@ -5,7 +5,7 @@
 # the contract without cloning the repo.
 #
 # Source of truth: the request body schema below is generated from
-# `intakeSchema` in `src/routes/api/intake/+server.ts` (valibot).
+# `intakeSchema` in `src/lib/server/intake/schema.ts` (valibot).
 # `tests/openapi.test.ts` fails if the two ever drift, so edit the valibot
 # schema — not this file — when the payload shape changes.
 openapi: 3.1.0
@@ -112,7 +112,7 @@ paths:
 components:
   schemas:
     # Generated from `intakeSchema` (valibot) in
-    # `src/routes/api/intake/+server.ts`; asserted by `tests/openapi.test.ts`.
+    # `src/lib/server/intake/schema.ts`; asserted by `tests/openapi.test.ts`.
     IntakeSubmission:
       type: object
       properties:

@@ -21,7 +21,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { toJsonSchema } from "@valibot/to-json-schema";
 import YAML from "yaml";
-import { intakeSchema } from "#/routes/api/intake/+server";
+import { intakeSchema } from "#/lib/server/intake/schema";
 
 type Node = Record<string, unknown>;
 
