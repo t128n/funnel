@@ -22,10 +22,15 @@ const log = createLogger({ component: "intake" });
 
 type IntakeNotice = (submission: { id: string; title: string }) => number;
 
-/** Whether admins still want a notice for each new submission (default true). */
+/**
+ * Whether a new submission should notify admins (default true). The master
+ * notification switch wins: turning it off suppresses every kind, including
+ * new-intake notices.
+ */
 function newIntakeEnabled(): boolean {
   try {
-    return readSettings().notifications.new_intake;
+    const notifications = readSettings().notifications;
+    return notifications.enabled && notifications.new_intake;
   } catch {
     return true;
   }
