@@ -201,7 +201,7 @@
   --sidebar-primary-foreground: #ffffff;
   --sidebar-accent: #f0f4fc;
   --sidebar-accent-foreground: #000000;
-  --sidebar-border: transparent;
+  --sidebar-border: rgba(0, 0, 0, 0.08);
   --sidebar-ring: #3574f0;
 
   /* Base16 accents without a stock slot. */
@@ -243,13 +243,13 @@
   --chart-3: #c6a455;
   --chart-4: #b389f5;
   --chart-5: #56a8f5;
-  --sidebar: #26282b;
+  --sidebar: #0d0e11;
   --sidebar-foreground: #bcbec4;
   --sidebar-primary: #3574f0;
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #393b40;
+  --sidebar-accent: #1e2025;
   --sidebar-accent-foreground: #dfe1e5;
-  --sidebar-border: transparent;
+  --sidebar-border: rgba(255, 255, 255, 0.06);
   --sidebar-ring: #3574f0;
 
   /* Base16 accents without a stock slot. */

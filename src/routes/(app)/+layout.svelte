@@ -72,7 +72,13 @@
 </script>
 
 <Sidebar.Provider class="h-svh overflow-hidden" style="--sidebar-width: 220px">
-	<AppSidebar user={data.user} {dueCount} />
+	<AppSidebar
+		user={data.user}
+		{dueCount}
+		inboxCount={data.inboxCount}
+		onSearch={focusSearch}
+		onNewIssue={openNew}
+	/>
 
 	<div class="relative flex min-h-0 min-w-0 flex-1 overflow-hidden">
 		<Sidebar.Inset class="min-h-0 overflow-hidden">

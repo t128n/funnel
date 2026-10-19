@@ -5,60 +5,100 @@
 	import FunnelIcon from "@lucide/svelte/icons/funnel";
 	import InboxIcon from "@lucide/svelte/icons/inbox";
 	import KanbanIcon from "@lucide/svelte/icons/kanban";
-	import SettingsIcon from "@lucide/svelte/icons/settings";
+	import PlusIcon from "@lucide/svelte/icons/plus";
+	import SearchIcon from "@lucide/svelte/icons/search";
+	import UserIcon from "@lucide/svelte/icons/user";
 	import type { ComponentProps } from "svelte";
+	import { Button } from "#lib/components/ui/button/index.js";
 	import * as Sidebar from "#lib/components/ui/sidebar/index.js";
+	import NavItem from "#lib/components/nav/nav-item.svelte";
+	import NavSection from "#lib/components/nav/nav-section.svelte";
+	import { isWorkspaceCollapsed, toggleWorkspace } from "#lib/client/sidebar-prefs.svelte";
 	import { viewOf } from "#lib/issue-url";
-	import { cn } from "#lib/utils.js";
 	import NavUser from "./nav-user.svelte";
+
+	/** One sidebar destination, shared shape for both scoped blocks. */
+	interface NavLink {
+		href: string;
+		label: string;
+		// Lucide icon components are not typed as `Component` yet.
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		icon: any;
+		active: boolean;
+		badge?: number;
+		tone?: "neutral" | "destructive";
+	}
 
 	interface Props extends ComponentProps<typeof Sidebar.Root> {
 		user: { id: string; name: string; email: string; image: string | null };
 		/** Count of overdue + due-today re-checks, for the Attention badge. */
 		dueCount?: number;
+		/** Pending submissions + untriaged issues, for the Inbox badge. */
+		inboxCount?: number;
+		/** Focus the shared search; wired to the global `Mod+K` / `/`. */
+		onSearch?: () => void;
+		/** Open the new-issue flow; wired to the global `C`. */
+		onNewIssue?: () => void;
 	}
 
 	let {
 		ref = $bindable(null),
 		user,
 		dueCount = 0,
+		inboxCount = 0,
+		onSearch,
+		onNewIssue,
 		collapsible = "icon",
 		...restProps
 	}: Props = $props();
 
-	// Flat information architecture: three sibling views. "My Issues" is not a
-	// root link — it lives as a segmented filter on the Issues view
-	// (`/issues?assignee=me`).
-	const views: {
-		href: string;
-		label: string;
-		// This should be `Component` after @lucide/svelte updates types
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		icon: any;
-	}[] = [
-		{ href: "/inbox", label: "Inbox", icon: InboxIcon },
-		{ href: "/issues", label: "Issues", icon: CircleDotIcon },
-		{ href: "/board", label: "Board", icon: KanbanIcon },
-	];
+	const path = $derived(page.url.pathname);
+	// `assignee=me` scopes the Issues feed to the viewer. It is the only
+	// personal variant of a shared view, so Issues yields its highlight to it.
+	const mine = $derived(
+		path === "/issues" && page.url.searchParams.get("assignee") === "me"
+	);
 
-	function isActive(href: string): boolean {
-		// Highlight the owning view for its detail sub-routes too, e.g.
-		// `/issues/<owner>/<repo>/<n>` keeps Issues active.
-		return viewOf(page.url.pathname) === href.slice(1);
-	}
+	const inboxActive = $derived(viewOf(path) === "inbox");
+	const issuesActive = $derived(viewOf(path) === "issues" && !mine);
+	const boardActive = $derived(viewOf(path) === "board");
+	const attentionActive = $derived(path.startsWith("/attention"));
+	const workspaceCollapsed = $derived(isWorkspaceCollapsed());
 
-	// Attention is a plain page (not a `viewOf` view), so it tests the prefix.
-	const attentionActive = $derived(page.url.pathname.startsWith("/attention"));
-	const settingsActive = $derived(page.url.pathname.startsWith("/settings"));
+	// Personal, daily touchpoints — unlabeled because they are universal.
+	const personal: NavLink[] = $derived([
+		{
+			href: "/inbox",
+			label: "Inbox",
+			icon: InboxIcon,
+			active: inboxActive,
+			badge: inboxCount
+		},
+		{ href: "/issues?assignee=me", label: "My Issues", icon: UserIcon, active: mine },
+		{
+			href: "/attention",
+			label: "Attention",
+			icon: BellIcon,
+			active: attentionActive,
+			badge: dueCount,
+			tone: "destructive"
+		}
+	]);
+
+	// Organisational scope: the shared issue streams.
+	const workspace: NavLink[] = $derived([
+		{ href: "/issues", label: "Issues", icon: CircleDotIcon, active: issuesActive },
+		{ href: "/board", label: "Board", icon: KanbanIcon, active: boardActive }
+	]);
 </script>
 
 <Sidebar.Root bind:ref {collapsible} {...restProps}>
-	<Sidebar.Header>
-		<Sidebar.Menu>
+	<Sidebar.Header class="flex-row items-center gap-1">
+		<Sidebar.Menu class="min-w-0 flex-1">
 			<Sidebar.MenuItem>
 				<Sidebar.MenuButton size="lg" tooltipContent="funnel">
 					{#snippet child({ props })}
-						<a href="/inbox" {...props}>
+						<a href="/" {...props}>
 							<div
 								class="flex aspect-square size-8 items-center justify-center rounded-lg bg-foreground text-background"
 							>
@@ -70,76 +110,48 @@
 				</Sidebar.MenuButton>
 			</Sidebar.MenuItem>
 		</Sidebar.Menu>
+
+		<!-- Global primary actions stay pinned top-right (Fitts' law) and mirror
+		     the `Mod+K` / `C` shortcuts the shell already registers. -->
+		<div class="group-data-[collapsible=icon]:hidden flex shrink-0 items-center gap-0.5">
+			<Button
+				variant="ghost"
+				size="icon-sm"
+				title="Search"
+				aria-label="Search issues"
+				onclick={() => onSearch?.()}
+			>
+				<SearchIcon />
+			</Button>
+			<Button
+				variant="ghost"
+				size="icon-sm"
+				title="New issue"
+				aria-label="New issue"
+				onclick={() => onNewIssue?.()}
+			>
+				<PlusIcon />
+			</Button>
+		</div>
 	</Sidebar.Header>
 
 	<Sidebar.Content>
-		<Sidebar.Group>
-			<Sidebar.GroupLabel>Views</Sidebar.GroupLabel>
-			<Sidebar.Menu>
-				{#each views as view (view.href)}
-					<Sidebar.MenuItem
-						class={cn(
-							"before:absolute before:inset-y-0 before:start-0 before:w-0.5 before:bg-sidebar-primary",
-							isActive(view.href) ? "before:opacity-100" : "before:opacity-0"
-						)}
-					>
-						<Sidebar.MenuButton isActive={isActive(view.href)} tooltipContent={view.label}>
-							{#snippet child({ props })}
-								<a
-									href={view.href}
-									aria-current={isActive(view.href) ? "page" : undefined}
-									{...props}
-								>
-									{#if view.icon}<view.icon />{/if}
-									<span>{view.label}</span>
-								</a>
-							{/snippet}
-						</Sidebar.MenuButton>
-					</Sidebar.MenuItem>
-				{/each}
-				<Sidebar.MenuItem
-					class={cn(
-						"before:absolute before:inset-y-0 before:start-0 before:w-0.5 before:bg-sidebar-primary",
-						attentionActive ? "before:opacity-100" : "before:opacity-0"
-					)}
-				>
-					<Sidebar.MenuButton isActive={attentionActive} tooltipContent="Attention">
-						{#snippet child({ props })}
-							<a
-								href="/attention"
-								aria-current={attentionActive ? "page" : undefined}
-								{...props}
-							>
-								<BellIcon />
-								<span>Attention</span>
-							</a>
-						{/snippet}
-					</Sidebar.MenuButton>
-					{#if dueCount > 0}
-						<Sidebar.MenuBadge class="bg-destructive text-white">{dueCount}</Sidebar.MenuBadge>
-					{/if}
-				</Sidebar.MenuItem>
-				<Sidebar.MenuItem
-					class={cn(
-						"before:absolute before:inset-y-0 before:start-0 before:w-0.5 before:bg-sidebar-primary",
-						settingsActive ? "before:opacity-100" : "before:opacity-0"
-					)}
-				>
-					<Sidebar.MenuButton isActive={settingsActive} tooltipContent="Settings">
-						{#snippet child({ props })}
-							<a
-								href="/settings"
-								aria-current={settingsActive ? "page" : undefined}
-								{...props}
-							>
-								<SettingsIcon />
-								<span>Settings</span>
-							</a>
-						{/snippet}
-					</Sidebar.MenuButton>
-				</Sidebar.MenuItem>
-			</Sidebar.Menu>
-		</Sidebar.Group>
+		<NavSection>
+			{#each personal as item (item.href)}
+				<NavItem {...item} />
+			{/each}
+		</NavSection>
+
+		<NavSection
+			label="Workspace"
+			collapsed={workspaceCollapsed}
+			onToggle={toggleWorkspace}
+			class="border-t border-[color:var(--sidebar-border)]"
+		>
+			{#each workspace as item (item.href)}
+				<NavItem {...item} />
+			{/each}
+		</NavSection>
 	</Sidebar.Content>
 
 	<Sidebar.Footer>

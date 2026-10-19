@@ -1,0 +1,77 @@
+<script lang="ts">
+	import ChevronRightIcon from '@lucide/svelte/icons/chevron-right';
+	import * as Sidebar from '#lib/components/ui/sidebar/index.js';
+	import { cn } from '#lib/utils.js';
+	import type { Snippet } from 'svelte';
+
+	/**
+	 * A scoped block of sidebar destinations with an optional heading. Omit
+	 * `label` for an unlabeled block. Collapsible by default; pass
+	 * `collapsible={false}` for a static heading (e.g. the settings nav, whose
+	 * groups are small).
+	 *
+	 * In the icon rail (and the mobile sheet) the body always stays mounted, so
+	 * a collapsed section never strands its icons in the rail.
+	 */
+	interface Props {
+		/** Section heading; omit for an unlabeled block. */
+		label?: string;
+		/** Whether the body is collapsed; ignored while the rail is active. */
+		collapsed?: boolean;
+		/** Toggles `collapsed`, wired to the heading button. */
+		onToggle?: () => void;
+		/** Render the heading as a toggle; `false` renders a static heading. */
+		collapsible?: boolean;
+		class?: string;
+		children: Snippet;
+	}
+
+	let {
+		label,
+		collapsed = false,
+		onToggle,
+		collapsible = true,
+		class: className,
+		children
+	}: Props = $props();
+
+	const sidebar = Sidebar.useSidebar();
+	const canCollapse = $derived(collapsible && !!label);
+	const forceOpen = $derived(sidebar.isMobile || sidebar.state === 'collapsed');
+	const open = $derived(!canCollapse || !collapsed || forceOpen);
+</script>
+
+<Sidebar.Group class={cn('gap-1', className)}>
+	{#if label}
+		{#if canCollapse}
+			<button
+				type="button"
+				class="text-muted-foreground/70 hover:text-muted-foreground focus-visible:ring-sidebar-ring group-data-[collapsible=icon]:hidden flex h-7 w-full shrink-0 items-center gap-1 rounded-md px-2 text-[11px] font-medium tracking-wider uppercase transition-colors outline-hidden focus-visible:ring-2"
+				aria-expanded={!collapsed}
+				onclick={onToggle}
+			>
+				<ChevronRightIcon
+					class={cn(
+						'size-3.5 shrink-0 transition-transform duration-150 ease-[cubic-bezier(0.23,1,0.32,1)]',
+						!collapsed && 'rotate-90'
+					)}
+				/>
+				<span class="truncate">{label}</span>
+			</button>
+		{:else}
+			<div
+				class="text-muted-foreground/70 group-data-[collapsible=icon]:hidden flex h-7 w-full shrink-0 items-center px-2 text-[11px] font-medium tracking-wider uppercase"
+			>
+				<span class="truncate">{label}</span>
+			</div>
+		{/if}
+	{/if}
+
+	{#if open}
+		<Sidebar.GroupContent>
+			<Sidebar.Menu>
+				{@render children()}
+			</Sidebar.Menu>
+		</Sidebar.GroupContent>
+	{/if}
+</Sidebar.Group>
