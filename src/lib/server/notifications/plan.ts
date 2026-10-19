@@ -82,13 +82,19 @@ export function planIssueNotifications(input: PlanIssueInput): NotificationDraft
 		recipient: Recipient,
 		kind: NotificationKind,
 		eventKey: string,
-		body?: string
+		body?: string,
+		source?: { login?: string; avatarUrl?: string }
 	): boolean {
 		if (isActor(recipient)) return false;
 
 		const dedupeKey = `${kind}:${issue}:${recipient.userId}:${eventKey}`;
 		if (seen.has(dedupeKey)) return false;
 		seen.add(dedupeKey);
+
+		// A comment's actor is its author, which the snapshot knows even when
+		// the change was picked up by polling rather than a signed-in write.
+		const login = source?.login ?? actorLogin;
+		const avatarUrl = source?.avatarUrl ?? actorAvatarUrl;
 
 		const draft: NotificationDraft = {
 			userId: recipient.userId,
@@ -99,8 +105,8 @@ export function planIssueNotifications(input: PlanIssueInput): NotificationDraft
 		};
 		if (title !== undefined) draft.title = title;
 		if (body) draft.body = body;
-		if (actorLogin !== undefined) draft.actorLogin = actorLogin;
-		if (actorAvatarUrl !== undefined) draft.actorAvatarUrl = actorAvatarUrl;
+		if (login !== undefined) draft.actorLogin = login;
+		if (avatarUrl !== undefined) draft.actorAvatarUrl = avatarUrl;
 
 		drafts.push(draft);
 		return true;
@@ -129,13 +135,19 @@ export function planIssueNotifications(input: PlanIssueInput): NotificationDraft
 			const body = excerpt(comment.body);
 			const mentions = new Set(parseMentions(comment.body));
 			const mentioned = new Set<string>();
+			const commentActor = {
+				login: comment.authorLogin,
+				avatarUrl: comment.authorAvatarUrl
+			};
 
 			// A mention wins over the plain watched-comment notice for the same
 			// person and comment.
 			for (const recipient of candidates) {
 				if (!mentions.has(recipient.login.toLowerCase())) continue;
 				if (sameLogin(recipient, comment.authorLogin)) continue;
-				if (add(recipient, 'mentioned', String(comment.githubId), body)) {
+				if (
+					add(recipient, 'mentioned', String(comment.githubId), body, commentActor)
+				) {
 					mentioned.add(recipient.userId);
 				}
 			}
@@ -144,7 +156,7 @@ export function planIssueNotifications(input: PlanIssueInput): NotificationDraft
 				if (mentioned.has(watcher.userId)) continue;
 				// Never tell someone about the comment they wrote themselves.
 				if (sameLogin(watcher, comment.authorLogin)) continue;
-				add(watcher, 'comment', String(comment.githubId), body);
+				add(watcher, 'comment', String(comment.githubId), body, commentActor);
 			}
 		}
 	}

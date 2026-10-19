@@ -118,6 +118,28 @@ describe('planIssueNotifications', () => {
 		expect(drafts).toEqual([]);
 	});
 
+	test('comment and mention drafts name the comment author as actor', () => {
+		const drafts = planIssueNotifications({
+			...base,
+			previous: snapshot(),
+			next: snapshot({ comments: [comment(500, 'hi @bob', 'carol')] }),
+			watchers: [alice],
+			recipients: [bob]
+		});
+
+		expect(drafts).toHaveLength(2);
+		expect(drafts.find((draft) => draft.kind === 'comment')).toMatchObject({
+			userId: alice.userId,
+			actorLogin: 'carol',
+			actorAvatarUrl: 'https://avatars/99'
+		});
+		expect(drafts.find((draft) => draft.kind === 'mentioned')).toMatchObject({
+			userId: bob.userId,
+			actorLogin: 'carol',
+			actorAvatarUrl: 'https://avatars/99'
+		});
+	});
+
 	test('notifies watchers about new comments but not known ones', () => {
 		const previous = snapshot({ comments: [comment(499, 'older')] });
 		const drafts = planIssueNotifications({
