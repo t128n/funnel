@@ -78,6 +78,20 @@ export function fetchRepoIssues(
   return request<IssueOption[]>(`/api/mirror/issues/${repoPath(repo)}`);
 }
 
+/**
+ * Turn watching on or off for one issue. Watching is a personal preference, so
+ * it only needs the `read` role; the server scopes the row to the session user.
+ */
+export function setIssueWatching(
+  repo: string,
+  number: number,
+  watching: boolean,
+): Promise<MutationResult<{ watching: boolean }>> {
+  return request(`/api/mirror/issues/${repoPath(repo)}/${number}/watch`, {
+    method: watching ? "PUT" : "DELETE",
+  });
+}
+
 export interface UpdateIssuePatch {
   title?: string;
   body?: string;
@@ -367,4 +381,22 @@ export function deleteAttachment(
 /** Direct download URL for an attachment (session cookie is sent by the browser). */
 export function attachmentUrl(id: string): string {
   return `/api/attachments/${encodeURIComponent(id)}`;
+}
+
+// ---------------------------------------------------------------------------
+// Notifications
+// ---------------------------------------------------------------------------
+
+/**
+ * Mark one notification read (`{ id }`) or every unread notification read
+ * (`{ all: true }`). The response carries the viewer's fresh unread count so the
+ * caller can update the badge without a second round trip.
+ */
+export function markNotificationsRead(
+  input: { id: string } | { all: true },
+): Promise<MutationResult<{ unreadCount: number }>> {
+  return request("/api/notifications", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
 }
