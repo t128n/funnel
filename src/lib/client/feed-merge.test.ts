@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, mock, test } from "bun:test";
 import { appendUnique, mergeFirstPage } from "./feed-merge";
 import {
   flattenInboxRows,
@@ -7,6 +7,12 @@ import {
   feedUrl,
 } from "#lib/feeds";
 import type { IssueListItem, RenderedInboxEntry } from "#lib/server/issues/types";
+
+// The board-feed store reaches `svelte-sonner` (through the optimistic overlay);
+// its precompiled components do not load under `bun test`, so stub the toasts.
+mock.module("svelte-sonner", () => ({
+  toast: Object.assign(() => {}, { error: () => {}, success: () => {} }),
+}));
 
 /** Minimal issue fixture; overrides supply the fields a test cares about. */
 function issue(overrides: Partial<IssueListItem> & { number: number }): IssueListItem {
@@ -68,8 +74,15 @@ describe("mergeFirstPage", () => {
 
   test("deduplicates within the first page and the loaded tail", () => {
     const keyOf = (item: unknown) => (item as { id: string }).id;
-    const first = [{ id: "a", value: 1 }, { id: "a", value: 2 }];
-    const loaded = [{ id: "b" }, { id: "b" }, { id: "c" }];
+    const first: Array<{ id: string; value?: number }> = [
+      { id: "a", value: 1 },
+      { id: "a", value: 2 },
+    ];
+    const loaded: Array<{ id: string; value?: number }> = [
+      { id: "b" },
+      { id: "b" },
+      { id: "c" },
+    ];
 
     expect(mergeFirstPage(loaded, first, keyOf)).toEqual([
       { id: "a", value: 1 },
@@ -147,6 +160,10 @@ describe("flattenIssueRows", () => {
       { kind: "item", key: "1:7", item: x },
     ]);
   });
+
+  test("an empty projection flattens to no rows", () => {
+    expect(flattenIssueRows([], "status", {}, [], () => false)).toEqual([]);
+  });
 });
 
 describe("flattenInboxRows", () => {
@@ -206,5 +223,38 @@ describe("feedUrl", () => {
         state: "closed",
       })
     ).toBe("/api/feeds/inbox?state=closed");
+  });
+
+  test("strips stale cursor and limit from the incoming search", () => {
+    expect(
+      feedUrl(
+        FEED_ENDPOINTS.inbox,
+        new URLSearchParams("cursor=stale&limit=7&state=open"),
+        null
+      )
+    ).toBe("/api/feeds/inbox?state=open");
+  });
+
+  test("a fresh cursor and limit replace the stale copies", () => {
+    expect(
+      feedUrl(
+        FEED_ENDPOINTS.board,
+        new URLSearchParams("cursor=stale&limit=7"),
+        "fresh",
+        { column: "todo" },
+        50
+      )
+    ).toBe("/api/feeds/board?cursor=fresh&limit=50&column=todo");
+  });
+});
+
+describe("feed module boundaries", () => {
+  test("createBoardFeed is owned by board-feed.svelte only", async () => {
+    const feedModule = await import("#lib/client/feed.svelte");
+    const boardModule = await import("#lib/client/board-feed.svelte");
+
+    expect("createFeed" in feedModule).toBe(true);
+    expect("createBoardFeed" in feedModule).toBe(false);
+    expect("createBoardFeed" in boardModule).toBe(true);
   });
 });

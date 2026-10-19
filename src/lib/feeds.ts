@@ -164,8 +164,12 @@ export function feedUrl(
   if (extra) {
     for (const [key, value] of Object.entries(extra)) params.set(key, value);
   }
+  // Replace any stale keys the incoming search carried: a cursor or limit from
+  // a previous view must never be replayed against the current one.
   if (cursor !== null && cursor !== "") params.set("cursor", cursor);
+  else params.delete("cursor");
   if (limit !== undefined) params.set("limit", String(limit));
+  else params.delete("limit");
   const query = params.toString();
   return query ? `${endpoint}?${query}` : endpoint;
 }
