@@ -1,6 +1,6 @@
 # HTTP API
 
-Funnel exposes a public intake and health surface, a session-gated cockpit read surface, GitHub-backed issue writes executed with the signed-in user's token, and Funnel-local work-note and attachment endpoints.
+Funnel exposes a public intake and health surface, a session-gated cockpit read surface, a per-user notification feed and watch API, GitHub-backed issue writes executed with the signed-in user's token, and Funnel-local work-note and attachment endpoints.
 
 ## Conventions
 
@@ -98,7 +98,7 @@ Stream behaviour:
 - The first frames are `retry: 5000` and a `: connected` comment.
 - A heartbeat comment `: ping` is sent every 12,000 ms (`HEARTBEAT_MS`).
 - Each published `SyncEvent` is sent as `event: <type>` followed by `data: <JSON>`.
-- The browser client subscribes to `sync`, `issues`, `intake` and `settings`.
+- The browser client subscribes to `sync`, `issues`, `intake`, `settings` and `notifications`.
 - The stream closes when the request is aborted.
 
 Event payloads:
@@ -108,9 +108,67 @@ Event payloads:
 | `issues` | `{ "type": "issues", "repo": "owner/name", "numbers": [12, 13] }` | A sync cycle, post-write refresh, issue mutation, work-note change, or attachment change affects issues. |
 | `intake` | `{ "type": "intake", "action": "created" \| "staged" \| "accepted" \| "dismissed" \| "duplicated", "id": "…", "repo"?: "owner/name", "number"?: 12 }` | A submission is staged or triaged. |
 | `settings` | `{ "type": "settings" }` | An instance-settings save is applied. |
+| `notifications` | `{ "type": "notifications" }` | At least one notification row was inserted. The signal carries no titles, people or user ids; each open tab fetches its own feed. |
 | `sync` | Generic `SyncEvent` shape | Part of the client-facing event vocabulary; no publisher in the current server modules emits this type. |
 
 The heartbeat is an SSE comment, not a named event.
+
+### Notifications
+
+Every notification read is scoped to the signed-in user's `auth_user.id`. The routes never accept a user id from the client, and the shared `notifications` SSE event has no payload.
+
+| Method | Path | Success | Purpose |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/api/notifications` | `200 { "items": NotificationItem[], "unreadCount": number }` | The viewer's feed, newest first. |
+| `POST` | `/api/notifications` | `200 { "unreadCount": number }` | Mark one notification read, or all of them. |
+
+`GET` query parameters:
+
+| Parameter | Type | Default | Notes |
+| :--- | :--- | :--- | :--- |
+| `limit` | positive integer | `50` | Clamped to at most `100`; a non-positive, non-integer or absent value uses the default. |
+| `after` | positive integer | absent | Only rows with `createdAt` strictly greater than this Unix-ms value. |
+| `unread` | `1` or `true` | off | Restrict the feed to rows whose `readAt` is `null`. |
+
+`NotificationItem` is:
+
+```json
+{
+  "id": "…",
+  "kind": "assigned",
+  "url": "/issues/orgA/core/7",
+  "title": "Fix the widget",
+  "body": "",
+  "actorLogin": "alice",
+  "actorAvatarUrl": "…",
+  "readAt": null,
+  "createdAt": 1760000000000
+}
+```
+
+`kind` is one of `assigned`, `mentioned`, `comment`, `status`, `priority`, `state` or `new_intake`. Issue notifications link to `/issues/{owner}/{repo}/{number}`; new-intake notifications link to `/inbox/submission/{id}`. `readAt`, `actorLogin` and `actorAvatarUrl` may be `null`; `title` and `body` may be absent or empty.
+
+The `POST` body is one of:
+
+```json
+{ "id": "…" }
+```
+
+```json
+{ "all": true }
+```
+
+Marking an unknown or already-read id is a no-op; the response still reports the current unread count. Any other body returns `400 {"message":"Provide a notification id or { all: true }"}`; a non-JSON body returns `400 {"message":"Invalid notification update"}`.
+
+### Issue watches
+
+| Method | Path | Success | Purpose |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/api/mirror/issues/{owner}/{repo}/{number}/watch` | `200 { "watching": boolean }` | Whether the viewer watches this issue. |
+| `PUT` | `/api/mirror/issues/{owner}/{repo}/{number}/watch` | `200 { "watching": true }` | Start watching; idempotent. |
+| `DELETE` | `/api/mirror/issues/{owner}/{repo}/{number}/watch` | `200 { "watching": false }` | Stop watching; idempotent. |
+
+Watches are keyed by `org/name` plus issue number, so they survive mirror rebuilds. The repository must be mirrored and the issue number must be a positive integer; otherwise the route returns `404 {"message":"Repository owner/repo is not mirrored"}` or `400 {"message":"Invalid issue number"}`. Watching affects only the signed-in user and never notifies them about their own actions.
 
 ### Mirror reads
 
@@ -149,6 +207,7 @@ Detail responses:
 | `repoLabels` | `{ "name": string, "color": string }[]`. |
 | `assigneeOptions` | `UserRef[]`: `githubId`, `login`, `avatarUrl`. |
 | `milestoneOptions` | `RepoMilestoneRef[]`: `repo`, `number`, `title`, `state`, `dueOn`. |
+| `watching` | Boolean; whether the signed-in viewer watches this issue. |
 
 `author` and `uploadedBy` are `UserRef` objects or `null` — as are `comments[].author` and `workNotes[].author` when the mirror cannot resolve the person — while entries in `assignees` are always `UserRef` objects. Markdown is rendered with the server's sanitised renderer at the delivery boundary; the raw body is retained for the Inspector's editors.
 
@@ -337,7 +396,7 @@ The response carries `Cache-Control: no-store`, so an API client that sends `Acc
 
 | Status | Typical cause |
 | :--- | :--- |
-| `200` | Successful read, update, label deletion, work-note update or publish. |
+| `200` | Successful read, update, label deletion, notification list or read-state update, work-note update or publish. |
 | `201` | Intake staging, issue/comment creation, label addition, work-note creation, attachment upload, milestone creation. |
 | `204` | Intake preflight, work-note deletion, attachment deletion. |
 | `304` | Passthrough read revalidated with `If-None-Match`. |
@@ -356,6 +415,7 @@ Upstream GitHub 4xx statuses (for example `422`) keep that status. Write errors 
 | Intake `POST` | `no-store` |
 | Intake `OPTIONS` | Not set; CORS headers only. |
 | Mirror reads | Not set explicitly. |
+| Notification feed and watch routes | Not set explicitly. |
 | GitHub passthrough reads | `private, max-age=15, must-revalidate` |
 | Attachment bytes | `private, max-age=0, must-revalidate` |
 | Event stream | `no-cache, no-transform` |

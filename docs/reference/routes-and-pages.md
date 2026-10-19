@@ -62,6 +62,7 @@ All cockpit routes live under the `(app)` layout and require at least the `read`
 | `/board?view=backlog` | Backlog list view rather than board lanes. | `read` | Same layout and filters as the board. |
 | `/board/{owner}/{repo}/{number}` | Inspector docked beside the board. | `read` | Malformed params return `404`. |
 | `/attention` | Blocked issues with a re-check date, grouped overdue, today and upcoming. | `read` | Bucketing is computed in the browser's local timezone; upcoming is a seven-day window. |
+| `/notifications` | The signed-in viewer's notification feed, unread rows before read rows. | `read` | Newest first, limited to 100 rows. Opening an unread row marks it read; per-row and mark-all controls persist read state. The page also offers the per-browser notification opt-in when `notifications.native` is on. |
 | `/milestones` | Every mirrored milestone, grouped by repository, with progress and due dates. | `read` | GitHub scopes a milestone to one repository, so equal titles in two repositories are separate entries. |
 | `/milestones/{owner}/{repo}/{number}` | The issues attached to one repo-scoped milestone. | `read` | Returns `404` for an unknown repository or milestone. |
 | `/settings` | Account landing: signed-in identity and sign-out. | `read` | Personal section. |
@@ -71,6 +72,7 @@ All cockpit routes live under the `(app)` layout and require at least the `read`
 | `/settings/projects` | Label-to-project mappings used by project grouping. | `admin` | Shared settings `save` action. |
 | `/settings/intake` | Default repository for accepted intake submissions. | `admin` | Shared settings `save` action. |
 | `/settings/board` | Done window (`done_days`) and per-stage WIP limits. | `admin` | Shared settings `save` action. |
+| `/settings/notifications` | Master switch, browser notifications and new-intake notices. | `admin` | Shared settings `save` action; three boolean switches. |
 | `/settings/people` | Account list and role management. | `admin` | `setRole` action; the last administrator cannot be demoted (`409`). |
 | `/settings/github-app` | Current App metadata and install URL. | `admin` | `reset` action clears App credentials and returns to `/onboarding`. |
 | `/settings/sync` | History window and active/idle polling intervals. | `admin` | Shared settings `save` action. |
@@ -90,7 +92,7 @@ All three require `write`. Accept and duplicate fail with `401` when no user tok
 
 ### Settings actions
 
-`/settings/repositories`, `/settings/projects`, `/settings/intake`, `/settings/board`, `/settings/sync` and `/settings/session` all use `saveSettingsAction`: a JSON `payload` form field is merged onto current settings, validated as one configuration, persisted in a transaction, and propagated through the `settings` SSE event and a sync-scheduler wake-up. Errors return `400` with a `message` and, for per-key validation failures, an `issues` array.
+`/settings/repositories`, `/settings/projects`, `/settings/intake`, `/settings/board`, `/settings/notifications`, `/settings/sync` and `/settings/session` all use `saveSettingsAction`: a JSON `payload` form field is merged onto current settings, validated as one configuration, persisted in a transaction, and propagated through the `settings` SSE event and a sync-scheduler wake-up. Errors return `400` with a `message` and, for per-key validation failures, an `issues` array.
 
 `/settings/people` returns `400` for an invalid role, `404` for an unknown user, `409` when demoting the last administrator, `503` when auth is unconfigured and `502` when the auth provider rejects the change.
 
@@ -116,6 +118,8 @@ API routes are not under the `(app)` layout and enforce their own guards. Detail
 | `/api/intake` | POST, OPTIONS | None | Public intake staging. |
 | `/api/auth/*` | GET, POST | Better Auth rules | Sign-in, OAuth callback, session, sign-out and admin endpoints. |
 | `/api/events` | GET | `read` | Server-Sent Events stream. |
+| `/api/notifications` | GET, POST | `read` | The viewer's notification feed and read-state updates. |
+| `/api/mirror/issues/{owner}/{repo}/{number}/watch` | GET, PUT, DELETE | `read` | Whether the viewer watches an issue; start or stop watching. |
 | `/api/mirror/issues/{owner}/{repo}` | GET | `read` | Mirrored issue options. |
 | `/api/mirror/issues/{owner}/{repo}/{number}` | GET | `read` | Rendered Inspector payload. |
 | `/api/repos/{owner}/{repo}/issues` | GET, POST | `read` / `write` | GitHub issue list and creation. |
@@ -156,6 +160,7 @@ API routes are not under the `(app)` layout and enforce their own guards. Detail
 | `/board` | Status board. | `read` |
 | `/board/{owner}/{repo}/{number}` | Board Inspector. | `read` |
 | `/attention` | Blocked issues due for re-check. | `read` |
+| `/notifications` | Personal notification feed. | `read` |
 | `/milestones` | Repo-scoped milestones and progress. | `read` |
 | `/milestones/{owner}/{repo}/{number}` | Issues attached to a milestone. | `read` |
 | `/settings` | Account. | `read` |
@@ -165,6 +170,7 @@ API routes are not under the `(app)` layout and enforce their own guards. Detail
 | `/settings/projects` | Projects. | `admin` |
 | `/settings/intake` | Intake default. | `admin` |
 | `/settings/board` | Board and WIP limits. | `admin` |
+| `/settings/notifications` | Notification channels. | `admin` |
 | `/settings/people` | People and roles. | `admin` |
 | `/settings/github-app` | GitHub App. | `admin` |
 | `/settings/sync` | Sync cadence. | `admin` |
