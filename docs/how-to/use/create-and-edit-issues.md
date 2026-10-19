@@ -17,6 +17,7 @@ The cockpit does not have a separate create dialog with repository, label and as
 | Status | `backlog` is applied at Accept; change it later with the status pill |
 | Priority and size | The optional pills at Accept, or the inspector afterwards |
 | Labels and assignees | The inspector after creation |
+| Milestone | The inspector after creation |
 | Blocked flag and blocker details | The inspector or board after creation |
 
 ### Create through the cockpit
@@ -97,6 +98,7 @@ Open an issue from Issues, the Inbox, or the board. The inspector pane is the ed
 | Status | Status pill | Shows **No status**, Backlog, Todo, In Progress, In Review or Done. Choosing Done opens the close dialog; choosing an open status on a closed issue opens the reopen dialog. |
 | Priority | Priority pill | `P1`, `P2`, `P3`, or cleared to no priority. |
 | Size | Size pill | `S`, `M`, `L`, or cleared to unestimated. |
+| Milestone | **Milestone** pill | Attaches, clears, or lazily creates a repository milestone. GitHub scopes milestones per repository, so the picker only offers the issue's repo. See [Use milestones](milestones.md). |
 | Blocked | **Blocked** pill | Opens the block or unblock dialog. See [Close, reopen and block issues](close-reopen-block.md). |
 
 The description editor hides the trailing `funnel_metadata` envelope used for blocker state and re-attaches it verbatim when you save, so editing prose cannot silently drop structured metadata. If the body has just been saved and the mirror has not delivered a fresh render yet, the pane shows the plain text until the refresh arrives.

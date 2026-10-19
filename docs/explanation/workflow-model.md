@@ -48,6 +48,12 @@ The vocabulary comment calls a generated issue's group over-full state a "confli
 
 This matters because being blocked is information *about* work that is otherwise in flight. Modelling it as a fifth status would force an issue to choose between "in progress" and "blocked", destroying the fact that work is assigned and underway but waiting on something. The orthogonality also gives the Attention view something meaningful to query: `attentionIssues()` selects open issues whose `blocked` column is set *and* whose body carries a structured re-check date in the trailing `<!-- funnel_metadata -->` envelope. That envelope (`src/lib/funnel-metadata.ts`) is a machine-readable YAML comment holding the blocker, what is needed to unblock it, what is being tried meanwhile, and the re-check date; it renders invisibly because the Markdown sanitiser discards comments.
 
+## Milestones are repository metadata
+
+Milestones are not part of the reserved vocabulary. They are ordinary GitHub milestones, mirrored per repository in `mirror_github_milestone`, and they carry no workflow authority: an issue's stage, priority, size and blocked flag are still the labels. GitHub scopes a milestone to exactly one repository, so Funnel treats `owner/name` plus milestone number as the identity and never merges equal titles across repositories.
+
+The cockpit uses milestones in three places: the **Milestones** view groups them by repository with progress and due dates, the issue feeds add a milestone filter and group-by dimension (`?milestone=owner/name#number`, `none` for unmilestoned issues), and the Inspector can set or clear an issue's milestone. The Inspector picker can create a milestone lazily in the issue's repository, which is the only milestone write Funnel performs; everything else is managed on GitHub.
+
 ## Inbox, Issues, and the board
 
 Three views partition the workflow, and each is a query against the local mirror rather than the network (see `src/lib/server/issues/queries.ts`):

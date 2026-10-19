@@ -64,6 +64,7 @@ Learning-oriented, with one path and expected results.
 - [Create and edit issues](how-to/use/create-and-edit-issues.md) — create an issue, then edit its title, description, properties, assignees, and labels.
 - [Close, reopen, and block](how-to/use/close-reopen-block.md) — record resolutions, reopen notes, and structured blockers with re-check dates.
 - [Use the board](how-to/use/board.md) — drag cards, switch to the Backlog list, and use the Done lane.
+- [Use milestones](how-to/use/milestones.md) — browse repo-scoped milestones, filter and group by them, and set or create one from an issue.
 - [Work notes and attachments](how-to/use/work-notes-and-attachments.md) — keep internal notes, publish them, and manage the file dropbox.
 - [Keyboard shortcuts](how-to/use/keyboard.md) — the global and board bindings, plus arrow-key navigation.
 

@@ -95,11 +95,11 @@ The scheduler wakes every five seconds and asks which repos are due. The interva
 
 New repositories are staggered across the interval on their first tick (`intervalMs / repos.length * index`) so adding several repos does not produce a burst. Each successful cycle schedules that repo's next due time. A settings change calls `notifyConfigChanged`, which clears the schedule so added or removed repos and retuned intervals take effect on the next tick.
 
-A failed repo cycle is isolated: the scheduler continues with the remaining repos. Once the repo row has been resolved, a failure in label refresh, assignee refresh or the poll itself persists `degraded = 1` on the repo row, logs a warning and rethrows to the scheduler. A successful poll or a successful nightly reconciliation clears it. The flag makes the failure durable and inspectable rather than merely a log line, and it avoids a tight retry loop: the repo stays on its normal schedule.
+A failed repo cycle is isolated: the scheduler continues with the remaining repos. Once the repo row has been resolved, a failure in label refresh, assignee refresh, milestone refresh or the poll itself persists `degraded = 1` on the repo row, logs a warning and rethrows to the scheduler. A successful poll or a successful nightly reconciliation clears it. The flag makes the failure durable and inspectable rather than merely a log line, and it avoids a tight retry loop: the repo stays on its normal schedule.
 
 ## Post-write single-issue refresh
 
-Writes do not wait for the next poll. After a successful mutation the API route calls `scheduleRefresh`, which invokes `refreshIssue` fire-and-forget. That function resolves the installation, fetches the single issue with `GET /repos/{owner}/{repo}/issues/{number}`, skips PRs, hydrates its `node_id`, resolves any label conflict, and publishes an `issues` event.
+Writes do not wait for the next poll. After a successful mutation the API route calls `scheduleRefresh`, which invokes `refreshIssue` fire-and-forget. That function resolves the installation, fetches the single issue with `GET /repos/{owner}/{repo}/issues/{number}`, skips PRs, hydrates its `node_id`, resolves any label conflict, and publishes an `issues` event. A successful milestone create schedules a repository milestone refresh instead, so the Inspector picker lists the new milestone without waiting for the next poll.
 
 The mutation itself has already published an event and returned to the browser. The immediate refresh is a freshness optimisation, not part of the write's transaction. If it fails — rate limit, transient network error, process shutdown — the write is still correct on GitHub and the next poll or nightly sweep repairs the mirror. This is the right ordering: GitHub confirmation is the success criterion, and local state is allowed to lag briefly.
 
@@ -115,7 +115,7 @@ Funnel does not receive GitHub webhooks. This removes an inbound endpoint, a pub
 
 ### Rate limits
 
-Conditional 304s are cheap, but polling is not free. Every cycle also refreshes the repo's labels and assignable users, and conflict resolution fetches issue timelines. Hydration uses GraphQL batches of 100, which is efficient per issue but still consumes quota. Active mode multiplies all of this by ten compared with idle mode, and the nightly full sweep is the single largest request burst. Label provisioning is expected to be throttled by the shared installation client to roughly one write per second, so a repo missing all canonical labels takes about ten seconds to converge.
+Conditional 304s are cheap, but polling is not free. Every cycle also refreshes the repo's labels, assignable users and milestone set, and conflict resolution fetches issue timelines. Hydration uses GraphQL batches of 100, which is efficient per issue but still consumes quota. Active mode multiplies all of this by ten compared with idle mode, and the nightly full sweep is the single largest request burst. Label provisioning is expected to be throttled by the shared installation client to roughly one write per second, so a repo missing all canonical labels takes about ten seconds to converge.
 
 Shortening the intervals is therefore a real cost decision, not a harmless responsiveness tweak. The defaults assume a small team with a tab open during working hours and no interest in polling overnight at the same rate.
 

@@ -18,6 +18,8 @@ Definitions of the terms used across Funnel's reference documentation.
 
 **Shortcode** — A short uppercase project key for a repository, at most six characters, used in compact issue references such as `FIT-12`. A configured `repos[].shortcode` wins; otherwise it is derived from the repository name (for example `funnel-issue-tracker` → `FIT`). Shortcodes are unique across configured repositories (enforced by config validation). See [`issue-ref.ts`](../../src/lib/issue-ref.ts).
 
+**Milestone** — A GitHub milestone, mirrored per repository in `mirror_github_milestone`. GitHub scopes a milestone to exactly one repository, so Funnel never merges equal titles across repositories; an issue references its milestone by number. The cockpit offers a read-only Milestones view, a milestone filter and group-by dimension, and a set-or-clear picker that can lazily create a milestone in the issue's repository. See [Use milestones](../how-to/use/milestones.md).
+
 **Intake** — Funnel's public submission channel, available as the `/intake` form and `POST /api/intake`. Anonymous submissions are staged locally and nothing reaches GitHub until a triager accepts them. See [HTTP API](./http-api.md#public-surface).
 
 **Staging** — The `state_intake_submission` queue that holds pending intake submissions. Rows are hard-deleted on accept, dismiss or duplicate; there is no trash bin or archive. See [`staging.ts`](../../src/lib/server/intake/staging.ts).

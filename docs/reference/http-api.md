@@ -140,7 +140,7 @@ Detail responses:
 
 | Field | Shape |
 | :--- | :--- |
-| `issue` | `IssueListItem`: `repoId`, `repo`, `number`, `title`, `state`, `stateReason`, `status`, `priority`, `size`, `blocked`, `labelConflict`, `createdAt`, `updatedAt`, `closedAt`, `author`, `assignees`, `labels`. |
+| `issue` | `IssueListItem`: `repoId`, `repo`, `number`, `title`, `state`, `stateReason`, `status`, `priority`, `size`, `blocked`, `labelConflict`, `createdAt`, `updatedAt`, `closedAt`, `author`, `assignees`, `labels`, `milestone`. |
 | `body` | Raw Markdown body from the mirror. |
 | `bodyHtml` | Sanitised HTML rendered from `body`. |
 | `comments` | `RenderedComment[]`: `githubId`, `author`, `body`, `createdAt`, `bodyHtml`. |
@@ -148,6 +148,7 @@ Detail responses:
 | `attachments` | `AttachmentItem[]`: `id`, `filename`, `mimeType`, `sizeBytes`, `uploadedBy`, `createdAt`. |
 | `repoLabels` | `{ "name": string, "color": string }[]`. |
 | `assigneeOptions` | `UserRef[]`: `githubId`, `login`, `avatarUrl`. |
+| `milestoneOptions` | `RepoMilestoneRef[]`: `repo`, `number`, `title`, `state`, `dueOn`. |
 
 `author` and `uploadedBy` are `UserRef` objects or `null` — as are `comments[].author` and `workNotes[].author` when the mirror cannot resolve the person — while entries in `assignees` are always `UserRef` objects. Markdown is rendered with the server's sanitised renderer at the delivery boundary; the raw body is retained for the Inspector's editors.
 
@@ -207,6 +208,7 @@ Reserved labels are normalised to at most one per group before the GitHub create
 | `priority` | priority value or `null` | `null` clears the priority group. |
 | `size` | size value or `null` | `null` clears the size group. |
 | `blocked` | boolean | Adds or removes the reserved `blocked` flag. |
+| `milestone` | positive integer or `null` | Attaches a repository milestone by number, or clears it. Omitting the field leaves it untouched. |
 
 A patch with no fields present returns `400 {"message":"No changes provided"}`. An invalid status, priority or size value returns `400 {"message":"Invalid status value: …"}`. Field edits and state changes use GitHub's issue update; reserved-label edits read the authoritative label set from GitHub and replace it so at most one label per group remains. Success returns `200` with `{ number, htmlUrl }`.
 
@@ -239,6 +241,32 @@ The `POST` body is:
 The repo label list forwards `per_page` and `page` only and has no `html_url` fallback. The single-label read has no query parameters and uses an `html_url` fallback pointing at the corresponding GitHub label page.
 
 The add body is `{ "labels": ["bug"] }`; an empty array is rejected. Reserved additions are group-aware: adding `todo` removes the other status labels. The response echoes the requested label names, not the complete issue label set. The delete path removes exactly one label.
+
+### Milestones
+
+| Method | Path | Minimum role | Execution token | Success |
+| :--- | :--- | :--- | :--- | :--- |
+| `POST` | `/api/repos/{owner}/{repo}/milestones` | `write` | User | `201 { "number": 3, "htmlUrl": "…" }` |
+
+The body is:
+
+```json
+{
+  "title": "v1.0",
+  "description": "First public release",
+  "dueOn": "2026-12-31"
+}
+```
+
+| Field | Type | Required | Constraints |
+| :--- | :--- | :--- | :--- |
+| `title` | string | yes | Trimmed, non-empty, at most 256 characters. |
+| `description` | string | no | At most 65,536 characters. Defaults to `""`. |
+| `dueOn` | string or `null` | no | `YYYY-MM-DD`, or `null`/omitted for no due date. |
+
+The repository must be configured in Funnel. GitHub scopes a milestone to one repository, so this endpoint creates it only in the named repository. Funnel schedules a milestone refresh after a successful create so the Inspector picker lists the new milestone immediately. There is no Funnel endpoint to rename, close, reopen or delete a milestone; manage those on GitHub.
+
+To attach or clear a milestone on an issue, use the `milestone` field on the issue `PATCH` described above. The mirror detail payload exposes the repository's available milestones in `milestoneOptions`.
 
 ### Users
 
@@ -310,7 +338,7 @@ The response carries `Cache-Control: no-store`, so an API client that sends `Acc
 | Status | Typical cause |
 | :--- | :--- |
 | `200` | Successful read, update, label deletion, work-note update or publish. |
-| `201` | Intake staging, issue/comment creation, label addition, work-note creation, attachment upload. |
+| `201` | Intake staging, issue/comment creation, label addition, work-note creation, attachment upload, milestone creation. |
 | `204` | Intake preflight, work-note deletion, attachment deletion. |
 | `304` | Passthrough read revalidated with `If-None-Match`. |
 | `400` | Malformed JSON, schema validation failure, invalid issue number, unconfigured repository, empty patch. |

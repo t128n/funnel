@@ -62,6 +62,8 @@ All cockpit routes live under the `(app)` layout and require at least the `read`
 | `/board?view=backlog` | Backlog list view rather than board lanes. | `read` | Same layout and filters as the board. |
 | `/board/{owner}/{repo}/{number}` | Inspector docked beside the board. | `read` | Malformed params return `404`. |
 | `/attention` | Blocked issues with a re-check date, grouped overdue, today and upcoming. | `read` | Bucketing is computed in the browser's local timezone; upcoming is a seven-day window. |
+| `/milestones` | Every mirrored milestone, grouped by repository, with progress and due dates. | `read` | GitHub scopes a milestone to one repository, so equal titles in two repositories are separate entries. |
+| `/milestones/{owner}/{repo}/{number}` | The issues attached to one repo-scoped milestone. | `read` | Returns `404` for an unknown repository or milestone. |
 | `/settings` | Account landing: signed-in identity and sign-out. | `read` | Personal section. |
 | `/settings/appearance` | Theme and appearance controls. | `read` | Personal section. |
 | `/settings/features` | Per-browser feature-flag toggles. | `read` | Personal section; writes the `funnel:features` cookie. |
@@ -123,6 +125,7 @@ API routes are not under the `(app)` layout and enforce their own guards. Detail
 | `/api/repos/{owner}/{repo}/issues/{number}/labels/{name}` | DELETE | `write` | Remove a GitHub issue label. |
 | `/api/repos/{owner}/{repo}/labels` | GET | `read` | GitHub repo labels. |
 | `/api/repos/{owner}/{repo}/labels/{name}` | GET | `read` | One GitHub repo label. |
+| `/api/repos/{owner}/{repo}/milestones` | POST | `write` | Create a repository milestone. |
 | `/api/repos/{owner}/{repo}/issues/{number}/work-notes` | POST | `write` | Create an internal work note. |
 | `/api/repos/{owner}/{repo}/issues/{number}/work-notes/{id}` | PATCH, DELETE | `write` | Edit or delete a work note. |
 | `/api/repos/{owner}/{repo}/issues/{number}/work-notes/{id}/publish` | POST | `write` | Publish a note as a GitHub comment. |
@@ -153,6 +156,8 @@ API routes are not under the `(app)` layout and enforce their own guards. Detail
 | `/board` | Status board. | `read` |
 | `/board/{owner}/{repo}/{number}` | Board Inspector. | `read` |
 | `/attention` | Blocked issues due for re-check. | `read` |
+| `/milestones` | Repo-scoped milestones and progress. | `read` |
+| `/milestones/{owner}/{repo}/{number}` | Issues attached to a milestone. | `read` |
 | `/settings` | Account. | `read` |
 | `/settings/appearance` | Appearance. | `read` |
 | `/settings/features` | Feature flags. | `read` |
