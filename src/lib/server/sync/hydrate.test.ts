@@ -28,7 +28,7 @@ const ISSUE_NODE = {
   updatedAt: "2026-01-02T00:00:00Z",
   closedAt: null,
   author: { databaseId: 7, login: "octocat", avatarUrl: "https://a/7" },
-  milestone: { title: "v1" },
+  milestone: { number: 3 },
   labels: { nodes: [{ name: "todo" }, { name: "bug" }] },
   assignees: { nodes: [{ databaseId: 8, login: "dev", avatarUrl: "https://a/8" }] },
   comments: {
@@ -53,7 +53,7 @@ describe("normalizeNode", () => {
       number: 1,
       title: "Fix the thing",
       state: "open",
-      milestoneName: "v1",
+      milestoneNumber: 3,
       labels: ["todo", "bug"],
       author: { githubId: 7, login: "octocat" },
     });

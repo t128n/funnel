@@ -114,6 +114,13 @@
 
 	<!-- Labels track (wide layouts only; hidden by `.issue-col-labels`). -->
 	<span class="issue-col-labels min-w-0 items-center gap-1 overflow-hidden">
+		{#if issue.milestone}
+			<MetaTag
+				label={issue.milestone.title || `${issue.milestone.repo}#${issue.milestone.number}`}
+				title={`Milestone: ${issue.milestone.title} (${issue.milestone.repo}#${issue.milestone.number})`}
+				class="shrink-0"
+			/>
+		{/if}
 		{#each visibleLabels as label (label)}
 			<MetaTag label={label} />
 		{/each}

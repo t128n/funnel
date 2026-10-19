@@ -33,6 +33,9 @@
 	// A stored `project` preference with no configured projects renders flat.
 	const groupBy = $derived(requested === 'project' && projects.length === 0 ? 'none' : requested);
 	const groups = $derived(buildGroups(issues, groupBy, repoShortcodes, projects));
+	// A milestone preference with nothing to section falls back to a flat list
+	// rather than rendering an empty stream.
+	const flat = $derived(groupBy === 'none' || groups.length === 0);
 
 	function isSelected(issue: IssueListItem): boolean {
 		return (
@@ -51,7 +54,7 @@
 	<div class="issue-list flex min-h-0 flex-1 flex-col overflow-y-auto">
 		<IssueListHeader />
 		<div class="flex flex-col pb-2">
-			{#if groupBy === 'none'}
+			{#if flat}
 				{#each issues as issue (`${issue.repoId}:${issue.number}`)}
 					<IssueRow {issue} {repoShortcodes} selected={isSelected(issue)} />
 				{/each}

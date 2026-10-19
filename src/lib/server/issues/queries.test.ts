@@ -3,7 +3,12 @@ import { setConfig } from "#lib/server/config";
 import { db } from "#lib/server/db/index";
 import { stateIntakeSubmission } from "#lib/server/db/schema";
 import { createSubmission } from "#lib/server/intake/staging";
-import { upsertIssue, upsertRepo, type UserRecord } from "#lib/server/sync/mirror";
+import {
+  replaceRepoMilestones,
+  upsertIssue,
+  upsertRepo,
+  type UserRecord,
+} from "#lib/server/sync/mirror";
 import { writeBlocked } from "#lib/funnel-metadata";
 import { clearMirror } from "#tests/mirror-helpers";
 import { TEST_CONFIG } from "#tests/test-config";
@@ -13,7 +18,10 @@ import {
   attentionIssues,
   filterContext,
   getIssueListItem,
+  getMilestone,
   inbox,
+  listMilestones,
+  milestoneIssues,
   myIssues,
   statusBoard,
 } from "./queries";
@@ -32,7 +40,7 @@ function seed(): void {
   const base = {
     state: "open" as const,
     stateReason: null,
-    milestoneName: null,
+    milestoneNumber: null,
     createdAt: 1,
     assignees: [],
     comments: [],
@@ -315,7 +323,7 @@ describe("attentionIssues", () => {
         state: "open",
         stateReason: null,
         author: null,
-        milestoneName: null,
+        milestoneNumber: null,
         createdAt: 1,
         updatedAt: 600,
         closedAt: null,
@@ -357,5 +365,74 @@ describe("getIssueListItem", () => {
   test("returns one hydrated row", () => {
     expect(getIssueListItem(1, 1)?.title).toBe("Alpha crash");
     expect(getIssueListItem(1, 999)).toBeUndefined();
+  });
+});
+
+describe("milestones", () => {
+  function seedMilestone(): void {
+    replaceRepoMilestones(1, [
+      {
+        number: 1,
+        githubId: 10,
+        title: "v1",
+        description: "First release",
+        state: "open",
+        dueOn: 1_000,
+        openIssues: 1,
+        closedIssues: 0,
+        creator: user(7, "octocat"),
+        createdAt: 1,
+        updatedAt: 2,
+        closedAt: null,
+        htmlUrl: "https://github.com/orgA/core/milestone/1",
+      },
+    ]);
+    upsertIssue(
+      {
+        githubId: 101,
+        repoId: 1,
+        number: 1,
+        title: "Alpha crash",
+        body: "stack trace",
+        state: "open",
+        stateReason: null,
+        author: user(7, "octocat"),
+        milestoneNumber: 1,
+        createdAt: 1,
+        updatedAt: 100,
+        closedAt: null,
+        labels: ["todo", "p1", "sm", "bug"],
+        assignees: [user(VIEWER, "me")],
+        comments: [],
+      },
+      { status: "todo", priority: "p1", size: "sm", blocked: false, labelConflict: false },
+    );
+  }
+
+  test("hydrates the issue's milestone and exposes it in filter options", () => {
+    seedMilestone();
+    const issue = getIssueListItem(1, 1);
+    expect(issue?.milestone).toEqual({
+      repo: "orgA/core",
+      number: 1,
+      title: "v1",
+      state: "open",
+      dueOn: 1_000,
+    });
+  });
+
+  test("lists milestones with progress and resolves one by number", () => {
+    seedMilestone();
+    const [milestone] = listMilestones(1);
+    expect(milestone).toMatchObject({ repo: "orgA/core", number: 1, progress: 0 });
+    expect(getMilestone(1, 1)?.title).toBe("v1");
+    expect(getMilestone(1, 99)).toBeUndefined();
+  });
+
+  test("returns the milestone's issues and filters by milestone", () => {
+    seedMilestone();
+    expect(numbers(milestoneIssues(1, 1))).toEqual([1]);
+    expect(numbers(allIssues(parse("milestone=orgA/core#1")))).toEqual([1]);
+    expect(numbers(allIssues(parse("milestone=none")))).toEqual([3, 6]);
   });
 });

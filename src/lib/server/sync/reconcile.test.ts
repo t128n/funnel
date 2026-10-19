@@ -35,6 +35,9 @@ const fake = {
     if (route === "GET /repos/{owner}/{repo}/labels") {
       return { data: [] };
     }
+    if (route === "GET /repos/{owner}/{repo}/milestones") {
+      return { data: [] };
+    }
     if (route === "GET /repos/{owner}/{repo}/issues/{issue_number}/timeline") {
       return { data: [] };
     }
@@ -95,7 +98,7 @@ function seedStaleIssue() {
       state: "open",
       stateReason: null,
       author: null,
-      milestoneName: null,
+      milestoneNumber: null,
       createdAt: 0,
       updatedAt: 0,
       closedAt: null,

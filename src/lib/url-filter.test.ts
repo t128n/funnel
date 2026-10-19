@@ -66,6 +66,7 @@ describe("toFilterParams", () => {
 			priorities: ["p1"],
 			sizes: ["sm", "md"],
 			labels: ["bug", "frontend"],
+			milestones: ["orgA/core#3", NONE],
 			search: "crash on boot",
 		};
 		expect(parseFilterParams(toFilterParams(filter))).toEqual(filter);

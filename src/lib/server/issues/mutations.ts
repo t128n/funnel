@@ -21,6 +21,7 @@ import {
 } from "#lib/server/http/outcome";
 import { createLogger } from "#lib/server/log";
 import { CANONICAL_LABELS, type LabelGroup } from "#lib/server/github/labels";
+import { createRepoMilestone } from "#lib/server/github/milestones";
 import { publish } from "#lib/server/sync/events";
 import { groupOf, PRIORITY_VALUES, SIZE_VALUES, STATUS_VALUES } from "./filters";
 
@@ -72,6 +73,8 @@ export interface UpdateIssueInput {
   size?: string | null;
   /** Toggles the orthogonal `blocked` flag (SPEC §5.1). */
   blocked?: boolean;
+  /** `null` clears the milestone; `undefined` leaves it untouched. */
+  milestone?: number | null;
 }
 
 export interface AddLabelsInput {
@@ -93,6 +96,15 @@ export interface AddCommentInput {
   repo: string;
   number: number;
   body: string;
+}
+
+export interface CreateMilestoneInput {
+  octokit: Octokit;
+  repo: string;
+  title: string;
+  description?: string;
+  /** ISO date (`YYYY-MM-DD`). */
+  dueOn?: string | null;
 }
 
 /** Split `owner/name`; `null` when malformed. */
@@ -286,6 +298,7 @@ export async function updateIssue(
   if (input.assignees !== undefined) patch.assignees = [...input.assignees];
   if (input.state !== undefined) patch.state = input.state;
   if (input.stateReason !== undefined) patch.state_reason = input.stateReason;
+  if (input.milestone !== undefined) patch.milestone = input.milestone;
 
   const reservedRequested =
     input.status !== undefined ||
@@ -295,6 +308,14 @@ export async function updateIssue(
 
   if (Object.keys(patch).length === 0 && !reservedRequested) {
     return badRequest("No changes provided");
+  }
+
+  if (
+    input.milestone !== undefined &&
+    input.milestone !== null &&
+    (!Number.isInteger(input.milestone) || input.milestone <= 0)
+  ) {
+    return badRequest(`Invalid milestone: ${input.milestone}`);
   }
 
   for (const [group, value] of [
@@ -484,4 +505,42 @@ export async function addIssueComment(
     ok: true,
     value: { id: data.id ?? 0, htmlUrl: data.html_url ?? "" },
   };
+}
+
+/**
+ * Create a milestone in one repository with the signed-in user's token. This is
+ * the "lazy create" path: Funnel only ever creates a milestone because someone
+ * assigned it to an issue, and GitHub scopes milestones per repo, so creating it
+ * in each repo an issue uses is how a milestone spans repositories.
+ */
+export async function createMilestone(
+  input: CreateMilestoneInput,
+): Promise<Outcome<CreatedIssue>> {
+  const parts = splitRepo(input.repo);
+  if (!parts) return badRequest(`Invalid repository ${input.repo}`);
+
+  const notConfigured = await requireConfiguredRepo(input.repo);
+  if (notConfigured) return notConfigured;
+
+  const title = input.title.trim();
+  if (title.length === 0) return badRequest("Milestone title is required");
+
+  try {
+    const milestone = await createRepoMilestone(input.octokit, parts.owner, parts.name, {
+      title,
+      description: input.description,
+      dueOn: input.dueOn ?? undefined,
+    });
+    publish({ type: "issues", repo: input.repo, numbers: [] });
+    return {
+      ok: true,
+      value: { number: milestone.number, htmlUrl: milestone.htmlUrl },
+    };
+  } catch (error) {
+    log.warn(
+      { repo: input.repo, err: errorMessage(error) },
+      "create milestone failed",
+    );
+    return { ok: false, status: errorStatus(error), message: errorMessage(error) };
+  }
 }

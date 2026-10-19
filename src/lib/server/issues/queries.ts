@@ -29,6 +29,7 @@ import {
   mirrorGithubIssue,
   mirrorGithubIssueAssignee,
   mirrorGithubIssueLabel,
+  mirrorGithubMilestone,
   mirrorGithubRepo,
   mirrorGithubRepoAssignee,
   mirrorGithubRepoLabel,
@@ -56,6 +57,8 @@ import type {
   IssueDetail,
   IssueListItem,
   IssueOption,
+  MilestoneItem,
+  RepoMilestoneRef,
   StatusBoard,
   StatusKey,
   UserRef,
@@ -93,6 +96,10 @@ const issueColumns = {
   authorId: mirrorGithubUser.githubId,
   authorLogin: mirrorGithubUser.login,
   authorAvatar: mirrorGithubUser.avatarUrl,
+  milestoneNumber: mirrorGithubIssue.milestoneNumber,
+  milestoneTitle: mirrorGithubMilestone.title,
+  milestoneState: mirrorGithubMilestone.state,
+  milestoneDueOn: mirrorGithubMilestone.dueOn,
 };
 
 interface RawRow {
@@ -114,6 +121,10 @@ interface RawRow {
   authorId: number | null;
   authorLogin: string | null;
   authorAvatar: string | null;
+  milestoneNumber: number | null;
+  milestoneTitle: string | null;
+  milestoneState: string | null;
+  milestoneDueOn: number | null;
 }
 
 export interface ListOptions {
@@ -150,6 +161,13 @@ function rawQuery(where: SQL | undefined, opts: ListOptions): RawRow[] {
     .leftJoin(
       mirrorGithubUser,
       eq(mirrorGithubIssue.authorId, mirrorGithubUser.githubId),
+    )
+    .leftJoin(
+      mirrorGithubMilestone,
+      and(
+        eq(mirrorGithubMilestone.repoId, mirrorGithubIssue.repoId),
+        eq(mirrorGithubMilestone.number, mirrorGithubIssue.milestoneNumber),
+      ),
     )
     .where(where)
     .orderBy(PRIORITY_RANK, desc(mirrorGithubIssue.updatedAt));
@@ -224,9 +242,10 @@ function hydrate(rows: RawRow[]): IssueListItem[] {
 
   return rows.map((row) => {
     const key = rowKey(row.repoId, row.number);
+    const repo = `${row.org}/${row.name}`;
     return {
       repoId: row.repoId,
-      repo: `${row.org}/${row.name}`,
+      repo,
       number: row.number,
       title: row.title,
       state: row.state,
@@ -248,6 +267,16 @@ function hydrate(rows: RawRow[]): IssueListItem[] {
             }
           : null,
       assignees: assignees.get(key) ?? [],
+      milestone:
+        row.milestoneNumber !== null && row.milestoneTitle !== null
+          ? {
+              repo,
+              number: row.milestoneNumber,
+              title: row.milestoneTitle,
+              state: row.milestoneState ?? "open",
+              dueOn: row.milestoneDueOn,
+            }
+          : null,
       labels: labels.get(key) ?? [],
     } satisfies IssueListItem;
   });
@@ -290,6 +319,26 @@ export function getIssueListItem(
     eq(mirrorGithubIssue.number, number),
   );
   return hydrate(rawQuery(where, {}))[0];
+}
+
+/**
+ * Every mirrored issue (open and closed, triaged or not) attached to one
+ * repo-scoped milestone. Backs the Milestones detail view.
+ */
+export function milestoneIssues(
+  repoId: number,
+  milestoneNumber: number,
+  opts: ListOptions = {},
+): IssueListItem[] {
+  return hydrate(
+    rawQuery(
+      and(
+        eq(mirrorGithubIssue.repoId, repoId),
+        eq(mirrorGithubIssue.milestoneNumber, milestoneNumber),
+      ),
+      opts,
+    ),
+  );
 }
 
 function matchesSearch(
@@ -399,6 +448,13 @@ export function attentionIssues(): AttentionItem[] {
       mirrorGithubUser,
       eq(mirrorGithubIssue.authorId, mirrorGithubUser.githubId),
     )
+    .leftJoin(
+      mirrorGithubMilestone,
+      and(
+        eq(mirrorGithubMilestone.repoId, mirrorGithubIssue.repoId),
+        eq(mirrorGithubMilestone.number, mirrorGithubIssue.milestoneNumber),
+      ),
+    )
     .where(
       and(eq(mirrorGithubIssue.state, "open"), eq(mirrorGithubIssue.blocked, 1)),
     )
@@ -482,7 +538,30 @@ export function filterOptions(): FilterOptions {
     ),
   ].sort((a, b) => a.localeCompare(b));
 
-  return { repos, assignees, labels };
+  const milestoneRows = db
+    .select({
+      org: mirrorGithubRepo.org,
+      name: mirrorGithubRepo.name,
+      number: mirrorGithubMilestone.number,
+      title: mirrorGithubMilestone.title,
+    })
+    .from(mirrorGithubMilestone)
+    .innerJoin(
+      mirrorGithubRepo,
+      eq(mirrorGithubMilestone.repoId, mirrorGithubRepo.githubId),
+    )
+    .all();
+  const milestones = milestoneRows
+    .map((row) => ({
+      repo: `${row.org}/${row.name}`,
+      number: row.number,
+      title: row.title,
+    }))
+    .sort((a, b) =>
+      a.title.localeCompare(b.title) || a.repo.localeCompare(b.repo),
+    );
+
+  return { repos, assignees, labels, milestones };
 }
 
 /**
@@ -524,6 +603,103 @@ export function repoAssigneeOptions(repoId: number): UserRef[] {
     .where(eq(mirrorGithubRepoAssignee.repoId, repoId))
     .orderBy(asc(mirrorGithubUser.login))
     .all();
+}
+
+/**
+ * Milestones for a repo (or every mirrored repo when `repoId` is omitted).
+ * Ordered by title so the picker and the Milestones view stay stable.
+ */
+export function listMilestones(repoId?: number): MilestoneItem[] {
+  const rows = db
+    .select({
+      repoId: mirrorGithubMilestone.repoId,
+      org: mirrorGithubRepo.org,
+      name: mirrorGithubRepo.name,
+      number: mirrorGithubMilestone.number,
+      title: mirrorGithubMilestone.title,
+      description: mirrorGithubMilestone.description,
+      state: mirrorGithubMilestone.state,
+      dueOn: mirrorGithubMilestone.dueOn,
+      openIssues: mirrorGithubMilestone.openIssues,
+      closedIssues: mirrorGithubMilestone.closedIssues,
+      creatorId: mirrorGithubUser.githubId,
+      creatorLogin: mirrorGithubUser.login,
+      creatorAvatar: mirrorGithubUser.avatarUrl,
+      htmlUrl: mirrorGithubMilestone.htmlUrl,
+      createdAt: mirrorGithubMilestone.createdAt,
+      updatedAt: mirrorGithubMilestone.updatedAt,
+      closedAt: mirrorGithubMilestone.closedAt,
+    })
+    .from(mirrorGithubMilestone)
+    .innerJoin(
+      mirrorGithubRepo,
+      eq(mirrorGithubMilestone.repoId, mirrorGithubRepo.githubId),
+    )
+    .leftJoin(
+      mirrorGithubUser,
+      eq(mirrorGithubMilestone.creatorId, mirrorGithubUser.githubId),
+    )
+    .where(repoId === undefined ? undefined : eq(mirrorGithubMilestone.repoId, repoId))
+    .all();
+
+  return rows
+    .map(toMilestoneItem)
+    .sort((a, b) => a.title.localeCompare(b.title) || a.repo.localeCompare(b.repo));
+}
+
+/** One milestone by repo identity, or `undefined` when not mirrored. */
+export function getMilestone(
+  repoId: number,
+  number: number,
+): MilestoneItem | undefined {
+  return listMilestones(repoId).find((milestone) => milestone.number === number);
+}
+
+/** Project a milestone row onto the cockpit DTO, computing progress. */
+function toMilestoneItem(row: {
+  repoId: number;
+  org: string;
+  name: string;
+  number: number;
+  title: string;
+  description: string;
+  state: string;
+  dueOn: number | null;
+  openIssues: number;
+  closedIssues: number;
+  creatorId: number | null;
+  creatorLogin: string | null;
+  creatorAvatar: string | null;
+  htmlUrl: string;
+  createdAt: number;
+  updatedAt: number;
+  closedAt: number | null;
+}): MilestoneItem {
+  const total = row.openIssues + row.closedIssues;
+  return {
+    repoId: row.repoId,
+    repo: `${row.org}/${row.name}`,
+    number: row.number,
+    title: row.title,
+    description: row.description,
+    state: row.state,
+    dueOn: row.dueOn,
+    openIssues: row.openIssues,
+    closedIssues: row.closedIssues,
+    progress: total === 0 ? 0 : row.closedIssues / total,
+    creator:
+      row.creatorId !== null && row.creatorLogin !== null
+        ? {
+            githubId: row.creatorId,
+            login: row.creatorLogin,
+            avatarUrl: row.creatorAvatar ?? "",
+          }
+        : null,
+    htmlUrl: row.htmlUrl,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+    closedAt: row.closedAt,
+  };
 }
 
 /**
@@ -607,6 +783,18 @@ export function getIssueDetail(
     a.login.localeCompare(b.login),
   );
 
+  // The repo's milestones, for the Inspector picker. The issue's current
+  // milestone is guaranteed present (it is one of the repo's milestones).
+  const milestoneOptions: RepoMilestoneRef[] = listMilestones(repoId).map(
+    (milestone) => ({
+      repo: milestone.repo,
+      number: milestone.number,
+      title: milestone.title,
+      state: milestone.state,
+      dueOn: milestone.dueOn,
+    }),
+  );
+
   // Funnel-owned state (work notes, attachments) is keyed by `owner/name`, not
   // the disposable `repoId`, so it outlives mirror pruning and re-sync.
   const [org, name] = issue.repo.split("/");
@@ -619,5 +807,6 @@ export function getIssueDetail(
     attachments: listAttachments(org, name, number),
     repoLabels,
     assigneeOptions,
+    milestoneOptions,
   };
 }

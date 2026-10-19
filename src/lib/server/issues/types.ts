@@ -14,6 +14,39 @@ export interface UserRef {
   avatarUrl: string;
 }
 
+/**
+ * A milestone attached to an issue, resolved from the repo's mirror. GitHub
+ * scopes a milestone to one repository, so the repo slug travels with it.
+ */
+export interface RepoMilestoneRef {
+  repo: string;
+  number: number;
+  title: string;
+  state: string;
+  dueOn: number | null;
+}
+
+/** One repo-scoped milestone for the Milestones view. */
+export interface MilestoneItem {
+  repoId: number;
+  /** `owner/name`, resolved from `mirror_github_repo`. */
+  repo: string;
+  number: number;
+  title: string;
+  description: string;
+  state: string;
+  dueOn: number | null;
+  openIssues: number;
+  closedIssues: number;
+  /** `closed / (open + closed)`, `0` when the milestone has no issues. */
+  progress: number;
+  creator: UserRef | null;
+  htmlUrl: string;
+  createdAt: number;
+  updatedAt: number;
+  closedAt: number | null;
+}
+
 /** One row in a dense issue stream (All Issues / My Issues / Inbox issues). */
 export interface IssueListItem {
   repoId: number;
@@ -37,6 +70,8 @@ export interface IssueListItem {
   closedAt: number | null;
   author: UserRef | null;
   assignees: UserRef[];
+  /** The issue's milestone, or `null` when unmilestoned. */
+  milestone: RepoMilestoneRef | null;
   /** Every label on the issue, reserved and non-reserved. */
   labels: string[];
 }
@@ -150,6 +185,8 @@ export interface IssueDetail {
   repoLabels: RepoLabelOption[];
   /** Users assignable on the issue's repo, plus current assignees (SPEC §9.2). */
   assigneeOptions: UserRef[];
+  /** The issue's repo's milestones, for the Inspector milestone picker. */
+  milestoneOptions: RepoMilestoneRef[];
 }
 
 /**
@@ -179,6 +216,8 @@ export interface FilterOptions {
   repos: Array<{ id: number; slug: string }>;
   assignees: UserRef[];
   labels: string[];
+  /** Repo-scoped milestones, for the milestone filter dimension. */
+  milestones: Array<{ repo: string; number: number; title: string }>;
 }
 
 /**

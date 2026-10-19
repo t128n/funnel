@@ -57,7 +57,7 @@ function seedIssue(): void {
       state: "open",
       stateReason: null,
       author: null,
-      milestoneName: null,
+      milestoneNumber: null,
       createdAt: 1,
       updatedAt: 1,
       closedAt: null,

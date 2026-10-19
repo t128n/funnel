@@ -24,6 +24,7 @@ import {
   type InstallationOctokit,
 } from "#/lib/server/github/app.server";
 import { listRepoLabels } from "#/lib/server/github/labels";
+import { listRepoMilestones } from "#/lib/server/github/milestones";
 import { listRepoAssignees } from "#/lib/server/github/assignees";
 import { deriveMetadata, resolveIssueConflict } from "./conflicts";
 import { clientCount, publish } from "./events";
@@ -330,6 +331,33 @@ export async function refreshRepoAssignees(
 }
 
 /**
+ * Refresh a repo's milestone set (read-only cockpit + Inspector picker).
+ * Replace-wholesale, like labels and assignees.
+ */
+export async function refreshRepoMilestones(
+  installationId: number,
+  repo: mirror.RepoRow,
+): Promise<void> {
+  const octokit = await github.asInstallation(installationId);
+  const milestones = await listRepoMilestones(octokit, repo.org, repo.name);
+  mirror.replaceRepoMilestones(repo.githubId, milestones);
+}
+
+/**
+ * Resolve a repo by `owner/name` and refresh its milestones. Fire-and-forget
+ * helper for the write path (a newly created milestone must appear in the
+ * Inspector picker without waiting for the next poll).
+ */
+export async function refreshRepoMilestonesBySlug(
+  owner: string,
+  repo: string,
+): Promise<void> {
+  const installationId = await getInstallationId(owner, repo);
+  const repoRow = await ensureRepoMirror(owner, repo, installationId);
+  await refreshRepoMilestones(installationId, repoRow);
+}
+
+/**
  * Full cycle for one `owner/repo`: resolve the installation, ensure the repo
  * row, refresh labels, then poll. Marks the repo degraded on failure and
  * rethrows so the scheduler can isolate it.
@@ -343,6 +371,7 @@ export async function runRepoCycle(
   try {
     await refreshRepoLabels(installationId, repoRow);
     await refreshRepoAssignees(installationId, repoRow);
+    await refreshRepoMilestones(installationId, repoRow);
     const result = await pollRepo(repoRow, installationId, Date.now());
     log.debug({ repo: `${owner}/${repo}`, ...result }, "repo polled");
     return result;

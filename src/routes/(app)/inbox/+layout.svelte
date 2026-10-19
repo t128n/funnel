@@ -96,7 +96,7 @@
 					<FeedSearch />
 				</div>
 				<div class="ml-auto flex shrink-0 items-center gap-1">
-					<GroupByControl projects={data.projects} />
+					<GroupByControl projects={data.projects} hasMilestones={data.options.milestones.length > 0} />
 					<FilterPopover options={data.options} />
 				</div>
 			</header>

@@ -8,9 +8,11 @@
 	interface Props {
 		/** Configured project indicators; the Project option hides when empty. */
 		projects?: ProjectOption[];
+		/** Whether any mirrored repo has milestones; the Milestone option hides when not. */
+		hasMilestones?: boolean;
 	}
 
-	let { projects = [] }: Props = $props();
+	let { projects = [], hasMilestones = false }: Props = $props();
 
 	/**
 	 * Group-by switch for the issue feeds. Owns the shared preference in
@@ -20,12 +22,13 @@
 		{ value: 'status', label: 'Status' },
 		{ value: 'priority', label: 'Priority' },
 		...(projects.length > 0 ? [{ value: 'project' as GroupKey, label: 'Project' }] : []),
+		...(hasMilestones ? [{ value: 'milestone' as GroupKey, label: 'Milestone' }] : []),
 		{ value: 'repo', label: 'Repository' },
 		{ value: 'none', label: 'None' }
 	]);
 
 	const stored = $derived(getGroupBy());
-	// A stored `project` preference with no configured projects falls back to flat.
+	// A stored `project`/`milestone` preference with nothing to group by falls back to flat.
 	const group = $derived(options.some((option) => option.value === stored) ? stored : 'none');
 </script>
 

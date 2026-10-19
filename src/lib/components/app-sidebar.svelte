@@ -5,6 +5,7 @@
 	import FunnelIcon from "@lucide/svelte/icons/funnel";
 	import InboxIcon from "@lucide/svelte/icons/inbox";
 	import KanbanIcon from "@lucide/svelte/icons/kanban";
+	import MilestoneIcon from "@lucide/svelte/icons/milestone";
 	import PlusIcon from "@lucide/svelte/icons/plus";
 	import SearchIcon from "@lucide/svelte/icons/search";
 	import UserIcon from "@lucide/svelte/icons/user";
@@ -63,6 +64,7 @@
 	const inboxActive = $derived(viewOf(path) === "inbox");
 	const issuesActive = $derived(viewOf(path) === "issues" && !mine);
 	const boardActive = $derived(viewOf(path) === "board");
+	const milestonesActive = $derived(path.startsWith("/milestones"));
 	const attentionActive = $derived(path.startsWith("/attention"));
 	const workspaceCollapsed = $derived(isWorkspaceCollapsed());
 	// `read` viewers may browse but not start the new-issue flow.
@@ -91,7 +93,13 @@
 	// Organisational scope: the shared issue streams.
 	const workspace: NavLink[] = $derived([
 		{ href: "/issues", label: "Issues", icon: CircleDotIcon, active: issuesActive },
-		{ href: "/board", label: "Board", icon: KanbanIcon, active: boardActive }
+		{ href: "/board", label: "Board", icon: KanbanIcon, active: boardActive },
+		{
+			href: "/milestones",
+			label: "Milestones",
+			icon: MilestoneIcon,
+			active: milestonesActive
+		}
 	]);
 </script>
 
