@@ -115,6 +115,18 @@ const defs = {
     default: {} as Record<string, number>,
   },
   "session.idle_days": { schema: count("session.idle_days"), default: 30 },
+  "notifications.enabled": {
+    schema: v.boolean("notifications.enabled must be a boolean"),
+    default: true,
+  },
+  "notifications.native": {
+    schema: v.boolean("notifications.native must be a boolean"),
+    default: true,
+  },
+  "notifications.new_intake": {
+    schema: v.boolean("notifications.new_intake must be a boolean"),
+    default: true,
+  },
 } as const;
 
 /** A persisted setting key, e.g. `sync.history_days`. */
@@ -132,6 +144,7 @@ export interface Settings {
   };
   board: { done_days: number; wip_limits: Record<string, number> };
   session: { idle_days: number };
+  notifications: { enabled: boolean; native: boolean; new_intake: boolean };
 }
 
 /** Raised when a write carries a value its key's schema rejects. */
@@ -162,6 +175,11 @@ export const settingsInputSchema = v.object({
     wip_limits: v.record(v.picklist(WIP_STAGES), count("board.wip_limits")),
   }),
   session: v.object({ idle_days: count("session.idle_days") }),
+  notifications: v.object({
+    enabled: v.boolean("notifications.enabled must be a boolean"),
+    native: v.boolean("notifications.native must be a boolean"),
+    new_intake: v.boolean("notifications.new_intake must be a boolean"),
+  }),
 });
 
 export type SettingsInput = v.InferOutput<typeof settingsInputSchema>;
@@ -240,6 +258,11 @@ export function readSettings(): Settings {
     session: {
       idle_days: readKey(rows, "session.idle_days") as number,
     },
+    notifications: {
+      enabled: readKey(rows, "notifications.enabled") as boolean,
+      native: readKey(rows, "notifications.native") as boolean,
+      new_intake: readKey(rows, "notifications.new_intake") as boolean,
+    },
   };
 }
 
@@ -265,6 +288,9 @@ function toEntries(input: SettingsInput): [SettingKey, unknown][] {
     ["board.done_days", input.board.done_days],
     ["board.wip_limits", input.board.wip_limits],
     ["session.idle_days", input.session.idle_days],
+    ["notifications.enabled", input.notifications.enabled],
+    ["notifications.native", input.notifications.native],
+    ["notifications.new_intake", input.notifications.new_intake],
   ];
 }
 

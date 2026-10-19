@@ -6,6 +6,7 @@
  * labels, icons, and hrefs cannot drift. Declarations only — no data loading —
  * so the shell stays thin.
  */
+import BellRingIcon from '@lucide/svelte/icons/bell-ring';
 import BotIcon from '@lucide/svelte/icons/bot';
 import CircleUserIcon from '@lucide/svelte/icons/circle-user';
 import FlagIcon from '@lucide/svelte/icons/flag';
@@ -75,7 +76,14 @@ export const settingsGroups: SettingsGroup[] = [
 			},
 			{ id: 'projects', label: 'Projects', href: '/settings/projects', minRole: 'admin', icon: TagIcon },
 			{ id: 'intake', label: 'Intake', href: '/settings/intake', minRole: 'admin', icon: InboxIcon },
-			{ id: 'board', label: 'Board', href: '/settings/board', minRole: 'admin', icon: KanbanIcon }
+			{ id: 'board', label: 'Board', href: '/settings/board', minRole: 'admin', icon: KanbanIcon },
+			{
+				id: 'notifications',
+				label: 'Notifications',
+				href: '/settings/notifications',
+				minRole: 'admin',
+				icon: BellRingIcon
+			}
 		]
 	},
 	{
