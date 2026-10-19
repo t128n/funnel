@@ -199,6 +199,8 @@ export interface RenderedIssueDetail
   bodyHtml: string;
   comments: RenderedComment[];
   workNotes: RenderedWorkNote[];
+  /** Whether the signed-in viewer watches this issue. */
+  watching: boolean;
 }
 
 /** A staged intake submission with its sanitized HTML body for display. */
