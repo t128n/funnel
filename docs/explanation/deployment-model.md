@@ -1,0 +1,99 @@
+# Deployment model
+
+Funnel is deployed as one long-lived instance with a persistent data directory: an executable, a container wrapping that executable, or a Windows service hosting it.
+
+## One instance is a constraint, not a default
+
+The deployment model follows from the storage model. Funnel owns a SQLite database and opens it with `bun:sqlite`; WAL mode and a five-second busy timeout make concurrent readers and a writer work well inside one process, but they do not turn SQLite into a network database. Two replicas sharing a volume would not be a scaled Funnel — they would be two processes corrupting each other's assumptions.
+
+The in-process services reinforce the same rule:
+
+- the sync worker's per-repo schedule and `nextDue` map exist only in memory;
+- the reconciliation timer is a `setTimeout` re-armed after each run;
+- the SSE bus is a `Set` of listeners in one address space, and `clientCount()` drives the polling cadence;
+- the config and auth instances are process-wide singletons.
+
+Running two instances would duplicate polls and canonical-label writes, split the SSE audience between processes, and give each process a different view of session and settings caches. The practical guidance is therefore simple: **one replica, one data directory, no horizontal scaling**. Scale vertically if needed, and treat a restart as a brief interruption rather than as a rolling deployment with overlap.
+
+This also has a deployment consequence that is easy to miss: a rolling upgrade that starts the new instance before the old one has stopped temporarily creates exactly the two-writer situation the design excludes. Stop first, then start. With a single instance the downtime is short and predictable; with two, the failure mode is intermittent and difficult to diagnose.
+
+## Three shapes, one artefact
+
+The executable is the primary artefact. `mise run exe` compiles the adapter-node output, the Bun runtime, client assets, committed migrations and the native Markdown addon into one file (`dist/funnel` or `dist/funnel.exe`). The host needs no Node, no Bun and no container runtime. This is the path intended for a bare-metal Windows server or a small Linux VM.
+
+The Windows service is the same executable with a service wrapper. The installer copies `funnel.exe` into `C:\ProgramData\Funnel`, downloads WinSW, writes the service definition, opens the firewall port and generates a starter `.env` with a random `FUNNEL_SECRET`. The service runs with the data directory as its working directory, which is why Bun picks up `.env` from there. Upgrading is a stop, replace and start; the database and uploads are untouched.
+
+The container is the secondary artefact. The `Dockerfile` builds the same Linux executable in an `oven/bun` build stage and copies it into a minimal Debian runtime with `ca-certificates`, `libstdc++6` and `libatomic1`. It is not a second application build; the container is a delivery wrapper around the binary. That keeps one build pipeline and one runtime, and means behaviour does not diverge between a VM and a PaaS.
+
+The container expects a volume at `/data`, sets `FUNNEL_DATA_DIR=/data`, and runs the binary as its entrypoint. The image's `HEALTHCHECK` calls `funnel --healthcheck` rather than `curl`, so liveness can be checked without adding tools to the runtime image.
+
+Cross-compilation is possible with `--target`, but the target's native `satteri` package must be installed. Building natively per platform is the reliable path, which is why the release tasks and the Dockerfile each build for their own platform.
+
+## The data directory
+
+The packaged executable resolves `FUNNEL_DATA_DIR` (default `./data`), creates it, and derives `FUNNEL_DB` and `FUNNEL_UPLOAD_DIR` if they are not set. The directory contains:
+
+- `funnel.db` — durable state, auth tables, settings and the disposable mirror in one SQLite file, plus WAL and shared-memory sidecars while running;
+- `uploads/` — attachment bytes, stored under server-generated `<yyyy>/<mm>/<uuid>` paths rather than client-supplied filenames;
+- `.env` — on Windows, the service's working directory is the data directory, so this is where deployment configuration lives.
+
+The distinction between durable and disposable tables matters for backup and for repair. `state_*` holds intake submissions, settings, the GitHub App credentials, work notes and attachment metadata. `auth_*` holds Better Auth users, sessions and encrypted OAuth tokens. Both must be preserved. `mirror_github_*` can be thrown away and rebuilt by sync. Losing the mirror costs sync time; losing `state_*`, `auth_*`, the uploads directory or `FUNNEL_SECRET` costs data or access.
+
+`FUNNEL_SECRET` deserves special mention. It signs sessions and encrypts the GitHub App's client secret, webhook secret and private key, as well as stored OAuth tokens. A database restored without its original secret still contains the rows but cannot decrypt them. Back up the secret with the database, and do not rotate it casually on a live instance.
+
+## Migrations on boot and in a release phase
+
+Schema changes ship as committed Drizzle migrations under `drizzle/`. There are two supported moments to apply them.
+
+**On boot** is the default for the executable and therefore the container. The generated entrypoint calls `runStandalone()` before importing `build/index.js`; `runMigrations()` opens its own SQLite connection, applies pending migrations and closes it. If migration fails, the process exits non-zero instead of serving against a half-migrated database. This is what makes a bare-metal install a single file: there is no separate release process to forget.
+
+**In a release phase** is available for operators who want migrations to happen before the application process starts, or who run the database change as an administrative step. `funnel --migrate` applies migrations against `FUNNEL_DB` and exits; from a checkout or build stage, `bun run release` does the same. The release module deliberately does not import the application's environment or database singleton, so it can run without the app's deploy secrets and without booting SvelteKit.
+
+The container supports both: the default entrypoint migrates on boot, and `docker run --rm ... <image> --migrate` performs the same work as a separate step. Running both is harmless because migrations are idempotent and recorded in `__drizzle_migrations`.
+
+Boot migration is a good fit for the single-instance model: there is no fleet to coordinate and no need for an external migration job. Its cost is that migration time is startup time, and a failed migration is a failed boot. The release phase is the escape hatch for a maintenance window, a pre-flight check or an environment where the application secret should not be present during schema changes.
+
+Migrations are forward-only in practice. There is no down-migration path in the boot code, so an upgrade should be preceded by a backup, and a rollback means restoring the database and the previous binary together. Running an older binary against a newer schema is not a supported combination.
+
+## Liveness and readiness mean different things
+
+Funnel exposes two probes because "the process is running" and "this instance can serve traffic" are not the same question.
+
+`/healthz` is liveness. It returns `{ status: "ok", service: "funnel" }` and touches no database, network or filesystem state. A failing dependency must not cause a supervisor to restart an otherwise healthy process; restarting Funnel will not fix a GitHub outage or a locked database, and a restart loop makes diagnosis harder.
+
+`/readyz` is readiness. It checks that the database is reachable and, where the migrations folder can be located, that every committed migration has been applied. It returns `503` with a reason (`database not migrated` or `migrations pending`, including applied and expected counts) until then, and `200` with the counts once ready. It deliberately does not check GitHub connectivity: a cockpit that can still read its mirror is useful during a GitHub incident, so an upstream outage should not drain traffic from it.
+
+The `funnel --healthcheck` subcommand is the operational bridge. It probes `http://127.0.0.1:${PORT}/healthz` and exits `0` or `1`, which lets the executable act as its own container or service health check with no shell, `curl` or extra runtime in the image. The Dockerfile uses it as the `HEALTHCHECK`. It probes liveness only; orchestrators that route traffic should still use `/readyz`.
+
+Both probes are exempt from the first-run gate, so a fresh, un-onboarded instance still answers them. This matters for the packaged executable, which may be health-checked by a supervisor before anyone has opened the onboarding wizard.
+
+## Why serverless is not a supported target
+
+The application cannot run on a serverless function platform without becoming a different application. It needs:
+
+- a process that survives between requests, because the sync loop and reconciliation timer are in-process;
+- long-lived SSE connections, which serverless platforms typically cap or bill differently;
+- a local, writable SQLite file with WAL sidecars and file locking, not an ephemeral or read-only filesystem;
+- a stable single writer, not an autoscaling set of function instances.
+
+A cold start would also restart the schedule and lose the in-memory event bus. A platform that offers a persistent disk but scales to zero would pause sync while idle, which is recoverable but surprising; a platform that scales to multiple instances would break the single-writer assumption. A container or executable on a VM, a PaaS service with one replica, or a Windows service are the supported shapes.
+
+## Backup, restore and upgrade
+
+Back up the data directory as a unit, not just `funnel.db`. The uploads are separate files, and `.env` carries the secret needed to decrypt the database's App credentials and tokens. The cleanest backup is taken with the process stopped. If that is not possible, use SQLite's online backup mechanism or copy the database together with its `-wal` and `-shm` sidecars; copying only the main file while WAL holds recent commits can produce a database that is missing the newest writes.
+
+The mirror can be excluded from a backup if space is tight, because it is rebuildable. The cost is a slower first start after restore: the cursor is derived and therefore absent, so sync falls back to a full backfill. Durable state and uploads are not optional.
+
+Restoring is the reverse: stop the process, restore the database, uploads and secret, then start it. Readiness will stay at `503` until migrations are complete. If the restored database is older than the binary, boot or the release step applies the intervening migrations; if it is newer than the binary, restore the matching binary rather than attempting to run backwards.
+
+Upgrading follows the same shape. Take a backup, stop the running instance (do not overlap replicas), replace the executable or pull the new container image, start it and wait for `/readyz`, then verify the cockpit and the next sync cycle. Migrations apply automatically on boot for the executable and container, or can be run first with `--migrate`/`bun run release`. Sessions, settings, App credentials, work notes and uploads live in the data directory and survive the replacement. There is no auto-update mechanism in the application; the version is embedded at build time for display, and the operator owns the upgrade timing.
+
+## Related
+
+- [Architecture](./architecture.md) — the process, startup sequence and why the components are in-process.
+- [Sync and mirror](./sync-and-mirror.md) — what a restart pauses and how sync catches up.
+- [Release how-to](../how-to/contribute/release.md) — building the executable, container and release checks.
+- [CLI reference](../reference/cli.md) — `--migrate`, `--healthcheck`, `--version` and `--help`.
+- [Environment variables reference](../reference/environment-variables.md) — every deploy-time variable and its default.
+- [Database schema reference](../reference/database-schema.md) — which tables are durable and which are rebuildable.
+- [Production and deployment](../../README.md#production) — the repository README's operational summary.

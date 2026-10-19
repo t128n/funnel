@@ -1,0 +1,62 @@
+# Onboard the GitHub App
+
+Create and install the GitHub App that lets Funnel authenticate users, mirror issues, and write back to GitHub.
+
+## Before you start
+
+- Funnel must be reachable at the public URL that GitHub will call back to. Set `FUNNEL_URL` to that origin (for example `https://funnel.example.com`); without it, Funnel uses the origin of the incoming request.
+- The GitHub host is deployment configuration. `GITHUB_URL` and `GITHUB_API_URL` default to `https://github.com` and `https://api.github.com`. For an enterprise instance, see [Use GitHub Enterprise Server](../deploy/github-enterprise-server.md).
+- If the instance is reachable before it has been claimed, set `FUNNEL_ONBOARDING_TOKEN`. Without it, anyone who can reach a fresh instance can complete onboarding.
+
+No Funnel account or administrator role is needed for the wizard itself: it is intentionally reachable before authentication exists. Once the App credentials are stored, the first step closes to new runs — visiting `/onboarding` then redirects to `/login` — and you continue through the installation steps before signing in.
+
+## How the first-run gate works
+
+While no App credentials exist, every route redirects to `/onboarding`. The exceptions are the wizard itself (`/onboarding` and its sub-paths), `/healthz`, `/readyz`, `/_app` assets, `/api/auth/*`, and paths whose last segment contains a dot. Once credentials exist, `/onboarding` redirects to `/login`.
+
+## Create and install the App
+
+1. Open the instance. The first-run gate sends you to **Set up Funnel** at `/onboarding`.
+2. If the page is locked, enter the value of `FUNNEL_ONBOARDING_TOKEN`. Funnel keeps the accepted token in an `HttpOnly` cookie for one hour; reopen the wizard with it if the cookie expires.
+3. Under **Account**, choose **My personal account** or **An organization**.
+   - For an organisation, enter its GitHub login. You must be allowed to create Apps for that organisation.
+4. Enter an **App name**. The form suggests `funnel-<hostname-label>` and allows up to 34 characters; GitHub requires the name to be unique across the host.
+5. Select **Create GitHub App**. Funnel posts a manifest to the configured GitHub host and GitHub opens a pre-filled registration page. Confirm it there. The manifest requests Issues write, Metadata read, and Contents read permissions, and subscribes to no webhook events because Funnel polls for changes.
+6. GitHub redirects back to Funnel, which exchanges the one-time code for the App credentials and stores them encrypted in the database. You land on **Install the app**.
+7. Select **Install on GitHub** and choose either all repositories or specific ones on GitHub's installation page. Creating an App grants no repository access until it is installed.
+8. GitHub returns you to **Choose repositories**. Select at least one repository, then select **Save and continue**. The selection is saved as the instance's repository list and you are sent to `/login`.
+9. Select **Continue with GitHub** and authorise the App. The first Funnel account to sign in is promoted to administrator; later accounts start with the `read` role. See [People and roles](people-and-roles.md).
+
+## GitHub Enterprise hosts
+
+Set both `GITHUB_URL` (the web host, for example `https://acme.ghe.com`) and `GITHUB_API_URL` (the API base, for example `https://acme.ghe.com/api/v3`) before onboarding, then restart Funnel. The manifest form, OAuth callbacks, installation URL, REST calls, and GraphQL calls all derive from those values. If they are wrong, reset the App and run onboarding again after correcting the environment. See [Use GitHub Enterprise Server](../deploy/github-enterprise-server.md) and [Environment variables](../../reference/environment-variables.md).
+
+## If the wizard reports an error
+
+- **Enter a name / Enter the organization** — the corresponding field was empty.
+- **The request could not be verified** — the manifest `state` cookie was missing or did not match. Start the flow again.
+- **GitHub rejected the manifest conversion** — the one-time code could not be exchanged. Start again; if it keeps failing, check that the instance can reach the configured API host.
+- **Installation not found** — Funnel did not receive an installation id and could not find exactly one installation. Install the App on GitHub, then return to `/onboarding/installed`.
+- **Could not list the installation's repositories** — the App is installed but Funnel cannot read its repository list, so the repository checklist is empty and the save button stays disabled. Sign in at `/login` and add repositories later in **Settings → Repositories**.
+
+## Manage or reset the App
+
+Administrators can open **Settings → GitHub App**. The page shows the App name, owner, App ID, slug, client ID, installation id, and a link to the App on GitHub. Secrets are not displayed. The action button opens GitHub's installation page, where you can install the App or change which repositories it can access.
+
+**Reset GitHub App** forgets the stored credentials and resets the cached GitHub and authentication clients. This returns the whole instance to onboarding: every route is gated again until a new App is created, and repository access needs the new App to be installed. The App itself is **not** deleted on GitHub, and existing settings and mirrored issues are left in the database, but you will need to create and install an App again. The wizard's repository step replaces the configured repository list, so re-check **Settings → Repositories** afterwards. If you want to reuse the old name, delete the old App on GitHub first.
+
+## After onboarding
+
+- Repository selection is only a starting point; change it under [Repositories](repositories.md).
+- The first signed-in account is the instance administrator and can assign roles under [People and roles](people-and-roles.md).
+- Funnel provisions its reserved labels on configured repositories at startup and during the nightly reconciliation. See [Reserved labels](../../reference/reserved-labels.md).
+
+## Related
+
+- [Add or remove repositories](repositories.md)
+- [People and roles](people-and-roles.md)
+- [Configure sync](sync.md)
+- [Use GitHub Enterprise Server](../deploy/github-enterprise-server.md)
+- [Settings reference](../../reference/settings.md)
+- [Environment variables](../../reference/environment-variables.md)
+- [Roles and permissions](../../reference/roles-and-permissions.md)

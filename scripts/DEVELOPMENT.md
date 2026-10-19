@@ -116,12 +116,12 @@ real machine yet**:
       submitting, for faster iteration.
 - [ ] Consider whether "create an intake" should instead create a GitHub issue
       directly — the current implementation intentionally stages into the Funnel
-      triage queue and requires an Accept step (see `docs/SPEC.md` §6).
+      triage queue and requires an Accept step (see [Intake lifecycle](../docs/explanation/intake-lifecycle.md)).
 
 ## Repo references
 
 - `src/routes/api/intake/+server.ts` — endpoint + valibot schema (title ≤256,
   body ≤65536, `201 { id }`, `400 { message, issues[] }`, no auth, open CORS).
 - `static/openapi.yml` — published contract (kept in sync by `tests/openapi.test.ts`).
-- `docs/SPEC.md` §6 — intake & staging pipeline.
-- `scripts/README.md` — user-facing usage.
+- [Intake lifecycle](../docs/explanation/intake-lifecycle.md) — intake & staging pipeline.
+- [scripts/README.md](./README.md) — user-facing usage.

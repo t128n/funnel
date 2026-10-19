@@ -1,275 +1,85 @@
-# sv
+# Funnel
 
-Everything you need to build a Svelte project, powered by [`sv`](https://github.com/sveltejs/cli).
+Funnel is a self-hosted GitHub issue cockpit: a dense, keyboard-friendly triage desk over the issues in the repositories you choose, with a public intake queue in front of it and a GitHub App created in-app during first-run onboarding.
 
-## Creating a project
+## What it does
 
-If you're seeing this, you've probably already done this step. Congrats!
+- **Intake before GitHub.** Anyone who can reach the instance can submit an issue at `/intake` (or through `POST /api/intake`). Submissions are staged in SQLite; nothing is created on GitHub until a triager accepts one. Accept, dismiss, or fold a submission into an existing issue as a duplicate.
+- **One inbox for two queues.** The Inbox combines staged submissions with untriaged open issues — open issues that carry no status label. Setting a status moves an issue out of the queue and into the cockpit.
+- **A local mirror, not a proxy.** Funnel polls the selected repositories in the background and serves every read from its own SQLite mirror, so filters, search, grouping, and the board stay fast and do not spend GitHub API calls on page loads.
+- **Milestones, scoped the way GitHub scopes them.** The Milestones view lists each configured repository's milestones with progress and due dates, and each opens the issues attached to it. Milestones are also a filter and group-by dimension, an issue-row chip, and a set-or-clear picker in the inspector that can create a milestone lazily in that repository.
+- **A workflow vocabulary, not free-form labels.** Reserved labels describe status (`backlog`, `todo`, `in-progress`, `in-review`), priority (`p1`–`p3`), size (`sm`, `md`, `lg`), and the orthogonal `blocked` flag. Funnel keeps at most one label per group and provisions the vocabulary in each configured repository.
+- **Board and Attention.** The board has Todo, In Progress, In Review, and Done lanes, with Backlog as a separate list; cards drag between open lanes and Done closes with a resolution. Blocked issues with a re-check date surface in Attention, bucketed as overdue, due today, and the next seven days.
+- **An inspector that remembers context.** Read and edit an issue, comment, close or reopen with a required note, record a structured blocker, keep internal work notes that stay in Funnel until you publish them, and attach files to a dropbox stored outside the mirror.
+- **Roles that are enforced server-side.** `read` can browse, `write` can mutate issues and triage intake, and `admin` manages instance settings and people. New accounts start as `read`; the first account to sign in becomes `admin`.
+- **GitHub App onboarding in the app.** The App and its credentials are created through GitHub's App Manifest Flow, then installed from GitHub's own installation page. There are no GitHub App client IDs, secrets, or private keys in the environment.
 
-```sh
-# create a new project
-npx sv create my-app
-```
+## Requirements
 
-To recreate this project with the same configuration:
+| Requirement | Notes |
+| :--- | :--- |
+| Bun 1.4.3 or newer | The server must run under Bun. The database layer uses `bun:sqlite`, so `node build/index.js` does not work. |
+| A GitHub account | Sign-in uses GitHub OAuth through the App. |
+| Permission to create and install a GitHub App | Either on your personal account or on an organisation you administer. GitHub Enterprise Server is supported through the `GITHUB_URL` / `GITHUB_API_URL` settings. |
 
-```sh
-# recreate this project
-bun x sv@1.1.1 create --template minimal --types ts --install bun .
-```
+SQLite is embedded (through Bun); there is no separate database server to install.
 
-## Adding features
-
-Add features to your project with `sv add`:
-
-```sh
-npx sv add
-```
-
-For example, to add Tailwind CSS:
+## Quickstart
 
 ```sh
-npx sv add tailwindcss
-```
-
-## Configuration
-
-Instance configuration is stored in the SQLite database and edited from the
-**Settings** page (`/settings`) after signing in. Repositories, projects, the
-intake default, sync cadence, board behaviour, and session lifetime all live in
-the `state_setting` table; writes are validated and applied without a restart
-(the sync scheduler re-reads config; open cockpits refresh over SSE).
-
-A fresh install starts with no repositories — pick them during onboarding or
-add them on the Settings page.
-
-Deploy-time values come from the environment (see `.env.example`):
-
-- `GITHUB_URL` / `GITHUB_API_URL` — the GitHub host. Defaults to
-  github.com; set both to your host for GitHub Enterprise Server.
-- `FUNNEL_URL`, `FUNNEL_SECRET`, `FUNNEL_DB`, `FUNNEL_ONBOARDING_TOKEN`,
-  and `LOG_LEVEL`.
-
-The **GitHub App** is not configured through environment variables. A fresh
-install gates every route to **`/onboarding`**, which walks through GitHub's
-[App Manifest Flow](https://docs.github.com/en/apps/sharing-github-apps/registering-a-github-app-from-a-manifest):
-create the App (personal, organization, or a GitHub Enterprise host), exchange
-the one-time code for credentials, then install it and pick repositories. The
-App id, client id/secret, webhook secret, and RSA key are stored in the
-`state_github_app` table with the secrets encrypted under `FUNNEL_SECRET`.
-Manage the App afterwards in **Settings → GitHub App**.
-
-Reads stay programmatic and are unchanged:
-
-```ts
-import { getConfig } from "#lib/server/config.js";
-
-const config = await getConfig(); // validated, cached, defaults applied
-config.github.api_url; // https://api.github.com
-config.repos; // [{ repo: "orgA/core", shortcode: "CORE" }, ...]
-```
-
-The **Projects** list on the Settings page maps GitHub labels to project names
-and enables the **Project** group-by option in the issue feeds.
-
-### Milestones
-
-Funnel mirrors GitHub milestones as a read-only, **repo-scoped** surface (GitHub
-scopes a milestone to exactly one repository). The **Milestones** view lists every
-milestone across the configured repos with progress and due dates; each opens a
-detail page of the issues attached to it. Elsewhere, milestones are a filter
-dimension (`?milestone=owner/name#n`) and a group-by option in the issue feeds,
-and an issue's milestone shows as a chip on its row.
-
-The one write: the Inspector can **set or clear a milestone on an issue**. The
-picker offers the repo's existing milestones and a **New milestone…** form that
-creates it lazily in that repo. Because GitHub scopes milestones per repo, a
-milestone that spans two repos is created once in each — Funnel never merges them
-into a cross-repo object.
-
-
-### Roles
-
-Funnel ships instance-wide role-based access control with three roles, ranked
-`read` < `write` < `admin`:
-
-- **Read** views the cockpit (issues, board, inbox, attention) and manages only
-  their own account, appearance, and features.
-- **Write** adds every mutation: issues, comments, labels, work notes,
-  attachments, and intake triage.
-- **Admin** adds the workspace and system settings, the GitHub App, and the
-  **Settings → People** page for assigning roles.
-
-New accounts default to **read**; the first account to sign in is promoted to
-**admin** so a fresh instance has an owner (who can then promote others). The
-role lives on `auth_user.role`, managed through the
-[Better Auth admin plugin](https://www.better-auth.com/docs/plugins/admin), and
-is enforced server-side on every page load, form action, and API route; the UI
-only mirrors it. At least one admin is always required — the last one cannot be
-demoted. `/intake` and `POST /api/intake` stay public regardless of role.
-
-The issue inspector also carries Funnel-local, internal-only **work notes**
-(ITSM-style journal entries that stay in Funnel until explicitly published —
-publishing posts the note as a GitHub comment and removes it from the internal
-journal) and a **dropbox** for attaching files to an issue. Both
-live in durable `state_*` tables keyed by `owner/name` + issue number, so they
-survive mirror pruning and re-sync; attachment bytes are written under
-`FUNNEL_UPLOAD_DIR`. Either surface can be hidden per browser or instance from
-**Settings > Features**.
-
-## Developing
-
-Install dependencies and start the development server:
-
-```sh
+# 1. Install dependencies
 bun install
+
+# 2. Create your local environment file
+cp .env.example .env
+
+# 3. Generate an encryption secret and paste it into .env as FUNNEL_SECRET
+openssl rand -base64 32
+
+# 4. Apply the committed database schema
+bun run release
+
+# 5. Start the development server
 bun run dev
 ```
 
-## Building
+Open <http://localhost:5173/onboarding>. A fresh instance redirects every user-facing route to the wizard until a GitHub App exists. The wizard creates the App, installs it, lets you choose repositories, and then sends you to sign in. The first account to sign in is promoted to `admin`.
 
-Funnel builds to a standalone single-process server with
-[`@sveltejs/adapter-node`](https://svelte.dev/docs/kit/adapter-node). A long-lived
-process is required: the background polling worker, the nightly reconciliation
-timer, and the `/api/events` SSE stream cannot survive on a serverless target.
+`FUNNEL_URL` may stay empty in local development: Funnel uses the request origin for the App's callback and setup URLs. Set it to the public origin when the instance is reached through a hostname or proxy.
 
-```sh
-bun run build      # build/  (the adapter-node server)
-bun run start      # bun ./build/index.js
-```
+> The GitHub App is created in-app, not through environment variables. Funnel stores the App ID, client ID and secret, webhook secret, and RSA key in its database, encrypted under `FUNNEL_SECRET`.
 
-`mise run exe` additionally compiles the whole thing — server, client assets,
-migrations, and the native Markdown addon — into a single self-contained
-executable in `dist/`; see [Deploying](#deploying).
+## Production
 
-The server **must run under Bun** — the database layer uses `bun:sqlite`, so
-`node build/index.js` will not work.
+Funnel is a single long-lived process that owns a SQLite database and an uploads directory. It must not be scaled horizontally or deployed to a serverless target: the background polling worker, nightly reconciliation, and the SSE stream all depend on the process staying up.
 
-Server configuration is read from the environment (a `.env` in the working
-directory is loaded too):
-
-| Variable | Default | Purpose |
+| Delivery path | Build | Notes |
 | :--- | :--- | :--- |
-| `FUNNEL_SECRET` | — | **Required.** Encryption secret, at least 32 characters |
-| `FUNNEL_URL` | — | Public origin, e.g. `https://funnel.example.com` |
-| `FUNNEL_DATA_DIR` | `./data` | Base directory for the database and uploads (packaged executable) |
-| `FUNNEL_DB` | `./data/funnel.db` | SQLite database file |
-| `FUNNEL_UPLOAD_DIR` | `./data/uploads` | Where uploaded issue attachments are stored |
-| `FUNNEL_UPLOAD_MAX_BYTES` | `10485760` | Max size of a single attachment (10 MiB) |
-| `BODY_SIZE_LIMIT` | `512K` | Max request body. Raise it to cover attachment uploads |
-| `PORT` / `HOST` | `3000` / `0.0.0.0` | Listen port and address |
-| `FUNNEL_ONBOARDING_TOKEN` | — | Optional one-time token gating the first-run wizard |
-| `GITHUB_URL` / `GITHUB_API_URL` | `https://github.com` / `https://api.github.com` | GitHub host; set both for GitHub Enterprise Server |
-| `PROTOCOL_HEADER` / `HOST_HEADER` | — | Forwarded proto/host when behind a TLS-terminating proxy |
-| `SHUTDOWN_TIMEOUT` | `30` | Graceful shutdown window in seconds |
-| `LOG_LEVEL` | `info` | `fatal` … `silent` |
-| `TZ` | — | Recommended; set it explicitly (e.g. `UTC`) |
+| Standalone executable | `mise run exe` → `dist/funnel` (or `dist\funnel.exe`) | Self-contained: Bun runtime, server, client assets, migrations, and the native Markdown addon. |
+| Container | `mise run docker` or `docker build -t funnel .` | Wraps the same Linux executable; mount a volume at `/data` for the database and uploads. |
+| Windows service | `mise run exe`, then `packaging\windows\install-service.ps1` | WinSW wrapper; state lives in `C:\ProgramData\Funnel`. |
+| Adapter-node build | `bun run build`, then `bun run release` and `bun run start` | `bun ./build/index.js`; still a long-lived process. Run the release step against the same `FUNNEL_DB` first — this path does not migrate on boot. |
 
-Uploads larger than `BODY_SIZE_LIMIT` are rejected before they reach Funnel, so
-set it at least as large as `FUNNEL_UPLOAD_MAX_BYTES` when using the dropbox.
+The packaged executable (and therefore the container) applies pending migrations on boot. Health probes are `/healthz` (liveness) and `/readyz` (readiness; it reports `503` until every committed migration is applied). `funnel --help`, `--version`, `--migrate`, and `--healthcheck` cover the packaged binary's CLI.
 
-## Production behaviour
+If you build with mise, run `mise trust` once per checkout so its tasks load.
 
-- **Error pages.** `src/routes/+error.svelte` renders every 4xx/5xx (including
-  unknown routes) with status-specific copy; `src/error.html` is the branded
-  fallback for errors thrown before the root layout can render. The
-  `handleError` hook in `src/hooks.server.ts` logs unexpected errors through
-  pino and returns a correlation id (shown on the page as “Reference: …”)
-  without leaking the underlying message.
-- **Titles & metadata.** Every route sets its document title through
-  `PageHead.svelte`; `src/lib/seo.ts` holds the app name and the `· Funnel`
-  suffix so titles cannot drift.
-- **Icons.** `static/favicon.svg`, `favicon.ico`, `apple-touch-icon.png`,
-  `icon-192.png`, `icon-512.png`, and `site.webmanifest` are committed.
-  Regenerate the raster set with `bun scripts/generate-icons.ts` after changing
-  the mark.
-- **Indexing.** The instance is private: `static/robots.txt` disallows all
-  crawling, and responses carry `X-Robots-Tag: noindex, nofollow` plus a
-  matching `<meta>`. Remove `robots.txt` and the tag to run a public instance.
+## Documentation
 
-## Deploying
+Start at the [documentation index](docs/README.md), or jump straight in:
 
-`mise.toml` is the single source of truth for the build, so local runs and CI
-use the same commands ([mise](https://mise.jdx.dev) required — run
-`mise trust` once per checkout so its tasks load):
+| I want to… | Read |
+| :--- | :--- |
+| Install Funnel and reach the cockpit | [Getting started](docs/tutorials/getting-started.md) |
+| Follow a full triage cycle from intake to reopen | [Triage a backlog](docs/tutorials/triage-a-backlog.md) |
+| Deploy, operate, or configure an instance | [How-to guides](docs/README.md#how-to-guides) |
+| Look up environment variables, settings, routes, or the API | [Reference](docs/README.md#reference) |
+| Understand the architecture or workflow model | [Explanation](docs/README.md#explanation) |
+| See the UI design standards | [DESIGN.md](docs/DESIGN.md) |
 
-```sh
-mise run          # list tasks
-mise run build    # build/  (adapter-node server)
-mise run exe      # dist/funnel(.exe)  — self-contained executable
-mise run docker   # container image
-mise run verify   # check + test + build + exe
-```
+## Related
 
-### Windows (primary)
-
-Funnel ships as a single executable, so a bare-metal Windows server needs no
-Node, no Bun, and no container runtime.
-
-```powershell
-mise run exe                   # -> dist\funnel.exe
-.\dist\funnel.exe --version    # smoke test
-```
-
-Install it as a service (WinSW wrapper; run from an **elevated** prompt). This
-copies the executable to `C:\ProgramData\Funnel`, downloads the WinSW host,
-writes the service definition, adds a firewall rule, and generates a starter
-`.env` with a random `FUNNEL_SECRET`:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File packaging\windows\install-service.ps1
-```
-
-Then:
-
-1. Edit `C:\ProgramData\Funnel\.env` — at minimum set `FUNNEL_URL` to the public
-   URL. (The service's working directory is the data directory, so Bun loads
-   that `.env` automatically.)
-2. Restart: `C:\ProgramData\Funnel\funnel-service.exe restart`
-3. Open the instance and finish onboarding at `http://<host>:3000/`.
-
-All state — `funnel.db`, `uploads/`, and `.env` — lives in
-`C:\ProgramData\Funnel`, so **upgrades are: stop the service, replace
-`funnel.exe`, start it**. Migrations are applied automatically on boot.
-
-When terminating TLS in an existing reverse proxy, forward
-`X-Forwarded-Proto` and the `Host` header; adapter-node derives the request
-origin from them. Point health checks at `/healthz` (liveness) and `/readyz`
-(readiness). Remove the service with
-`packaging\windows\uninstall-service.ps1`.
-
-### Container (Railway / Coolify / Fly / Kubernetes)
-
-The `Dockerfile` builds the same Linux executable and wraps it in a minimal
-image, so the PaaS paths use the identical artifact:
-
-```sh
-docker build -t funnel .
-docker run --rm -p 3000:3000 -v funnel-data:/data \
-  -e FUNNEL_SECRET=... -e FUNNEL_URL=https://funnel.example.com funnel
-```
-
-- Mount a volume at **`/data`** (`FUNNEL_DATA_DIR`) — the SQLite database and
-  uploads live there and are not in the image.
-- Funnel is a **single instance**. It owns a SQLite file; do not scale it
-  horizontally or run multiple replicas against one volume.
-- `FUNNEL_SECRET` is required; everything else is optional. The GitHub App is
-  created by the in-app onboarding wizard.
-- Health: `/healthz` (liveness) and `/readyz` (readiness). The image's
-  `HEALTHCHECK` uses `funnel --healthcheck`.
-
-### Migrations
-
-Schema changes ship as committed SQL under `drizzle/`. They are applied:
-
-- **automatically on boot** by the packaged executable (and therefore the
-  container), and
-- **manually** for a separate release phase:
-  - `./funnel --migrate` (packaged executable, against `FUNNEL_DB`),
-  - or `bun run release` (from a checkout / the build stage).
-
-`/readyz` reports `503` until the database is reachable and every committed
-migration has been applied, so a load balancer never sends traffic to a
-half-migrated instance.
-
-
+- [Documentation index](docs/README.md)
+- [Getting started tutorial](docs/tutorials/getting-started.md)
+- [Triage a backlog tutorial](docs/tutorials/triage-a-backlog.md)
+- [Design standards](docs/DESIGN.md)
