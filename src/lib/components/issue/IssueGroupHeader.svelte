@@ -15,7 +15,7 @@
 
 <button
 	type="button"
-	class="text-muted-foreground hover:text-foreground flex w-full items-center gap-1 py-1.5 text-left text-[11px] font-medium tracking-wide uppercase"
+	class="text-muted-foreground hover:text-foreground flex w-full items-center gap-1 px-2 py-1.5 text-left text-[11px] font-medium tracking-wide uppercase"
 	aria-expanded={!collapsed}
 	onclick={ontoggle}
 >

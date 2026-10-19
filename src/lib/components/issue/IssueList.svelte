@@ -50,7 +50,7 @@
 {:else}
 	<div class="issue-list flex min-h-0 flex-1 flex-col overflow-y-auto">
 		<IssueListHeader />
-		<div class="flex flex-col px-2 pb-2">
+		<div class="flex flex-col pb-2">
 			{#if groupBy === 'none'}
 				{#each issues as issue (`${issue.repoId}:${issue.number}`)}
 					<IssueRow {issue} {repoShortcodes} selected={isSelected(issue)} />

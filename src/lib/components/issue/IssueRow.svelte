@@ -53,7 +53,7 @@
 
 <div
 	class={cn(
-		'issue-grid group/row cursor-pointer border-b border-[color:var(--surface-divider)] py-1.5 select-none transition-colors duration-[120ms] last:border-b-0',
+		'issue-grid group/row cursor-pointer border-b border-[color:var(--surface-divider)] px-2 py-1.5 select-none transition-colors duration-[120ms] last:border-b-0',
 		'hover:bg-[var(--surface-tag-bg)]',
 		'focus-visible:outline-[1.5px] focus-visible:outline-offset-[-2px] focus-visible:outline-[color:var(--surface-accent)]',
 		selected && 'bg-[var(--surface-card-hover)] shadow-[inset_2px_0_0_var(--surface-accent)]'

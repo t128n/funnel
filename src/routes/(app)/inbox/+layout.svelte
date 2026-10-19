@@ -112,7 +112,7 @@
 			{:else}
 				<div class="issue-list flex min-h-0 flex-1 flex-col overflow-y-auto">
 					<IssueListHeader />
-					<div class="flex flex-col px-2 pb-2">
+					<div class="flex flex-col pb-2">
 						{#if submissions.length > 0}
 							{@const submissionSection = 'inbox:submissions'}
 							{@const submissionsCollapsed = isGroupCollapsed(submissionSection)}
