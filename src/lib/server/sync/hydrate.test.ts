@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, test } from "bun:test";
+import { getConfig, resetConfigCache } from "#lib/server/config";
 import { db } from "#lib/server/db/index";
 import {
   authAccount,
@@ -8,6 +9,11 @@ import {
   stateNotification,
 } from "#lib/server/db/schema";
 import { watchIssue } from "#lib/server/notifications/service";
+import {
+  clearSettings,
+  writeSettings,
+  type SettingsInput,
+} from "#lib/server/settings/store";
 import { clearMirror } from "#tests/mirror-helpers";
 import { deriveMetadata } from "./conflicts";
 import type {
@@ -29,8 +35,24 @@ import {
 } from "./hydrate";
 import * as mirror from "./mirror";
 
+const BASE_SETTINGS: SettingsInput = {
+  repos: [],
+  projects: [],
+  intake: {},
+  sync: {
+    history_days: 90,
+    poll_interval_active_seconds: 30,
+    poll_interval_idle_seconds: 300,
+  },
+  board: { done_days: 14, wip_limits: {} },
+  session: { idle_days: 30 },
+  notifications: { enabled: true, native: true, new_intake: true },
+};
+
 beforeEach(() => {
   clearMirror();
+  clearSettings();
+  resetConfigCache();
   db.delete(stateNotification).run();
   db.delete(stateIssueWatch).run();
   db.delete(authAccount).run();
@@ -428,6 +450,109 @@ describe("hydrateAndStore", () => {
 
     expect(mirror.getIssue(1, 1)?.title).toBe("Fix the thing");
     expect(calls).toEqual([]);
+    expect(db.select().from(stateNotification).all()).toEqual([]);
+  });
+
+  test("snapshots the previous state before the upsert", async () => {
+    await hydrateAndStore(1, 1, ["n1"], async () => ({ nodes: [ISSUE_NODE] }), {
+      notificationsEnabled: () => true,
+    });
+
+    let seen: IssueChangeInput | undefined;
+    await hydrateAndStore(
+      1,
+      1,
+      ["n1"],
+      async () => ({
+        nodes: [
+          { ...ISSUE_NODE, labels: { nodes: [{ name: "in-progress" }] } },
+        ],
+      }),
+      {
+        notificationsEnabled: () => true,
+        notify: (input) => {
+          seen = input;
+          return 0;
+        },
+      },
+    );
+
+    expect(seen?.previous?.status).toBe("todo");
+    expect(seen?.next.status).toBe("in-progress");
+    expect(mirror.getIssue(1, 1)?.status).toBe("in-progress");
+  });
+
+  test("new assignment notifies the linked assignee once", async () => {
+    seedUser("u1", 42, "alice");
+    const unassigned: GraphqlFn = async () => ({
+      nodes: [{ ...ISSUE_NODE, assignees: { nodes: [] } }],
+    });
+    const assigned: GraphqlFn = async () => ({
+      nodes: [
+        {
+          ...ISSUE_NODE,
+          assignees: {
+            nodes: [{ databaseId: 42, login: "alice", avatarUrl: "" }],
+          },
+        },
+      ],
+    });
+    const options = { notificationsEnabled: () => true };
+
+    await hydrateAndStore(1, 1, ["n1"], unassigned, options);
+    await hydrateAndStore(1, 1, ["n1"], assigned, options);
+    // A re-poll of the boundary issue must not repeat the assignment.
+    await hydrateAndStore(1, 1, ["n1"], assigned, options);
+
+    const rows = db.select().from(stateNotification).all();
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      userId: "u1",
+      kind: "assigned",
+      title: "Fix the thing",
+      url: "/issues/orgA/core/1",
+    });
+  });
+
+  test("new mention notifies a linked user without a watch", async () => {
+    seedUser("u1", 42, "alice");
+    const before: GraphqlFn = async () => ({ nodes: [ISSUE_NODE] });
+    const after: GraphqlFn = async () => ({
+      nodes: [
+        {
+          ...ISSUE_NODE,
+          comments: {
+            nodes: [
+              ...ISSUE_NODE.comments.nodes,
+              {
+                databaseId: 501,
+                author: {
+                  databaseId: 7,
+                  login: "octocat",
+                  avatarUrl: "https://a/7",
+                },
+                body: "hey @alice",
+                createdAt: "2026-01-03T00:00:00Z",
+                updatedAt: "2026-01-03T00:00:00Z",
+              },
+            ],
+          },
+        },
+      ],
+    });
+    const options = { notificationsEnabled: () => true };
+
+    await hydrateAndStore(1, 1, ["n1"], before, options);
+    await hydrateAndStore(1, 1, ["n1"], after, options);
+    await hydrateAndStore(1, 1, ["n1"], after, options);
+
+    const rows = db.select().from(stateNotification).all();
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      userId: "u1",
+      kind: "mentioned",
+      body: "hey @alice",
+    });
   });
 
   test("test_new_comment_notifies_watcher_once", async () => {
@@ -557,5 +682,69 @@ describe("hydrateAndStore", () => {
     );
 
     expect(calls).toEqual([]);
+  });
+
+  test("the disabled master switch suppresses sync rows", async () => {
+    seedWatcher();
+    watchIssue("w1", "orgA", "core", 1);
+    await hydrateAndStore(
+      1,
+      1,
+      ["n1"],
+      async () => ({ nodes: [ISSUE_NODE] }),
+      { notificationsEnabled: () => true },
+    );
+
+    writeSettings({
+      ...BASE_SETTINGS,
+      notifications: { enabled: false, native: true, new_intake: true },
+    });
+    resetConfigCache();
+    await hydrateAndStore(
+      1,
+      1,
+      ["n1"],
+      async () => ({
+        nodes: [{ ...ISSUE_NODE, state: "CLOSED" }],
+      }),
+    );
+
+    expect(db.select().from(stateNotification).all()).toEqual([]);
+  });
+
+  test("the disabled master switch wins when the instance config is invalid", async () => {
+    seedWatcher();
+    watchIssue("w1", "orgA", "core", 1);
+    await hydrateAndStore(
+      1,
+      1,
+      ["n1"],
+      async () => ({ nodes: [ISSUE_NODE] }),
+      { notificationsEnabled: () => true },
+    );
+
+    writeSettings({
+      ...BASE_SETTINGS,
+      repos: [
+        { repo: "orgA/core", shortcode: "CORE" },
+        { repo: "orgB/core", shortcode: "CORE" },
+      ],
+      notifications: { enabled: false, native: true, new_intake: true },
+    });
+    resetConfigCache();
+    // The invalid duplicate shortcodes make the validated config unusable;
+    // the notification switch must still be read directly from settings.
+    await expect(getConfig()).rejects.toThrow();
+
+    await hydrateAndStore(
+      1,
+      1,
+      ["n1"],
+      async () => ({
+        nodes: [{ ...ISSUE_NODE, state: "CLOSED" }],
+      }),
+    );
+
+    expect(db.select().from(stateNotification).all()).toEqual([]);
   });
 });

@@ -12,11 +12,11 @@
  * injected `graphql` function for testability.
  */
 import { and, eq } from "drizzle-orm";
-import { getConfig } from "#lib/server/config";
 import { db } from "#lib/server/db/index";
 import { authAccount } from "#lib/server/db/schema";
 import { github } from "#lib/server/github/app.server";
 import { createLogger } from "#lib/server/log";
+import { readSettings } from "#lib/server/settings/store";
 import {
   parseMentions,
   planIssueNotifications,
@@ -361,12 +361,18 @@ export interface HydrateOptions {
   notificationsEnabled?: () => boolean | Promise<boolean>;
 }
 
-/** Whether the instance-wide notification master switch is on (default true). */
+/**
+ * Whether the instance-wide notification master switch is on (default true).
+ *
+ * Read the setting directly instead of the validated instance config: an
+ * unrelated invalid setting must not turn a disabled master switch into an
+ * enabled one and start creating notification rows.
+ */
 async function notificationsEnabled(): Promise<boolean> {
   try {
-    return (await getConfig()).notifications.enabled;
+    return readSettings().notifications.enabled;
   } catch {
-    // Config failures must not block mirror hydration.
+    // Settings failures must not block mirror hydration.
     return true;
   }
 }

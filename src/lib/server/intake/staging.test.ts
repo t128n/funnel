@@ -128,4 +128,44 @@ describe("intake staging store", () => {
 
     expect(calls).toBe(0);
   });
+
+  test("new-intake off suppresses notices while the master switch is on", () => {
+    writeSettings({
+      ...BASE_SETTINGS,
+      notifications: { enabled: true, native: true, new_intake: false },
+    });
+    let calls = 0;
+
+    createSubmission(
+      { title: "Intake off" },
+      {
+        notifyNewIntake: () => {
+          calls += 1;
+          return 1;
+        },
+      },
+    );
+
+    expect(calls).toBe(0);
+  });
+
+  test("both switches on deliver a new-intake notice", () => {
+    writeSettings({
+      ...BASE_SETTINGS,
+      notifications: { enabled: true, native: true, new_intake: true },
+    });
+    const calls: Array<{ id: string; title: string }> = [];
+
+    const { id } = createSubmission(
+      { title: "Both on" },
+      {
+        notifyNewIntake: (submission) => {
+          calls.push(submission);
+          return 1;
+        },
+      },
+    );
+
+    expect(calls).toEqual([{ id, title: "Both on" }]);
+  });
 });
