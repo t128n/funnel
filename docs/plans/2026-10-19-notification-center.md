@@ -113,7 +113,7 @@ critical path: T4 → T8 (7.0 min) · peak width 7 · predicted build 7.0 min ·
 **Notes:** Input carries `previous`, `next`, `watchers`, `recipients`, `actor`, `now`. New comments are those whose `githubId` is absent from `previous.comments`. Compare `status`, `priority`, and `state`. Mention wins over a plain comment for the same person and comment. Strip HTML comments and collapse whitespace before a 140-character excerpt. Mention regex is case-insensitive `@login` with `[a-z0-9-]`.
 
 ### T3 admin notification settings · Complexity 3 (O-1)
-**Owns:** src/lib/server/settings/store.ts, src/lib/server/settings/store.test.ts, src/lib/server/settings/apply.test.ts, src/lib/server/config.ts, src/lib/server/config.test.ts, src/routes/(app)/settings/notifications/+page.server.ts, src/routes/(app)/settings/notifications/+page.svelte, src/lib/components/settings/sections.ts
+**Owns:** src/lib/server/settings/store.ts, src/lib/server/settings/store.test.ts, src/lib/server/settings/apply.test.ts, src/lib/server/config.ts, src/lib/server/config.test.ts, src/routes/*/settings/notifications/+page.server.ts, src/routes/*/settings/notifications/+page.svelte, src/lib/components/settings/sections.ts
 **Components:** 4
 **LOC owned:** 180
 **Tests:** fast
@@ -148,7 +148,7 @@ critical path: T4 → T8 (7.0 min) · peak width 7 · predicted build 7.0 min ·
 **Notes:** `GET /api/notifications?limit=&unread=&after=` returns `{ items, unreadCount }`; `POST` accepts `{ id }` or `{ all: true }` and returns `{ unreadCount }`. Watch route accepts `GET`, `PUT`, `DELETE` with the `read` role. Add `watching: boolean` to `RenderedIssueDetail`, computed by the mirror detail handler. Validate a positive issue number and an existing mirrored repo.
 
 ### T6 browser notifications · Complexity 4 (O-1)
-**Owns:** src/lib/client/native-notifications.ts, src/lib/client/native-notifications.test.ts, src/lib/client/events.ts, src/routes/(app)/+layout.svelte
+**Owns:** src/lib/client/native-notifications.ts, src/lib/client/native-notifications.test.ts, src/lib/client/events.ts, src/routes/*/+layout.svelte
 **Components:** 3
 **LOC owned:** 220
 **Tests:** slow
@@ -161,7 +161,7 @@ critical path: T4 → T8 (7.0 min) · peak width 7 · predicted build 7.0 min ·
 **Notes:** Add `"notifications"` to `EVENT_TYPES`. On mount, call `startNativeNotifications(data.nativeNotifications)`; on an event, fetch `/api/notifications?after=<lastSeen>&unread=1`, show one native notice per row, and keep `lastSeen` in memory. Opt in via `localStorage` key `funnel.nativeNotifications`; clicking calls `window.focus()` then `goto(row.url)`. Only request permission from the page's user gesture.
 
 ### T7 notification center and watch UI · Complexity 5 (O-1)
-**Owns:** src/routes/(app)/notifications/+page.server.ts, src/routes/(app)/notifications/+page.svelte, src/routes/(app)/+layout.server.ts, src/lib/components/app-sidebar.svelte, src/lib/components/issue/InspectorPane.svelte, src/lib/client/mutations.ts
+**Owns:** src/routes/*/notifications/+page.server.ts, src/routes/*/notifications/+page.svelte, src/routes/*/+layout.server.ts, src/lib/components/app-sidebar.svelte, src/lib/components/issue/InspectorPane.svelte, src/lib/client/mutations.ts
 **Components:** 5
 **LOC owned:** 420
 **Tests:** slow
