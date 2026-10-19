@@ -27,6 +27,7 @@
 	import { canonicalLabel, PRIORITY_OPTIONS, STATUS_OPTIONS } from '#lib/labels';
 	import type { IssueListItem, UserRef } from '#lib/server/issues/types';
 	import { cn } from '#lib/utils';
+	import { cardData, draggableCard } from './dnd';
 	import BanIcon from '@lucide/svelte/icons/ban';
 	import CircleCheckIcon from '@lucide/svelte/icons/circle-check';
 	import EllipsisIcon from '@lucide/svelte/icons/ellipsis';
@@ -54,6 +55,8 @@
 	 */
 	interface Props {
 		issue: IssueListItem;
+		/** Lane this card currently belongs to; part of the drag payload. */
+		columnKey: string;
 		/** `owner/name` → project key from instance settings. */
 		repoShortcodes: Record<string, string>;
 		/** Show the repository context tag when the board spans multiple repos. */
@@ -62,17 +65,26 @@
 		viewer?: UserRef | null;
 		/** Roving tab index owned by the board. */
 		tabIndex?: number;
+		/** Dim the card while it is the source of an active drag. */
+		dragging?: boolean;
+		/** RBAC `read`: cards cannot be picked up. */
+		readonly?: boolean;
 	}
 
 	let {
 		issue,
+		columnKey,
 		repoShortcodes,
 		showRepo = false,
 		viewer = null,
-		tabIndex = -1
+		tabIndex = -1,
+		dragging = false,
+		readonly = false
 	}: Props = $props();
 
 	const key = $derived(`${issue.repo}#${issue.number}`);
+	/** Read-only boards never register a drag source. */
+	const dragPayload = $derived(readonly ? null : cardData(key, columnKey));
 	const ref = $derived(issueRef(issue.repo, issue.number, repoShortcodes));
 	const closed = $derived(issue.state === 'closed');
 	const shortRepo = $derived(issue.repo.split('/')[1] ?? issue.repo);
@@ -144,12 +156,14 @@
 
 <div
 	class={cn(
-		'board-card group/card relative flex cursor-grab flex-col rounded-md border p-2.5 transition-colors',
+		'board-card group/card relative flex flex-col rounded-md border p-2.5 transition-colors',
 		'border-[color:var(--surface-border)] bg-[var(--surface-card)]',
 		'hover:border-[color:var(--surface-border-hover)] hover:bg-[var(--surface-card-hover)] hover:shadow-[0_4px_12px_rgba(0,0,0,0.4)]',
 		'focus-visible:outline-[1.5px] focus-visible:outline-offset-1 focus-visible:outline-[color:var(--surface-accent)]',
-		'active:cursor-grabbing'
+		!readonly && 'cursor-grab active:cursor-grabbing',
+		dragging && 'opacity-50'
 	)}
+	use:draggableCard={dragPayload}
 	role="button"
 	tabindex={tabIndex}
 	data-board-card={key}
