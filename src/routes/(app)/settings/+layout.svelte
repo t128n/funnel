@@ -8,18 +8,34 @@
 	import * as Breadcrumb from '#lib/components/ui/breadcrumb';
 	import * as NativeSelect from '#lib/components/ui/native-select';
 	import * as Sidebar from '#lib/components/ui/sidebar';
-	import { settingsGroups, settingsSections } from '#lib/components/settings/sections';
+	import { settingsGroups } from '#lib/components/settings/sections';
+	import { hasRole } from '#lib/roles';
 	import type { LayoutProps } from './$types';
 
 	/**
 	 * Settings shell: the scoped section nav on the left, the active section on
 	 * the right. The nav mirrors the cockpit's grouping (personal → workspace →
-	 * system) by reusing the same `NavSection`/`NavItem` components.
+	 * system) by reusing the same `NavSection`/`NavItem` components. Sections the
+	 * viewer's role cannot open (workspace/system need `admin`) are filtered out;
+	 * the server layout enforces the same rule for direct URLs.
 	 */
-	let { children }: LayoutProps = $props();
+	let { data, children }: LayoutProps = $props();
+
+	const groups = $derived(
+		settingsGroups
+			.map((group) => ({
+				...group,
+				sections: group.sections.filter((section) =>
+					hasRole(data.user.role, section.minRole)
+				)
+			}))
+			.filter((group) => group.sections.length > 0)
+	);
+
+	const sections = $derived(groups.flatMap((group) => group.sections));
 
 	const active = $derived(
-		settingsSections.find((section) => page.url.pathname === section.href) ?? settingsSections[0]
+		sections.find((section) => page.url.pathname === section.href) ?? sections[0]
 	);
 
 	function navigate(href: string) {
@@ -41,7 +57,7 @@
 		</header>
 
 		<Sidebar.Content>
-			{#each settingsGroups as group (group.id)}
+			{#each groups as group (group.id)}
 				<NavSection label={group.label} collapsible={false}>
 					{#each group.sections as section (section.id)}
 						<NavItem
@@ -84,7 +100,7 @@
 				onchange={(event) => navigate((event.currentTarget as HTMLSelectElement).value)}
 				aria-label="Settings section"
 			>
-				{#each settingsGroups as group (group.id)}
+				{#each groups as group (group.id)}
 					<NativeSelect.OptGroup label={group.label ?? 'Settings'}>
 						{#each group.sections as section (section.id)}
 							<NativeSelect.Option value={section.href}>{section.label}</NativeSelect.Option>

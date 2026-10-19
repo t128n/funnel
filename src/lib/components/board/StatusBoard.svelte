@@ -23,9 +23,11 @@
 		repoShortcodes: Record<string, string>;
 		/** Signed-in viewer for the card's quick assign action. */
 		viewer?: UserRef | null;
+		/** RBAC `read`: disable dragging and the per-column new-issue link. */
+		readonly?: boolean;
 	}
 
-	let { board, wipLimits = {}, doneDays, repoShortcodes, viewer = null }: Props = $props();
+	let { board, wipLimits = {}, doneDays, repoShortcodes, viewer = null, readonly = false }: Props = $props();
 
 	const columns = $derived(board.columns.filter((column) => column.key !== 'backlog'));
 	const showRepo = $derived(
@@ -162,6 +164,7 @@
 			{repoShortcodes}
 			{showRepo}
 			{viewer}
+			{readonly}
 			activeKey={effectiveActive}
 			onconsider={(event) => handleConsider(column.key, event)}
 			onfinalize={(event) => handleFinalize(column.key, event)}

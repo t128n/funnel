@@ -9,9 +9,13 @@ import {
   passthrough,
   toResponse,
 } from "#lib/server/github/api-passthrough.server";
+import { apiRole } from "#lib/server/http/session";
 
 /** Mirrors `GET /repos/{owner}/{repo}/labels/{name}`. */
-export const GET: RequestHandler = async ({ params, request }) => {
+export const GET: RequestHandler = async ({ params, request, locals }) => {
+  const denied = apiRole(locals, "read");
+  if (denied instanceof Response) return denied;
+
   let installationId: number;
   try {
     installationId = await getInstallationId(params.owner, params.repo);

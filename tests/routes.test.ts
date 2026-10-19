@@ -11,6 +11,9 @@ import { GET as getUser } from "#/routes/api/users/[username]/+server";
 import { GET as authRoute } from "#/routes/api/auth/[...all]/+server";
 import { TEST_CONFIG } from "#tests/test-config";
 
+// Every read route now requires a signed-in `read` session (RBAC).
+const READ = { user: { id: "reader", role: "read" }, session: null };
+
 // Module test: real route wiring (installation lookup, query allowlists,
 // passthrough cache) with the network stubbed at `fetch`.
 const realFetch = globalThis.fetch;
@@ -75,6 +78,7 @@ describe("GET issues list", () => {
         "http://x/?state=open&labels=p1&assignee=bob&creator=a&mentioned=m&milestone=1&since=2024-01-01T00:00:00Z&sort=updated&direction=desc&per_page=5&page=2&evil=1",
       ),
       request: req(),
+      locals: READ,
     } as never);
     expect(res.status).toBe(200);
     expect(SEEN).toHaveLength(1);
@@ -104,6 +108,7 @@ describe("GET issues list", () => {
       params: { owner: "o", repo: "r" },
       url: new URL("http://x/"),
       request: req(),
+      locals: READ,
     } as never);
     expect(await res.json()).toEqual([{ number: 1 }]);
     expect(res.headers.get("link")).toBe(
@@ -116,6 +121,7 @@ describe("GET issues list", () => {
     const event = {
       params: { owner: "o", repo: "r" },
       url: new URL("http://x/"),
+      locals: READ,
     } as never;
     await getIssues({ ...event, request: req() } as never);
     const cached = await getIssues({ ...event, request: req("", '"a"') } as never);
@@ -128,6 +134,7 @@ describe("GET issues list", () => {
       params: { owner: "nope", repo: "missing" },
       url: new URL("http://x/"),
       request: req(),
+      locals: READ,
     } as never);
     expect(res.status).toBe(404);
     expect(await res.json()).toEqual({
@@ -150,6 +157,7 @@ describe("GET issues list", () => {
         params,
         url: new URL("http://x/"),
         request: req(),
+        locals: READ,
       } as never);
       expect(res.status).toBe(404);
     }
@@ -163,6 +171,7 @@ describe("GET single issue", () => {
       params: { owner: "o", repo: "r", number: "42" },
       url: new URL("http://x/"),
       request: req(),
+      locals: READ,
     } as never);
     expect(SEEN[0]).toBe("GET /repos/o/r/issues/42");
     expect(await res.json()).toEqual({ number: 42 });
@@ -174,6 +183,7 @@ describe("GET single issue", () => {
       params: { owner: "o", repo: "r", number: "42" },
       url: new URL("http://x/"),
       request: req(),
+      locals: READ,
     } as never);
     expect(res.status).toBe(404);
     expect(await res.json()).toEqual({
@@ -191,6 +201,7 @@ describe("GET comments", () => {
         "http://x/?since=2024-01-01T00:00:00Z&per_page=10&page=3&state=open",
       ),
       request: req(),
+      locals: READ,
     } as never);
     expect(SEEN[0]).toContain("/repos/o/r/issues/7/comments");
     expect(SEEN[0]).toContain("since=");
@@ -207,6 +218,7 @@ describe("GET labels", () => {
       params: { owner: "o", repo: "r" },
       url: new URL("http://x/?per_page=100&page=1&state=open"),
       request: req(),
+      locals: READ,
     } as never);
     expect(SEEN[0]).toContain("/repos/o/r/labels");
     expect(SEEN[0]).not.toContain("state=");
@@ -219,6 +231,7 @@ describe("GET labels", () => {
       params: { owner: "o", repo: "r", name: "bug fix" },
       url: new URL("http://x/"),
       request: req(),
+      locals: READ,
     } as never);
     expect(SEEN[0]).toBe("GET /repos/o/r/labels/bug%20fix");
     expect(await res.json()).toEqual({ name: "bug fix" });
@@ -236,6 +249,7 @@ describe("GET user", () => {
       params: { username: "octocat" },
       url: new URL("http://x/"),
       request: req(),
+      locals: READ,
     } as never);
     expect(SEEN).toEqual(["GET /users/octocat"]);
     expect(FETCHED.some((u) => u.includes("/installation"))).toBe(false);
@@ -251,6 +265,7 @@ describe("GET user", () => {
       params: { username: "ghost" },
       url: new URL("http://x/"),
       request: req(),
+      locals: READ,
     } as never);
     expect(res.status).toBe(404);
     expect(await res.json()).toEqual({

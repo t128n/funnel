@@ -150,6 +150,11 @@ export const stateAttachment = sqliteTable(
 // Table names are `auth_*`; the adapter is given the explicit mapping in
 // `auth/index.ts` (`user: authUser`, ...).
 // ---------------------------------------------------------------------------
+// `role`, `banned`, `banReason`, and `banExpires` are declared by the Better
+// Auth admin plugin (see `auth/index.ts`); the plugin owns their semantics.
+// `role` is nullable in the plugin schema, but Funnel treats a missing value
+// as `read` (see `#lib/server/auth/roles`). The plugin assigns `defaultRole`
+// on creation, so in practice only pre-plugin rows are ever null.
 export const authUser = sqliteTable("auth_user", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
@@ -158,6 +163,11 @@ export const authUser = sqliteTable("auth_user", {
     .notNull()
     .default(false),
   image: text("image"),
+  /** `read` | `write` | `admin` (RBAC). Managed via the Better Auth admin plugin. */
+  role: text("role"),
+  banned: integer("banned", { mode: "boolean" }).notNull().default(false),
+  banReason: text("banReason"),
+  banExpires: integer("banExpires", { mode: "timestamp" }),
   createdAt: integer("createdAt", { mode: "timestamp" }).notNull(),
   updatedAt: integer("updatedAt", { mode: "timestamp" }).notNull(),
 });
@@ -172,6 +182,8 @@ export const authSession = sqliteTable(
     updatedAt: integer("updatedAt", { mode: "timestamp" }).notNull(),
     ipAddress: text("ipAddress"),
     userAgent: text("userAgent"),
+    /** Set by the Better Auth admin plugin while an admin impersonates. */
+    impersonatedBy: text("impersonatedBy"),
     userId: text("userId")
       .notNull()
       .references(() => authUser.id, { onDelete: "cascade" }),

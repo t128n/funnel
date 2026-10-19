@@ -6,19 +6,22 @@
  * so intermediaries do not drop it, and subscribes to the in-process bus the
  * sync worker publishes on.
  *
- * Access is intentionally ungated: Funnel is expected to sit behind enterprise
- * network segmentation / SSO, matching how `/intake` and `/api/intake` are
- * optionally exposed (SPEC §8). This is a deliberate deviation from the
- * "reads open to the authenticated team" wording for the realtime channel.
+ * Access requires a signed-in `read` session: the stream carries mirror
+ * changes, so it is part of the cockpit read surface rather than the public
+ * one (`/intake` and `POST /api/intake` stay open).
  */
 import type { RequestHandler } from "./$types";
+import { apiRole } from "#lib/server/http/session";
 import {
   HEARTBEAT_MS,
   subscribe,
   type SyncEvent,
 } from "#lib/server/sync/events";
 
-export const GET: RequestHandler = ({ request }) => {
+export const GET: RequestHandler = ({ request, locals }) => {
+  const denied = apiRole(locals, "read");
+  if (denied instanceof Response) return denied;
+
   const encoder = new TextEncoder();
   let heartbeat: ReturnType<typeof setInterval> | undefined;
   let unsubscribe: (() => void) | undefined;

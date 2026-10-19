@@ -72,6 +72,26 @@ config.repos; // [{ repo: "orgA/core", shortcode: "CORE" }, ...]
 The **Projects** list on the Settings page maps GitHub labels to project names
 and enables the **Project** group-by option in the issue feeds.
 
+### Roles
+
+Funnel ships instance-wide role-based access control with three roles, ranked
+`read` < `write` < `admin`:
+
+- **Read** views the cockpit (issues, board, inbox, attention) and manages only
+  their own account, appearance, and features.
+- **Write** adds every mutation: issues, comments, labels, work notes,
+  attachments, and intake triage.
+- **Admin** adds the workspace and system settings, the GitHub App, and the
+  **Settings → People** page for assigning roles.
+
+New accounts default to **read**; the first account to sign in is promoted to
+**admin** so a fresh instance has an owner (who can then promote others). The
+role lives on `auth_user.role`, managed through the
+[Better Auth admin plugin](https://www.better-auth.com/docs/plugins/admin), and
+is enforced server-side on every page load, form action, and API route; the UI
+only mirrors it. At least one admin is always required — the last one cannot be
+demoted. `/intake` and `POST /api/intake` stay public regardless of role.
+
 The issue inspector also carries Funnel-local, internal-only **work notes**
 (ITSM-style journal entries that stay in Funnel until explicitly published —
 publishing posts the note as a GitHub comment and removes it from the internal

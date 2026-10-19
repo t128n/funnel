@@ -21,10 +21,14 @@
 		isActionBusy
 	} from '#lib/client/issue-actions.svelte';
 	import { projectBoard, reconcileIssues } from '#lib/client/optimistic.svelte';
+	import { canWrite } from '#lib/roles';
 	import { parseIssueParams, type IssueParams } from '#lib/issue-url';
 	import type { LayoutProps } from './$types';
 
 	let { data, children }: LayoutProps = $props();
+
+	/** RBAC `read` viewers can browse the board but not drag or triage. */
+	const mayWrite = $derived(canWrite(data.user.role));
 
 	const board = $derived(projectBoard(data.board));
 	const backlog = $derived(board.columns.find((column) => column.key === 'backlog')?.issues ?? []);
@@ -109,6 +113,7 @@
 				doneDays={data.doneDays}
 				repoShortcodes={data.repoShortcodes}
 				viewer={data.viewerGithub}
+				readonly={!mayWrite}
 			/>
 		{/if}
 	</div>

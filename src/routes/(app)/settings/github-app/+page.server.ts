@@ -1,4 +1,6 @@
-import { redirect } from "@sveltejs/kit";
+import { error, redirect } from "@sveltejs/kit";
+import { canAdmin } from "#lib/roles";
+import { requireAdmin } from "#lib/server/auth/guard";
 import {
   clearGithubCredentials,
   getGithubCredentials,
@@ -12,7 +14,8 @@ import type { Actions, PageServerLoad } from "./$types";
 const log = createLogger({ component: "onboarding" });
 
 /** Management view for the manifest-created GitHub App (System settings). */
-export const load: PageServerLoad = async () => {
+export const load: PageServerLoad = async ({ locals, url }) => {
+  requireAdmin(locals, url);
   const credentials = getGithubCredentials();
   if (!credentials) {
     return { configured: false, credentials: null, installUrl: null };
@@ -40,7 +43,10 @@ export const actions: Actions = {
    * singletons so the next request re-reads the (now empty) credential store
    * and the first-run gate sends the browser to `/onboarding`.
    */
-  reset: () => {
+  reset: ({ locals }) => {
+    if (!canAdmin((locals.user as { role?: unknown } | null)?.role)) {
+      throw error(403, "Administrator role required");
+    }
     log.warn("github app credentials cleared from settings");
     clearGithubCredentials();
     resetAppCache();

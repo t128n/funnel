@@ -28,6 +28,8 @@
 		filter?: 'all' | 'comments' | 'notes';
 		/** GitHub login of the signed-in viewer; enables note authoring actions. */
 		viewerLogin?: string | null;
+		/** Hide edit/publish/delete affordances (RBAC `read`). */
+		readonly?: boolean;
 		/** `note:<id>` while a note mutation is in flight. */
 		busyId?: string | null;
 		onedit: (id: string, body: string) => void;
@@ -41,6 +43,7 @@
 		bubbles = false,
 		filter = 'all',
 		viewerLogin = null,
+		readonly = false,
 		busyId = null,
 		onedit,
 		ondelete,
@@ -227,7 +230,7 @@
 		>
 			<div class="markdown text-foreground text-sm">{@html note.bodyHtml}</div>
 			<div class="text-muted-foreground flex items-center gap-2 text-[11px]">
-				{#if viewerLogin && note.author?.login === viewerLogin}
+				{#if !readonly && viewerLogin && note.author?.login === viewerLogin}
 					<div class="ml-auto flex items-center gap-0.5">
 						<Button
 							variant="ghost"

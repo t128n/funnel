@@ -14,6 +14,7 @@ function open() {
   const controller = new AbortController();
   const response = GET({
     request: new Request("http://x/api/events", { signal: controller.signal }),
+    locals: { user: { id: "reader", role: "read" }, session: null },
   } as never);
   return { controller, response };
 }

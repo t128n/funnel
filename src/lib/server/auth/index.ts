@@ -1,5 +1,6 @@
 import { and, eq } from "drizzle-orm";
 import { betterAuth } from "better-auth";
+import { admin } from "better-auth/plugins";
 import { drizzleAdapter } from "@better-auth/drizzle-adapter";
 import { FUNNEL_SECRET, FUNNEL_URL } from "$app/env/private";
 import { db } from "#lib/server/db/index";
@@ -11,7 +12,7 @@ import {
 } from "#lib/server/db/schema";
 import { getGithubCredentials } from "#lib/server/github/credentials";
 import { readSettings } from "#lib/server/settings/store";
-
+import { roles } from "./access";
 // SPEC section 11: `session.idle_days` (default 30), read from instance
 // settings. Better Auth builds its options once per build, so a change made
 // from the UI applies to sessions created after the auth instance is rebuilt
@@ -26,6 +27,29 @@ function sessionIdleDays(): number {
 }
 
 const DAY_SECONDS = 60 * 60 * 24;
+
+/**
+ * Seed the first admin (RBAC bootstrap).
+ *
+ * The Better Auth admin plugin assigns every new account `defaultRole` =
+ * `read`, including the very first one. A fresh instance would then have no
+ * admin and no way to promote anyone, so the first account to sign in is
+ * promoted to `admin` here. Runs after the user row exists; a no-op once any
+ * admin is present. On a single-instance, single-file SQLite deployment the
+ * race between two simultaneous first sign-ins is acceptable.
+ */
+export async function promoteFirstAdmin(userId: string): Promise<void> {
+  const [existing] = await db
+    .select({ id: authUser.id })
+    .from(authUser)
+    .where(eq(authUser.role, "admin"))
+    .limit(1);
+  if (existing) return;
+  await db
+    .update(authUser)
+    .set({ role: "admin", updatedAt: new Date() })
+    .where(eq(authUser.id, userId));
+}
 
 /**
  * Build the Better Auth instance for the current GitHub App.
@@ -78,6 +102,26 @@ async function createAuth() {
     session: {
       expiresIn: DAY_SECONDS * sessionIdleDays(),
       updateAge: DAY_SECONDS,
+    },
+    // RBAC: `role`/`banned`/`banExpires` live on `auth_user` and `role` on the
+    // session, managed by the admin plugin. `defaultRole` is the safe `read`;
+    // only `admin` reaches the `/api/auth/admin/*` endpoints (`adminRoles`).
+    // The first account is promoted to admin by `promoteFirstAdmin`.
+    plugins: [
+      admin({
+        defaultRole: "read",
+        adminRoles: ["admin"],
+        roles,
+      }),
+    ],
+    databaseHooks: {
+      user: {
+        create: {
+          after: async (user) => {
+            await promoteFirstAdmin(user.id);
+          },
+        },
+      },
     },
   });
 }

@@ -1,4 +1,5 @@
 import { error, fail } from "@sveltejs/kit";
+import { apiRole } from "#lib/server/http/session";
 import { authenticate } from "#lib/server/issues/http";
 import {
   acceptSubmission,
@@ -29,6 +30,13 @@ export const load: PageServerLoad = async ({ params, parent }) => {
  */
 export const actions: Actions = {
   async accept({ request, locals }) {
+    const denied = apiRole(locals, "write");
+    if (denied instanceof Response) {
+      return fail(denied.status, {
+        message: denied.status === 403 ? "Write access required" : "Not authenticated",
+      });
+    }
+
     const auth = await authenticate(locals.user?.id);
     if (!auth.ok) return fail(401, { message: "Not authenticated" });
 
@@ -52,9 +60,14 @@ export const actions: Actions = {
   },
 
   async dismiss({ request, locals }) {
-    // Dismissing only touches the local staging table, so a session is enough;
-    // unlike accept/duplicate it needs no user GitHub token.
-    if (!locals.user) return fail(401, { message: "Not authenticated" });
+    // Dismissing only touches the local staging table, so a `write` session is
+    // enough; unlike accept/duplicate it needs no user GitHub token.
+    const denied = apiRole(locals, "write");
+    if (denied instanceof Response) {
+      return fail(denied.status, {
+        message: denied.status === 403 ? "Write access required" : "Not authenticated",
+      });
+    }
 
     const form = await request.formData();
     const id = String(form.get("id") ?? "");
@@ -66,6 +79,13 @@ export const actions: Actions = {
   },
 
   async duplicate({ request, locals }) {
+    const denied = apiRole(locals, "write");
+    if (denied instanceof Response) {
+      return fail(denied.status, {
+        message: denied.status === 403 ? "Write access required" : "Not authenticated",
+      });
+    }
+
     const auth = await authenticate(locals.user?.id);
     if (!auth.ok) return fail(401, { message: "Not authenticated" });
 

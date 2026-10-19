@@ -8,10 +8,13 @@
 	import * as Sidebar from "#lib/components/ui/sidebar/index.js";
 	import NavItem from "#lib/components/nav/nav-item.svelte";
 	import { signOut } from "#lib/client/auth";
+	import type { Role } from "#lib/roles";
 
 	let {
 		user
-	}: { user: { id: string; name: string; email: string; image: string | null } } = $props();
+	}: { user: { id: string; name: string; email: string; image: string | null; role: Role } } = $props();
+
+	const ROLE_LABEL: Record<Role, string> = { read: "Read", write: "Write", admin: "Admin" };
 
 	const initial = $derived(user.name.slice(0, 1).toUpperCase() || "?");
 	const settingsActive = $derived(page.url.pathname.startsWith("/settings"));
@@ -41,7 +44,15 @@
 			</Avatar.Root>
 			<div class="group-data-[collapsible=icon]:hidden grid min-w-0 flex-1 text-start leading-tight">
 				<span class="truncate font-medium">{user.name}</span>
-				<span class="truncate text-xs">{user.email}</span>
+				<span class="text-muted-foreground flex items-center gap-1.5 truncate text-xs">
+					{user.email}
+					<span
+						class="shrink-0 rounded border border-[color:var(--surface-divider)] px-1 text-[0.625rem] font-medium uppercase tracking-wide"
+						title="Role: {ROLE_LABEL[user.role]}"
+					>
+						{ROLE_LABEL[user.role]}
+					</span>
+				</span>
 			</div>
 			<Button
 				variant="ghost"

@@ -14,6 +14,7 @@
 	import NavItem from "#lib/components/nav/nav-item.svelte";
 	import NavSection from "#lib/components/nav/nav-section.svelte";
 	import { isWorkspaceCollapsed, toggleWorkspace } from "#lib/client/sidebar-prefs.svelte";
+	import { canWrite, type Role } from "#lib/roles";
 	import { viewOf } from "#lib/issue-url";
 	import NavUser from "./nav-user.svelte";
 
@@ -30,7 +31,7 @@
 	}
 
 	interface Props extends ComponentProps<typeof Sidebar.Root> {
-		user: { id: string; name: string; email: string; image: string | null };
+		user: { id: string; name: string; email: string; image: string | null; role: Role };
 		/** Count of overdue + due-today re-checks, for the Attention badge. */
 		dueCount?: number;
 		/** Pending submissions + untriaged issues, for the Inbox badge. */
@@ -64,6 +65,8 @@
 	const boardActive = $derived(viewOf(path) === "board");
 	const attentionActive = $derived(path.startsWith("/attention"));
 	const workspaceCollapsed = $derived(isWorkspaceCollapsed());
+	// `read` viewers may browse but not start the new-issue flow.
+	const mayWrite = $derived(canWrite(user.role));
 
 	// Personal, daily touchpoints — unlabeled because they are universal.
 	const personal: NavLink[] = $derived([
@@ -126,9 +129,10 @@
 			<Button
 				variant="ghost"
 				size="icon-sm"
-				title="New issue"
+				title={mayWrite ? "New issue" : "New issue (requires write access)"}
 				aria-label="New issue"
-				onclick={() => onNewIssue?.()}
+				disabled={!mayWrite}
+				onclick={() => mayWrite && onNewIssue?.()}
 			>
 				<PlusIcon />
 			</Button>

@@ -61,6 +61,7 @@
 	} from '#lib/labels';
 	import { absoluteTime } from '#lib/time';
 	import { ATTACHMENTS_FLAG, WORK_NOTES_FLAG } from '#lib/features';
+	import { canWrite } from '#lib/roles';
 	import { viewOf } from '#lib/issue-url';
 	import type {
 		AttachmentItem,
@@ -128,6 +129,10 @@
 	const attachmentsEnabled = $derived(featureFlags[ATTACHMENTS_FLAG] ?? true);
 	const viewerLogin = $derived(
 		(page.data as { viewerGithub?: { login?: string } | null }).viewerGithub?.login ?? null
+	);
+	/** RBAC: `read` viewers see the issue but cannot edit it. */
+	const mayWrite = $derived(
+		canWrite((page.data as { user?: { role?: unknown } }).user?.role)
 	);
 
 	/** Structured block/unblock dialog (SPEC §5.1). */
@@ -612,6 +617,7 @@
 						workNotes={detail.workNotes}
 						filter="notes"
 						viewerLogin={viewerLogin}
+						readonly={!mayWrite}
 						busyId={noteBusy}
 						onedit={editWorkNote}
 						ondelete={removeWorkNote}
@@ -626,6 +632,7 @@
 				attachments={detail.attachments}
 				uploading={uploading}
 				busyId={deletingId}
+				readonly={!mayWrite}
 				onupload={(files) => void uploadFiles(files)}
 				ondelete={(item) => void removeAttachment(item)}
 			/>
@@ -643,7 +650,7 @@
 	contentKey={`${repo}#${number}:${detail?.bodyHtml ?? ''}:${detail?.comments.length ?? 0}:${detail?.workNotes.length ?? 0}`}
 	wide={fill}
 	aside={hasAside ? aside : undefined}
-	footer={canEdit ? composer : undefined}
+	footer={canEdit && mayWrite ? composer : undefined}
 >
 	{#snippet header()}
 		<div class="flex min-w-0 flex-1 flex-col gap-1 py-0.5">
@@ -661,7 +668,7 @@
 							}
 						}}
 						aria-label="Issue title"
-						disabled={busy === 'title'}
+						disabled={busy === 'title' || !mayWrite}
 					/>
 					{#if busy === 'title'}
 						<Spinner size={14} />
@@ -747,18 +754,20 @@
 					{/if}
 				</div>
 			{:else}
+				<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 				<div
 					class={cn(
-						'hover:bg-accent/40 -mx-2 min-h-12 cursor-text px-2 py-1 text-sm leading-relaxed text-foreground transition-colors',
+						'-mx-2 min-h-12 px-2 py-1 text-sm leading-relaxed text-foreground',
+						mayWrite && 'hover:bg-accent/40 cursor-text transition-colors',
 						bodyHtml !== null && 'markdown',
 						bodyHtml === null && 'plain-text'
 					)}
-					role="button"
-					tabindex="0"
-					aria-label="Issue description; activate to edit"
-					onclick={() => (editingBody = true)}
+					role={mayWrite ? 'button' : undefined}
+					tabindex={mayWrite ? 0 : undefined}
+					aria-label={mayWrite ? 'Issue description; activate to edit' : 'Issue description'}
+					onclick={() => mayWrite && (editingBody = true)}
 					onkeydown={(e) => {
-						if (e.key === 'Enter' || e.key === ' ') {
+						if (mayWrite && (e.key === 'Enter' || e.key === ' ')) {
 							e.preventDefault();
 							editingBody = true;
 						}
@@ -786,7 +795,7 @@
 					)
 				)}
 				onclick={() => openBlockDialog(issue?.blocked ? 'unblock' : 'block')}
-				disabled={busy === 'blocked' || !canEdit}
+				disabled={busy === 'blocked' || !canEdit || !mayWrite}
 				title="Blocked flag"
 				aria-pressed={issue?.blocked ?? false}
 			>
@@ -800,7 +809,7 @@
 				options={statusOptions}
 				value={statusValue}
 				onselect={setStatus}
-				disabled={busy === 'status'}
+				disabled={busy === 'status' || !mayWrite}
 			>
 				{#snippet icon()}
 					<CircleDashedIcon class="size-3.5" style={statusTint} />
@@ -814,7 +823,7 @@
 				value={priorityValue}
 				onselect={setPriority}
 				allowClear
-				disabled={busy === 'priority'}
+				disabled={busy === 'priority' || !mayWrite}
 			>
 				{#snippet icon()}
 					<SignalIcon class="size-3.5" style={labelTint(priorityValue)} />
@@ -828,7 +837,7 @@
 				value={sizeValue}
 				onselect={setSize}
 				allowClear
-				disabled={busy === 'size'}
+				disabled={busy === 'size' || !mayWrite}
 			>
 				{#snippet icon()}
 					<RulerIcon class="size-3.5" style={labelTint(sizeValue)} />
@@ -844,7 +853,7 @@
 				options={assigneeOptions.map((u) => ({ value: u.login, label: u.login }))}
 				selected={assigneeLogins}
 				onselect={setAssignees}
-				disabled={busy === 'assignees'}
+				disabled={busy === 'assignees' || !mayWrite}
 			>
 				{#snippet icon()}
 					{@const first = assignees[0]}
@@ -865,7 +874,7 @@
 				options={labelOptions}
 				selected={selectedLabels}
 				onselect={setLabels}
-				disabled={busy === 'labels'}
+				disabled={busy === 'labels' || !mayWrite}
 			>
 				{#snippet icon()}
 					<TagIcon class="size-3.5" />
@@ -922,6 +931,7 @@
 					workNotes={[]}
 					filter="comments"
 					bubbles={commentBubbles}
+					readonly={!mayWrite}
 					onedit={editWorkNote}
 					ondelete={removeWorkNote}
 					onpublish={publishNote}

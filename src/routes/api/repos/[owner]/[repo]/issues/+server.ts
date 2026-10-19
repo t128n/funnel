@@ -15,6 +15,7 @@ import {
   STATUS_VALUES,
 } from "#lib/server/issues/filters";
 import { authenticate, readJson, scheduleRefresh } from "#lib/server/issues/http";
+import { apiRole } from "#lib/server/http/session";
 import { createIssue } from "#lib/server/issues/mutations";
 import { outcomeResponse } from "#lib/server/http/outcome";
 
@@ -35,7 +36,10 @@ const ALLOWED = new Set([
   "page",
 ]);
 
-export const GET: RequestHandler = async ({ params, url, request }) => {
+export const GET: RequestHandler = async ({ params, url, request, locals }) => {
+  const denied = apiRole(locals, "read");
+  if (denied instanceof Response) return denied;
+
   let installationId: number;
   try {
     installationId = await getInstallationId(params.owner, params.repo);
@@ -80,6 +84,9 @@ const createSchema = v.object({
 });
 
 export const POST: RequestHandler = async ({ params, request, locals }) => {
+  const denied = apiRole(locals, "write");
+  if (denied instanceof Response) return denied;
+
   const auth = await authenticate(locals.user?.id);
   if (!auth.ok) return auth.response;
 

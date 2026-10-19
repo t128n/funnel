@@ -12,12 +12,16 @@ import {
 } from "#lib/server/github/api-passthrough.server";
 import { authenticate, readJson, scheduleRefresh } from "#lib/server/issues/http";
 import { addIssueComment } from "#lib/server/issues/mutations";
+import { apiRole } from "#lib/server/http/session";
 import { outcomeResponse } from "#lib/server/http/outcome";
 
 /** Mirrors `GET /repos/{owner}/{repo}/issues/{number}/comments`. */
 const ALLOWED = new Set(["since", "per_page", "page"]);
 
-export const GET: RequestHandler = async ({ params, url, request }) => {
+export const GET: RequestHandler = async ({ params, url, request, locals }) => {
+  const denied = apiRole(locals, "read");
+  if (denied instanceof Response) return denied;
+
   let installationId: number;
   try {
     installationId = await getInstallationId(params.owner, params.repo);
@@ -54,6 +58,9 @@ const commentSchema = v.object({
 });
 
 export const POST: RequestHandler = async ({ params, request, locals }) => {
+  const denied = apiRole(locals, "write");
+  if (denied instanceof Response) return denied;
+
   const auth = await authenticate(locals.user?.id);
   if (!auth.ok) return auth.response;
 

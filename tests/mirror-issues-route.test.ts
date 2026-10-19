@@ -11,6 +11,9 @@ import { GET as getList } from "#/routes/api/mirror/issues/[owner]/[repo]/+serve
 import { clearMirror } from "#tests/mirror-helpers";
 import { TEST_CONFIG } from "#tests/test-config";
 
+// The mirror reads now require a signed-in `read` session (RBAC).
+const READ = { user: { id: "reader", role: "read" }, session: null };
+
 // The Inspector's read path: the mirror route renders untrusted Markdown to
 // sanitized HTML at the delivery boundary (SPEC §2.2) while preserving the raw
 // body for inline editing.
@@ -71,6 +74,7 @@ describe("GET /api/mirror/issues/{owner}/{repo}/{number}", () => {
 		const res = await getDetail({
 			params: { owner: "orgA", repo: "core", number: "1" },
 			request: req(),
+			locals: READ,
 		} as never);
 
 		expect(res.status).toBe(200);
@@ -97,6 +101,7 @@ describe("GET /api/mirror/issues/{owner}/{repo}/{number}", () => {
 		const res = await getDetail({
 			params: { owner: "orgA", repo: "core", number: "999" },
 			request: req("orgA", "core", "999"),
+			locals: READ,
 		} as never);
 
 		expect(res.status).toBe(404);
@@ -106,6 +111,7 @@ describe("GET /api/mirror/issues/{owner}/{repo}/{number}", () => {
 		const res = await getDetail({
 			params: { owner: "orgA", repo: "core", number: "abc" },
 			request: req("orgA", "core", "abc"),
+			locals: READ,
 		} as never);
 
 		expect(res.status).toBe(400);
@@ -138,6 +144,7 @@ describe("GET /api/mirror/issues/{owner}/{repo}", () => {
 		const res = await getList({
 			params: { owner: "orgA", repo: "core" },
 			url: listReq(),
+			locals: READ,
 		} as never);
 
 		expect(res.status).toBe(200);
@@ -158,6 +165,7 @@ describe("GET /api/mirror/issues/{owner}/{repo}", () => {
 		const res = await getList({
 			params: { owner: "orgA", repo: "missing" },
 			url: listReq("orgA", "missing"),
+			locals: READ,
 		} as never);
 
 		expect(res.status).toBe(404);

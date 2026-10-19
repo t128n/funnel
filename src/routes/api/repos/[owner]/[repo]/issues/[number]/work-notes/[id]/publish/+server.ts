@@ -1,5 +1,6 @@
 import type { RequestHandler } from "./$types";
 import { outcomeResponse } from "#lib/server/http/outcome";
+import { apiRole } from "#lib/server/http/session";
 import { authenticate, scheduleRefresh } from "#lib/server/issues/http";
 import { addIssueComment } from "#lib/server/issues/mutations";
 import { deleteWorkNote, getWorkNote, workNoteTarget } from "#lib/server/work-notes";
@@ -13,6 +14,9 @@ import { deleteWorkNote, getWorkNote, workNoteTarget } from "#lib/server/work-no
  * authentication as the other GitHub-backed writes.
  */
 export const POST: RequestHandler = async ({ params, locals }) => {
+  const denied = apiRole(locals, "write");
+  if (denied instanceof Response) return denied;
+
   const auth = await authenticate(locals.user?.id);
   if (!auth.ok) return auth.response;
 

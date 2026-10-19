@@ -105,7 +105,10 @@ function request(method: string, body?: unknown): Request {
   });
 }
 
-const viewer = () => ({ user: { id: "issues_user_1" }, session: null });
+const viewer = () => ({
+  user: { id: "issues_user_1", role: "write" },
+  session: null,
+});
 const repoParams = () => ({ owner: OWNER, repo: REPO });
 
 beforeEach(async () => {
@@ -181,7 +184,7 @@ describe("POST /api/repos/{owner}/{repo}/issues", () => {
     const res = await createIssue({
       params: repoParams(),
       request: request("POST", { title: "New bug" }),
-      locals: { user: { id: "ghost" }, session: null },
+      locals: { user: { id: "ghost", role: "write" }, session: null },
     } as never);
 
     expect(res.status).toBe(502);

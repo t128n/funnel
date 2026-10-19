@@ -1,6 +1,6 @@
 import * as v from "valibot";
 import type { RequestHandler } from "./$types";
-import { apiSession } from "#lib/server/http/session";
+import { apiRole } from "#lib/server/http/session";
 import { readJson } from "#lib/server/issues/http";
 import { publish } from "#lib/server/sync/events";
 import {
@@ -34,7 +34,7 @@ function notify(target: WorkNoteTarget | undefined): void {
 }
 
 export const PATCH: RequestHandler = async ({ params, request, locals }) => {
-  const denied = apiSession(locals);
+  const denied = apiRole(locals, "write");
   if (denied instanceof Response) return denied;
 
   const read = await readJson(request);
@@ -61,7 +61,7 @@ export const PATCH: RequestHandler = async ({ params, request, locals }) => {
 };
 
 export const DELETE: RequestHandler = ({ params, locals }) => {
-  const denied = apiSession(locals);
+  const denied = apiRole(locals, "write");
   if (denied instanceof Response) return denied;
 
   const target = workNoteTarget(params.id);

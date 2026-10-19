@@ -16,12 +16,16 @@ import PaintbrushIcon from '@lucide/svelte/icons/paintbrush';
 import RefreshCwIcon from '@lucide/svelte/icons/refresh-cw';
 import TagIcon from '@lucide/svelte/icons/tag';
 import TimerIcon from '@lucide/svelte/icons/timer';
+import UsersIcon from '@lucide/svelte/icons/users';
+import type { Role } from '#lib/roles';
 
 export interface SettingsSection {
 	/** Stable id, also the final path segment (except `overview`). */
 	id: string;
 	label: string;
 	href: string;
+	/** Minimum RBAC role required to see and open the section. */
+	minRole: Role;
 	// Lucide icon components are not typed as `Component` yet.
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	icon: any;
@@ -53,9 +57,9 @@ export const settingsGroups: SettingsGroup[] = [
 	{
 		id: 'personal',
 		sections: [
-			{ id: 'overview', label: 'Account', href: '/settings', icon: CircleUserIcon },
-			{ id: 'appearance', label: 'Appearance', href: '/settings/appearance', icon: PaintbrushIcon },
-			{ id: 'features', label: 'Features', href: '/settings/features', icon: FlagIcon }
+			{ id: 'overview', label: 'Account', href: '/settings', minRole: 'read', icon: CircleUserIcon },
+			{ id: 'appearance', label: 'Appearance', href: '/settings/appearance', minRole: 'read', icon: PaintbrushIcon },
+			{ id: 'features', label: 'Features', href: '/settings/features', minRole: 'read', icon: FlagIcon }
 		]
 	},
 	{
@@ -66,25 +70,23 @@ export const settingsGroups: SettingsGroup[] = [
 				id: 'repositories',
 				label: 'Repositories',
 				href: '/settings/repositories',
+				minRole: 'admin',
 				icon: FolderGit2Icon
 			},
-			{ id: 'projects', label: 'Projects', href: '/settings/projects', icon: TagIcon },
-			{ id: 'intake', label: 'Intake', href: '/settings/intake', icon: InboxIcon },
-			{ id: 'board', label: 'Board', href: '/settings/board', icon: KanbanIcon }
+			{ id: 'projects', label: 'Projects', href: '/settings/projects', minRole: 'admin', icon: TagIcon },
+			{ id: 'intake', label: 'Intake', href: '/settings/intake', minRole: 'admin', icon: InboxIcon },
+			{ id: 'board', label: 'Board', href: '/settings/board', minRole: 'admin', icon: KanbanIcon }
 		]
 	},
 	{
 		id: 'system',
 		label: 'System',
 		sections: [
-			{ id: 'github-app', label: 'GitHub App', href: '/settings/github-app', icon: BotIcon },
-			{ id: 'sync', label: 'Sync', href: '/settings/sync', icon: RefreshCwIcon },
-			{ id: 'session', label: 'Session', href: '/settings/session', icon: TimerIcon }
+			{ id: 'people', label: 'People', href: '/settings/people', minRole: 'admin', icon: UsersIcon },
+			{ id: 'github-app', label: 'GitHub App', href: '/settings/github-app', minRole: 'admin', icon: BotIcon },
+			{ id: 'sync', label: 'Sync', href: '/settings/sync', minRole: 'admin', icon: RefreshCwIcon },
+			{ id: 'session', label: 'Session', href: '/settings/session', minRole: 'admin', icon: TimerIcon }
 		]
 	}
 ];
 
-/** Flat view of {@link settingsGroups} for active-lookup and the mobile switcher. */
-export const settingsSections: SettingsSection[] = settingsGroups.flatMap(
-	(group) => group.sections
-);

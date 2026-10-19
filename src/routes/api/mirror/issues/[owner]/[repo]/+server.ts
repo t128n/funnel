@@ -1,4 +1,5 @@
 import { repoIssueOptions } from "#lib/server/issues/queries";
+import { apiRole } from "#lib/server/http/session";
 import { getRepoByOrgName } from "#lib/server/sync/mirror";
 import type { RequestHandler } from "./$types";
 
@@ -8,10 +9,13 @@ const MAX_LIMIT = 200;
 /**
  * Read-only list of mirrored issues for one repo, backing the intake
  * "duplicate" picker (SPEC §6.2). Only mirrored issues are offered because the
- * duplicate action resolves its target against the local mirror. Kept ungated
- * to match the other mirror-backed read routes (SPEC §8).
+ * duplicate action resolves its target against the local mirror. Requires a
+ * signed-in `read` session like every other cockpit read.
  */
-export const GET: RequestHandler = ({ params, url }) => {
+export const GET: RequestHandler = ({ params, url, locals }) => {
+  const denied = apiRole(locals, "read");
+  if (denied instanceof Response) return denied;
+
   const repo = getRepoByOrgName(params.owner, params.repo);
   if (!repo) {
     return Response.json(

@@ -7,12 +7,16 @@
  * field-level errors on the page.
  */
 import { fail } from "@sveltejs/kit";
+import { canAdmin } from "#lib/roles";
 import { saveSettings } from "./apply";
 
 export async function saveSettingsAction(request: Request, locals: App.Locals) {
   // The `(app)` layout gates page loads, but actions do not run a layout load,
-  // so re-check the session here (SPEC §8).
+  // so re-check the session and the RBAC role here (SPEC §8).
   if (!locals.user) return fail(401, { message: "Not authenticated" });
+  if (!canAdmin((locals.user as { role?: unknown }).role)) {
+    return fail(403, { message: "Administrator role required" });
+  }
 
   const form = await request.formData();
   let raw: unknown;

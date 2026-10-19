@@ -1,5 +1,6 @@
 import { getIssueDetail } from "#lib/server/issues/queries";
 import type { RenderedIssueDetail } from "#lib/server/issues/types";
+import { apiRole } from "#lib/server/http/session";
 import { renderMarkdown } from "#lib/server/markdown/render";
 import { getRepoByOrgName } from "#lib/server/sync/mirror";
 import type { RequestHandler } from "./$types";
@@ -8,10 +9,12 @@ import type { RequestHandler } from "./$types";
  * Read-only Inspector payload straight from the local mirror (SPEC §1.4).
  *
  * No network, no auth token: this is the same disposable cache the streams read
- * from. Kept ungated to match the other mirror-backed read routes (the cockpit
- * pages themselves are session-gated; SPEC §8 assumes an enterprise network).
+ * from. Requires a signed-in `read` session, like every other cockpit read.
  */
-export const GET: RequestHandler = ({ params }) => {
+export const GET: RequestHandler = ({ params, locals }) => {
+  const denied = apiRole(locals, "read");
+  if (denied instanceof Response) return denied;
+
   const repo = getRepoByOrgName(params.owner, params.repo);
   if (!repo) {
     return Response.json(

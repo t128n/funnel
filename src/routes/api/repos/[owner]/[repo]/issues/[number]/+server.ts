@@ -16,11 +16,15 @@ import {
   STATUS_VALUES,
 } from "#lib/server/issues/filters";
 import { authenticate, readJson, scheduleRefresh } from "#lib/server/issues/http";
+import { apiRole } from "#lib/server/http/session";
 import { updateIssue } from "#lib/server/issues/mutations";
 import { outcomeResponse } from "#lib/server/http/outcome";
 
 /** Mirrors `GET /repos/{owner}/{repo}/issues/{number}`. */
-export const GET: RequestHandler = async ({ params, request }) => {
+export const GET: RequestHandler = async ({ params, request, locals }) => {
+  const denied = apiRole(locals, "read");
+  if (denied instanceof Response) return denied;
+
   let installationId: number;
   try {
     installationId = await getInstallationId(params.owner, params.repo);
@@ -72,6 +76,9 @@ export const PATCH: RequestHandler = async ({
   request,
   locals,
 }) => {
+  const denied = apiRole(locals, "write");
+  if (denied instanceof Response) return denied;
+
   const auth = await authenticate(locals.user?.id);
   if (!auth.ok) return auth.response;
 

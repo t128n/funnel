@@ -1,6 +1,6 @@
 import type { RequestHandler } from "./$types";
 import { deleteAttachment, readAttachment } from "#lib/server/attachments/store";
-import { apiSession } from "#lib/server/http/session";
+import { apiRole } from "#lib/server/http/session";
 import { publish } from "#lib/server/sync/events";
 
 /** RFC 6266 disposition value: ASCII fallback plus a UTF-8 `filename*`. */
@@ -11,7 +11,7 @@ function contentDisposition(filename: string): string {
 
 /** Stream one attachment's bytes (session-gated). */
 export const GET: RequestHandler = async ({ params, locals }) => {
-  const denied = apiSession(locals);
+  const denied = apiRole(locals, "read");
   if (denied instanceof Response) return denied;
 
   const download = await readAttachment(params.id);
@@ -34,7 +34,7 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 
 /** Delete an attachment (metadata row + file). */
 export const DELETE: RequestHandler = async ({ params, locals }) => {
-  const denied = apiSession(locals);
+  const denied = apiRole(locals, "write");
   if (denied instanceof Response) return denied;
 
   const target = await deleteAttachment(params.id);

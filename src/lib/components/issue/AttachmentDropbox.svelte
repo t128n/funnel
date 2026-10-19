@@ -23,6 +23,8 @@
 		uploading?: number;
 		/** Attachment id being deleted, for the row spinner. */
 		busyId?: string | null;
+		/** Hide the upload dropzone and delete buttons (RBAC `read`). */
+		readonly?: boolean;
 		onupload: (files: File[]) => void;
 		ondelete: (item: AttachmentItem) => void;
 	}
@@ -31,6 +33,7 @@
 		attachments,
 		uploading = 0,
 		busyId = null,
+		readonly = false,
 		onupload,
 		ondelete
 	}: Props = $props();
@@ -69,45 +72,47 @@
 		<span class="mono text-muted-foreground text-xs">{attachments.length}</span>
 	</div>
 
-	<div
-		class={cn(
-			'border-border hover:border-border/80 rounded-lg border border-dashed px-4 py-5 text-center transition-colors',
-			dragging && 'border-ring bg-accent/40'
-		)}
-		role="group"
-		aria-label="Attachment drop zone"
-		ondragover={(e) => {
-			e.preventDefault();
-			dragging = true;
-		}}
-		ondragleave={() => (dragging = false)}
-		ondrop={onDrop}
-	>
-		<input
-			bind:this={input}
-			type="file"
-			multiple
-			class="hidden"
-			onchange={onPick}
-			aria-hidden="true"
-			tabindex={-1}
-		/>
-		<button
-			type="button"
-			class="text-muted-foreground hover:text-foreground flex w-full cursor-pointer flex-col items-center gap-1.5 text-xs"
-			disabled={uploading > 0}
-			onclick={() => input?.click()}
+	{#if !readonly}
+		<div
+			class={cn(
+				'border-border hover:border-border/80 rounded-lg border border-dashed px-4 py-5 text-center transition-colors',
+				dragging && 'border-ring bg-accent/40'
+			)}
+			role="group"
+			aria-label="Attachment drop zone"
+			ondragover={(e) => {
+				e.preventDefault();
+				dragging = true;
+			}}
+			ondragleave={() => (dragging = false)}
+			ondrop={onDrop}
 		>
-			<UploadIcon class="size-4" />
-			<span>
-				{#if uploading > 0}
-					Uploading {uploading} file{uploading === 1 ? '' : 's'}…
-				{:else}
-					Drop files here, or <span class="text-foreground font-medium">browse</span>
-				{/if}
-			</span>
-		</button>
-	</div>
+			<input
+				bind:this={input}
+				type="file"
+				multiple
+				class="hidden"
+				onchange={onPick}
+				aria-hidden="true"
+				tabindex={-1}
+			/>
+			<button
+				type="button"
+				class="text-muted-foreground hover:text-foreground flex w-full cursor-pointer flex-col items-center gap-1.5 text-xs"
+				disabled={uploading > 0}
+				onclick={() => input?.click()}
+			>
+				<UploadIcon class="size-4" />
+				<span>
+					{#if uploading > 0}
+						Uploading {uploading} file{uploading === 1 ? '' : 's'}…
+					{:else}
+						Drop files here, or <span class="text-foreground font-medium">browse</span>
+					{/if}
+				</span>
+			</button>
+		</div>
+	{/if}
 
 	{#if attachments.length > 0}
 		<ul class="flex flex-col">
@@ -140,16 +145,18 @@
 					>
 						<DownloadIcon />
 					</Button>
-					<Button
-						variant="ghost"
-						size="icon-xs"
-						title="Delete"
-						aria-label="Delete {item.filename}"
-						disabled={busyId === item.id}
-						onclick={() => ondelete(item)}
-					>
-						<TrashIcon />
-					</Button>
+					{#if !readonly}
+						<Button
+							variant="ghost"
+							size="icon-xs"
+							title="Delete"
+							aria-label="Delete {item.filename}"
+							disabled={busyId === item.id}
+							onclick={() => ondelete(item)}
+						>
+							<TrashIcon />
+						</Button>
+					{/if}
 				</li>
 			{/each}
 		</ul>

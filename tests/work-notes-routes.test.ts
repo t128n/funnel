@@ -85,7 +85,7 @@ async function seedViewer(): Promise<void> {
 }
 
 const viewer = () => ({
-  user: { id: "notes_user_1", name: "Me", email: "n@example.com", image: null },
+  user: { id: "notes_user_1", name: "Me", email: "n@example.com", image: null, role: "write" },
   session: null,
 });
 const params = (id?: string) => ({ owner: OWNER, repo: REPO, number: "1", ...(id ? { id } : {}) });
@@ -227,7 +227,7 @@ describe("work-note edit, delete, and publish", () => {
     const id = await create();
     const res = await publishNote({
       params: params(id),
-      locals: { user: { id: "ghost" }, session: null },
+      locals: { user: { id: "ghost", role: "write" }, session: null },
     } as never);
     expect(res.status).toBe(502);
   });

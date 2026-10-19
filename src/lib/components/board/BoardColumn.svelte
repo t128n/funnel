@@ -25,6 +25,8 @@
 		viewer?: UserRef | null;
 		/** Card key that owns the roving tab stop for this column. */
 		activeKey?: string | null;
+		/** RBAC `read`: disables dragging and the column's new-issue link. */
+		readonly?: boolean;
 		onconsider: (event: CustomEvent<DndEvent<BoardItem>>) => void;
 		onfinalize: (event: CustomEvent<DndEvent<BoardItem>>) => void;
 	}
@@ -39,6 +41,7 @@
 		showRepo = false,
 		viewer = null,
 		activeKey = null,
+		readonly = false,
 		onconsider,
 		onfinalize
 	}: Props = $props();
@@ -69,7 +72,7 @@
 		>
 			{realItems.length}{limit !== undefined ? ` / ${limit}` : ''}
 		</span>
-		{#if !isDone}
+		{#if !isDone && !readonly}
 			<a
 				href="/intake"
 				class="text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:ring-ring/50 ml-auto inline-flex size-6 items-center justify-center rounded opacity-100 outline-none transition-opacity focus-visible:ring-1 md:opacity-0 md:group-hover/column:opacity-100 md:group-focus-within/column:opacity-100"
@@ -90,6 +93,7 @@
 				flipDurationMs: 150,
 				zoneTabIndex: -1,
 				zoneItemTabIndex: -1,
+				dragDisabled: readonly,
 				dropTargetClasses: ['bg-white/[0.02]']
 			}}
 			onconsider={onconsider}

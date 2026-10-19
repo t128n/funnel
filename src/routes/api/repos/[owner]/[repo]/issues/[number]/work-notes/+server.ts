@@ -1,6 +1,6 @@
 import * as v from "valibot";
 import type { RequestHandler } from "./$types";
-import { apiSession } from "#lib/server/http/session";
+import { apiRole } from "#lib/server/http/session";
 import { readJson } from "#lib/server/issues/http";
 import { publish } from "#lib/server/sync/events";
 import { getRepoByOrgName } from "#lib/server/sync/mirror";
@@ -24,7 +24,7 @@ const createSchema = v.object({
 });
 
 export const POST: RequestHandler = async ({ params, request, locals }) => {
-  const denied = apiSession(locals);
+  const denied = apiRole(locals, "write");
   if (denied instanceof Response) return denied;
 
   const number = Number(params.number);

@@ -9,9 +9,12 @@
 	import { connectEvents } from '#lib/client/events';
 	import { clockTick, startClock } from '#lib/client/clock.svelte';
 	import { bumpRefresh } from '#lib/client/refresh';
+	import { canWrite } from '#lib/roles';
 	import type { LayoutProps } from './$types';
 
 	let { data, children }: LayoutProps = $props();
+
+	const mayWrite = $derived(canWrite(data.user.role));
 
 	// The Attention badge counts overdue + due-today re-checks. Dates are compared
 	// in the browser's timezone and re-evaluated on the shared clock so the count
@@ -67,7 +70,9 @@
 		{ hotkey: hotkeys.current['nav.search'], callback: () => void focusSearch() },
 		{ hotkey: hotkeys.current['nav.search-slash'], callback: () => void focusSearch() },
 		{ hotkey: hotkeys.current['app.settings'], callback: () => void goto('/settings') },
-		{ hotkey: hotkeys.current['issue.create'], callback: openNew }
+		...(mayWrite
+			? [{ hotkey: hotkeys.current['issue.create'], callback: openNew }]
+			: [])
 	]);
 </script>
 
