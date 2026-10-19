@@ -24,7 +24,7 @@ import { renderMarkdown } from "#lib/server/markdown/render";
 import type { RequestHandler } from "./$types";
 
 /** A 400 the route turns into a JSON error response. */
-export class FeedRequestError extends Error {
+class FeedRequestError extends Error {
   constructor(message: string) {
     super(message);
     this.name = "FeedRequestError";
@@ -32,7 +32,7 @@ export class FeedRequestError extends Error {
 }
 
 /** `limit`/`cursor` passthrough; T1 clamps the limit to its hard cap. */
-export function pageOptions(search: URLSearchParams): PageOptions {
+function pageOptions(search: URLSearchParams): PageOptions {
   const rawLimit = search.get("limit");
   const cursor = search.get("cursor");
   return {
@@ -42,7 +42,7 @@ export function pageOptions(search: URLSearchParams): PageOptions {
 }
 
 /** Reject a cursor that does not decode for `signature`. */
-export function requireCursor(cursor: string | null, signature: string): void {
+function requireCursor(cursor: string | null, signature: string): void {
   if (cursor && decodeCursor(cursor, signature) === null) {
     throw new FeedRequestError("Invalid cursor");
   }
@@ -61,7 +61,7 @@ function renderEntry(entry: InboxEntry): RenderedInboxEntry {
 }
 
 /** One page of the Inbox: submissions first, then untriaged issues. */
-export function inboxPage(
+function inboxPage(
   search: URLSearchParams,
   viewerGithubId: number | null,
 ): ListPage<RenderedInboxEntry> {

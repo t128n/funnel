@@ -21,7 +21,7 @@ import type { IssueListItem } from "#lib/server/issues/types";
 import type { RequestHandler } from "./$types";
 
 /** A 400 the route turns into a JSON error response. */
-export class FeedRequestError extends Error {
+class FeedRequestError extends Error {
   constructor(message: string) {
     super(message);
     this.name = "FeedRequestError";
@@ -29,7 +29,7 @@ export class FeedRequestError extends Error {
 }
 
 /** `limit`/`cursor` passthrough; T1 clamps the limit to its hard cap. */
-export function pageOptions(search: URLSearchParams): PageOptions {
+function pageOptions(search: URLSearchParams): PageOptions {
   const rawLimit = search.get("limit");
   const cursor = search.get("cursor");
   return {
@@ -39,7 +39,7 @@ export function pageOptions(search: URLSearchParams): PageOptions {
 }
 
 /** Reject a cursor that does not decode for `signature`. */
-export function requireCursor(
+function requireCursor(
   cursor: string | null,
   signature: string,
 ): void {
@@ -49,7 +49,7 @@ export function requireCursor(
 }
 
 /** One page of All Issues, defaulting to the open state like the cockpit. */
-export function issuesPage(
+function issuesPage(
   search: URLSearchParams,
   viewerGithubId: number | null,
 ): ListPage<IssueListItem> {

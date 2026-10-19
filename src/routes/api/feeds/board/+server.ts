@@ -21,7 +21,7 @@ import type { RequestHandler } from "./$types";
 const BOARD_COLUMNS: readonly string[] = [...STATUS_VALUES, "done"];
 
 /** A 400 the route turns into a JSON error response. */
-export class FeedRequestError extends Error {
+class FeedRequestError extends Error {
   constructor(message: string) {
     super(message);
     this.name = "FeedRequestError";
@@ -29,7 +29,7 @@ export class FeedRequestError extends Error {
 }
 
 /** `limit`/`cursor` passthrough; T1 clamps the limit to its hard cap. */
-export function pageOptions(search: URLSearchParams): PageOptions {
+function pageOptions(search: URLSearchParams): PageOptions {
   const rawLimit = search.get("limit");
   const cursor = search.get("cursor");
   return {
@@ -39,7 +39,7 @@ export function pageOptions(search: URLSearchParams): PageOptions {
 }
 
 /** Reject a cursor that does not decode for `signature`. */
-export function requireCursor(cursor: string | null, signature: string): void {
+function requireCursor(cursor: string | null, signature: string): void {
   if (cursor && decodeCursor(cursor, signature) === null) {
     throw new FeedRequestError("Invalid cursor");
   }
@@ -50,7 +50,7 @@ function isStatusKey(value: string): value is StatusKey {
 }
 
 /** One page of a single board lane, chosen by `?column=`. */
-export async function boardPage(
+async function boardPage(
   search: URLSearchParams,
   viewerGithubId: number | null,
 ): Promise<ListPage<IssueListItem>> {
