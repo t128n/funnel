@@ -1,0 +1,55 @@
+- start 442c0e57d76b841bd87e21bd7558920d2c9ad356
+- approval human approved docs/plans/2026-10-19-notification-center.review.md with "lgtm" at 2026-10-19
+Ruling: OpenCode has no UserPromptSubmit hook; the human approved the review plan with lgtm, so the run proceeds under AI orchestration
+- tests full passed=488 failed=0 skipped=0 seconds=15.5
+- tests fast passed=20 failed=6 skipped=0 seconds=0.3
+- tests fast passed=0 failed=1 skipped=0 seconds=0.4
+- tests fast passed=0 failed=8 skipped=0 seconds=0.2
+- tests fast passed=0 failed=1 skipped=0 seconds=0.2
+- tests fast passed=0 failed=1 skipped=0 seconds=0.3
+- tests fast passed=26 failed=0 skipped=0 seconds=0.4
+- tests fast passed=11 failed=0 skipped=0 seconds=0.3
+- tests fast passed=7 failed=1 skipped=0 seconds=0.3
+- tests fast passed=6 failed=0 skipped=0 seconds=0.5
+- tests fast passed=8 failed=0 skipped=0 seconds=0.3
+- tests fast passed=8 failed=0 skipped=0 seconds=0.2
+- tests fast passed=6 failed=0 skipped=0 seconds=1.7
+- tests fast passed=23 failed=1 skipped=0 seconds=0.4
+- tests fast passed=8 failed=0 skipped=0 seconds=0.3
+- tests fast passed=26 failed=0 skipped=0 seconds=0.5
+- tests fast passed=40 failed=0 skipped=0 seconds=0.6
+- commit T1 c990071a1d notification store
+- commit T2 5d4eccb496 notification rules
+- commit T3 6c67d2ff5b admin notification settings
+- commit T4 e615892183 sync and intake hook
+- commit T5 a6c1a94ad8 notification and watch APIs
+- commit T6 54380683fb browser notifications
+- commit T7 df98f1d37e notification center and watch UI
+- tests fast passed=8 failed=0 skipped=0 seconds=0.3
+- commit T4 6fd8a82814 sync and intake hook
+- commit T8 f654c1ee0c documentation
+- tests full passed=536 failed=0 skipped=0 seconds=15.8
+- tests fast passed=42 failed=0 skipped=0 seconds=0.5
+- tests fast passed=19 failed=0 skipped=0 seconds=0.2
+- tests fast passed=6 failed=0 skipped=0 seconds=0.4
+- tests fast passed=59 failed=0 skipped=0 seconds=0.7
+- tests fast passed=11 failed=1 skipped=0 seconds=0.6
+- tests fast passed=43 failed=0 skipped=0 seconds=0.3
+- tests fast passed=13 failed=0 skipped=0 seconds=0.6
+- tests fast passed=20 failed=0 skipped=0 seconds=0.2
+- tests fast passed=12 failed=0 skipped=0 seconds=0.6
+- tests fast passed=10 failed=0 skipped=0 seconds=0.3
+- tests fast passed=12 failed=0 skipped=0 seconds=0.6
+- tests fast passed=44 failed=0 skipped=0 seconds=0.4
+- tests fast passed=14 failed=0 skipped=0 seconds=0.7
+- tests fast passed=14 failed=0 skipped=0 seconds=0.6
+- tests fast passed=14 failed=0 skipped=0 seconds=0.7
+- tests fast passed=24 failed=0 skipped=0 seconds=0.6
+- tests fast passed=50 failed=0 skipped=0 seconds=0.4
+- tests fast passed=50 failed=0 skipped=0 seconds=0.6
+- commit T2 a38481d6f0 notification rules
+- commit T4 0c4a608eeb sync and intake hook
+- commit T5 e342c97040 notification and watch APIs
+- commit T6 8f41062f6c browser notifications
+- tests full passed=555 failed=0 skipped=0 seconds=16.2
+- tests full passed=555 failed=0 skipped=0 seconds=15.6
