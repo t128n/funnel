@@ -14,12 +14,21 @@ import { clearMirror } from "#tests/mirror-helpers";
 import { TEST_CONFIG } from "#tests/test-config";
 import { parseIssueFilter } from "./filters";
 import {
+  decodeCursor,
+  encodeCursor,
+  filterSignature,
+  type CursorKey,
+  type ListPage,
+} from "./pagination";
+import {
   allIssues,
   attentionIssues,
+  boardColumnPage,
   filterContext,
   getIssueListItem,
   getMilestone,
   inbox,
+  inboxCount,
   listMilestones,
   milestoneIssues,
   myIssues,
@@ -153,7 +162,50 @@ function parse(query: string) {
   return parseIssueFilter(new URLSearchParams(query), filterContext(VIEWER));
 }
 
-const numbers = (items: { number: number }[]) => items.map((item) => item.number);
+function seedExtra(input: {
+  repoId: number;
+  number: number;
+  githubId: number;
+  title?: string;
+  state?: "open" | "closed";
+  stateReason?: string | null;
+  updatedAt: number;
+  closedAt?: number | null;
+  status: string | null;
+  priority: string | null;
+}): void {
+  upsertIssue(
+    {
+      githubId: input.githubId,
+      repoId: input.repoId,
+      number: input.number,
+      title: input.title ?? `Issue ${input.number}`,
+      body: "",
+      state: input.state ?? "open",
+      stateReason: input.stateReason ?? null,
+      author: null,
+      milestoneNumber: null,
+      createdAt: 1,
+      updatedAt: input.updatedAt,
+      closedAt: input.closedAt ?? null,
+      labels: [],
+      assignees: [],
+      comments: [],
+    },
+    {
+      status: input.status,
+      priority: input.priority,
+      size: null,
+      blocked: false,
+      labelConflict: false,
+    },
+  );
+}
+
+const numbers = (page: ListPage<{ number: number }>) =>
+  page.items.map((item) => item.number);
+const rawNumbers = (items: { number: number }[]) =>
+  items.map((item) => item.number);
 
 beforeEach(() => {
   db.delete(stateIntakeSubmission).run();
@@ -169,11 +221,11 @@ describe("allIssues", () => {
 
   test("excludes untriaged issues (they belong to the Inbox)", () => {
     const untriaged = allIssues(parse("status=none"));
-    expect(untriaged).toEqual([]);
+    expect(untriaged.items).toEqual([]);
   });
 
   test("hydrates repo, labels, assignees, and author", () => {
-    const [first] = allIssues(parse(""));
+    const [first] = allIssues(parse("")).items;
     expect(first.repo).toBe("orgA/core");
     expect(first.number).toBe(1);
     expect(first.labels.sort()).toEqual(["bug", "p1", "sm", "todo"]);
@@ -247,30 +299,30 @@ describe("myIssues", () => {
   });
 
   test("is empty without a viewer id", () => {
-    expect(myIssues(parse(""), null)).toEqual([]);
+    expect(myIssues(parse(""), null).items).toEqual([]);
   });
 });
 
 describe("inbox", () => {
   test("lists pending submissions then untriaged issues", () => {
     const { id } = createSubmission({ title: "Inbound request", body: "please" });
-    const { entries } = inbox(parse(""));
-    expect(entries[0]).toMatchObject({
+    const { items } = inbox(parse(""));
+    expect(items[0]).toMatchObject({
       kind: "submission",
       submission: { id, title: "Inbound request" },
     });
-    const issueEntries = entries.filter((entry) => entry.kind === "issue");
+    const issueEntries = items.filter((entry) => entry.kind === "issue");
     expect(issueEntries.map((entry) => (entry as { issue: { number: number } }).issue.number)).toEqual([2]);
   });
 
   test("search matches submissions and untriaged issues", () => {
     createSubmission({ title: "Inbound request", body: "please" });
-    expect(inbox(parse("q=inbound")).entries).toHaveLength(1);
-    expect(inbox(parse("q=beta")).entries).toHaveLength(1);
+    expect(inbox(parse("q=inbound")).items).toHaveLength(1);
+    expect(inbox(parse("q=beta")).items).toHaveLength(1);
   });
 
   test("a status filter excludes untriaged issues", () => {
-    expect(inbox(parse("status=todo")).entries).toHaveLength(0);
+    expect(inbox(parse("status=todo")).items).toHaveLength(0);
   });
 });
 
@@ -278,7 +330,7 @@ describe("statusBoard", () => {
   test("partitions the four statuses plus a Done window", async () => {
     const board = await statusBoard(parse(""));
     const byKey = Object.fromEntries(
-      board.columns.map((column) => [column.key, numbers(column.issues)]),
+      board.columns.map((column) => [column.key, rawNumbers(column.issues)]),
     );
     expect(byKey).toEqual({
       backlog: [6],
@@ -298,7 +350,7 @@ describe("statusBoard", () => {
   test("applies non-status dimensions to every column", async () => {
     const board = await statusBoard(parse("repo=orgA/web"));
     const byKey = Object.fromEntries(
-      board.columns.map((column) => [column.key, numbers(column.issues)]),
+      board.columns.map((column) => [column.key, rawNumbers(column.issues)]),
     );
     expect(byKey["in-progress"]).toEqual([3]);
     expect(byKey.todo).toEqual([]);
@@ -431,8 +483,286 @@ describe("milestones", () => {
 
   test("returns the milestone's issues and filters by milestone", () => {
     seedMilestone();
-    expect(numbers(milestoneIssues(1, 1))).toEqual([1]);
+    expect(rawNumbers(milestoneIssues(1, 1))).toEqual([1]);
     expect(numbers(allIssues(parse("milestone=orgA/core#1")))).toEqual([1]);
     expect(numbers(allIssues(parse("milestone=none")))).toEqual([3, 6]);
+  });
+});
+
+describe("cursor pagination", () => {
+  test("round-trips a cursor and rejects malformed payloads", () => {
+    const signature = filterSignature(parse(""));
+    const key: CursorKey = [0, 100, 1, 1];
+    const cursor = encodeCursor(signature, [...key]);
+    expect(decodeCursor(cursor, signature)).toEqual(key);
+
+    expect(decodeCursor(cursor, filterSignature(parse("repo=orgA/web")))).toBeNull();
+    expect(decodeCursor("not-base64!!", signature)).toBeNull();
+    expect(
+      decodeCursor(
+        Buffer.from(JSON.stringify({ v: 2, f: signature, k: key })).toString("base64url"),
+        signature,
+      ),
+    ).toBeNull();
+    expect(
+      decodeCursor(
+        Buffer.from(JSON.stringify({ v: 1, f: signature, k: [0, 100, 1] })).toString("base64url"),
+        signature,
+      ),
+    ).toBeNull();
+  });
+
+  test("a filter signature ignores dimension order but tracks values", () => {
+    const a = filterSignature(parse("repo=orgA/core&repo=orgA/web&priority=p1,p2"));
+    const b = filterSignature(parse("priority=p2,p1&repo=orgA/web&repo=orgA/core"));
+    expect(a).toBe(b);
+    expect(a).not.toBe(filterSignature(parse("repo=orgA/core")));
+    expect(filterSignature(parse(""), "inbox")).not.toBe(
+      filterSignature(parse("")),
+    );
+  });
+
+  test("a cursor from another filter is rejected", () => {
+    const webCursor = encodeCursor(filterSignature(parse("repo=orgA/web")), [
+      1, 300, 2, 3,
+    ]);
+    const empty = allIssues(parse(""), { cursor: webCursor });
+    expect(numbers(empty)).toEqual([1, 3, 6]);
+    expect(empty.nextCursor).toBeNull();
+  });
+
+  test("allIssues walks pages without gaps or duplicates", () => {
+    const all = allIssues(parse(""));
+    expect(numbers(all)).toEqual([1, 3, 6]);
+    expect(all.total).toBe(3);
+    expect(all.nextCursor).toBeNull();
+
+    const first = allIssues(parse(""), { limit: 2 });
+    expect(numbers(first)).toEqual([1, 3]);
+    expect(first.total).toBe(3);
+    expect(first.nextCursor).not.toBeNull();
+
+    const second = allIssues(parse(""), {
+      limit: 2,
+      cursor: first.nextCursor,
+    });
+    expect(numbers(second)).toEqual([6]);
+    expect(second.total).toBe(3);
+    expect(second.nextCursor).toBeNull();
+
+    const walked: number[] = [];
+    let cursor: string | null = null;
+    for (let guard = 0; guard < 10; guard += 1) {
+      const page = allIssues(parse(""), { limit: 1, cursor });
+      walked.push(...numbers(page));
+      cursor = page.nextCursor;
+      if (!cursor) break;
+    }
+    expect(walked).toEqual([1, 3, 6]);
+  });
+
+  test("the last full page has no cursor when nothing follows", () => {
+    const page = allIssues(parse(""), { limit: 3 });
+    expect(numbers(page)).toEqual([1, 3, 6]);
+    expect(page.nextCursor).toBeNull();
+  });
+
+  test("ties break by repoId DESC then number DESC", () => {
+    seedExtra({
+      repoId: 1,
+      number: 7,
+      githubId: 107,
+      updatedAt: 300,
+      status: "todo",
+      priority: "p2",
+    });
+    seedExtra({
+      repoId: 2,
+      number: 8,
+      githubId: 108,
+      updatedAt: 300,
+      status: "in-progress",
+      priority: "p2",
+    });
+
+    const page = allIssues(parse("priority=p2"));
+    expect(numbers(page)).toEqual([8, 3, 7]);
+    expect(page.total).toBe(3);
+
+    const first = allIssues(parse("priority=p2"), { limit: 1 });
+    const second = allIssues(parse("priority=p2"), {
+      limit: 1,
+      cursor: first.nextCursor,
+    });
+    expect(numbers(first)).toEqual([8]);
+    expect(numbers(second)).toEqual([3]);
+  });
+
+  test("myIssues pages the viewer's assignments", () => {
+    const page = myIssues(parse(""), VIEWER, { limit: 1 });
+    expect(numbers(page)).toEqual([1]);
+    expect(page.total).toBe(1);
+    expect(page.nextCursor).toBeNull();
+    expect(myIssues(parse(""), null).total).toBe(0);
+  });
+});
+
+describe("inbox pagination", () => {
+  test("pages the issue half while submissions stay first", () => {
+    createSubmission({ title: "One", body: "first" });
+    createSubmission({ title: "Two", body: "second" });
+    seedExtra({
+      repoId: 1,
+      number: 7,
+      githubId: 107,
+      updatedAt: 10,
+      status: null,
+      priority: null,
+    });
+    seedExtra({
+      repoId: 1,
+      number: 8,
+      githubId: 108,
+      updatedAt: 20,
+      status: null,
+      priority: null,
+    });
+
+    const first = inbox(parse(""), { limit: 2 });
+    const submissions = first.items.filter((entry) => entry.kind === "submission");
+    const issues = first.items.filter((entry) => entry.kind === "issue");
+    expect(submissions).toHaveLength(2);
+    expect(
+      issues.map((entry) => (entry as { issue: { number: number } }).issue.number),
+    ).toEqual([2, 8]);
+    expect(first.total).toBe(5);
+    expect(first.nextCursor).not.toBeNull();
+
+    const second = inbox(parse(""), { limit: 2, cursor: first.nextCursor });
+    expect(second.items.filter((entry) => entry.kind === "submission")).toHaveLength(2);
+    expect(
+      second.items
+        .filter((entry) => entry.kind === "issue")
+        .map((entry) => (entry as { issue: { number: number } }).issue.number),
+    ).toEqual([7]);
+    expect(second.total).toBe(5);
+    expect(second.nextCursor).toBeNull();
+  });
+
+  test("inboxCount counts submissions and untriaged issues", () => {
+    createSubmission({ title: "Inbound request", body: "please" });
+    expect(inboxCount(parse(""))).toBe(inbox(parse("")).total);
+    expect(inboxCount(parse(""))).toBe(2);
+    expect(inboxCount(parse("q=inbound"))).toBe(1);
+    expect(inboxCount(parse("q=beta"))).toBe(1);
+    // Submissions always count; only the untriaged issue half is filtered.
+    expect(inboxCount(parse("status=todo"))).toBe(1);
+    expect(inboxCount(parse("status=todo"))).toBe(
+      inbox(parse("status=todo")).total,
+    );
+  });
+});
+
+describe("board pagination", () => {
+  test("columns carry server totals and cursors", async () => {
+    const board = await statusBoard(parse(""));
+    const byKey = Object.fromEntries(
+      board.columns.map((column) => [
+        column.key,
+        {
+          total: column.total,
+          nextCursor: column.nextCursor,
+          numbers: rawNumbers(column.issues),
+        },
+      ]),
+    );
+    expect(byKey).toEqual({
+      backlog: { total: 1, nextCursor: null, numbers: [6] },
+      todo: { total: 1, nextCursor: null, numbers: [1] },
+      "in-progress": { total: 1, nextCursor: null, numbers: [3] },
+      "in-review": { total: 0, nextCursor: null, numbers: [] },
+      done: { total: 1, nextCursor: null, numbers: [4] },
+    });
+  });
+
+  test("boardColumnPage pages a single lane", async () => {
+    seedExtra({
+      repoId: 1,
+      number: 7,
+      githubId: 107,
+      updatedAt: 10,
+      status: "in-progress",
+      priority: null,
+    });
+    seedExtra({
+      repoId: 1,
+      number: 8,
+      githubId: 108,
+      updatedAt: 20,
+      status: "in-progress",
+      priority: null,
+    });
+
+    const first = await boardColumnPage(parse(""), "in-progress", { limit: 2 });
+    expect(numbers(first)).toEqual([3, 8]);
+    expect(first.total).toBe(3);
+    expect(first.nextCursor).not.toBeNull();
+
+    const second = await boardColumnPage(parse(""), "in-progress", {
+      limit: 2,
+      cursor: first.nextCursor,
+    });
+    expect(numbers(second)).toEqual([7]);
+    expect(second.total).toBe(3);
+    expect(second.nextCursor).toBeNull();
+  });
+
+  test("a lane cursor is scoped to its column", async () => {
+    seedExtra({
+      repoId: 1,
+      number: 7,
+      githubId: 107,
+      updatedAt: 10,
+      status: "in-progress",
+      priority: null,
+    });
+
+    const inProgress = await boardColumnPage(parse(""), "in-progress", {
+      limit: 1,
+    });
+    expect(inProgress.nextCursor).not.toBeNull();
+
+    const todo = await boardColumnPage(parse(""), "todo", {
+      limit: 1,
+      cursor: inProgress.nextCursor,
+    });
+    expect(numbers(todo)).toEqual([1]);
+  });
+
+  test("board ignores the status dimension and keeps Done bounded", async () => {
+    const page = await boardColumnPage(parse("status=todo"), "in-progress", {
+      limit: 50,
+    });
+    expect(numbers(page)).toEqual([3]);
+    expect(page.total).toBe(1);
+
+    const done = await boardColumnPage(parse(""), "done", { limit: 50 });
+    expect(numbers(done)).toEqual([4]);
+    expect(done.total).toBe(1);
+
+    seedExtra({
+      repoId: 1,
+      number: 9,
+      githubId: 109,
+      updatedAt: 900,
+      state: "closed",
+      stateReason: "not_planned",
+      closedAt: Date.now() - 2 * DAY_MS,
+      status: null,
+      priority: null,
+    });
+    const stillDone = await boardColumnPage(parse(""), "done", { limit: 50 });
+    expect(numbers(stillDone)).toEqual([4]);
+    expect(stillDone.total).toBe(1);
   });
 });
