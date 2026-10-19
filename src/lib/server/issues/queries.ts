@@ -493,7 +493,9 @@ export function inbox(
   const page = pageIssues(
     untriagedWhere(filter),
     opts,
-    filterSignature(filter),
+    // The `inbox` discriminator keeps this cursor from being replayed against
+    // the disjoint All Issues feed, whose filter signature is otherwise equal.
+    filterSignature(filter, "inbox"),
     ISSUE_PAGE_SIZE,
   );
 
