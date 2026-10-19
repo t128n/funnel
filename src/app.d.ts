@@ -9,10 +9,19 @@ declare global {
 	const __APP_VERSION__: string;
 
 	namespace App {
-		// interface Error {}
+		interface Error {
+			/**
+			 * Correlation id for an unexpected error, echoed to the client so a
+			 * user can quote it when reporting. Only set for unhandled (5xx)
+			 * errors; see `handleError` in `hooks.server.ts`.
+			 */
+			id?: string;
+		}
 		interface Locals {
 			session: Session["session"] | null;
 			user: Session["user"] | null;
+			/** Per-request correlation id, set by the `handle` hook. */
+			requestId: string;
 		}
 		// interface PageData {}
 		// interface PageState {}

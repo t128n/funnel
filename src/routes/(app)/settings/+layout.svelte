@@ -4,6 +4,7 @@
 	import ArrowLeftIcon from '@lucide/svelte/icons/arrow-left';
 	import NavItem from '#lib/components/nav/nav-item.svelte';
 	import NavSection from '#lib/components/nav/nav-section.svelte';
+	import PageHead from '#lib/components/common/PageHead.svelte';
 	import * as Breadcrumb from '#lib/components/ui/breadcrumb';
 	import * as NativeSelect from '#lib/components/ui/native-select';
 	import * as Sidebar from '#lib/components/ui/sidebar';
@@ -25,6 +26,8 @@
 		void goto(href);
 	}
 </script>
+
+<PageHead title={`${active.label} · Settings`} />
 
 <Sidebar.Provider class="h-full min-h-0 flex-1 items-start" style="--sidebar-width: 15rem">
 	<!-- Match the other views' list surface (`surface-shell` + `--surface-canvas`)

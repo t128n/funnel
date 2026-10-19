@@ -10,6 +10,7 @@
 	import ViewSegment from '#lib/components/filter/ViewSegment.svelte';
 	import IssueActionDialog from '#lib/components/issue/IssueActionDialog.svelte';
 	import IssueList from '#lib/components/issue/IssueList.svelte';
+	import PageHead from '#lib/components/common/PageHead.svelte';
 	import { requestFocusedCardMenu, requestFocusedCardOpen } from '#lib/client/board-ui.svelte';
 	import {
 		cancelAction,
@@ -67,6 +68,11 @@
 		{ hotkey: hotkeys.current['issue.select'], callback: requestFocusedCardOpen }
 	]);
 </script>
+
+<PageHead
+	title="Board"
+	description="Issues arranged by workflow status."
+/>
 
 <div class="surface-shell bg-[var(--surface-canvas)] relative flex min-h-0 min-w-0 flex-1">
 	<div class="flex min-h-0 min-w-0 flex-1 flex-col">

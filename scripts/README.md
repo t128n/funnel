@@ -56,3 +56,11 @@ Notes:
   starting up.
 - The hotkey silently does nothing if the Funnel instance is not running - check
   `%TEMP%\funnel-intake.log` or the notification.
+
+## `generate-icons.ts`
+
+Regenerates the committed raster icon set (`static/favicon.ico`,
+`apple-touch-icon.png`, `icon-192.png`, `icon-512.png`) from the same mark as
+`static/favicon.svg`. It has no dependencies — a small PNG encoder and a
+supersampled shape rasterizer — so run it with `bun run icons` only after
+changing the mark. See "Production behaviour" in the root README.

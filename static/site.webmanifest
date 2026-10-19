@@ -1,0 +1,23 @@
+{
+	"name": "Funnel",
+	"short_name": "Funnel",
+	"description": "A focused triage and delivery cockpit for GitHub issues.",
+	"start_url": "/",
+	"display": "standalone",
+	"background_color": "#191a1c",
+	"theme_color": "#3574f0",
+	"icons": [
+		{
+			"src": "/icon-192.png",
+			"sizes": "192x192",
+			"type": "image/png",
+			"purpose": "any"
+		},
+		{
+			"src": "/icon-512.png",
+			"sizes": "512x512",
+			"type": "image/png",
+			"purpose": "any"
+		}
+	]
+}

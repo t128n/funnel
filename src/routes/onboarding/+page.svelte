@@ -1,6 +1,7 @@
 <script lang="ts">
 	import FunnelIcon from '@lucide/svelte/icons/funnel';
 	import { untrack } from 'svelte';
+	import PageHead from '#lib/components/common/PageHead.svelte';
 	import { Button } from '#lib/components/ui/button';
 	import * as Card from '#lib/components/ui/card';
 	import * as Field from '#lib/components/ui/field';
@@ -15,6 +16,11 @@
 	let name = $state(untrack(() => data.suggestedName));
 	let org = $state('');
 </script>
+
+<PageHead
+	title="Set up"
+	description="Create and install the GitHub App that powers this Funnel instance."
+/>
 
 <main class="bg-background flex min-h-svh flex-col items-center justify-center p-6">
 	<div class="w-full max-w-lg">

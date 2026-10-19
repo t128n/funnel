@@ -1,11 +1,25 @@
-import { fail } from "@sveltejs/kit";
+import { error, fail } from "@sveltejs/kit";
 import { authenticate } from "#lib/server/issues/http";
 import {
   acceptSubmission,
   dismissSubmission,
   duplicateSubmission,
 } from "#lib/server/intake/actions";
-import type { Actions } from "./$types";
+import type { Actions, PageServerLoad } from "./$types";
+
+/**
+ * A staged submission that no longer exists is a real 404. The successful
+ * triage path never triggers this: it clears the selection without
+ * re-running the load (see `SubmissionDetail.settle`).
+ */
+export const load: PageServerLoad = async ({ params, parent }) => {
+  const { inbox } = await parent();
+  const found = inbox.entries.some(
+    (entry) => entry.kind === "submission" && entry.submission.id === params.id,
+  );
+  if (!found) error(404, "Submission not found");
+  return {};
+};
 
 /**
  * Inbox triage (SPEC §6): Accept / Dismiss / Duplicate as SvelteKit form

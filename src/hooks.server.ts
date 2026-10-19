@@ -6,9 +6,14 @@ import { provisionCanonicalLabels } from "#lib/server/github/labels";
 import { createLogger } from "#lib/server/log";
 import { scheduleReconciliation } from "#lib/server/sync/reconcile";
 import { startSyncWorker } from "#lib/server/sync/worker";
-import type { Handle, ServerInit } from "@sveltejs/kit/hooks";
+import type {
+  Handle,
+  HandleServerError,
+  ServerInit,
+} from "@sveltejs/kit/hooks";
 
 const log = createLogger({ component: "startup" });
+const httpLog = createLogger({ component: "http" });
 
 /**
  * Startup self-healing label provisioning (SPEC §5.2(4)). Runs before the
@@ -64,6 +69,10 @@ function isOnboardingExempt(pathname: string): boolean {
 export const handle: Handle = async ({ event, resolve }) => {
   if (building) return resolve(event);
 
+  // A correlation id per request, threaded through `locals` so `handleError`
+  // and any server log line can reference the same failure.
+  event.locals.requestId = crypto.randomUUID();
+
   // Populate `event.locals` once per request so `load` functions and actions
   // can read the session without re-resolving it. `getAuth()` is `null` until
   // onboarding has created the GitHub App.
@@ -86,7 +95,71 @@ export const handle: Handle = async ({ event, resolve }) => {
 
   // Better Auth owns `/api/auth/*`; when unconfigured that route answers 503.
   if (auth) {
-    return svelteKitHandler({ auth, event, resolve, building });
+    const response = await svelteKitHandler({ auth, event, resolve, building });
+    return withCrawlHeaders(response);
   }
-  return resolve(event);
+  return withCrawlHeaders(await resolve(event));
+};
+
+/**
+ * Keep this private instance out of search indexes. `robots.txt` and the
+ * `<meta name="robots">` tags cover it, but a response header is the one signal
+ * that can't be stripped by a page that renders outside the app template.
+ */
+function withCrawlHeaders(response: Response): Response {
+  const headers = new Headers(response.headers);
+  headers.set("X-Robots-Tag", "noindex, nofollow");
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
+}
+
+/** HTTP status of a caught error, for the correct log level. */
+function caughtStatus(error: unknown, kind: string): number {
+  if (kind === "unknown") return 500;
+  if (typeof error === "object" && error !== null && "status" in error) {
+    const status = (error as { status?: unknown }).status;
+    if (typeof status === "number") return status;
+  }
+  return 500;
+}
+
+/**
+ * Uniform error handling (SPEC §10.2).
+ *
+ * Expected failures (a 404 from a `load`, a `redirect`-adjacent `error(403)`)
+ * are logged at `warn`; anything unexpected (an unhandled throw, a database
+ * failure) is logged at `error` with the full stack and a stable correlation
+ * id. The client never sees an unexpected error's message — only the generic
+ * copy plus that id, so upstream text and internals stay server-side.
+ */
+export const handleError: HandleServerError = ({ kind, error, event }) => {
+  const status = caughtStatus(error, kind);
+  const requestId = event.locals.requestId;
+  const fields = {
+    requestId,
+    method: event.request.method,
+    path: event.url.pathname,
+    kind,
+    status,
+  };
+
+  if (kind === "unknown") {
+    httpLog.error({ ...fields, err: error }, "unhandled request error");
+    return {
+      message: "Something went wrong on our end. Please try again.",
+      id: requestId,
+    };
+  }
+
+  if (status >= 500) {
+    httpLog.error({ ...fields, err: error }, "request failed");
+  } else {
+    httpLog.warn(fields, "request rejected");
+  }
+
+  // Inherit the caught error's status/message (expected errors are safe).
+  return {};
 };

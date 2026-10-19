@@ -132,6 +132,25 @@ directory is loaded too):
 Uploads larger than `BODY_SIZE_LIMIT` are rejected before they reach Funnel, so
 set it at least as large as `FUNNEL_UPLOAD_MAX_BYTES` when using the dropbox.
 
+## Production behaviour
+
+- **Error pages.** `src/routes/+error.svelte` renders every 4xx/5xx (including
+  unknown routes) with status-specific copy; `src/error.html` is the branded
+  fallback for errors thrown before the root layout can render. The
+  `handleError` hook in `src/hooks.server.ts` logs unexpected errors through
+  pino and returns a correlation id (shown on the page as “Reference: …”)
+  without leaking the underlying message.
+- **Titles & metadata.** Every route sets its document title through
+  `PageHead.svelte`; `src/lib/seo.ts` holds the app name and the `· Funnel`
+  suffix so titles cannot drift.
+- **Icons.** `static/favicon.svg`, `favicon.ico`, `apple-touch-icon.png`,
+  `icon-192.png`, `icon-512.png`, and `site.webmanifest` are committed.
+  Regenerate the raster set with `bun scripts/generate-icons.ts` after changing
+  the mark.
+- **Indexing.** The instance is private: `static/robots.txt` disallows all
+  crawling, and responses carry `X-Robots-Tag: noindex, nofollow` plus a
+  matching `<meta>`. Remove `robots.txt` and the tag to run a public instance.
+
 ## Deploying
 
 `mise.toml` is the single source of truth for the build, so local runs and CI

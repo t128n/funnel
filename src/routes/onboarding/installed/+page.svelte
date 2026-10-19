@@ -1,6 +1,7 @@
 <script lang="ts">
 	import FunnelIcon from '@lucide/svelte/icons/funnel';
 	import ExternalLinkIcon from '@lucide/svelte/icons/external-link';
+	import PageHead from '#lib/components/common/PageHead.svelte';
 	import { Button } from '#lib/components/ui/button';
 	import * as Card from '#lib/components/ui/card';
 	import { Badge } from '#lib/components/ui/badge';
@@ -19,6 +20,11 @@
 		selected = allSelected ? [] : data.repos.map((repo) => repo.fullName);
 	}
 </script>
+
+<PageHead
+	title="Choose repositories"
+	description="Pick the repositories Funnel should mirror."
+/>
 
 <main class="bg-background flex min-h-svh flex-col items-center justify-center p-6">
 	<div class="w-full max-w-lg">

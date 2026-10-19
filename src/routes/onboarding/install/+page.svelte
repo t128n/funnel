@@ -1,6 +1,7 @@
 <script lang="ts">
 	import FunnelIcon from '@lucide/svelte/icons/funnel';
 	import ExternalLinkIcon from '@lucide/svelte/icons/external-link';
+	import PageHead from '#lib/components/common/PageHead.svelte';
 	import { Button } from '#lib/components/ui/button';
 	import * as Card from '#lib/components/ui/card';
 	import OnboardingSteps from '#lib/components/onboarding/onboarding-steps.svelte';
@@ -8,6 +9,8 @@
 
 	let { data }: PageProps = $props();
 </script>
+
+<PageHead title="Install the app" description="Install the GitHub App to grant Funnel access." />
 
 <main class="bg-background flex min-h-svh flex-col items-center justify-center p-6">
 	<div class="w-full max-w-lg">

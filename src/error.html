@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en" class="dark">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<meta name="robots" content="noindex, nofollow" />
+		<title>%sveltekit.status% · Funnel</title>
+		<link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+		<style>
+			/* Self-contained fallback: used only when the root layout itself can
+			   not render, so it must not depend on the app's bundled CSS. */
+			:root {
+				--bg: #ffffff;
+				--fg: #1f2023;
+				--muted: #818594;
+				--border: rgba(0, 0, 0, 0.1);
+				--primary: #3574f0;
+			}
+			@media (prefers-color-scheme: dark) {
+				:root {
+					--bg: #191a1c;
+					--fg: #bcbec4;
+					--muted: #6f737a;
+					--border: rgba(255, 255, 255, 0.08);
+				}
+			}
+			* {
+				box-sizing: border-box;
+			}
+			body {
+				margin: 0;
+				min-height: 100vh;
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				padding: 24px;
+				background: var(--bg);
+				color: var(--fg);
+				font-family:
+					Inter, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica,
+					Arial, sans-serif;
+				-webkit-font-smoothing: antialiased;
+			}
+			main {
+				display: flex;
+				flex-direction: column;
+				align-items: center;
+				gap: 20px;
+				max-width: 26rem;
+				text-align: center;
+			}
+			.brand {
+				display: inline-flex;
+				align-items: center;
+				gap: 8px;
+				font-size: 14px;
+				font-weight: 500;
+				color: var(--muted);
+				text-decoration: none;
+			}
+			.status {
+				font-size: 56px;
+				line-height: 1;
+				font-weight: 200;
+				color: var(--muted);
+				font-variant-numeric: tabular-nums;
+			}
+			h1 {
+				margin: 0;
+				font-size: 18px;
+				font-weight: 500;
+			}
+			p {
+				margin: 0;
+				font-size: 14px;
+				line-height: 1.6;
+				color: var(--muted);
+			}
+			.actions {
+				display: flex;
+				gap: 8px;
+			}
+			a.button {
+				display: inline-flex;
+				align-items: center;
+				justify-content: center;
+				height: 32px;
+				padding: 0 12px;
+				border-radius: 8px;
+				border: 1px solid transparent;
+				font-size: 14px;
+				font-weight: 500;
+				text-decoration: none;
+				color: #fff;
+				background: var(--primary);
+			}
+			a.button.secondary {
+				color: var(--fg);
+				background: transparent;
+				border-color: var(--border);
+			}
+		</style>
+	</head>
+	<body>
+		<main>
+			<a class="brand" href="/">Funnel</a>
+			<div class="status">%sveltekit.status%</div>
+			<h1>Something went wrong</h1>
+			<p>%sveltekit.error.message%</p>
+			<div class="actions">
+				<a class="button" href="/">Back to Funnel</a>
+				<a class="button secondary" href="/login">Sign in</a>
+			</div>
+		</main>
+	</body>
+</html>

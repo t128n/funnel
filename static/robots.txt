@@ -1,3 +1,5 @@
-# allow crawling everything by default
+# Funnel is a private, auth-gated instance. Keep every route out of search
+# indexes; the app also sends `X-Robots-Tag`/`<meta name="robots">` for good
+# measure. Remove this file entirely if you intend to run a public instance.
 User-agent: *
-Disallow:
+Disallow: /

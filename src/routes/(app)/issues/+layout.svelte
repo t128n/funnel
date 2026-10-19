@@ -5,6 +5,7 @@
 	import ViewSegment from '#lib/components/filter/ViewSegment.svelte';
 	import GroupByControl from '#lib/components/issue/GroupByControl.svelte';
 	import IssueList from '#lib/components/issue/IssueList.svelte';
+	import PageHead from '#lib/components/common/PageHead.svelte';
 	import SplitView from '#lib/components/shell/SplitView.svelte';
 	import { projectIssues, reconcileIssues } from '#lib/client/optimistic.svelte';
 	import { parseIssueParams, type IssueParams } from '#lib/issue-url';
@@ -20,6 +21,11 @@
 	// Drop overlays once the authoritative stream reflects them.
 	$effect(() => reconcileIssues(data.issues));
 </script>
+
+<PageHead
+	title="Issues"
+	description="Every mirrored GitHub issue, filtered and grouped."
+/>
 
 <SplitView detailOpen={selected !== null}>
 	{#snippet feed()}

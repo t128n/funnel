@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { HotkeysProvider } from '@tanstack/svelte-hotkeys';
-	import favicon from '#lib/assets/favicon.svg';
 	import { appHotkeys } from '#lib/client/hotkeys';
 	import { initTheme } from '#lib/client/theme';
 	import { Toaster } from '#lib/components/ui/sonner';
@@ -14,10 +13,6 @@
 	// Keep the theme in sync with the OS and other tabs for the whole session.
 	onMount(() => initTheme());
 </script>
-
-<svelte:head>
-	<link rel="icon" href={favicon} />
-</svelte:head>
 
 <HotkeysProvider {appHotkeys}>
 	{@render children()}

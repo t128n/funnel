@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { signInWithGitHub } from '#lib/client/auth';
+	import PageHead from '#lib/components/common/PageHead.svelte';
 	import { Button } from '#lib/components/ui/button';
 	import { Spinner } from '#lib/components/ui/spinner';
 	import { Field, FieldDescription, FieldGroup } from '#lib/components/ui/field';
@@ -16,6 +17,11 @@
 		void signInWithGitHub(data.redirectTo);
 	}
 </script>
+
+<PageHead
+	title="Sign in"
+	description="Sign in to Funnel with GitHub to triage and deliver issues."
+/>
 
 <main class="bg-background flex min-h-svh flex-col items-center justify-center p-6">
 	<div class="w-full max-w-sm">

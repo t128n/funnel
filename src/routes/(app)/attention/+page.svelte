@@ -2,6 +2,7 @@
 	import { invalidateAll } from '$app/navigation';
 	import { page } from '$app/state';
 	import AttentionRow from '#lib/components/attention/AttentionRow.svelte';
+	import PageHead from '#lib/components/common/PageHead.svelte';
 	import BlockActionDialog from '#lib/components/board/BlockActionDialog.svelte';
 	import ViewSegment from '#lib/components/filter/ViewSegment.svelte';
 	import IssueActionDialog from '#lib/components/issue/IssueActionDialog.svelte';
@@ -109,6 +110,11 @@
 		if (getPendingAction() === null) void invalidateAll();
 	}
 </script>
+
+<PageHead
+	title="Attention"
+	description="Blocked issues with a re-check date in the next 7 days."
+/>
 
 <div class="surface-shell bg-[var(--surface-canvas)] flex min-h-0 min-w-0 flex-1 flex-col">
 	<header

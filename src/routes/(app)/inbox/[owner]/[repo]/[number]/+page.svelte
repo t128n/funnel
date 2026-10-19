@@ -1,5 +1,6 @@
 <script lang="ts">
 	import InspectorPane from '#lib/components/issue/InspectorPane.svelte';
+	import PageHead from '#lib/components/common/PageHead.svelte';
 	import DetailPlaceholder from '#lib/components/shell/DetailPlaceholder.svelte';
 	import { clearSelection } from '#lib/client/selection.svelte';
 	import { parseIssueParams } from '#lib/issue-url';
@@ -9,6 +10,8 @@
 
 	const issue = $derived(parseIssueParams(params));
 </script>
+
+<PageHead title={issue ? `${issue.repo}#${issue.number} · Inbox` : 'Inbox'} />
 
 {#if issue}
 	<InspectorPane

@@ -1,5 +1,6 @@
 <script lang="ts">
 	import * as Empty from '#lib/components/ui/empty';
+	import PageHead from '#lib/components/common/PageHead.svelte';
 	import SubmissionDetail from '#lib/components/inbox/SubmissionDetail.svelte';
 	import type { RenderedSubmission } from '#lib/server/issues/types';
 	import type { PageProps } from './$types';
@@ -22,8 +23,10 @@
 </script>
 
 {#if submission}
+	<PageHead title={`${submission.title} · Inbox`} />
 	<SubmissionDetail {submission} {repos} defaultRepo={data.defaultRepo} />
 {:else}
+	<PageHead title="Submission · Inbox" />
 	<Empty.Root class="h-full">
 		<Empty.Header>
 			<Empty.Title>Submission unavailable</Empty.Title>

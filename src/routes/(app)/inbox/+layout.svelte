@@ -7,6 +7,7 @@
 	import GroupByControl from '#lib/components/issue/GroupByControl.svelte';
 	import IssueGroupHeader from '#lib/components/issue/IssueGroupHeader.svelte';
 	import IssueListHeader from '#lib/components/issue/IssueListHeader.svelte';
+	import PageHead from '#lib/components/common/PageHead.svelte';
 	import SplitView from '#lib/components/shell/SplitView.svelte';
 	import SubmissionRow from '#lib/components/inbox/SubmissionRow.svelte';
 	import IssueRow from '#lib/components/issue/IssueRow.svelte';
@@ -75,6 +76,11 @@
 		);
 	}
 </script>
+
+<PageHead
+	title="Inbox"
+	description="Pending intake submissions and untriaged issues."
+/>
 
 <SplitView detailOpen={selectedIssue !== null || selectedSubmissionId !== null}>
 	{#snippet feed()}

@@ -6,6 +6,7 @@
 	import { toast } from 'svelte-sonner';
 	import Spinner from '#lib/components/common/Spinner.svelte';
 	import IntakeTag from '#lib/components/common/IntakeTag.svelte';
+	import PageHead from '#lib/components/common/PageHead.svelte';
 	import SingleSelect from '#lib/components/common/SingleSelect.svelte';
 	import * as Alert from '#lib/components/ui/alert';
 	import { Button } from '#lib/components/ui/button';
@@ -222,14 +223,10 @@
 	onDestroy(() => clearTimeout(copyTimeout));
 </script>
 
-<svelte:head>
-	<title>{form?.submitted ? 'Submission received' : 'Submit an issue'} · Funnel</title>
-	<meta
-		name="description"
-		content="Submit an issue for triage. Nothing is created on GitHub until it is accepted."
-	/>
-	<meta name="robots" content="noindex" />
-</svelte:head>
+<PageHead
+	title={form?.submitted ? 'Submission received' : 'Submit an issue'}
+	description="Submit an issue for triage. Nothing is created on GitHub until it is accepted."
+/>
 
 <main
 	class="surface-shell bg-[color:var(--surface-canvas)] flex min-h-svh items-center justify-center p-4 sm:p-6"
