@@ -38,6 +38,7 @@
 
 	<form
 		method="POST"
+		action="?/save"
 		use:enhance={() => {
 			saving = true;
 			return async ({ result, update }) => {
