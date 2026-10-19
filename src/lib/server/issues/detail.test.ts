@@ -63,7 +63,7 @@ function seed(): void {
 				},
 			],
 		},
-		{ status: "todo", size: null, blocked: false, labelConflict: false },
+		{ status: "todo", impact: null, urgency: null, priority: null, size: null, blocked: false, labelConflict: false },
 	);
 }
 

@@ -1,3 +1,5 @@
+> **Superseded by** `2026-10-19-priority-input-labels.md` for how impact/urgency are stored. The derived-priority model still applies.
+
 # Derived priority from impact × urgency
 
 **Goal:** retire the hand-set `p1`/`p2`/`p3` labels and make priority a derived P0–P3 value over the durable impact/urgency state, then use it for filtering, sorting, grouping and the Inspector.

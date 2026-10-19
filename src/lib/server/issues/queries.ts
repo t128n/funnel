@@ -34,7 +34,6 @@ import {
   mirrorGithubRepoAssignee,
   mirrorGithubRepoLabel,
   mirrorGithubUser,
-  stateIssuePriority,
 } from "#lib/server/db/schema";
 import { listAttachments } from "#lib/server/attachments/store";
 import { listSubmissions } from "#lib/server/intake/staging";
@@ -80,8 +79,8 @@ const BOARD_LABELS: Record<StatusKey, string> = {
   done: "Done",
 };
 
-/** Default sort: derived priority (P0 first, unprioritized last) then updated. */
-const PRIORITY_RANK = sql`case ${stateIssuePriority.priority} when 'P0' then 0 when 'P1' then 1 when 'P2' then 2 when 'P3' then 3 else 4 end`;
+/** Default sort: derived priority (P1 first, unprioritized last) then updated. */
+const PRIORITY_RANK = sql`case ${mirrorGithubIssue.priority} when 'P1' then 0 when 'P2' then 1 when 'P3' then 2 else 3 end`;
 
 const issueColumns = {
   repoId: mirrorGithubIssue.repoId,
@@ -90,9 +89,9 @@ const issueColumns = {
   state: mirrorGithubIssue.state,
   stateReason: mirrorGithubIssue.stateReason,
   status: mirrorGithubIssue.status,
-  priority: stateIssuePriority.priority,
-  impact: stateIssuePriority.impact,
-  urgency: stateIssuePriority.urgency,
+  priority: mirrorGithubIssue.priority,
+  impact: mirrorGithubIssue.impact,
+  urgency: mirrorGithubIssue.urgency,
   size: mirrorGithubIssue.size,
   blocked: mirrorGithubIssue.blocked,
   labelConflict: mirrorGithubIssue.labelConflict,
@@ -177,14 +176,6 @@ function rawQuery(where: SQL | undefined, opts: ListOptions): RawRow[] {
       and(
         eq(mirrorGithubMilestone.repoId, mirrorGithubIssue.repoId),
         eq(mirrorGithubMilestone.number, mirrorGithubIssue.milestoneNumber),
-      ),
-    )
-    .leftJoin(
-      stateIssuePriority,
-      and(
-        eq(stateIssuePriority.org, mirrorGithubRepo.org),
-        eq(stateIssuePriority.name, mirrorGithubRepo.name),
-        eq(stateIssuePriority.issueNumber, mirrorGithubIssue.number),
       ),
     )
     .where(where)
@@ -473,14 +464,6 @@ export function attentionIssues(): AttentionItem[] {
       and(
         eq(mirrorGithubMilestone.repoId, mirrorGithubIssue.repoId),
         eq(mirrorGithubMilestone.number, mirrorGithubIssue.milestoneNumber),
-      ),
-    )
-    .leftJoin(
-      stateIssuePriority,
-      and(
-        eq(stateIssuePriority.org, mirrorGithubRepo.org),
-        eq(stateIssuePriority.name, mirrorGithubRepo.name),
-        eq(stateIssuePriority.issueNumber, mirrorGithubIssue.number),
       ),
     )
     .where(

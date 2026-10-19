@@ -210,6 +210,9 @@ export async function hydrateAndStore(
     const derived = deriveMetadata(record.labels);
     mirror.upsertIssue(record, {
       status: derived.status,
+      impact: derived.impact,
+      urgency: derived.urgency,
+      priority: derived.priority,
       size: derived.size,
       blocked: derived.blocked,
       labelConflict: derived.conflicts.length > 0,

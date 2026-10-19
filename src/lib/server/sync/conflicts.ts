@@ -1,7 +1,8 @@
 /**
  * Reserved-label conflict resolution (SPEC §5.2).
  *
- * An issue may carry at most one label per active group (status, size). When
+ * An issue may carry at most one label per active group (status, impact,
+ * urgency, size). When
  * it accumulates several, `funnel[bot]` inspects the issue timeline and the
  * **latest added label wins**; the superseded labels are removed on GitHub with
  * the App installation token. An ambiguous timeline (no `labeled` events, or a
@@ -12,11 +13,23 @@
  * the UI; `resolveIssueConflict` performs the network round-trips.
  */
 import { CANONICAL_LABELS, type LabelGroup } from "#lib/server/github/labels";
+import {
+  IMPACT_LABELS,
+  URGENCY_LABELS,
+  derivePriorityOrNull,
+  type Impact,
+  type Priority,
+  type Urgency,
+} from "#lib/priority";
 import type { InstallationOctokit } from "#lib/server/github/app.server";
 
 /** Reserved-label projection cached on the issue row. */
 export interface DerivedMetadata {
   status: string | null;
+  impact: Impact | null;
+  urgency: Urgency | null;
+  /** Derived `P1`–`P3`, or `null` when neither axis is assessed. */
+  priority: Priority | null;
   size: string | null;
   /** Whether the orthogonal `blocked` flag is present (SPEC §5.1). */
   blocked: boolean;
@@ -24,7 +37,13 @@ export interface DerivedMetadata {
   conflicts: LabelGroup[];
 }
 
-export const GROUP_ORDER: readonly LabelGroup[] = ["status", "size", "flags"];
+export const GROUP_ORDER: readonly LabelGroup[] = [
+  "status",
+  "impact",
+  "urgency",
+  "size",
+  "flags",
+];
 
 /** Canonical label name (lowercase) -> group, for fast lookups. */
 const GROUP_BY_NAME = new Map<string, LabelGroup>(
@@ -67,6 +86,9 @@ export function deriveMetadata(labelNames: readonly string[]): DerivedMetadata {
   const grouped = groupLabels(labelNames);
   const metadata: DerivedMetadata = {
     status: null,
+    impact: null,
+    urgency: null,
+    priority: null,
     size: null,
     blocked: false,
     conflicts: [],
@@ -76,10 +98,13 @@ export function deriveMetadata(labelNames: readonly string[]): DerivedMetadata {
     if (!names || names.length === 0) continue;
     const winner = names.length === 1 ? names[0] : firstCanonical(names);
     if (group === "status") metadata.status = winner;
+    else if (group === "impact") metadata.impact = IMPACT_LABELS[winner] ?? null;
+    else if (group === "urgency") metadata.urgency = URGENCY_LABELS[winner] ?? null;
     else if (group === "size") metadata.size = winner;
     else if (group === "flags") metadata.blocked = true;
     if (names.length > 1) metadata.conflicts.push(group);
   }
+  metadata.priority = derivePriorityOrNull(metadata.impact, metadata.urgency);
   return metadata;
 }
 

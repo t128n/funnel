@@ -114,6 +114,12 @@ describe("CANONICAL_LABELS", () => {
       "in-progress",
       "in-review",
       "blocked",
+      "sev",
+      "mod",
+      "min",
+      "high",
+      "mid",
+      "low",
       "sm",
       "md",
       "lg",
@@ -171,7 +177,7 @@ describe("provisionRepoLabels", () => {
 
     expect(summary.created).toEqual([]);
     expect(summary.updated).toEqual(["sm", "md"]);
-    expect(summary.unchanged).toHaveLength(6);
+    expect(summary.unchanged).toHaveLength(12);
 
     const patches = seen.filter(
       (s) => s.route === "PATCH /repos/{owner}/{repo}/labels/{name}",

@@ -127,26 +127,6 @@ Primary key: `id`. Foreign keys: none. Indexes:
 
 - `idx_state_attachment_issue` on `(org, name, issue_number, created_at)`.
 
-### `state_issue_priority`
-
-Durable derived priority. Keyed by `org/name` + issue number so an assessment
-survives mirror pruning and a re-sync. Priority is never mirrored from GitHub.
-
-| Column | Type | Constraints / notes |
-| :--- | :--- | :--- |
-| `org` | TEXT | Not null; repository owner. |
-| `name` | TEXT | Not null; repository name. |
-| `issue_number` | INTEGER | Not null. |
-| `impact` | INTEGER | Nullable; `1` Extensive – `4` Minor. |
-| `urgency` | INTEGER | Nullable; `1` Critical – `4` Low. |
-| `priority` | TEXT | Nullable; derived `P0`–`P3`, or null when both axes are unset. |
-| `created_at` | INTEGER | Not null, Unix ms. |
-| `updated_at` | INTEGER | Not null, Unix ms. |
-
-Primary key: `(org, name, issue_number)`. Foreign keys: none. Indexes:
-
-- `idx_state_issue_priority_priority` on `(priority, updated_at)`.
-
 ## Auth tables
 
 These tables match Better Auth's stock schema. `role`, `banned`, `banReason` and `banExpires` are declared by the admin plugin. A null `role` is treated as `read` by Funnel's RBAC helpers.
@@ -297,7 +277,7 @@ Indexes: the composite primary key only.
 
 ### `mirror_github_issue`
 
-The issue cache. `status`, `size` and `blocked` are derived caches of the active reserved-label groups, recomputed at sync time. Priority is not mirrored; it lives in `state_issue_priority`. Done/Cancelled derive from `(state, state_reason)`.
+The issue cache. `status`, `impact`, `urgency`, `size` and `blocked` are derived caches of the active reserved-label groups, recomputed at sync time; `priority` is the derived P1–P3 cache. Done/Cancelled derive from `(state, state_reason)`.
 
 | Column | Type | Constraints / notes |
 | :--- | :--- | :--- |
@@ -314,6 +294,9 @@ The issue cache. `status`, `size` and `blocked` are derived caches of the active
 | `updated_at` | INTEGER | Not null, Unix ms. |
 | `closed_at` | INTEGER | Nullable, Unix ms. |
 | `status` | TEXT | Nullable; `backlog`, `todo`, `in-progress` or `in-review`. |
+| `impact` | INTEGER | Nullable; `1` Severe, `2` Moderate or `3` Minor. |
+| `urgency` | INTEGER | Nullable; `1` High, `2` Mid or `3` Low. |
+| `priority` | TEXT | Nullable derived cache; `P1`, `P2` or `P3` (never a label). |
 | `size` | TEXT | Nullable; `sm`, `md` or `lg`. |
 | `blocked` | INTEGER | Not null, default `0`; 0/1 orthogonal flag. |
 | `label_conflict` | INTEGER | Not null, default `0`; 0/1 ambiguous reserved-label timeline or a retired p-label that disagrees with the derived priority. |
@@ -326,6 +309,7 @@ Primary key: `(repo_id, number)`. Foreign keys:
 Indexes:
 
 - `idx_mirror_github_issue_status_updated` on `(status, updated_at)`.
+- `idx_mirror_github_issue_priority_updated` on `(priority, updated_at)`.
 - `idx_mirror_github_issue_state` on `(state, state_reason)`.
 - `idx_mirror_github_issue_repo_updated` on `(repo_id, updated_at)`.
 - `idx_mirror_github_issue_milestone` on `(repo_id, milestone_number)`.
@@ -452,7 +436,7 @@ Foreign keys declared in the schema:
 | `mirror_github_repo_assignee.user_id` | `mirror_github_user.github_id` | `CASCADE` |
 | `mirror_github_comment.author_id` | `mirror_github_user.github_id` | `SET NULL` |
 
-The composite child tables `mirror_github_issue_label` and `mirror_github_issue_assignee`, and the `repo_id`/`issue_number` columns on `mirror_github_comment`, carry no foreign key to `mirror_github_issue`. `mirror_github_issue.milestone_number` also has no foreign key to `mirror_github_milestone`: the milestone set is replaced wholesale on refresh, and an issue may briefly reference a number that has not been mirrored yet. The sync layer therefore deletes labels, assignees and comments explicitly before deleting an issue row (`deleteIssue` in `src/lib/server/sync/mirror.ts`). `state_work_note`, `state_attachment`, and `state_issue_priority` also carry no foreign key to the mirror: their author/uploader ids are snapshots, and their issue identity is the durable `org/name` plus number.
+The composite child tables `mirror_github_issue_label` and `mirror_github_issue_assignee`, and the `repo_id`/`issue_number` columns on `mirror_github_comment`, carry no foreign key to `mirror_github_issue`. `mirror_github_issue.milestone_number` also has no foreign key to `mirror_github_milestone`: the milestone set is replaced wholesale on refresh, and an issue may briefly reference a number that has not been mirrored yet. The sync layer therefore deletes labels, assignees and comments explicitly before deleting an issue row (`deleteIssue` in `src/lib/server/sync/mirror.ts`). `state_work_note` and `state_attachment` also carry no foreign key to the mirror: their author/uploader ids are snapshots, and their issue identity is the durable `org/name` plus number.
 
 ## Storage, pragmas and migrations
 

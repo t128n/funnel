@@ -88,11 +88,9 @@
 	);
 	const sizeColor = $derived(issue.size ? (canonicalLabel(issue.size)?.color ?? null) : null);
 
-	/** Priority reads as text on a card: P0 is the designed Urgent token. */
+	/** Priority reads as text on a card: `P1`/`P2`/`P3`. */
 	const priorityDisplay = $derived(priorityMeta(issue.priority));
-	const priorityLabel = $derived(
-		priorityDisplay ? (priorityDisplay.urgent ? priorityDisplay.name : priorityDisplay.value) : null
-	);
+	const priorityLabel = $derived(priorityDisplay?.value ?? null);
 	const priorityColor = $derived(priorityDisplay?.color ?? null);
 	const priorityTitle = $derived(
 		priorityDisplay

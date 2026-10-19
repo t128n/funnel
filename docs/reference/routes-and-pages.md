@@ -118,7 +118,6 @@ API routes are not under the `(app)` layout and enforce their own guards. Detail
 | `/api/events` | GET | `read` | Server-Sent Events stream. |
 | `/api/mirror/issues/{owner}/{repo}` | GET | `read` | Mirrored issue options. |
 | `/api/mirror/issues/{owner}/{repo}/{number}` | GET | `read` | Rendered Inspector payload. |
-| `/api/mirror/issues/{owner}/{repo}/{number}/priority` | PATCH | `write` | Set durable impact/urgency and derive priority. |
 | `/api/repos/{owner}/{repo}/issues` | GET, POST | `read` / `write` | GitHub issue list and creation. |
 | `/api/repos/{owner}/{repo}/issues/{number}` | GET, PATCH | `read` / `write` | GitHub issue read and update. |
 | `/api/repos/{owner}/{repo}/issues/{number}/comments` | GET, POST | `read` / `write` | GitHub comments. |

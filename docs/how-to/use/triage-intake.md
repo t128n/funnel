@@ -38,7 +38,7 @@ Nothing is created on GitHub until a triager accepts the submission. See [the wo
 The Inbox is a single queue with two parts, always in this order:
 
 1. **Staged** submissions, newest first. Same-millisecond ties are broken deterministically by insertion order.
-2. **Untriaged issues** — open issues with no status label. These are ordered by derived priority (`P0` first, unprioritised last), then by most recently updated.
+2. **Untriaged issues** — open issues with no status label. These are ordered by derived priority (`P1` first, unprioritised last), then by most recently updated.
 
 The **Staged** group can be collapsed. The issue half can be grouped with the group-by control, like the other issue streams.
 

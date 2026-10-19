@@ -19,7 +19,7 @@ export interface ClientFilter {
   statuses: string[];
   /** GitHub logins, numeric ids, or `me`. */
   assignees: string[];
-  /** `p0`-`p3` and/or `none`. */
+  /** `p1`-`p3` and/or `none`. */
   priorities: string[];
   /** `sm`/`md`/`lg` and/or `none`. */
   sizes: string[];

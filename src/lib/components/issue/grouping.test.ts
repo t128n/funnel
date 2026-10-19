@@ -121,19 +121,19 @@ describe("buildGroups / project", () => {
 });
 
 describe("buildGroups / priority", () => {
-  test("orders derived priorities and labels P0 as Urgent", () => {
+  test("orders derived priorities with their tier names", () => {
     const groups = buildGroups(
       [
-        issue({ number: 1, priority: "P2" }),
-        issue({ number: 2, priority: "P0" }),
+        issue({ number: 1, priority: "P3" }),
+        issue({ number: 2, priority: "P1" }),
         issue({ number: 3, priority: null })
       ],
       "priority"
     );
 
     expect(groups.map((group) => [group.key, group.label])).toEqual([
-      ["P0", "P0 · Urgent"],
-      ["P2", "P2 · Medium"],
+      ["P1", "P1 · High"],
+      ["P3", "P3 · Low"],
       ["none", "No priority"]
     ]);
   });

@@ -27,7 +27,6 @@ import {
   mirrorGithubIssue,
   mirrorGithubIssueAssignee,
   mirrorGithubIssueLabel,
-  stateIssuePriority,
 } from "#lib/server/db/schema";
 import { CANONICAL_LABELS, type LabelGroup } from "#lib/server/github/labels";
 import { isRetiredPriorityLabel } from "#lib/priority";
@@ -41,9 +40,9 @@ export const STATUS_VALUES = [
 ] as const;
 /**
  * Priority filter vocabulary. The URL uses the lowercase form; the durable
- * state stores the canonical `P0`–`P3` value.
+ * cache stores the canonical `P1`–`P3` value.
  */
-export const PRIORITY_VALUES = ["p0", "p1", "p2", "p3"] as const;
+export const PRIORITY_VALUES = ["p1", "p2", "p3"] as const;
 export const SIZE_VALUES = ["sm", "md", "lg"] as const;
 
 /** GitHub issue states. The Issues view defaults to `open` (SPEC §9.2). */
@@ -83,7 +82,7 @@ export interface IssueFilter {
   statuses: string[];
   /** `mirror_github_user.github_id` values. */
   assignees: number[];
-  /** `p0`-`p3` and/or {@link NONE}. */
+  /** `p1`-`p3` and/or {@link NONE}. */
   priorities: string[];
   /** `sm`/`md`/`lg` and/or {@link NONE}. */
   sizes: string[];
@@ -320,13 +319,13 @@ export function buildIssueWhere(filter: IssueFilter): SQL | undefined {
     if (clause) conditions.push(clause);
   }
 
-  // Priority lives in durable state, not a mirrored label column.
+  // Priority is the derived P1–P3 cache; the URL uses the lowercase form.
   if (filter.priorities.length > 0) {
     const parts = filter.priorities
       .filter((value) => value !== NONE)
-      .map((value) => eq(stateIssuePriority.priority, value.toUpperCase()));
+      .map((value) => eq(mirrorGithubIssue.priority, value.toUpperCase()));
     if (filter.priorities.includes(NONE)) {
-      parts.push(isNull(stateIssuePriority.priority));
+      parts.push(isNull(mirrorGithubIssue.priority));
     }
     if (parts.length === 1) conditions.push(parts[0]);
     else if (parts.length > 1) conditions.push(or(...parts) as SQL);

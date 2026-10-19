@@ -22,12 +22,11 @@ afterEach(() => {
 });
 
 /**
- * The upgrade path matters more than a fresh install: an existing database
- * still has `mirror_github_issue.priority`, and the migration must seed the
- * durable rows before dropping the column.
+ * Upgrade from the merged local-state model: the latest migration adds the
+ * label-driven impact/urgency/priority columns and drops the old state table.
  */
-describe("priority migration", () => {
-  test("seeds P1-P3 from the mirrored label cache, then drops the column", () => {
+describe("priority label migration", () => {
+  test("adds the axis columns and drops the local state table", () => {
     const prior = mkdtempSync(join(tmpdir(), "funnel-prior-"));
     const dbPath = join(tmpdir(), `funnel-migrate-${process.pid}-${Date.now()}.db`);
     cleanup.push(prior, dbPath);
@@ -48,36 +47,44 @@ describe("priority migration", () => {
            VALUES (1, 'orgA', 'core', 0, 0)`,
         )
         .run();
-      const insert = sqlite.query(
-        `INSERT INTO mirror_github_issue
-           (repo_id, number, github_id, title, body, state, created_at, updated_at, priority)
-         VALUES (1, ?, ?, 'issue', '', 'open', 1, 1, ?)`,
-      );
-      insert.run(1, 101, "p1");
-      insert.run(2, 102, "p2");
-      insert.run(3, 103, "p3");
-      insert.run(4, 104, null);
+      sqlite
+        .query(
+          `INSERT INTO mirror_github_issue
+             (repo_id, number, github_id, title, body, state, created_at, updated_at)
+           VALUES (1, 7, 700, 'issue', '', 'open', 1, 1)`,
+        )
+        .run();
+      sqlite
+        .query(
+          `INSERT INTO state_issue_priority
+             (org, name, issue_number, impact, urgency, priority, created_at, updated_at)
+           VALUES ('orgA', 'core', 7, 1, 1, 'P1', 1, 1)`,
+        )
+        .run();
 
       migrate(drizzle({ client: sqlite }), { migrationsFolder: DRIZZLE });
-
-      const rows = sqlite
-        .query(
-          `SELECT issue_number, impact, urgency, priority
-             FROM state_issue_priority
-            ORDER BY issue_number`,
-        )
-        .all();
-      expect(rows).toEqual([
-        { issue_number: 1, impact: null, urgency: null, priority: "P1" },
-        { issue_number: 2, impact: null, urgency: null, priority: "P2" },
-        { issue_number: 3, impact: null, urgency: null, priority: "P3" },
-      ]);
 
       const columns = sqlite
         .query("PRAGMA table_info(mirror_github_issue)")
         .all()
         .map((column) => (column as { name: string }).name);
-      expect(columns).not.toContain("priority");
+      expect(columns).toEqual(
+        expect.arrayContaining(["impact", "urgency", "priority"]),
+      );
+
+      const tables = sqlite
+        .query("SELECT name FROM sqlite_master WHERE type = 'table'")
+        .all()
+        .map((table) => (table as { name: string }).name);
+      expect(tables).not.toContain("state_issue_priority");
+
+      const issue = sqlite
+        .query(
+          `SELECT impact, urgency, priority
+             FROM mirror_github_issue WHERE repo_id = 1 AND number = 7`,
+        )
+        .get();
+      expect(issue).toEqual({ impact: null, urgency: null, priority: null });
     } finally {
       sqlite.close();
     }

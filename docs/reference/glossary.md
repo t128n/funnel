@@ -14,13 +14,13 @@ Definitions of the terms used across Funnel's reference documentation.
 
 **Reconciliation** — The nightly full sweep that re-hydrates every open issue and every issue closed inside the history window, prunes mirror rows that were deleted, transferred or aged out, and re-provisions canonical labels. It is scheduled for 03:00 local time. See [`reconcile.ts`](../../src/lib/server/sync/reconcile.ts).
 
-**Reserved label** — One of Funnel's canonical labels: status `backlog`, `todo`, `in-progress`, `in-review`; size `sm`, `md`, `lg`; and the orthogonal flag `blocked`. At most one label per active group is authoritative; a conflicting set is resolved by the latest `labeled` timeline event, or flagged as a label conflict. Absence means untriaged, unestimated or not blocked. Priority is derived state, not a label. See [`labels.ts`](../../src/lib/labels.ts).
+**Reserved label** — One of Funnel's canonical labels: status `backlog`, `todo`, `in-progress`, `in-review`; impact `sev`, `mod`, `min`; urgency `high`, `mid`, `low`; size `sm`, `md`, `lg`; and the orthogonal flag `blocked`. At most one label per active group is authoritative; a conflicting set is resolved by the latest `labeled` timeline event, or flagged as a label conflict. Absence means untriaged, unassessed, unestimated or not blocked. Priority is derived, not a label. See [`labels.ts`](../../src/lib/labels.ts).
 
-**Impact** — The first of two triage inputs, on a fixed four-point scale from `1` Extensive to `4` Minor. Stored in the durable `state_issue_priority` row. See [Impact, urgency, and priority](./priority.md).
+**Impact** — The first of two triage inputs, a reserved label: `sev` (Severe), `mod` (Moderate) or `min` (Minor). The mirror caches it as `1`–`3`. See [Impact, urgency, and priority](./priority.md).
 
-**Urgency** — The second triage input, on a fixed four-point scale from `1` Critical to `4` Low. Stored in the durable `state_issue_priority` row. See [Impact, urgency, and priority](./priority.md).
+**Urgency** — The second triage input, a reserved label: `high`, `mid` or `low`. The mirror caches it as `1`–`3`. See [Impact, urgency, and priority](./priority.md).
 
-**Priority** — The P0–P3 result of looking up impact × urgency in the published matrix. One unset or invalid axis yields P3; both unset mean no priority. The retired `p1`–`p3` labels are used only to seed a missing row. See [Impact, urgency, and priority](./priority.md).
+**Priority** — The P1–P3 (High/Medium/Low) result of looking up impact × urgency in the published matrix. One unset axis yields P3; both unset mean no priority. Priority is never a GitHub label; the retired `p1`–`p3` labels are only compared for the conflict flag. See [Impact, urgency, and priority](./priority.md).
 
 **Shortcode** — A short uppercase project key for a repository, at most six characters, used in compact issue references such as `FIT-12`. A configured `repos[].shortcode` wins; otherwise it is derived from the repository name (for example `funnel-issue-tracker` → `FIT`). Shortcodes are unique across configured repositories (enforced by config validation). See [`issue-ref.ts`](../../src/lib/issue-ref.ts).
 

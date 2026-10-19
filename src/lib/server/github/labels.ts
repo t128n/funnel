@@ -15,8 +15,8 @@
  * place: dropping them is a separate, explicit upstream cleanup.
  *
  * Note: writes run through the shared installation Octokit, which includes
- * octokit's throttling plugin (one write per second). A repo missing all eight
- * labels therefore takes roughly eight seconds to converge; converged repos
+ * octokit's throttling plugin (one write per second). A repo missing all
+ * fourteen labels therefore takes roughly fourteen seconds to converge; converged repos
  * issue zero writes and return immediately.
  */
 import { configuredRepoSlugs, getConfig } from "#/lib/server/config";

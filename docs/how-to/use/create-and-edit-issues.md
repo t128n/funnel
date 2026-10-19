@@ -16,7 +16,7 @@ The cockpit does not have a separate create dialog with repository, label and as
 | Repository | The triager's **Repository** pill at Accept |
 | Status | `backlog` is applied at Accept; change it later with the status pill |
 | Size | The optional pill at Accept, or the inspector afterwards |
-| Priority | Derived in the inspector from impact and urgency |
+| Priority | Single **Priority** control in the inspector; its popover sets impact and urgency |
 | Labels and assignees | The inspector after creation |
 | Milestone | The inspector after creation |
 | Blocked flag and blocker details | The inspector or board after creation |
@@ -43,6 +43,8 @@ The form keeps a shareable deeplink in the address bar as you type and shows a c
 | `labels` | No | Array of non-empty, trimmed label names |
 | `assignees` | No | Array of non-empty, trimmed GitHub logins |
 | `status` | No | `backlog`, `todo`, `in-progress` or `in-review` |
+| `impact` | No | `sev`, `mod` or `min` |
+| `urgency` | No | `high`, `mid` or `low` |
 | `size` | No | `sm`, `md` or `lg` |
 
 Example:
@@ -54,6 +56,8 @@ Example:
   "labels": ["bug", "needs-triage"],
   "assignees": ["octocat"],
   "status": "todo",
+  "impact": "mod",
+  "urgency": "high",
   "size": "md"
 }
 ```
@@ -66,23 +70,25 @@ An issue created without a status label is untriaged and appears in the Inbox, n
 
 ## Reserved labels and one-per-group behaviour
 
-Status and size are represented by reserved labels. Funnel keeps at most one label from each active group. Priority is derived from durable impact/urgency state instead.
+Status, impact, urgency and size are represented by reserved labels. Funnel keeps at most one label from each active group. Priority is derived from impact × urgency and is not a label.
 
 | Group | Values | Absence means |
 | :--- | :--- | :--- |
 | Status | `backlog`, `todo`, `in-progress`, `in-review` | Untriaged (Inbox) |
+| Impact | `sev`, `mod`, `min` | Not assessed |
+| Urgency | `high`, `mid`, `low` | Not assessed |
 | Size | `sm`, `md`, `lg` | Unestimated |
 | Flags | `blocked` | Not blocked |
 
 For a direct API create:
 
 - `labels` is normalised first, case-insensitively. If it contains more than one label from the same group, the first one wins.
-- The `status` and `size` shortcuts then replace any sibling already present in `labels`. For example, `labels: ["todo"], status: "in-progress"` creates the issue with `in-progress`, not `todo`.
+- The `status`, `impact`, `urgency` and `size` shortcuts then replace any sibling already present in `labels`. For example, `labels: ["todo"], status: "in-progress"` creates the issue with `in-progress`, not `todo`.
 - Retired `p1`–`p3` labels are dropped from the outbound set.
 - Non-reserved labels are preserved.
 - The `blocked` flag has no dedicated shortcut; a `blocked` entry in `labels` is kept as a flags label.
 
-The inspector uses the same rule when you change a status or size: it reads the issue's authoritative label set from GitHub, removes every label in that group, and writes the replacement in one request. See [Reserved labels](../../reference/reserved-labels.md) for the full vocabulary.
+The inspector uses the same rule when you change a status, impact, urgency or size: it reads the issue's authoritative label set from GitHub, removes every label in that group, and writes the replacement in one request. See [Reserved labels](../../reference/reserved-labels.md) for the full vocabulary.
 
 ## Edit an issue
 
@@ -93,11 +99,9 @@ Open an issue from Issues, the Inbox, or the board. The inspector pane is the ed
 | Title | Inline title input | Press Enter or move focus away to save, or use the **Save** button that appears while the title is dirty. The title is trimmed; it must be non-empty and at most 256 characters. |
 | Description | Click the description to edit | The textarea has **Save** and **Cancel**. `⌘`/`Ctrl` + Enter saves. The body may be empty and is limited to 65,536 characters. |
 | Assignees | **Assignee** multi-select | Selecting or clearing people writes the whole assignee list, because the GitHub endpoint replaces it. Options are the repository's assignable users plus anyone currently assigned. |
-| Labels | **Labels** multi-select | Adds and removes non-reserved labels. Reserved status, size and flag labels, and retired priority labels, are deliberately excluded from this picker. |
+| Labels | **Labels** multi-select | Adds and removes non-reserved labels. Reserved status, impact, urgency, size and flag labels, and retired priority labels, are deliberately excluded from this picker. |
 | Status | Status pill | Shows **No status**, Backlog, Todo, In Progress, In Review or Done. Choosing Done opens the close dialog; choosing an open status on a closed issue opens the reopen dialog. |
-| Impact | Impact pill | `1 · Extensive` through `4 · Minor`, or cleared to unassessed. |
-| Urgency | Urgency pill | `1 · Critical` through `4 · Low`, or cleared to unassessed. |
-| Priority | Read-only priority pill | Derived from impact × urgency: `P0 · Urgent` through `P3 · Low`, or **No priority** when both axes are unset. |
+| Priority | **Priority** pill + popover | Shows the derived `P1 · High`, `P2 · Medium`, `P3 · Low` or **No priority**. The popover has one slider per axis; below each slider is the current level's name and definition. Moving a slider writes that axis' reserved label; the derived token updates immediately. A **Clear priority** action removes both labels. |
 | Size | Size pill | `S`, `M`, `L`, or cleared to unestimated. |
 | Milestone | **Milestone** pill | Attaches, clears, or lazily creates a repository milestone. GitHub scopes milestones per repository, so the picker only offers the issue's repo. See [Use milestones](milestones.md). |
 | Blocked | **Blocked** pill | Opens the block or unblock dialog. See [Close, reopen and block issues](close-reopen-block.md). |

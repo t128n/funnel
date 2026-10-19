@@ -8,12 +8,11 @@
  * background {@link refreshIssue} (SPEC §7.2), keeping the mirror fresh without
  * blocking the response.
  *
- * Reserved-label edits are group-aware: status/size are kept to at most one
- * label per group (SPEC §5.2.1) by reading the issue's authoritative label set
- * from GitHub, swapping the sibling, and replacing the set in one `PUT`.
- * Priority is Funnel-owned durable state. New p-labels are refused or stripped;
- * an existing retired label is left untouched on a rewrite rather than deleted
- * implicitly.
+ * Reserved-label edits are group-aware: status/impact/urgency/size are kept to
+ * at most one label per group (SPEC §5.2.1) by reading the issue's
+ * authoritative label set from GitHub, swapping the sibling, and replacing the
+ * set in one `PUT`. Priority is derived from impact × urgency and carries no
+ * label; retired p-labels are refused or stripped from new writes.
  */
 import type { Octokit } from "octokit";
 import { getConfig, isConfiguredRepo } from "#lib/server/config";
@@ -58,6 +57,8 @@ export interface CreateIssueInput {
   assignees?: readonly string[];
   /** Convenience reserved-label shortcuts. */
   status?: string;
+  impact?: string;
+  urgency?: string;
   size?: string;
 }
 
@@ -72,6 +73,8 @@ export interface UpdateIssueInput {
   stateReason?: "completed" | "not_planned" | null;
   /** `null` clears the label; `undefined` leaves the group untouched. */
   status?: string | null;
+  impact?: string | null;
+  urgency?: string | null;
   size?: string | null;
   /** Toggles the orthogonal `blocked` flag (SPEC §5.1). */
   blocked?: boolean;
@@ -116,17 +119,23 @@ function splitRepo(repo: string): { owner: string; name: string } | null {
   return { owner: repo.slice(0, slash), name: repo.slice(slash + 1) };
 }
 
+function namesIn(group: LabelGroup): Set<string> {
+  return new Set(
+    CANONICAL_LABELS.filter((label) => label.group === group).map((label) =>
+      label.name.toLowerCase(),
+    ),
+  );
+}
+
 const GROUP_VALUES: Record<LabelGroup, ReadonlySet<string>> = {
   status: new Set(STATUS_VALUES),
   // Priority is no longer a label group; the set stays empty so the record
   // remains total without accepting a retired p-label as canonical.
   priority: new Set<string>(),
+  impact: namesIn("impact"),
+  urgency: namesIn("urgency"),
   size: new Set(SIZE_VALUES),
-  flags: new Set(
-    CANONICAL_LABELS.filter((label) => label.group === "flags").map((label) =>
-      label.name.toLowerCase(),
-    ),
-  ),
+  flags: namesIn("flags"),
 };
 
 function isCanonical(group: LabelGroup, value: string): boolean {
@@ -243,6 +252,8 @@ export async function createIssue(
     (input.labels ?? []).filter((label) => !isRetiredPriorityLabel(label)),
   );
   if (input.status) labels = withReserved(labels, "status", input.status);
+  if (input.impact) labels = withReserved(labels, "impact", input.impact);
+  if (input.urgency) labels = withReserved(labels, "urgency", input.urgency);
   if (input.size) labels = withReserved(labels, "size", input.size);
 
   const params: {
@@ -307,6 +318,8 @@ export async function updateIssue(
 
   const reservedRequested =
     input.status !== undefined ||
+    input.impact !== undefined ||
+    input.urgency !== undefined ||
     input.size !== undefined ||
     input.blocked !== undefined;
 
@@ -324,6 +337,8 @@ export async function updateIssue(
 
   for (const [group, value] of [
     ["status", input.status],
+    ["impact", input.impact],
+    ["urgency", input.urgency],
     ["size", input.size],
   ] as const) {
     if (value !== undefined && value !== null && !isCanonical(group, value)) {
@@ -355,6 +370,12 @@ export async function updateIssue(
       );
       if (input.status !== undefined) {
         labels = withReserved(labels, "status", input.status);
+      }
+      if (input.impact !== undefined) {
+        labels = withReserved(labels, "impact", input.impact);
+      }
+      if (input.urgency !== undefined) {
+        labels = withReserved(labels, "urgency", input.urgency);
       }
       if (input.size !== undefined) {
         labels = withReserved(labels, "size", input.size);
