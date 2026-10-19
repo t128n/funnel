@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/state';
+	import { untrack } from 'svelte';
 	import { createHotkeys, getAppHotkeys } from '@tanstack/svelte-hotkeys';
 	import BlockActionDialog from '#lib/components/board/BlockActionDialog.svelte';
 	import BoardShortcuts from '#lib/components/board/BoardShortcuts.svelte';
@@ -12,6 +13,7 @@
 	import IssueList from '#lib/components/issue/IssueList.svelte';
 	import PageHead from '#lib/components/common/PageHead.svelte';
 	import { requestFocusedCardMenu, requestFocusedCardOpen } from '#lib/client/board-ui.svelte';
+	import { createBoardFeed } from '#lib/client/board-feed.svelte';
 	import {
 		cancelAction,
 		confirmBlock,
@@ -20,7 +22,7 @@
 		getPendingAction,
 		isActionBusy
 	} from '#lib/client/issue-actions.svelte';
-	import { projectBoard, reconcileIssues } from '#lib/client/optimistic.svelte';
+	import { projectIssues, reconcileIssues } from '#lib/client/optimistic.svelte';
 	import { canWrite } from '#lib/roles';
 	import { parseIssueParams, type IssueParams } from '#lib/issue-url';
 	import type { LayoutProps } from './$types';
@@ -30,15 +32,22 @@
 	/** RBAC `read` viewers can browse the board but not drag or triage. */
 	const mayWrite = $derived(canWrite(data.user.role));
 
-	const board = $derived(projectBoard(data.board));
-	const backlog = $derived(board.columns.find((column) => column.key === 'backlog')?.issues ?? []);
-	const total = $derived(
-		board.columns.reduce((sum, column) => sum + column.issues.length, 0)
+	// One keyset feed per lane; the server-rendered first page seeds them and
+	// every SSE refresh merges into the loaded windows rather than resetting.
+	const boardFeed = untrack(() =>
+		createBoardFeed(data.board, () => page.url.search)
 	);
+	const board = $derived(boardFeed.board());
+	const total = $derived(boardFeed.total());
 
 	// Backlog is a separate list view, not a board lane (SPEC §9.3).
 	const backlogView = $derived(page.url.searchParams.get('view') === 'backlog');
 	const selected = $derived(parseIssueParams(page.params as IssueParams));
+
+	// Keep the loaded windows current as fresh loads/SSE land.
+	$effect(() => {
+		boardFeed.sync(data.board);
+	});
 
 	const viewItems = $derived([
 		{ label: 'Board', href: viewHref(false), active: !backlogView },
@@ -55,8 +64,9 @@
 		return query ? `${page.url.pathname}?${query}` : page.url.pathname;
 	}
 
-	// Drop overlays once the authoritative board reflects them.
-	$effect(() => reconcileIssues(data.board.columns.flatMap((column) => column.issues)));
+	// Drop overlays once the authoritative board reflects them. Reconcile from
+	// the raw lane windows (the projection would always look satisfied).
+	$effect(() => reconcileIssues(Object.values(boardFeed.columns).flatMap((feed) => feed.items)));
 
 	const pending = $derived(getPendingAction());
 	const busy = $derived(isActionBusy());
@@ -100,13 +110,20 @@
 
 		{#if backlogView}
 			<IssueList
-				issues={backlog}
+				feed={boardFeed.columns.backlog}
+				project={(issues) =>
+					projectIssues(issues).filter(
+						(issue) => issue.state !== 'closed' && issue.status === 'backlog'
+					)}
 				{selected}
 				empty="Backlog is empty."
 				repoShortcodes={data.repoShortcodes}
 				groupable={false}
 			/>
 		{:else}
+			<!-- Each projected lane carries its own `total`, `nextCursor`,
+			     `loading`, and `loadMore`, so `StatusBoard` can wire infinite
+			     scroll without touching the feed stores. -->
 			<StatusBoard
 				{board}
 				wipLimits={data.wipLimits}
