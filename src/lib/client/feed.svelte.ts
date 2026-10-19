@@ -12,13 +12,7 @@
  * inside them are owned by that component.
  */
 import { appendUnique, mergeFirstPage } from "#lib/client/feed-merge";
-import { FEED_ENDPOINTS, feedUrl } from "#lib/feeds";
-import type {
-  BoardColumn,
-  IssueListItem,
-  StatusBoard,
-  StatusKey,
-} from "#lib/server/issues/types";
+import { feedUrl } from "#lib/feeds";
 
 /** One page returned by a feed endpoint; mirrors the server's `ListPage`. */
 export interface FeedPage<T> {
@@ -29,7 +23,7 @@ export interface FeedPage<T> {
 
 /** Everything a feed needs to fetch its own next pages. */
 export interface FeedConfig<T> {
-  /** `GET` endpoint, e.g. {@link FEED_ENDPOINTS.issues}. */
+  /** `GET` endpoint, e.g. `/api/feeds/issues`. */
   endpoint: string;
   /** The server-rendered first page. */
   initial: FeedPage<T>;
@@ -68,34 +62,8 @@ export interface Feed<T> {
   refreshLoaded(): Promise<void>;
 }
 
-/** A board's five lane feeds, keyed by status. */
-export interface BoardFeed {
-  readonly columns: Record<StatusKey, Feed<IssueListItem>>;
-  /** Sum of the server totals for every lane. */
-  total(): number;
-  /** Walk one lane forward by its own cursor. */
-  loadMore(column: StatusKey): Promise<void>;
-  /** Merge freshly loaded lane pages into the loaded windows. */
-  sync(board: StatusBoard): void;
-}
-
-/** Canonical lane order (SPEC §9.3); `done` is the closed-completed window. */
-const STATUS_KEYS: readonly StatusKey[] = [
-  "backlog",
-  "todo",
-  "in-progress",
-  "in-review",
-  "done",
-];
-
 /** Loaded-window refresh cap (plan: refetch at most 500 rows). */
 const MAX_REFRESH = 500;
-
-/** Board columns carry their page metadata alongside the legacy `issues`. */
-type BoardColumnPage = BoardColumn & {
-  total?: number;
-  nextCursor?: string | null;
-};
 
 /** Extract a readable message from a failed request. */
 function messageOf(cause: unknown): string {
@@ -244,63 +212,3 @@ export function createFeed<T>(config: FeedConfig<T>): Feed<T> {
   };
 }
 
-/** Identity of a board card: repo id plus issue number. */
-function issueKey(item: IssueListItem): string {
-  return `${item.repoId}:${item.number}`;
-}
-
-/** Read one lane's page metadata, tolerating the legacy shape without it. */
-function columnPage(column: BoardColumn | undefined): FeedPage<IssueListItem> {
-  if (!column) return { items: [], total: 0, nextCursor: null };
-  const page = column as BoardColumnPage;
-  return {
-    items: column.issues,
-    total: typeof page.total === "number" ? page.total : column.issues.length,
-    nextCursor: typeof page.nextCursor === "string" ? page.nextCursor : null,
-  };
-}
-
-/**
- * Create one feed per board lane. The board key is the canonical filter query
- * string, so a filter change resets every lane on the next `sync`.
- */
-export function createBoardFeed(
-  initial: StatusBoard,
-  key: () => string,
-): BoardFeed {
-  const byKey = new Map<string, BoardColumn>(
-    initial.columns.map((column) => [column.key, column]),
-  );
-  const columns = {} as Record<StatusKey, Feed<IssueListItem>>;
-
-  for (const statusKey of STATUS_KEYS) {
-    columns[statusKey] = createFeed<IssueListItem>({
-      endpoint: FEED_ENDPOINTS.board,
-      initial: columnPage(byKey.get(statusKey)),
-      key,
-      itemKey: issueKey,
-      query: () => new URLSearchParams(key()),
-      limit: 50,
-      extra: () => ({ column: statusKey }),
-    });
-  }
-
-  function sync(board: StatusBoard): void {
-    const fresh = new Map<string, BoardColumn>(
-      board.columns.map((column) => [column.key, column]),
-    );
-    for (const statusKey of STATUS_KEYS) {
-      const column = fresh.get(statusKey);
-      // A missing lane means the server omitted it, not that it emptied.
-      if (column) columns[statusKey].sync(columnPage(column));
-    }
-  }
-
-  return {
-    columns,
-    total: () => STATUS_KEYS.reduce((sum, lane) => sum + columns[lane].total, 0),
-    loadMore: (column) =>
-      columns[column] ? columns[column].loadMore() : Promise.resolve(),
-    sync,
-  };
-}
