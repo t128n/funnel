@@ -7,6 +7,7 @@
 	import * as Sidebar from '#lib/components/ui/sidebar/index.js';
 	import { actionableCount, classifyAttention, toISODate } from '#lib/attention';
 	import { connectEvents } from '#lib/client/events';
+	import { startNativeNotifications } from '#lib/client/native-notifications';
 	import { clockTick, startClock } from '#lib/client/clock.svelte';
 	import { bumpRefresh } from '#lib/client/refresh';
 	import { canWrite } from '#lib/roles';
@@ -29,6 +30,10 @@
 	// relative-time labels ticking even when no change arrives.
 	onMount(() => {
 		const stopClock = startClock();
+		// Browser notices are separate from the shared refresh signal: the SSE
+		// payload carries no recipients, so the helper fetches this tab's own
+		// unread feed when a `notifications` event arrives.
+		const stopNative = startNativeNotifications(data.nativeNotifications);
 		const stopEvents = connectEvents(() => {
 			// Refresh the streams and signal the Inspector. Overlays are dropped
 			// later, by value (see `reconcileIssues`), so a refresh carrying data
@@ -40,6 +45,7 @@
 				});
 		});
 		return () => {
+			stopNative();
 			stopEvents();
 			stopClock();
 		};

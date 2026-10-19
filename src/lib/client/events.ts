@@ -12,7 +12,7 @@ export interface FunnelEvent {
 }
 
 /** Event names the server publishes. */
-export const EVENT_TYPES = ["sync", "issues", "intake", "settings"] as const;
+export const EVENT_TYPES = ["sync", "issues", "intake", "settings", "notifications"] as const;
 
 /**
  * Open the realtime stream. Returns a cleanup function that closes it.
