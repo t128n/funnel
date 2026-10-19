@@ -66,6 +66,8 @@ The `Done` column is a window, not a place. It holds issues that are closed *as 
 
 ## Priority ordering
 
+Priority is currently a label-valued field. The two inputs that will feed a derived priority — **impact** and **urgency** — are fixed four-point ordinal scales stored in the body metadata, with a documented P0–P3 lookup matrix and a P3 fallback when either axis is unset. See [Impact, urgency, and priority](../reference/priority.md) for the definitions; the `p1`–`p3` labels stay authoritative until the derivation migration lands.
+
 The default sort is a rank expression, not the label string: `PRIORITY_RANK` maps `p1 → 0`, `p2 → 1`, `p3 → 2`, and everything else to `3`, so unprioritised issues sort after prioritised ones. Ties break by `updatedAt` descending. The same rank drives every stream, which is why `PRIORITY_OPTIONS` in the UI is reversed for display: the canonical list keeps `p1`-first order for provisioning, while the picker shows low to high.
 
 ## Resolving conflicts

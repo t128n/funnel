@@ -4,8 +4,12 @@ import {
   formatBlockComment,
   formatUnblockComment,
   readBlocked,
+  readImpactUrgency,
+  readPriorityInputs,
   splitFunnelMetadata,
   writeBlocked,
+  writeImpactUrgency,
+  writePriorityInputs,
   type BlockInfo,
 } from "./funnel-metadata";
 
@@ -71,6 +75,93 @@ describe("writeBlocked / readBlocked", () => {
 
   test("does not add an envelope when clearing a body that has none", () => {
     expect(writeBlocked("plain body", null)).toBe("plain body");
+  });
+});
+
+describe("writePriorityInputs / readPriorityInputs", () => {
+  test("round-trips both axes under a priority section", () => {
+    const body = writePriorityInputs("Original description", {
+      impact: 2,
+      urgency: 3,
+    });
+    expect(body).toContain("priority:\n  impact: 2\n  urgency: 3");
+    expect(readPriorityInputs(body)).toEqual({ impact: 2, urgency: 3 });
+    expect(readImpactUrgency(body)).toEqual({ impact: 2, urgency: 3 });
+  });
+
+  test("stores only the axes that are set", () => {
+    const body = writePriorityInputs("body", { impact: 1, urgency: null });
+    expect(body).toContain("impact: 1");
+    expect(body).not.toContain("urgency:");
+    expect(readPriorityInputs(body)).toEqual({ impact: 1, urgency: null });
+  });
+
+  test("preserves blocker metadata while changing the axes", () => {
+    const blocked = writeBlocked("body", INFO);
+    const withPriority = writePriorityInputs(blocked, {
+      impact: 4,
+      urgency: 2,
+    });
+    expect(readBlocked(withPriority).info).toEqual(INFO);
+    expect(readPriorityInputs(withPriority)).toEqual({
+      impact: 4,
+      urgency: 2,
+    });
+  });
+
+  test("blocking preserves the axes already recorded", () => {
+    const axes = writePriorityInputs("body", { impact: 3, urgency: 1 });
+    const blocked = writeBlocked(axes, INFO);
+    expect(readPriorityInputs(blocked)).toEqual({ impact: 3, urgency: 1 });
+    expect(readBlocked(blocked).info).toEqual(INFO);
+  });
+
+  test("clearing both axes keeps an unrelated blocked section", () => {
+    const body = writePriorityInputs(writeBlocked("body", INFO), {
+      impact: 2,
+      urgency: 2,
+    });
+    const cleared = writePriorityInputs(body, { impact: null, urgency: null });
+    expect(readPriorityInputs(cleared)).toEqual({ impact: null, urgency: null });
+    expect(cleared).not.toContain("priority:");
+    expect(readBlocked(cleared).info).toEqual(INFO);
+  });
+
+  test("clearing axes on a metadata-free body is a no-op", () => {
+    expect(
+      writePriorityInputs("plain body", { impact: null, urgency: null }),
+    ).toBe("plain body");
+  });
+
+  test("clearing the only section removes the envelope", () => {
+    const body = writePriorityInputs("plain body", {
+      impact: 1,
+      urgency: 1,
+    });
+    expect(
+      writePriorityInputs(body, { impact: null, urgency: null }),
+    ).toBe("plain body");
+  });
+
+  test("accepts the legacy top-level form and rewrites it canonically", () => {
+    const legacy = `body\n\n<!-- funnel_metadata\nimpact: 2\nurgency: 4\n-->`;
+    expect(readPriorityInputs(legacy)).toEqual({ impact: 2, urgency: 4 });
+    const rewritten = writePriorityInputs(legacy, {
+      impact: 2,
+      urgency: 4,
+    });
+    expect(rewritten).toContain("priority:\n  impact: 2\n  urgency: 4");
+    expect(rewritten).not.toContain("\nimpact: 2");
+  });
+
+  test("ignores malformed and out-of-range values", () => {
+    const body = `body\n\n<!-- funnel_metadata\npriority:\n  impact: 9\n  urgency: "2"\n-->`;
+    expect(readPriorityInputs(body)).toEqual({ impact: null, urgency: 2 });
+  });
+
+  test("aliases writeImpactUrgency", () => {
+    const body = writeImpactUrgency("body", { impact: 1, urgency: 4 });
+    expect(readPriorityInputs(body)).toEqual({ impact: 1, urgency: 4 });
   });
 });
 
