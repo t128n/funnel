@@ -44,6 +44,7 @@ export interface IssuePatch {
   size?: string | null;
   blocked?: boolean;
   assignees?: IssueListItem["assignees"];
+  milestone?: IssueListItem["milestone"];
   labels?: string[];
   closedAt?: number | null;
 }
@@ -144,6 +145,15 @@ function satisfied(issue: IssueListItem, patch: IssuePatch): boolean {
   }
   if (patch.size !== undefined && issue.size !== patch.size) return false;
   if (patch.blocked !== undefined && issue.blocked !== patch.blocked) return false;
+  if (patch.milestone !== undefined) {
+    const current = issue.milestone;
+    const next = patch.milestone;
+    const sameMilestone =
+      current === null || next === null
+        ? current === next
+        : current.repo === next.repo && current.number === next.number;
+    if (!sameMilestone) return false;
+  }
   if (
     patch.assignees !== undefined &&
     !sameSet(

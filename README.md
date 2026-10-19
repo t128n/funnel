@@ -72,6 +72,22 @@ config.repos; // [{ repo: "orgA/core", shortcode: "CORE" }, ...]
 The **Projects** list on the Settings page maps GitHub labels to project names
 and enables the **Project** group-by option in the issue feeds.
 
+### Milestones
+
+Funnel mirrors GitHub milestones as a read-only, **repo-scoped** surface (GitHub
+scopes a milestone to exactly one repository). The **Milestones** view lists every
+milestone across the configured repos with progress and due dates; each opens a
+detail page of the issues attached to it. Elsewhere, milestones are a filter
+dimension (`?milestone=owner/name#n`) and a group-by option in the issue feeds,
+and an issue's milestone shows as a chip on its row.
+
+The one write: the Inspector can **set or clear a milestone on an issue**. The
+picker offers the repo's existing milestones and a **New milestone…** form that
+creates it lazily in that repo. Because GitHub scopes milestones per repo, a
+milestone that spans two repos is created once in each — Funnel never merges them
+into a cross-repo object.
+
+
 ### Roles
 
 Funnel ships instance-wide role-based access control with three roles, ranked

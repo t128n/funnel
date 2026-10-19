@@ -12,6 +12,7 @@ export function clearMirror(): void {
     "mirror_github_issue_assignee",
     "mirror_github_comment",
     "mirror_github_issue",
+    "mirror_github_milestone",
     "mirror_github_repo_label",
     "mirror_github_repo_assignee",
     "mirror_github_user",

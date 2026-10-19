@@ -26,7 +26,7 @@ function seedIssue(number: number, updatedAt: number) {
       state: "open",
       stateReason: null,
       author: null,
-      milestoneName: null,
+      milestoneNumber: null,
       createdAt: updatedAt,
       updatedAt,
       closedAt: null,
@@ -82,7 +82,7 @@ describe("issue upsert", () => {
         state: "open",
         stateReason: null,
         author: null,
-        milestoneName: null,
+        milestoneNumber: null,
         createdAt: 1000,
         updatedAt: 2000,
         closedAt: null,
@@ -152,5 +152,40 @@ describe("repo assignees", () => {
     expect(mirror.getRepoAssignees(1)).toEqual([
       { githubId: 43, login: "bob", avatarUrl: "b" },
     ]);
+  });
+});
+
+describe("repo milestones", () => {
+  test("upserts the creator and replaces the full set", () => {
+    seedRepo();
+    mirror.replaceRepoMilestones(1, [
+      {
+        number: 1,
+        githubId: 10,
+        title: "v1",
+        description: "",
+        state: "open",
+        dueOn: 1000,
+        openIssues: 2,
+        closedIssues: 1,
+        creator: { githubId: 7, login: "octocat", avatarUrl: "https://a/7" },
+        createdAt: 1,
+        updatedAt: 2,
+        closedAt: null,
+        htmlUrl: "https://x/1",
+      },
+    ]);
+
+    const [milestone] = mirror.getRepoMilestones(1);
+    expect(milestone).toMatchObject({
+      number: 1,
+      title: "v1",
+      openIssues: 2,
+      closedIssues: 1,
+      creator: { githubId: 7, login: "octocat", avatarUrl: "https://a/7" },
+    });
+
+    mirror.replaceRepoMilestones(1, []);
+    expect(mirror.getRepoMilestones(1)).toEqual([]);
   });
 });

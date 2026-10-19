@@ -19,6 +19,7 @@ import {
   mirrorGithubIssue,
   mirrorGithubIssueAssignee,
   mirrorGithubIssueLabel,
+  mirrorGithubMilestone,
   mirrorGithubRepo,
   mirrorGithubRepoAssignee,
   mirrorGithubRepoLabel,
@@ -59,7 +60,8 @@ export interface IssueRecord {
   state: string;
   stateReason: string | null;
   author: UserRecord | null;
-  milestoneName: string | null;
+  /** The issue's milestone number in its repo, or `null` when unmilestoned. */
+  milestoneNumber: number | null;
   createdAt: number;
   updatedAt: number;
   closedAt: number | null;
@@ -268,6 +270,119 @@ export function getRepoAssignees(repoId: number): UserRecord[] {
 }
 
 // ---------------------------------------------------------------------------
+// Repo milestones
+// ---------------------------------------------------------------------------
+
+export interface MilestoneRecord {
+  number: number;
+  githubId: number;
+  title: string;
+  description: string;
+  state: string;
+  dueOn: number | null;
+  openIssues: number;
+  closedIssues: number;
+  creator: UserRecord | null;
+  createdAt: number;
+  updatedAt: number;
+  closedAt: number | null;
+  htmlUrl: string;
+}
+
+/**
+ * Replace a repo's full milestone set (SPEC §7.1). Milestones are repo-scoped,
+ * so the list is swapped wholesale on each poll; the creator is upserted first
+ * because it is an FK target.
+ */
+export function replaceRepoMilestones(
+  repoId: number,
+  milestones: readonly MilestoneRecord[],
+): void {
+  for (const milestone of milestones) {
+    if (milestone.creator) upsertUser(milestone.creator);
+  }
+  db.transaction((tx) => {
+    tx.delete(mirrorGithubMilestone)
+      .where(eq(mirrorGithubMilestone.repoId, repoId))
+      .run();
+    if (milestones.length > 0) {
+      tx.insert(mirrorGithubMilestone)
+        .values(
+          milestones.map((m) => ({
+            repoId,
+            number: m.number,
+            githubId: m.githubId,
+            title: m.title,
+            description: m.description,
+            state: m.state,
+            dueOn: m.dueOn,
+            openIssues: m.openIssues,
+            closedIssues: m.closedIssues,
+            creatorId: m.creator?.githubId ?? null,
+            createdAt: m.createdAt,
+            updatedAt: m.updatedAt,
+            closedAt: m.closedAt,
+            htmlUrl: m.htmlUrl,
+          })),
+        )
+        .run();
+    }
+  });
+}
+
+/** One repo's milestones ordered by due date (SQLite sorts `NULL` first). */
+export function getRepoMilestones(repoId: number): MilestoneRecord[] {
+  return db
+    .select({
+      number: mirrorGithubMilestone.number,
+      githubId: mirrorGithubMilestone.githubId,
+      title: mirrorGithubMilestone.title,
+      description: mirrorGithubMilestone.description,
+      state: mirrorGithubMilestone.state,
+      dueOn: mirrorGithubMilestone.dueOn,
+      openIssues: mirrorGithubMilestone.openIssues,
+      closedIssues: mirrorGithubMilestone.closedIssues,
+      creatorId: mirrorGithubUser.githubId,
+      creatorLogin: mirrorGithubUser.login,
+      creatorAvatar: mirrorGithubUser.avatarUrl,
+      createdAt: mirrorGithubMilestone.createdAt,
+      updatedAt: mirrorGithubMilestone.updatedAt,
+      closedAt: mirrorGithubMilestone.closedAt,
+      htmlUrl: mirrorGithubMilestone.htmlUrl,
+    })
+    .from(mirrorGithubMilestone)
+    .leftJoin(
+      mirrorGithubUser,
+      eq(mirrorGithubMilestone.creatorId, mirrorGithubUser.githubId),
+    )
+    .where(eq(mirrorGithubMilestone.repoId, repoId))
+    .orderBy(asc(mirrorGithubMilestone.dueOn))
+    .all()
+    .map((row) => ({
+      number: row.number,
+      githubId: row.githubId,
+      title: row.title,
+      description: row.description,
+      state: row.state,
+      dueOn: row.dueOn,
+      openIssues: row.openIssues,
+      closedIssues: row.closedIssues,
+      creator:
+        row.creatorId !== null && row.creatorLogin !== null
+          ? {
+              githubId: row.creatorId,
+              login: row.creatorLogin,
+              avatarUrl: row.creatorAvatar ?? "",
+            }
+          : null,
+      createdAt: row.createdAt,
+      updatedAt: row.updatedAt,
+      closedAt: row.closedAt,
+      htmlUrl: row.htmlUrl,
+    }));
+}
+
+// ---------------------------------------------------------------------------
 // Issues
 // ---------------------------------------------------------------------------
 
@@ -292,7 +407,7 @@ export function upsertIssue(issue: IssueRecord, metadata: StoredMetadata): void 
         state: issue.state,
         stateReason: issue.stateReason,
         authorId: issue.author?.githubId ?? null,
-        milestoneName: issue.milestoneName,
+        milestoneNumber: issue.milestoneNumber,
         createdAt: issue.createdAt,
         updatedAt: issue.updatedAt,
         closedAt: issue.closedAt,
@@ -311,7 +426,7 @@ export function upsertIssue(issue: IssueRecord, metadata: StoredMetadata): void 
           state: issue.state,
           stateReason: issue.stateReason,
           authorId: issue.author?.githubId ?? null,
-          milestoneName: issue.milestoneName,
+          milestoneNumber: issue.milestoneNumber,
           createdAt: issue.createdAt,
           updatedAt: issue.updatedAt,
           closedAt: issue.closedAt,

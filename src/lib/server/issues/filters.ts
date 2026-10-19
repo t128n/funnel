@@ -61,6 +61,12 @@ const PRIORITY_SET = new Set<string>(PRIORITY_VALUES);
 const SIZE_SET = new Set<string>(SIZE_VALUES);
 const STATE_SET = new Set<string>(STATE_VALUES);
 
+/** A milestone selection resolved to the repo it belongs to. */
+export interface MilestoneFilterRef {
+  repoId: number;
+  number: number;
+}
+
 /** Parsed, validated filter state. Empty arrays mean "no constraint". */
 export interface IssueFilter {
   /** `mirror_github_repo.github_id` values. */
@@ -77,6 +83,10 @@ export interface IssueFilter {
   sizes: string[];
   /** Non-reserved label names (reserved names belong to their dimension). */
   labels: string[];
+  /** Repo-scoped milestone selections, resolved against the mirrored repos. */
+  milestones: MilestoneFilterRef[];
+  /** The {@link NONE} sentinel: unmilestoned issues. */
+  noMilestone: boolean;
   /** Raw `LIKE` search term (may be empty). */
   search: string;
 }
@@ -99,6 +109,8 @@ export const EMPTY_FILTER: IssueFilter = {
   priorities: [],
   sizes: [],
   labels: [],
+  milestones: [],
+  noMilestone: false,
   search: "",
 };
 
@@ -173,6 +185,39 @@ function resolveAssignees(
 }
 
 /**
+ * Parse the milestone dimension. Values are repo-scoped slugs
+ * (`owner/name#number`); the {@link NONE} sentinel selects unmilestoned issues.
+ * Unknown repos or malformed numbers are dropped silently.
+ */
+function resolveMilestones(
+  values: readonly string[],
+  repos: FilterContext["repos"],
+): { refs: MilestoneFilterRef[]; none: boolean } {
+  const refs: MilestoneFilterRef[] = [];
+  let none = false;
+  for (const value of values) {
+    if (value.toLowerCase() === NONE) {
+      none = true;
+      continue;
+    }
+    const hash = value.lastIndexOf("#");
+    if (hash <= 0 || hash === value.length - 1) continue;
+    const slug = value.slice(0, hash);
+    const number = Number(value.slice(hash + 1));
+    if (!Number.isInteger(number) || number <= 0) continue;
+    const slash = slug.indexOf("/");
+    if (slash <= 0 || slash === slug.length - 1) continue;
+    const org = slug.slice(0, slash).toLowerCase();
+    const name = slug.slice(slash + 1).toLowerCase();
+    const match = repos.find(
+      (repo) => repo.org.toLowerCase() === org && repo.name.toLowerCase() === name,
+    );
+    if (match) refs.push({ repoId: match.githubId, number });
+  }
+  return { refs, none };
+}
+
+/**
  * Parse URL query parameters into a validated {@link IssueFilter}. Unknown
  * params and unparseable values are dropped silently, mirroring GitHub.
  */
@@ -180,6 +225,7 @@ export function parseIssueFilter(
   params: URLSearchParams,
   ctx: FilterContext,
 ): IssueFilter {
+  const milestones = resolveMilestones(multi(params, "milestone"), ctx.repos);
   return {
     repos: resolveRepos(multi(params, "repo"), ctx.repos),
     states: vocab(multi(params, "state"), STATE_SET).filter(
@@ -192,6 +238,8 @@ export function parseIssueFilter(
     labels: multi(params, "label").filter(
       (name) => !RESERVED_GROUP.has(name.toLowerCase()),
     ),
+    milestones: milestones.refs,
+    noMilestone: milestones.none,
     search: (params.get("q") ?? "").trim().slice(0, 200),
   };
 }
@@ -270,6 +318,20 @@ export function buildIssueWhere(filter: IssueFilter): SQL | undefined {
   }
   if (filter.labels.length > 0) {
     conditions.push(labelExists(filter.labels));
+  }
+
+  if (filter.milestones.length > 0 || filter.noMilestone) {
+    const parts: SQL[] = filter.milestones.map(
+      (m) =>
+        and(
+          eq(mirrorGithubIssue.repoId, m.repoId),
+          eq(mirrorGithubIssue.milestoneNumber, m.number),
+        ) as SQL,
+    );
+    if (filter.noMilestone) {
+      parts.push(isNull(mirrorGithubIssue.milestoneNumber) as SQL);
+    }
+    conditions.push(parts.length === 1 ? parts[0] : (or(...parts) as SQL));
   }
 
   if (filter.search.length > 0) {

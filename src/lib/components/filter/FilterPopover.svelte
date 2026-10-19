@@ -48,6 +48,15 @@
 		options.assignees.map((user) => ({ value: user.login, label: user.login }))
 	);
 	const labelOptions = $derived(options.labels.map((name) => ({ value: name, label: name })));
+	const milestoneOptions = $derived([
+		...options.milestones.map((milestone) => ({
+			value: `${milestone.repo}#${milestone.number}`,
+			label: milestone.title
+				? `${milestone.title} · ${milestone.repo.split('/')[1]}`
+				: `${milestone.repo}#${milestone.number}`
+		})),
+		{ value: NONE, label: 'No milestone' }
+	]);
 
 	const statusOptions = $derived([
 		...STATUS_OPTIONS,
@@ -107,6 +116,7 @@
 			priorities: [],
 			sizes: [],
 			labels: [],
+			milestones: [],
 			search: filter.search
 		});
 	}
@@ -212,6 +222,12 @@
 				options={labelOptions}
 				selected={filter.labels}
 				onselect={(values) => set('labels', values)}
+			/>
+			<MultiSelect
+				label="Milestone"
+				options={milestoneOptions}
+				selected={filter.milestones}
+				onselect={(values) => set('milestones', values)}
 			/>
 		</div>
 	</Popover.Content>

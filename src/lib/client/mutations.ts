@@ -89,6 +89,8 @@ export interface UpdateIssuePatch {
   size?: string | null;
   /** Toggles the orthogonal `blocked` flag (SPEC §5.1). */
   blocked?: boolean;
+  /** `null` clears the milestone; omitted leaves it untouched. */
+  milestone?: number | null;
 }
 
 export function updateIssue(
@@ -245,6 +247,28 @@ export function createIssue(
   input: CreateIssueInput,
 ): Promise<MutationResult<{ number: number; htmlUrl: string }>> {
   return request(`/api/repos/${repoPath(repo)}/issues`, {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export interface CreateMilestoneInput {
+  title: string;
+  description?: string;
+  /** ISO date (`YYYY-MM-DD`). */
+  dueOn?: string | null;
+}
+
+/**
+ * Create a milestone in one repository (the Inspector's "New milestone…" path).
+ * GitHub scopes milestones per repo, so a milestone that spans repositories is
+ * created once in each.
+ */
+export function createRepoMilestone(
+  repo: string,
+  input: CreateMilestoneInput,
+): Promise<MutationResult<{ number: number; htmlUrl: string }>> {
+  return request(`/api/repos/${repoPath(repo)}/milestones`, {
     method: "POST",
     body: JSON.stringify(input),
   });

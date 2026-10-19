@@ -8,6 +8,7 @@ import { resetAppCache } from "#/lib/server/github/app.server";
 import { POST as createIssue } from "#/routes/api/repos/[owner]/[repo]/issues/+server";
 import { PATCH as patchIssue } from "#/routes/api/repos/[owner]/[repo]/issues/[number]/+server";
 import { POST as addComment } from "#/routes/api/repos/[owner]/[repo]/issues/[number]/comments/+server";
+import { POST as createMilestone } from "#/routes/api/repos/[owner]/[repo]/milestones/+server";
 import { TEST_CONFIG } from "#tests/test-config";
 
 // Route wiring with the user-token client exercised end to end: a seeded
@@ -46,10 +47,26 @@ async function stubFetch(
   const issueUrl = new RegExp(`/repos/${OWNER}/${REPO}/issues$`);
   const numberUrl = new RegExp(`/repos/${OWNER}/${REPO}/issues/42$`);
   const commentUrl = new RegExp(`/repos/${OWNER}/${REPO}/issues/42/comments$`);
+  const milestoneUrl = new RegExp(`/repos/${OWNER}/${REPO}/milestones$`);
   const repoUrl = new RegExp(`/repos/${OWNER}/${REPO}$`);
 
   if (method === "POST" && issueUrl.test(path)) {
     return json({ number: 42, html_url: `https://github.com/${REPO_SLUG}/issues/42` }, 201);
+  }
+  if (method === "POST" && milestoneUrl.test(path)) {
+    return json(
+      {
+        id: 11,
+        number: 3,
+        title: "v1",
+        state: "open",
+        html_url: `https://github.com/${REPO_SLUG}/milestone/3`,
+      },
+      201,
+    );
+  }
+  if (method === "GET" && milestoneUrl.test(path)) {
+    return json([]);
   }
   if (method === "PATCH" && numberUrl.test(path)) {
     return json({ number: 42, html_url: `https://github.com/${REPO_SLUG}/issues/42` });
@@ -268,6 +285,85 @@ describe("PATCH /api/repos/{owner}/{repo}/issues/{number}", () => {
     } as never);
 
     expect(res.status).toBe(400);
+    expect(calls).toHaveLength(0);
+  });
+
+  test("sets and clears the milestone", async () => {
+    const set = await patchIssue({
+      params: { ...repoParams(), number: "42" },
+      request: request("PATCH", { milestone: 3 }),
+      locals: viewer(),
+    } as never);
+    expect(set.status).toBe(200);
+    expect(calls).toContain(`PATCH /repos/${REPO_SLUG}/issues/42`);
+
+    const clear = await patchIssue({
+      params: { ...repoParams(), number: "42" },
+      request: request("PATCH", { milestone: null }),
+      locals: viewer(),
+    } as never);
+    expect(clear.status).toBe(200);
+  });
+
+  test("rejects an invalid milestone", async () => {
+    const res = await patchIssue({
+      params: { ...repoParams(), number: "42" },
+      request: request("PATCH", { milestone: 0 }),
+      locals: viewer(),
+    } as never);
+
+    expect(res.status).toBe(400);
+    expect(calls).toHaveLength(0);
+  });
+});
+
+describe("POST /api/repos/{owner}/{repo}/milestones", () => {
+  test("creates a milestone with the user token", async () => {
+    const res = await createMilestone({
+      params: repoParams(),
+      request: new Request(`http://x/api/repos/${REPO_SLUG}/milestones`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ title: "v1", dueOn: "2026-05-01" }),
+      }),
+      locals: viewer(),
+    } as never);
+
+    expect(res.status).toBe(201);
+    expect(await res.json()).toEqual({
+      number: 3,
+      htmlUrl: `https://github.com/${REPO_SLUG}/milestone/3`,
+    });
+    expect(calls).toContain(`POST /repos/${REPO_SLUG}/milestones`);
+  });
+
+  test("rejects a blank title", async () => {
+    const res = await createMilestone({
+      params: repoParams(),
+      request: new Request(`http://x/api/repos/${REPO_SLUG}/milestones`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ title: "   " }),
+      }),
+      locals: viewer(),
+    } as never);
+
+    expect(res.status).toBe(400);
+    expect(calls).toHaveLength(0);
+  });
+
+  test("requires the write role", async () => {
+    const res = await createMilestone({
+      params: repoParams(),
+      request: new Request(`http://x/api/repos/${REPO_SLUG}/milestones`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ title: "v1" }),
+      }),
+      locals: { user: { id: "issues_user_1", role: "read" }, session: null },
+    } as never);
+
+    expect(res.status).toBe(403);
     expect(calls).toHaveLength(0);
   });
 });

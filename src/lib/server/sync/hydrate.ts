@@ -32,7 +32,7 @@ export const HYDRATE_QUERY = `query FunnelHydrate($ids: [ID!]!) {
       closedAt
       repository { databaseId }
       author { login avatarUrl ... on User { databaseId } }
-      milestone { title }
+      milestone { number }
       labels(first: 100) { nodes { name } }
       assignees(first: 100) { nodes { login avatarUrl ... on User { databaseId } } }
       comments(first: 100) {
@@ -78,7 +78,7 @@ interface GqlNode {
   updatedAt?: string | null;
   closedAt?: string | null;
   author?: GqlActor | null;
-  milestone?: { title?: string | null } | null;
+  milestone?: { number?: number | null } | null;
   labels?: { nodes?: Array<{ name?: string | null }> } | null;
   assignees?: { nodes?: GqlActor[] } | null;
   comments?: { nodes?: GqlComment[] } | null;
@@ -154,7 +154,8 @@ export function normalizeNode(
     state: (node.state ?? "open").toLowerCase(),
     stateReason: node.stateReason?.toLowerCase() ?? null,
     author: toUser(node.author),
-    milestoneName: node.milestone?.title ?? null,
+    milestoneNumber:
+      typeof node.milestone?.number === "number" ? node.milestone.number : null,
     createdAt,
     updatedAt,
     closedAt: ms(node.closedAt),

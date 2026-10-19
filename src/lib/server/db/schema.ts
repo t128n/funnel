@@ -253,6 +253,41 @@ export const mirrorGithubUser = sqliteTable("mirror_github_user", {
 });
 
 // ---------------------------------------------------------------------------
+// Mirror: per-repo milestones. GitHub scopes a milestone to exactly one
+// repository, so identity is `(repoId, number)`; `githubId` is the global node
+// id. Rebuilt by re-sync like the rest of the disposable mirror. Issues point
+// at a milestone with `mirror_github_issue.milestone_number` (no FK: the
+// milestone set is replaced wholesale on each poll, and an issue may briefly
+// reference a number that has not been seen yet).
+// ---------------------------------------------------------------------------
+export const mirrorGithubMilestone = sqliteTable(
+  "mirror_github_milestone",
+  {
+    repoId: integer("repo_id")
+      .notNull()
+      .references(() => mirrorGithubRepo.githubId, { onDelete: "cascade" }),
+    number: integer("number").notNull(),
+    /** Global node id (GraphQL `databaseId`); 0 when only REST has been seen. */
+    githubId: integer("github_id").notNull().default(0),
+    title: text("title").notNull().default(""),
+    description: text("description").notNull().default(""),
+    /** `open` | `closed`. */
+    state: text("state").notNull().default("open"),
+    dueOn: integer("due_on"),
+    openIssues: integer("open_issues").notNull().default(0),
+    closedIssues: integer("closed_issues").notNull().default(0),
+    creatorId: integer("creator_id").references(() => mirrorGithubUser.githubId, {
+      onDelete: "set null",
+    }),
+    createdAt: integer("created_at").notNull(),
+    updatedAt: integer("updated_at").notNull(),
+    closedAt: integer("closed_at"),
+    htmlUrl: text("html_url").notNull().default(""),
+  },
+  (t) => [primaryKey({ columns: [t.repoId, t.number] })],
+);
+
+// ---------------------------------------------------------------------------
 // Mirror: issues (SPEC 6.1). Identity is (repoId, number); githubId is the
 // global node id for GraphQL hydration. `status`/`priority`/`size` are
 // derived caches of the reserved-label groups (SPEC 5.2) computed at sync
@@ -275,7 +310,8 @@ export const mirrorGithubIssue = sqliteTable(
     authorId: integer("author_id").references(() => mirrorGithubUser.githubId, {
       onDelete: "set null",
     }),
-    milestoneName: text("milestone_name"),
+    /** The issue's milestone number in its own repo (see `mirrorGithubMilestone`). */
+    milestoneNumber: integer("milestone_number"),
     createdAt: integer("created_at").notNull(),
     updatedAt: integer("updated_at").notNull(),
     closedAt: integer("closed_at"),
@@ -294,6 +330,7 @@ export const mirrorGithubIssue = sqliteTable(
     ),
     index("idx_mirror_github_issue_state").on(t.state, t.stateReason),
     index("idx_mirror_github_issue_repo_updated").on(t.repoId, t.updatedAt),
+    index("idx_mirror_github_issue_milestone").on(t.repoId, t.milestoneNumber),
   ],
 );
 

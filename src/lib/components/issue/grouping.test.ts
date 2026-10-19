@@ -20,6 +20,7 @@ function issue(overrides: Partial<IssueListItem> & { number: number }): IssueLis
     closedAt: null,
     author: null,
     assignees: [],
+    milestone: null,
     labels: [],
     ...overrides,
   };

@@ -40,7 +40,7 @@ function seed(): void {
 			state: "open",
 			stateReason: null,
 			author: user(7, "octocat"),
-			milestoneName: null,
+			milestoneNumber: null,
 			createdAt: 1,
 			updatedAt: 100,
 			closedAt: null,

@@ -10,7 +10,7 @@ import type { GroupKey } from '#lib/components/issue/grouping';
 const GROUP_KEY = 'funnel:issue-group';
 const COLLAPSED_KEY = 'funnel:issue-collapsed';
 
-const GROUP_VALUES: readonly GroupKey[] = ['none', 'status', 'priority', 'project', 'repo'];
+const GROUP_VALUES: readonly GroupKey[] = ['none', 'status', 'priority', 'project', 'repo', 'milestone'];
 
 function isBrowser(): boolean {
 	return typeof window !== 'undefined';

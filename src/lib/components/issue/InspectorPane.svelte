@@ -12,6 +12,7 @@
 	import ActivityTimeline from '#lib/components/issue/ActivityTimeline.svelte';
 	import AttachmentDropbox from '#lib/components/issue/AttachmentDropbox.svelte';
 	import IssueActionDialog from '#lib/components/issue/IssueActionDialog.svelte';
+	import MilestonePicker from '#lib/components/issue/MilestonePicker.svelte';
 	import * as Alert from '#lib/components/ui/alert';
 	import { Button } from '#lib/components/ui/button';
 	import { Input } from '#lib/components/ui/input';
@@ -66,6 +67,7 @@
 	import type {
 		AttachmentItem,
 		RenderedIssueDetail,
+		RepoMilestoneRef,
 		UserRef
 	} from '#lib/server/issues/types';
 	import { cn } from '#lib/utils';
@@ -163,6 +165,8 @@
 	const statusValue = $derived(closed ? 'done' : (issue?.status ?? null));
 	const priorityValue = $derived(issue?.priority ?? null);
 	const sizeValue = $derived(issue?.size ?? null);
+	const milestoneValue = $derived(issue?.milestone ?? null);
+	const milestoneOptions = $derived(detail?.milestoneOptions ?? []);
 
 	/** Done has no canonical label, so tint its pill explicitly. */
 	const statusTint = $derived(
@@ -413,6 +417,28 @@
 
 	async function setSize(value: string | null) {
 		await runPatch({ size: value }, 'size');
+	}
+
+	/**
+	 * Set or clear the issue's milestone. Milestones are repo-scoped, so the
+	 * picker (and the "New milestone…" form) only ever targets this issue's repo.
+	 */
+	async function setMilestone(milestone: RepoMilestoneRef | null) {
+		if (!detail) return;
+		const issuePatch: IssuePatch = { milestone };
+		busy = 'milestone';
+		const outcome = await mutate({
+			key: overlayKey(repo, number),
+			patch: issuePatch,
+			failure: 'Could not update milestone',
+			commit: () => updateIssue(repo, number, { milestone: milestone ? milestone.number : null })
+		});
+		busy = null;
+		if (outcome.ok) {
+			bake(issuePatch);
+			// Re-read the detail so a freshly created milestone joins the options.
+			await load();
+		}
 	}
 
 	/** Open the structured block/unblock dialog (SPEC §5.1). */
@@ -843,6 +869,14 @@
 					<RulerIcon class="size-3.5" style={labelTint(sizeValue)} />
 				{/snippet}
 			</SingleSelect>
+
+			<MilestonePicker
+				{repo}
+				value={milestoneValue}
+				options={milestoneOptions}
+				disabled={busy === 'milestone' || !mayWrite}
+				onselect={(milestone) => void setMilestone(milestone)}
+			/>
 
 			<MultiSelect
 				variant="pill"

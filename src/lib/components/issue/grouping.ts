@@ -6,7 +6,7 @@ import type { IssueListItem } from '#lib/server/issues/types';
  * returns one filtered list; the cockpit is free to group it without another
  * round-trip, so grouping stays a pure, dependency-free projection.
  */
-export type GroupKey = 'none' | 'status' | 'priority' | 'project' | 'repo';
+export type GroupKey = 'none' | 'status' | 'priority' | 'project' | 'repo' | 'milestone';
 
 export interface IssueGroup {
   /** Stable identity for keys and collapse state. */
@@ -25,6 +25,14 @@ export interface ProjectOption {
 
 /** Sentinel key for issues that match no configured project label. */
 const NO_PROJECT = '\u0000none';
+
+/** Sentinel key for issues with no milestone (milestones are repo-scoped). */
+const NO_MILESTONE = '\u0000nomilestone';
+
+/** Stable section key for a repo-scoped milestone. */
+function milestoneKey(milestone: NonNullable<IssueListItem['milestone']>): string {
+  return `${milestone.repo}#${milestone.number}`;
+}
 
 /** Status sections follow the board's column order; `n` sorts last. */
 const STATUS_ORDER = [...BOARD_COLUMNS.map((column) => column.key), 'none'];
@@ -57,6 +65,7 @@ function groupKeys(
 ): string[] {
   if (groupBy === 'priority') return [issue.priority ?? 'none'];
   if (groupBy === 'repo') return [issue.repo];
+  if (groupBy === 'milestone') return [issue.milestone ? milestoneKey(issue.milestone) : NO_MILESTONE];
   if (groupBy === 'project') return projectKeys(issue, projects);
   return [statusKey(issue)];
 }
@@ -105,15 +114,28 @@ export function buildGroups(
 ): IssueGroup[] {
   if (groupBy === 'none') return [];
   if (groupBy === 'project' && projects.length === 0) return [];
+  // Nothing to section when no issue carries a milestone.
+  if (groupBy === 'milestone' && !issues.some((issue) => issue.milestone !== null)) return [];
 
   const buckets = new Map<string, IssueListItem[]>();
+  const milestoneLabels = new Map<string, string>();
   for (const issue of issues) {
     for (const key of groupKeys(issue, groupBy, projects)) {
       const bucket = buckets.get(key);
       if (bucket) bucket.push(issue);
       else buckets.set(key, [issue]);
+      if (groupBy === 'milestone' && !milestoneLabels.has(key)) {
+        milestoneLabels.set(key, issue.milestone?.title || 'Untitled milestone');
+      }
     }
   }
+
+  const milestoneOrder = [...buckets.keys()]
+    .filter((key) => key !== NO_MILESTONE)
+    .sort((a, b) =>
+      (milestoneLabels.get(a) ?? a).localeCompare(milestoneLabels.get(b) ?? b)
+    )
+    .concat(buckets.has(NO_MILESTONE) ? [NO_MILESTONE] : []);
 
   const order =
     groupBy === 'status'
@@ -122,17 +144,24 @@ export function buildGroups(
         ? PRIORITY_ORDER
         : groupBy === 'project'
           ? [...projects.map((project) => project.label), NO_PROJECT]
-          : [...buckets.keys()].sort((a, b) =>
-              groupLabel(a, groupBy, repoShortcodes, projects).localeCompare(
-                groupLabel(b, groupBy, repoShortcodes, projects)
-              )
-            );
+          : groupBy === 'milestone'
+            ? milestoneOrder
+            : [...buckets.keys()].sort((a, b) =>
+                groupLabel(a, groupBy, repoShortcodes, projects).localeCompare(
+                  groupLabel(b, groupBy, repoShortcodes, projects)
+                )
+              );
 
   return order
     .filter((key) => buckets.has(key))
     .map((key) => ({
       key,
-      label: groupLabel(key, groupBy, repoShortcodes, projects),
+      label:
+        groupBy === 'milestone'
+          ? key === NO_MILESTONE
+            ? 'No milestone'
+            : (milestoneLabels.get(key) ?? key)
+          : groupLabel(key, groupBy, repoShortcodes, projects),
       issues: buckets.get(key)!
     }));
 }

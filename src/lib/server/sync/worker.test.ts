@@ -48,6 +48,9 @@ const fake = {
     if (route === "GET /repos/{owner}/{repo}/labels") {
       return { data: [] };
     }
+    if (route === "GET /repos/{owner}/{repo}/milestones") {
+      return { data: [] };
+    }
     if (route === "GET /repos/{owner}/{repo}/assignees") {
       return { data: repoAssignees };
     }
@@ -241,7 +244,7 @@ describe("pollRepo", () => {
         state: "closed",
         stateReason: "completed",
         author: null,
-        milestoneName: null,
+        milestoneNumber: null,
         createdAt: 0,
         updatedAt: 0,
         closedAt: 0,

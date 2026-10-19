@@ -76,6 +76,29 @@ describe("parseIssueFilter", () => {
     expect(filter.labels).toEqual(["bug", "frontend"]);
   });
 
+  test("resolves repo-scoped milestone slugs and the none sentinel", () => {
+    const filter = parseIssueFilter(
+      new URLSearchParams(
+        "milestone=orgA/core#3&milestone=ORGA/Web#7&milestone=orgA/ghost#1&milestone=none",
+      ),
+      ctx,
+    );
+    expect(filter.milestones).toEqual([
+      { repoId: 1, number: 3 },
+      { repoId: 2, number: 7 },
+    ]);
+    expect(filter.noMilestone).toBe(true);
+  });
+
+  test("drops malformed milestone values", () => {
+    const filter = parseIssueFilter(
+      new URLSearchParams("milestone=orgA/core&milestone=orgA/core#x&milestone=#2"),
+      ctx,
+    );
+    expect(filter.milestones).toEqual([]);
+    expect(filter.noMilestone).toBe(false);
+  });
+
   test("trims and caps the search term", () => {
     const long = "x".repeat(300);
     expect(parseIssueFilter(new URLSearchParams(`q=  hi  `), ctx).search).toBe(
@@ -100,5 +123,12 @@ describe("buildIssueWhere", () => {
 
   test("returns a clause once any dimension is populated", () => {
     expect(buildIssueWhere({ ...EMPTY_FILTER, statuses: ["todo"] })).toBeDefined();
+  });
+
+  test("builds a clause for repo-scoped milestones and the none sentinel", () => {
+    expect(
+      buildIssueWhere({ ...EMPTY_FILTER, milestones: [{ repoId: 1, number: 3 }] }),
+    ).toBeDefined();
+    expect(buildIssueWhere({ ...EMPTY_FILTER, noMilestone: true })).toBeDefined();
   });
 });
