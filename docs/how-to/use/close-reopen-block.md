@@ -133,7 +133,7 @@ Each Attention row links to the issue in the Issues view and offers these action
 - **Mark done** — opens the structured close dialog.
 - **Issue actions** — **Update block…**, **Unblock…** or **Open issue**.
 
-Assignment writes use the shared optimistic overlay for the issue streams, but the Attention feed is not projected through it: the row's icon updates when the feed reloads after the write. Priority is display-only in Attention; edit impact and urgency in the Inspector. Rescheduling rewrites the body metadata and likewise shows the new date on the next feed reload. Closing an item removes it from the feed after the write lands.
+Assignment writes use the shared optimistic overlay for the issue streams, but the Attention feed is not projected through it: the row's icon updates when the feed reloads after the write. Priority is display-only in Attention; use the Inspector's Priority popover to edit impact and urgency. Rescheduling rewrites the body metadata and likewise shows the new date on the next feed reload. Closing an item removes it from the feed after the write lands.
 
 ## Related
 

@@ -40,7 +40,7 @@ export interface IssuePatch {
   state?: string;
   stateReason?: string | null;
   status?: string | null;
-  /** Derived `P0`–`P3`; optimistic writes set it alongside an axis change. */
+  /** Derived `P1`–`P3`; optimistic writes set it alongside an axis change. */
   priority?: string | null;
   impact?: number | null;
   urgency?: number | null;

@@ -1,22 +1,24 @@
 # The workflow model
 
-Funnel keeps most of its workflow state on GitHub itself, in a small reserved label vocabulary, and treats its own database as a disposable projection of those labels. The one exception is priority, which Funnel derives from durable impact/urgency state it owns.
+Funnel keeps most of its workflow state on GitHub itself, in a small reserved label vocabulary, and treats its own database as a disposable projection of those labels. The one exception is priority, which Funnel derives from the impact and urgency labels.
 
 ## Labels are the source of truth
 
-Funnel does not own the workflow. An issue's stage, size, and blocked flag are ordinary GitHub labels, and GitHub remains authoritative for them. Priority is the exception: it is derived from Funnel-owned impact/urgency state. The local SQLite columns (`mirror_github_issue.status`, `.size`, `.blocked`) are a *cache*, computed when a mirrored issue is hydrated and recomputed when it is synced again; `state_issue_priority` is durable, not a cache.
+Funnel does not own the workflow. An issue's stage, impact, urgency, size, and blocked flag are ordinary GitHub labels, and GitHub remains authoritative for all of them. Priority is the exception: it is derived from impact × urgency and cached locally. The SQLite columns (`mirror_github_issue.status`, `.impact`, `.urgency`, `.priority`, `.size`, `.blocked`) are a *cache*, computed when a mirrored issue is hydrated and recomputed when it is synced again.
 
 This is a deliberate inversion of the usual tracker design. Rather than Funnel holding state and publishing a read-only mirror to GitHub, Funnel reads its state *from* GitHub labels that anyone with repository access can see and change. Two consequences follow immediately: the workflow is visible and portable outside Funnel, and Funnel has to be robust to labels changing underneath it — including labels added by humans, other bots, or automation that has never heard of Funnel. That robustness is what most of the machinery described below exists to provide.
 
 ## The reserved vocabulary
 
-The vocabulary lives in the dependency-free `src/lib/labels.ts` so that the cockpit UI and the server share one definition, and `src/lib/server/github/labels.ts` re-exports it. `CANONICAL_LABELS` fixes eight names in three active groups:
+The vocabulary lives in the dependency-free `src/lib/labels.ts` so that the cockpit UI and the server share one definition, and `src/lib/server/github/labels.ts` re-exports it. `CANONICAL_LABELS` fixes fourteen names in five active groups:
 
 - **status** — `backlog`, `todo`, `in-progress`, `in-review`
+- **impact** — `sev`, `mod`, `min`
+- **urgency** — `high`, `mid`, `low`
 - **size** — `sm`, `md`, `lg`
 - **flags** — `blocked`
 
-Priority is no longer a label group. It is derived from durable impact/urgency state; the old `p1`–`p3` labels are retired.
+Priority is not a label group. It is derived from impact × urgency; the old `p1`–`p3` labels are retired.
 
 Each carries a canonical colour and description. Only these names are ever created or patched by Funnel. Every other label on a repository — `bug`, `frontend`, a monorepo domain tag — is preserved untouched. Projects, the optional group-by dimension, are configured separately as arbitrary labels mapped to display names (`ProjectConfig` in `src/lib/server/config.ts`); they are not part of the reserved vocabulary.
 
@@ -67,11 +69,11 @@ The `Done` column is a window, not a place. It holds issues that are closed *as 
 
 ## Priority ordering
 
-Priority is **derived**, not chosen. The Inspector records **impact** and **urgency**, two fixed four-point ordinal scales. Their P0–P3 lookup is the only mapping in the system; one unset axis yields the `P3` fallback and both unset axes mean *no priority*. See [Impact, urgency, and priority](../reference/priority.md).
+Priority is **derived**, not chosen. The Inspector has one Priority control; its popover records **impact** and **urgency**, two three-point scales carried as ordinary reserved labels (`sev`/`mod`/`min`, `high`/`mid`/`low`). Their P1–P3 lookup is the only mapping in the system; one unset axis yields the `P3` fallback and both unset axes mean *no priority*. See [Impact, urgency, and priority](../reference/priority.md).
 
-The axes and the derived value live in `state_issue_priority`, keyed by `org/name` + issue number. Because the state is Funnel-owned, mirror pruning and a re-sync cannot lose an assessment. The migration seeds the table from the old mirrored `p1`–`p3` labels so an existing board keeps its priorities; from then on the labels are never trusted.
+GitHub is authoritative for the axes. The mirror caches the levels on `mirror_github_issue.impact` and `.urgency` and the derived value on `.priority`; a label edit anywhere propagates on the next sync. The retired `p1`–`p3` labels are ignored unless they disagree with the derived value, in which case they raise the label-conflict flag.
 
-The default sort is a rank expression over the derived value: `PRIORITY_RANK` maps `P0 → 0`, `P1 → 1`, `P2 → 2`, `P3 → 3`, and everything else to `4`, so unprioritised issues sort after prioritised ones. Ties break by `updatedAt` descending. The same rank drives every stream, the priority filter, and the group-by sections, which label P0 as **Urgent**.
+The default sort is a rank expression over the derived value: `PRIORITY_RANK` maps `P1 → 0`, `P2 → 1`, `P3 → 2`, and everything else to `3`, so unprioritised issues sort after prioritised ones. Ties break by `updatedAt` descending. The same rank drives every stream, the priority filter, and the group-by sections (`P1 · High`, `P2 · Medium`, `P3 · Low`).
 
 ## Resolving conflicts
 
@@ -88,7 +90,7 @@ Because the vocabulary must exist before it can be used, Funnel provisions it an
 - `provisionCanonicalLabels()` runs at startup from the `init` hook before the server answers its first request. It walks every configured repository, creates missing reserved labels, and patches any whose colour or description has drifted from canonical, under the label's existing spelling because GitHub matches names case-insensitively.
 - `reconcileRepo()` runs it again during nightly reconciliation, so a label deleted or recoloured in the meantime is restored without a restart.
 
-Provisioning is **idempotent**: a converged repository issues zero writes. It only ever touches the reserved names, and it runs with the GitHub App installation token (`funnel[bot]`), independent of any signed-in user. It is also **non-fatal**: `provisionCanonicalLabels` swallows per-repository errors and a config-load failure, recording them in a report and logging a warning, so an unreachable GitHub or a fresh, un-onboarded instance cannot block or crash startup. The comment notes the throttling trade-off plainly: writes are throttled to roughly one per second, so a repository missing all eight labels takes about eight seconds to converge, while a converged one returns immediately.
+Provisioning is **idempotent**: a converged repository issues zero writes. It only ever touches the reserved names, and it runs with the GitHub App installation token (`funnel[bot]`), independent of any signed-in user. It is also **non-fatal**: `provisionCanonicalLabels` swallows per-repository errors and a config-load failure, recording them in a report and logging a warning, so an unreachable GitHub or a fresh, un-onboarded instance cannot block or crash startup. The comment notes the throttling trade-off plainly: writes are throttled to roughly one per second, so a repository missing all fourteen labels takes about fourteen seconds to converge, while a converged one returns immediately.
 
 ## Work notes and attachments sit outside the labels
 

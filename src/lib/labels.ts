@@ -8,7 +8,13 @@
  */
 import { isRetiredPriorityLabel } from "./priority";
 
-export type LabelGroup = "status" | "priority" | "size" | "flags";
+export type LabelGroup =
+  | "status"
+  | "priority"
+  | "impact"
+  | "urgency"
+  | "size"
+  | "flags";
 
 export interface CanonicalLabel {
   name: string;
@@ -46,6 +52,44 @@ export const CANONICAL_LABELS: readonly CanonicalLabel[] = [
     color: "fa6675",
     description: "Flag: Blocked",
     group: "flags",
+  },
+  // Triage inputs. One label per group; absence means "not assessed".
+  // Priority is derived from their pair and carries no GitHub label.
+  {
+    name: "sev",
+    color: "fa6675",
+    description: "Impact: Severe",
+    group: "impact",
+  },
+  {
+    name: "mod",
+    color: "cf8e6d",
+    description: "Impact: Moderate",
+    group: "impact",
+  },
+  {
+    name: "min",
+    color: "6aab73",
+    description: "Impact: Minor",
+    group: "impact",
+  },
+  {
+    name: "high",
+    color: "f87171",
+    description: "Urgency: High",
+    group: "urgency",
+  },
+  {
+    name: "mid",
+    color: "facc15",
+    description: "Urgency: Mid",
+    group: "urgency",
+  },
+  {
+    name: "low",
+    color: "94a3b8",
+    description: "Urgency: Low",
+    group: "urgency",
   },
   // Size. Absence means "unestimated".
   { name: "sm", color: "6aab73", description: "Size: Small", group: "size" },
@@ -105,10 +149,15 @@ const STATUS_DISPLAY: Record<string, string> = {
 
 const FLAG_DISPLAY: Record<string, string> = { blocked: "Blocked" };
 
+const IMPACT_DISPLAY: Record<string, string> = { sev: "Sev", mod: "Mod", min: "Min" };
+const URGENCY_DISPLAY: Record<string, string> = { high: "High", mid: "Mid", low: "Low" };
+
 const SIZE_DISPLAY: Record<string, string> = { sm: "S", md: "M", lg: "L" };
 
 /** The four open workflow stages, in order; `done` is appended by the board. */
 export const STATUS_OPTIONS = options("status", STATUS_DISPLAY);
+export const IMPACT_OPTIONS = options("impact", IMPACT_DISPLAY);
+export const URGENCY_OPTIONS = options("urgency", URGENCY_DISPLAY);
 export const SIZE_OPTIONS = options("size", SIZE_DISPLAY);
 /** Orthogonal flags carried alongside a status (SPEC §5.1). */
 export const FLAG_OPTIONS = options("flags", FLAG_DISPLAY);

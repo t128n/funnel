@@ -49,7 +49,7 @@ function seed(): void {
 				},
 			],
 		},
-		{ status: "todo", size: null, blocked: false, labelConflict: false },
+		{ status: "todo", impact: null, urgency: null, priority: null, size: null, blocked: false, labelConflict: false },
 	);
 }
 
@@ -138,7 +138,7 @@ describe("GET /api/mirror/issues/{owner}/{repo}", () => {
 				assignees: [],
 				comments: [],
 			},
-			{ status: null, size: null, blocked: false, labelConflict: false },
+			{ status: null, impact: null, urgency: null, priority: null, size: null, blocked: false, labelConflict: false },
 		);
 
 		const res = await getList({

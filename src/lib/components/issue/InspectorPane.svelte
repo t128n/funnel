@@ -3,7 +3,6 @@
 	import { onDestroy } from 'svelte';
 	import { toast } from 'svelte-sonner';
 	import Avatar from '#lib/components/common/Avatar.svelte';
-	import PriorityIcon from '#lib/components/common/PriorityIcon.svelte';
 	import MultiSelect from '#lib/components/common/MultiSelect.svelte';
 	import { selectTriggerClass } from '#lib/components/common/select-trigger';
 	import SingleSelect from '#lib/components/common/SingleSelect.svelte';
@@ -15,6 +14,7 @@
 	import AttachmentDropbox from '#lib/components/issue/AttachmentDropbox.svelte';
 	import IssueActionDialog from '#lib/components/issue/IssueActionDialog.svelte';
 	import MilestonePicker from '#lib/components/issue/MilestonePicker.svelte';
+	import PriorityPicker from '#lib/components/issue/PriorityPicker.svelte';
 	import * as Alert from '#lib/components/ui/alert';
 	import { Button } from '#lib/components/ui/button';
 	import { Input } from '#lib/components/ui/input';
@@ -33,7 +33,6 @@
 		reopenIssue,
 		unblockIssue,
 		updateIssue,
-		updatePriority,
 		updateWorkNote,
 		uploadAttachment,
 		type CloseReason,
@@ -64,11 +63,12 @@
 		labelTint
 	} from '#lib/labels';
 	import {
-		IMPACT_SCALE,
-		URGENCY_SCALE,
 		derivePriorityOrNull,
+		impactLabel,
 		isRetiredPriorityLabel,
-		priorityMeta
+		parseImpactLabel,
+		parseUrgencyLabel,
+		urgencyLabel
 	} from '#lib/priority';
 	import { absoluteTime } from '#lib/time';
 	import { ATTACHMENTS_FLAG, WORK_NOTES_FLAG } from '#lib/features';
@@ -88,7 +88,6 @@
 	import CopyIcon from '@lucide/svelte/icons/copy';
 	import ExternalLinkIcon from '@lucide/svelte/icons/external-link';
 	import RulerIcon from '@lucide/svelte/icons/ruler';
-	import SignalIcon from '@lucide/svelte/icons/signal';
 	import TagIcon from '@lucide/svelte/icons/tag';
 	import XIcon from '@lucide/svelte/icons/x';
 
@@ -190,19 +189,8 @@
 	];
 	const statusValue = $derived(closed ? 'done' : (issue?.status ?? null));
 	const priorityValue = $derived(issue?.priority ?? null);
-	const priority = $derived(priorityMeta(priorityValue));
 	const impactValue = $derived(issue?.impact ?? null);
 	const urgencyValue = $derived(issue?.urgency ?? null);
-	const impactOptions = IMPACT_SCALE.map((level) => ({
-		value: String(level.value),
-		label: `${level.value} · ${level.name}`,
-		color: null
-	}));
-	const urgencyOptions = URGENCY_SCALE.map((level) => ({
-		value: String(level.value),
-		label: `${level.value} · ${level.name}`,
-		color: null
-	}));
 	const sizeValue = $derived(issue?.size ?? null);
 	const milestoneValue = $derived(issue?.milestone ?? null);
 	const milestoneOptions = $derived(detail?.milestoneOptions ?? []);
@@ -534,41 +522,50 @@
 	}
 
 	/**
-	 * Persist one triage axis and apply the derived priority optimistically. The
-	 * server derives again, so the overlay reconciles against authoritative data.
+	 * Write the impact/urgency labels (the axes' GitHub home) and apply the
+	 * derived priority optimistically. The mirror re-derives on refresh, so the
+	 * overlay reconciles against authoritative data.
 	 */
-	async function setPriorityAxis(
-		axis: 'impact' | 'urgency',
-		value: string | null
-	): Promise<boolean> {
+	async function setPriorityLabels(patch: {
+		impact?: string | null;
+		urgency?: string | null;
+	}): Promise<boolean> {
 		if (!detail) return false;
-		const level = value === null ? null : Number(value);
-		if (level !== null && !Number.isInteger(level)) return false;
-		const next = {
-			impact: axis === 'impact' ? level : impactValue,
-			urgency: axis === 'urgency' ? level : urgencyValue
+		const nextImpact =
+			patch.impact === undefined ? impactValue : parseImpactLabel(patch.impact);
+		const nextUrgency =
+			patch.urgency === undefined ? urgencyValue : parseUrgencyLabel(patch.urgency);
+		const derived = derivePriorityOrNull(nextImpact, nextUrgency);
+		const issuePatch: IssuePatch = {
+			impact: nextImpact,
+			urgency: nextUrgency,
+			priority: derived
 		};
-		const derived = derivePriorityOrNull(next.impact, next.urgency);
-		const patch: IssuePatch = { ...next, priority: derived };
-		busy = axis;
+		busy = 'priority';
 		const outcome = await mutate({
 			key: overlayKey(repo, number),
-			patch,
+			patch: issuePatch,
 			failure: 'Could not update priority',
-			commit: () => updatePriority(repo, number, next)
+			commit: () => updateIssue(repo, number, patch)
 		});
 		busy = null;
 		if (!outcome.ok) return false;
-		bake(patch);
+		bake(issuePatch);
 		return true;
 	}
 
-	function setImpact(value: string | null) {
-		void setPriorityAxis('impact', value);
+	function commitPriorityAxis(
+		axis: 'impact' | 'urgency',
+		value: number | null
+	): Promise<boolean> {
+		return axis === 'impact'
+			? setPriorityLabels({ impact: impactLabel(value) })
+			: setPriorityLabels({ urgency: urgencyLabel(value) });
 	}
 
-	function setUrgency(value: string | null) {
-		void setPriorityAxis('urgency', value);
+	function clearPriority(): Promise<boolean> {
+		if (impactValue === null && urgencyValue === null) return Promise.resolve(true);
+		return setPriorityLabels({ impact: null, urgency: null });
 	}
 
 	async function setSize(value: string | null) {
@@ -1045,47 +1042,14 @@
 				{/snippet}
 			</SingleSelect>
 
-			<SingleSelect
-				variant="pill"
-				label="Impact"
-				clearLabel="No impact"
-				options={impactOptions}
-				value={impactValue === null ? null : String(impactValue)}
-				onselect={setImpact}
-				allowClear
-				disabled={busy === 'impact' || !mayWrite}
-			>
-				{#snippet icon()}
-					<SignalIcon class="size-3.5" />
-				{/snippet}
-			</SingleSelect>
-
-			<SingleSelect
-				variant="pill"
-				label="Urgency"
-				clearLabel="No urgency"
-				options={urgencyOptions}
-				value={urgencyValue === null ? null : String(urgencyValue)}
-				onselect={setUrgency}
-				allowClear
-				disabled={busy === 'urgency' || !mayWrite}
-			>
-				{#snippet icon()}
-					<SignalIcon class="size-3.5" />
-				{/snippet}
-			</SingleSelect>
-
-			<span
-				class={selectTriggerClass('pill', 'cursor-default')}
-				title="Priority is derived from impact × urgency"
-			>
-				<PriorityIcon priority={priorityValue} />
-				{#if priority}
-					<span class="text-foreground">{priority.value} · {priority.name}</span>
-				{:else}
-					<span>No priority</span>
-				{/if}
-			</span>
+			<PriorityPicker
+				impact={impactValue}
+				urgency={urgencyValue}
+				priority={priorityValue}
+				disabled={!mayWrite || busy === 'priority'}
+				oncommit={commitPriorityAxis}
+				onclear={clearPriority}
+			/>
 
 			<SingleSelect
 				variant="pill"

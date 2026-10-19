@@ -10,8 +10,13 @@ import {
 
 describe("deriveMetadata", () => {
   test("projects a clean label set onto the reserved groups", () => {
-    expect(deriveMetadata(["todo", "p1", "md", "bug", "frontend"])).toEqual({
+    expect(
+      deriveMetadata(["todo", "sev", "high", "md", "bug", "frontend"]),
+    ).toEqual({
       status: "todo",
+      impact: 1,
+      urgency: 1,
+      priority: "P1",
       size: "md",
       blocked: false,
       conflicts: [],
@@ -21,15 +26,34 @@ describe("deriveMetadata", () => {
   test("treats a missing group as unset", () => {
     expect(deriveMetadata(["p2"])).toEqual({
       status: null,
+      impact: null,
+      urgency: null,
+      priority: null,
       size: null,
       blocked: false,
       conflicts: [],
     });
   });
 
+  test("derives priority from the two axes", () => {
+    expect(deriveMetadata(["mod", "low"]).priority).toBe("P3");
+    expect(deriveMetadata(["min", "high"]).priority).toBe("P2");
+    expect(deriveMetadata(["min"]).priority).toBe("P3");
+  });
+
+  test("flags a multi-label impact group", () => {
+    const derived = deriveMetadata(["sev", "min", "high"]);
+    expect(derived.impact).toBe(1);
+    expect(derived.priority).toBe("P1");
+    expect(derived.conflicts).toEqual(["impact"]);
+  });
+
   test("reads the blocked flag as orthogonal to status", () => {
     expect(deriveMetadata(["in-progress", "blocked", "p1"])).toEqual({
       status: "in-progress",
+      impact: null,
+      urgency: null,
+      priority: null,
       size: null,
       blocked: true,
       conflicts: [],
@@ -50,6 +74,9 @@ describe("deriveMetadata", () => {
   test("ignores non-reserved labels entirely", () => {
     expect(deriveMetadata(["bug", "help wanted"])).toEqual({
       status: null,
+      impact: null,
+      urgency: null,
+      priority: null,
       size: null,
       blocked: false,
       conflicts: [],
@@ -180,6 +207,9 @@ describe("resolveIssueConflict", () => {
     expect(resolved).toEqual({
       metadata: {
         status: "todo",
+        impact: null,
+        urgency: null,
+        priority: null,
         size: null,
         blocked: false,
         conflicts: [],

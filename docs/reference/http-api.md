@@ -140,7 +140,7 @@ Detail responses:
 
 | Field | Shape |
 | :--- | :--- |
-| `issue` | `IssueListItem`: `repoId`, `repo`, `number`, `title`, `state`, `stateReason`, `status`, `priority` (`P0`–`P3` or null), `impact`, `urgency`, `size`, `blocked`, `labelConflict`, `createdAt`, `updatedAt`, `closedAt`, `author`, `assignees`, `labels`, `milestone`. |
+| `issue` | `IssueListItem`: `repoId`, `repo`, `number`, `title`, `state`, `stateReason`, `status`, `priority` (`P1`–`P3` or null), `impact` (`1`–`3` or null), `urgency` (`1`–`3` or null), `size`, `blocked`, `labelConflict`, `createdAt`, `updatedAt`, `closedAt`, `author`, `assignees`, `labels`, `milestone`. |
 | `body` | Raw Markdown body from the mirror. |
 | `bodyHtml` | Sanitised HTML rendered from `body`. |
 | `comments` | `RenderedComment[]`: `githubId`, `author`, `body`, `createdAt`, `bodyHtml`. |
@@ -188,9 +188,11 @@ If installation resolution fails with a non-404 status, the route returns `{"mes
 | `labels` | string[] | no | Trimmed, non-empty names. Defaults to `[]`. |
 | `assignees` | string[] | no | Trimmed, non-empty logins. Defaults to `[]`. |
 | `status` | `backlog` \| `todo` \| `in-progress` \| `in-review` | no | Convenience reserved-label shortcut. |
+| `impact` | `sev` \| `mod` \| `min` | no | Convenience reserved-label shortcut. |
+| `urgency` | `high` \| `mid` \| `low` | no | Convenience reserved-label shortcut. |
 | `size` | `sm` \| `md` \| `lg` | no | Convenience reserved-label shortcut. |
 
-Reserved labels are normalised to at most one per active group before the GitHub create. Retired `p1`–`p3` labels are stripped from outbound sets. Success returns `201` with `{ number, htmlUrl }`.
+Reserved labels are normalised to at most one per active group before the GitHub create: status, impact, urgency and size are each single-valued. Retired `p1`–`p3` labels are stripped from outbound sets. Success returns `201` with `{ number, htmlUrl }`.
 
 ### Read or update an issue
 
@@ -204,27 +206,15 @@ Reserved labels are normalised to at most one per active group before the GitHub
 | `state` | `open` \| `closed` | |
 | `state_reason` | `completed` \| `not_planned` \| `null` | |
 | `status` | status value or `null` | `null` clears the status group. |
+| `impact` | `sev` \| `mod` \| `min` or `null` | `null` clears the impact group. |
+| `urgency` | `high` \| `mid` \| `low` or `null` | `null` clears the urgency group. |
 | `size` | size value or `null` | `null` clears the size group. |
 | `blocked` | boolean | Adds or removes the reserved `blocked` flag. |
 | `milestone` | positive integer or `null` | Attaches a repository milestone by number, or clears it. Omitting the field leaves it untouched. |
 
-A patch with no fields present returns `400 {"message":"No changes provided"}`. An invalid status or size value returns `400 {"message":"Invalid status value: …"}`. Field edits and state changes use GitHub's issue update; reserved-label edits read the authoritative label set from GitHub and replace it so at most one label per active group remains. Priority is not writable here. Success returns `200` with `{ number, htmlUrl }`.
+A patch with no fields present returns `400 {"message":"No changes provided"}`. An invalid status, impact, urgency or size value returns `400 {"message":"Invalid status value: …"}`. Field edits and state changes use GitHub's issue update; reserved-label edits read the authoritative label set from GitHub and replace it so at most one label per active group remains. Priority is derived from impact × urgency and is not writable. Success returns `200` with `{ number, htmlUrl }`.
 
-### Derive priority
-
-`PATCH /api/mirror/issues/{owner}/{repo}/{number}/priority`
-
-Funnel-local, durable state; no GitHub write and no user token. Requires `write`.
-The request sets one or both axes; omitted axes keep their stored value.
-
-| Field | Type | Required | Constraints |
-| :--- | :--- | :--- | :--- |
-| `impact` | `1`–`4` or `null` | one of the two | `null` clears the axis. |
-| `urgency` | `1`–`4` or `null` | one of the two | `null` clears the axis. |
-
-`200` returns `{ "impact": 2, "urgency": 3, "priority": "P2", "createdAt": …, "updatedAt": … }`. Both axes `null` returns `priority: null` (the empty state). An out-of-range value returns `400`; an unmirrored repo returns `404`; a missing or `read` session returns `401`/`403`.
-
-### Comments
+## Comments
 
 | Method | Path | Minimum role | Execution token | Success |
 | :--- | :--- | :--- | :--- | :--- |

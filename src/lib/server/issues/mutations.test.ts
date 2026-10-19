@@ -80,6 +80,19 @@ describe("withReserved", () => {
     expect(withReserved(["todo", "bug"], "status", null)).toEqual(["bug"]);
   });
 
+  test("swaps an impact and an urgency label in their own groups", () => {
+    expect(withReserved(["sev", "mid", "bug"], "impact", "min")).toEqual([
+      "mid",
+      "bug",
+      "min",
+    ]);
+    expect(withReserved(["sev", "mid", "bug"], "urgency", "low")).toEqual([
+      "sev",
+      "bug",
+      "low",
+    ]);
+  });
+
   test("toggles the orthogonal blocked flag without touching status", () => {
     expect(withReserved(["todo", "bug"], "flags", "blocked")).toEqual([
       "todo",
@@ -126,6 +139,20 @@ describe("createIssue", () => {
     expect(events).toContainEqual(
       expect.objectContaining({ type: "issues", repo: "orgA/core", numbers: [42] }),
     );
+  });
+
+  test("applies the impact and urgency shortcuts", async () => {
+    const { client, calls } = stubOctokit(createHandler);
+    await createIssue({
+      octokit: client,
+      repo: "orgA/core",
+      title: "Triage inputs",
+      status: "todo",
+      impact: "sev",
+      urgency: "high",
+    });
+
+    expect(calls[0].params.labels).toEqual(["todo", "sev", "high"]);
   });
 
   test("strips retired priority labels from the outbound set", async () => {
@@ -290,6 +317,35 @@ describe("updateIssue", () => {
     await updateIssue({ octokit: client, repo: "orgA/core", number: 5, status: null });
 
     expect(calls[1].params.labels).toEqual(["bug"]);
+  });
+
+  test("swaps an impact label without touching urgency", async () => {
+    const { client, calls } = stubOctokit((call) =>
+      call.route.startsWith("GET")
+        ? { data: { labels: [{ name: "todo" }, { name: "sev" }, { name: "mid" }] } }
+        : { data: {} },
+    );
+
+    await updateIssue({
+      octokit: client,
+      repo: "orgA/core",
+      number: 5,
+      impact: "mod",
+    });
+
+    expect(calls[1].params.labels).toEqual(["todo", "mid", "mod"]);
+  });
+
+  test("rejects an invalid impact value", async () => {
+    const { client, calls } = stubOctokit();
+    const result = await updateIssue({
+      octokit: client,
+      repo: "orgA/core",
+      number: 5,
+      impact: "nope",
+    });
+    expect((result as { status: number }).status).toBe(400);
+    expect(calls).toHaveLength(0);
   });
 
   test("swaps the size label and leaves a retired priority label untouched", async () => {

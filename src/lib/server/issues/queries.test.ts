@@ -13,7 +13,6 @@ import { writeBlocked } from "#lib/funnel-metadata";
 import { clearMirror } from "#tests/mirror-helpers";
 import { TEST_CONFIG } from "#tests/test-config";
 import { parseIssueFilter } from "./filters";
-import { setPriorityInputs } from "./priority";
 import {
   allIssues,
   attentionIssues,
@@ -65,7 +64,7 @@ function seed(): void {
         { githubId: 1001, author: user(7, "octocat"), body: "repro steps", createdAt: 11, updatedAt: 11 },
       ],
     },
-    { status: "todo", size: "sm", blocked: false, labelConflict: false },
+    { status: "todo", impact: 1, urgency: 1, priority: "P1", size: "sm", blocked: false, labelConflict: false },
   );
 
   upsertIssue(
@@ -80,7 +79,7 @@ function seed(): void {
       closedAt: null,
       labels: [],
     },
-    { status: null, size: null, blocked: false, labelConflict: false },
+    { status: null, impact: null, urgency: null, priority: null, size: null, blocked: false, labelConflict: false },
   );
 
   upsertIssue(
@@ -96,7 +95,7 @@ function seed(): void {
       labels: ["in-progress", "p2", "frontend"],
       assignees: [user(7, "octocat")],
     },
-    { status: "in-progress", size: null, blocked: false, labelConflict: false },
+    { status: "in-progress", impact: 2, urgency: 2, priority: "P2", size: null, blocked: false, labelConflict: false },
   );
 
   upsertIssue(
@@ -113,7 +112,7 @@ function seed(): void {
       closedAt: Date.now() - DAY_MS,
       labels: ["lg"],
     },
-    { status: null, size: "lg", blocked: false, labelConflict: false },
+    { status: null, impact: null, urgency: null, priority: null, size: "lg", blocked: false, labelConflict: false },
   );
 
   upsertIssue(
@@ -130,7 +129,7 @@ function seed(): void {
       closedAt: Date.now() - 2 * DAY_MS,
       labels: [],
     },
-    { status: null, size: null, blocked: false, labelConflict: false },
+    { status: null, impact: null, urgency: null, priority: null, size: null, blocked: false, labelConflict: false },
   );
 
   upsertIssue(
@@ -146,7 +145,7 @@ function seed(): void {
       labels: ["backlog", "p3", "lg", "bug"],
       assignees: [user(7, "octocat"), user(8, "alice")],
     },
-    { status: "backlog", size: "lg", blocked: false, labelConflict: false },
+    { status: "backlog", impact: 3, urgency: 3, priority: "P3", size: "lg", blocked: false, labelConflict: false },
   );
 }
 
@@ -164,7 +163,7 @@ beforeEach(() => {
 });
 
 describe("allIssues", () => {
-  test("sorts priority (p1 first, unprioritized last) then updated", () => {
+  test("sorts by derived priority then updated", () => {
     expect(numbers(allIssues(parse("")))).toEqual([1, 3, 6]);
   });
 
@@ -207,12 +206,9 @@ describe("allIssues", () => {
   });
 
   test("uses the derived priority for filtering, sorting and none", () => {
-    setPriorityInputs("orgA", "core", 6, { impact: 1, urgency: 1 });
-    expect(numbers(allIssues(parse("priority=p0")))).toEqual([6]);
-    expect(numbers(allIssues(parse("")))).toEqual([6, 1, 3]);
-
-    setPriorityInputs("orgA", "core", 6, { impact: null, urgency: null });
-    expect(numbers(allIssues(parse("priority=none")))).toEqual([6]);
+    expect(numbers(allIssues(parse("priority=p1")))).toEqual([1]);
+    expect(numbers(allIssues(parse("")))).toEqual([1, 3, 6]);
+    expect(numbers(allIssues(parse("priority=none")))).toEqual([]);
   });
 
   test("applies the non-reserved label dimension", () => {
@@ -341,7 +337,7 @@ describe("attentionIssues", () => {
         assignees: [],
         comments: [],
       },
-      { status: "in-progress", size: null, blocked, labelConflict: false },
+      { status: "in-progress", impact: null, urgency: null, priority: null, size: null, blocked, labelConflict: false },
     );
   }
 
@@ -415,7 +411,7 @@ describe("milestones", () => {
         assignees: [user(VIEWER, "me")],
         comments: [],
       },
-      { status: "todo", size: "sm", blocked: false, labelConflict: false },
+      { status: "todo", impact: 1, urgency: 1, priority: "P1", size: "sm", blocked: false, labelConflict: false },
     );
   }
 

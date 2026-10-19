@@ -106,7 +106,7 @@ function seedStaleIssue() {
       assignees: [],
       comments: [],
     },
-    { status: null, size: null, blocked: false, labelConflict: false },
+    { status: null, impact: null, urgency: null, priority: null, size: null, blocked: false, labelConflict: false },
   );
 }
 

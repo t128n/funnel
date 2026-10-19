@@ -45,13 +45,13 @@ This creates a deliberate limit: Funnel is not a complete historical archive. Cl
 
 REST polling is cheap change detection; GraphQL is the fetch. The worker collects the `node_id` of each in-window issue and hydrates them in `nodes(ids:)` batches of 100, GitHub's per-query ceiling. One query returns title, body, state and state reason, timestamps, author, milestone, labels, assignees and the first 100 comments. A batch therefore replaces many individual issue requests.
 
-Hydration writes users first because they are foreign-key targets, then upserts the issue and replaces its label and assignee junction rows inside a transaction. The cached status, size, blocked flag and label-conflict marker are derived from the reserved labels at the same time. Priority is seeded/updated in Funnel-owned state and is never mirrored. Replacing rather than merging the junction rows is what makes label removal on GitHub propagate correctly.
+Hydration writes users first because they are foreign-key targets, then upserts the issue and replaces its label and assignee junction rows inside a transaction. The cached status, impact, urgency, derived priority, size, blocked flag and label-conflict marker are computed from the reserved labels at the same time. Priority itself is never a mirrored label. Replacing rather than merging the junction rows is what makes label removal on GitHub propagate correctly.
 
 Two bounds are intentional. Only the first 100 comments, labels and assignees are requested per issue. A very long comment thread is not fully mirrored; the cockpit is a working view, not an archival export. And a batch can return fewer records than ids because PR nodes and nodes missing identity are discarded. Neither case is treated as an error.
 
 ## Reserved-label conflicts
 
-Funnel's workflow vocabulary allows at most one label per active group: status and size. A `flags` group carries orthogonal markers such as `blocked`. Priority labels are retired and ignored; only status/size conflicts are resolved. When GitHub ends up with two labels from the same group — because someone edited labels outside Funnel, or two clients raced — the sync worker resolves it with the App installation token.
+Funnel's workflow vocabulary allows at most one label per active group: status, impact, urgency and size. A `flags` group carries orthogonal markers such as `blocked`. Retired priority labels are ignored; their conflicts are handled by the conflict flag, not timeline resolution. When GitHub ends up with two labels from the same group — because someone edited labels outside Funnel, or two clients raced — the sync worker resolves it with the App installation token.
 
 The decision rule is **latest added label wins**, read from the issue timeline's `labeled` events. The timeline is paginated and reduced to label names and timestamps. If the timeline has no `labeled` events for the contenders, or two candidates share the newest timestamp, the result is ambiguous.
 
@@ -115,7 +115,7 @@ Funnel does not receive GitHub webhooks. This removes an inbound endpoint, a pub
 
 ### Rate limits
 
-Conditional 304s are cheap, but polling is not free. Every cycle also refreshes the repo's labels, assignable users and milestone set, and conflict resolution fetches issue timelines. Hydration uses GraphQL batches of 100, which is efficient per issue but still consumes quota. Active mode multiplies all of this by ten compared with idle mode, and the nightly full sweep is the single largest request burst. Label provisioning is expected to be throttled by the shared installation client to roughly one write per second, so a repo missing all canonical labels takes about eight seconds to converge.
+Conditional 304s are cheap, but polling is not free. Every cycle also refreshes the repo's labels, assignable users and milestone set, and conflict resolution fetches issue timelines. Hydration uses GraphQL batches of 100, which is efficient per issue but still consumes quota. Active mode multiplies all of this by ten compared with idle mode, and the nightly full sweep is the single largest request burst. Label provisioning is expected to be throttled by the shared installation client to roughly one write per second, so a repo missing all canonical labels takes about fourteen seconds to converge.
 
 Shortening the intervals is therefore a real cost decision, not a harmless responsiveness tweak. The defaults assume a small team with a tab open during working hours and no interest in polling overnight at the same rate.
 
