@@ -53,3 +53,4 @@ Ruling: OpenCode has no UserPromptSubmit hook; the human approved the review pla
 - commit T6 8f41062f6c browser notifications
 - tests full passed=555 failed=0 skipped=0 seconds=16.2
 - tests full passed=555 failed=0 skipped=0 seconds=15.6
+- unblocked: dispatched T1 T2 T3 T4 T5 T6 T7 T8 at 21:14:00; waiting on fixes: none
