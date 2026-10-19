@@ -6,7 +6,12 @@
  * token and schedule a background refresh of the touched issue, so the SSE
  * stream catches the cockpit up shortly after the response resolves.
  */
-import type { IssueOption, RenderedIssueDetail } from "#lib/server/issues/types";
+import type {
+  AttachmentItem,
+  IssueOption,
+  RenderedIssueDetail,
+  WorkNoteItem,
+} from "#lib/server/issues/types";
 import {
   formatBlockComment,
   formatUnblockComment,
@@ -243,4 +248,99 @@ export function createIssue(
     method: "POST",
     body: JSON.stringify(input),
   });
+}
+
+// ---------------------------------------------------------------------------
+// Work notes (Funnel-local, internal)
+// ---------------------------------------------------------------------------
+
+function workNotePath(repo: string, number: number, id?: string): string {
+  const base = `/api/repos/${repoPath(repo)}/issues/${number}/work-notes`;
+  return id === undefined ? base : `${base}/${encodeURIComponent(id)}`;
+}
+
+export function addWorkNote(
+  repo: string,
+  number: number,
+  body: string,
+): Promise<MutationResult<WorkNoteItem>> {
+  return request(workNotePath(repo, number), {
+    method: "POST",
+    body: JSON.stringify({ body }),
+  });
+}
+
+export function updateWorkNote(
+  repo: string,
+  number: number,
+  id: string,
+  body: string,
+): Promise<MutationResult<WorkNoteItem>> {
+  return request(workNotePath(repo, number, id), {
+    method: "PATCH",
+    body: JSON.stringify({ body }),
+  });
+}
+
+export function deleteWorkNote(
+  repo: string,
+  number: number,
+  id: string,
+): Promise<MutationResult<void>> {
+  return request(workNotePath(repo, number, id), { method: "DELETE" });
+}
+
+/**
+ * Post an internal note to GitHub as a comment (one-way, explicit). Succeeds by
+ * deleting the note server-side, so it leaves the work-notes list.
+ */
+export function publishWorkNote(
+  repo: string,
+  number: number,
+  id: string,
+): Promise<MutationResult<{ id: string }>> {
+  return request(`${workNotePath(repo, number, id)}/publish`, {
+    method: "POST",
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Attachments (the Inspector dropbox)
+// ---------------------------------------------------------------------------
+
+function attachmentPath(repo: string, number: number): string {
+  return `/api/repos/${repoPath(repo)}/issues/${number}/attachments`;
+}
+
+/** Upload one file; `request()` is JSON-only, so multipart is sent directly. */
+export async function uploadAttachment(
+  repo: string,
+  number: number,
+  file: File,
+): Promise<MutationResult<AttachmentItem>> {
+  const form = new FormData();
+  form.append("file", file);
+  try {
+    const response = await fetch(attachmentPath(repo, number), {
+      method: "POST",
+      body: form,
+    });
+    if (!response.ok) return { ok: false, error: await toError(response) };
+    return { ok: true, value: (await response.json()) as AttachmentItem };
+  } catch (error) {
+    return { ok: false, error: (error as Error).message };
+  }
+}
+
+export function deleteAttachment(
+  id: string,
+): Promise<MutationResult<void>> {
+  return request(`/api/attachments/${encodeURIComponent(id)}`, {
+    method: "DELETE",
+  });
+}
+
+/** Direct download URL for an attachment (session cookie is sent by the browser). */
+export function attachmentUrl(id: string): string {
+  return `/api/attachments/${encodeURIComponent(id)}`;
 }

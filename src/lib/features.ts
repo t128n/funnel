@@ -24,6 +24,11 @@ export interface FeatureFlag {
   onLabel: string;
 }
 
+/** Flag key for internal work notes in the issue inspector. */
+export const WORK_NOTES_FLAG = "work-notes";
+/** Flag key for the issue attachment dropbox. */
+export const ATTACHMENTS_FLAG = "attachments";
+
 export const FEATURE_FLAGS: FeatureFlag[] = [
   {
     key: "comment-bubbles",
@@ -32,6 +37,23 @@ export const FEATURE_FLAGS: FeatureFlag[] = [
     default: false,
     offLabel: "Compact list",
     onLabel: "Chat bubbles",
+  },
+  {
+    key: WORK_NOTES_FLAG,
+    name: "Internal work notes",
+    description:
+      "Show the internal journal in the issue inspector, alongside GitHub comments.",
+    default: true,
+    offLabel: "Hidden",
+    onLabel: "Visible",
+  },
+  {
+    key: ATTACHMENTS_FLAG,
+    name: "Attachment dropbox",
+    description: "Upload files to an issue and list them in the inspector.",
+    default: true,
+    offLabel: "Hidden",
+    onLabel: "Visible",
   },
 ];
 

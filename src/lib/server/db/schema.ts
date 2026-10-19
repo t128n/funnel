@@ -43,6 +43,74 @@ export const stateSetting = sqliteTable("state_setting", {
 });
 
 // ---------------------------------------------------------------------------
+// State: internal work notes (ITSM-style journal).
+// Funnel-owned and *never* posted to GitHub unless a note is explicitly
+// published — and publishing *deletes* the note, turning it into a comment.
+// Keyed by `org/name` + issue number rather than a FK to the disposable
+// `mirror_github_issue`, so a note survives mirror pruning
+// (`sync.history_days`) and a re-sync. The author is snapshotted (id, login,
+// avatar) so the note still renders after the mirror user is rebuilt.
+// ---------------------------------------------------------------------------
+export const stateWorkNote = sqliteTable(
+  "state_work_note",
+  {
+    id: text("id").primaryKey(),
+    org: text("org").notNull(),
+    name: text("name").notNull(),
+    issueNumber: integer("issue_number").notNull(),
+    authorGithubId: integer("author_github_id"),
+    authorLogin: text("author_login").notNull().default(""),
+    authorAvatarUrl: text("author_avatar_url").notNull().default(""),
+    body: text("body").notNull().default(""),
+    createdAt: integer("created_at").notNull(),
+    updatedAt: integer("updated_at").notNull(),
+  },
+  (t) => [
+    index("idx_state_work_note_issue").on(
+      t.org,
+      t.name,
+      t.issueNumber,
+      t.createdAt,
+    ),
+  ],
+);
+
+// ---------------------------------------------------------------------------
+// State: issue attachments (the "dropbox").
+// Metadata for files stored on disk under `FUNNEL_UPLOAD_DIR`; `stored_path` is
+// server-generated (`<yyyy>/<mm>/<uuid>`) and never derived from the client's
+// filename. Also keyed by `org/name` + issue number so uploads outlive the
+// disposable mirror.
+// ---------------------------------------------------------------------------
+export const stateAttachment = sqliteTable(
+  "state_attachment",
+  {
+    id: text("id").primaryKey(),
+    org: text("org").notNull(),
+    name: text("name").notNull(),
+    issueNumber: integer("issue_number").notNull(),
+    /** Original filename, kept for display and the download disposition. */
+    filename: text("filename").notNull(),
+    /** Path relative to `FUNNEL_UPLOAD_DIR`, e.g. `2026/10/<uuid>`. */
+    storedPath: text("stored_path").notNull(),
+    mimeType: text("mime_type").notNull().default("application/octet-stream"),
+    sizeBytes: integer("size_bytes").notNull(),
+    sha256: text("sha256").notNull().default(""),
+    uploadedByGithubId: integer("uploaded_by_github_id"),
+    uploadedByLogin: text("uploaded_by_login").notNull().default(""),
+    createdAt: integer("created_at").notNull(),
+  },
+  (t) => [
+    index("idx_state_attachment_issue").on(
+      t.org,
+      t.name,
+      t.issueNumber,
+      t.createdAt,
+    ),
+  ],
+);
+
+// ---------------------------------------------------------------------------
 // Auth: Better Auth tables (SPEC 7, 8). Field names match Better Auth's
 // stock schema. Date columns use timestamp mode and `emailVerified`
 // boolean mode: the drizzle adapter passes Date/boolean objects, and

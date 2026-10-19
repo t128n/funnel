@@ -44,6 +44,10 @@ export const GET: RequestHandler = ({ params }) => {
       ...comment,
       bodyHtml: renderMarkdown(comment.body),
     })),
+    workNotes: detail.workNotes.map((note) => ({
+      ...note,
+      bodyHtml: renderMarkdown(note.body),
+    })),
   };
   return Response.json(payload);
 };

@@ -61,6 +61,27 @@ export const variables = defineEnvVars({
     ),
   },
 
+  FUNNEL_UPLOAD_DIR: {
+    description:
+      "Directory where issue attachments (the Inspector dropbox) are stored.",
+    schema: v.optional(
+      v.pipe(v.string(), v.trim(), v.nonEmpty("Upload dir cannot be empty.")),
+      "./data/uploads",
+    ),
+  },
+  FUNNEL_UPLOAD_MAX_BYTES: {
+    description:
+      "Maximum size of a single uploaded attachment, in bytes. Raise BODY_SIZE_LIMIT to match.",
+    schema: v.optional(
+      v.pipe(
+        v.string(),
+        v.trim(),
+        v.regex(/^\d+$/, "Upload limit must be a whole number of bytes."),
+      ),
+      String(10 * 1024 * 1024),
+    ),
+  },
+
   FUNNEL_COMMENT_UI: {
     description:
       "Default issue-comment rendering: 'compact' (dense list) or 'bubbles' (chat-style). Browsers can override it per browser in Settings > Features.",

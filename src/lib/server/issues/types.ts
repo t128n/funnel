@@ -98,6 +98,35 @@ export interface RenderedComment extends CommentItem {
   bodyHtml: string;
 }
 
+/**
+ * One internal work note (ITSM-style journal). Funnel-owned and never posted to
+ * GitHub unless explicitly published — publishing deletes the note and turns it
+ * into a comment. `body` is raw Markdown; the rendered HTML is attached at the
+ * delivery boundary — see {@link RenderedWorkNote}.
+ */
+export interface WorkNoteItem {
+  id: string;
+  author: UserRef | null;
+  body: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+/** One work note with server-rendered, sanitized HTML for display. */
+export interface RenderedWorkNote extends WorkNoteItem {
+  bodyHtml: string;
+}
+
+/** One uploaded file in the Inspector dropbox. Bytes are served separately. */
+export interface AttachmentItem {
+  id: string;
+  filename: string;
+  mimeType: string;
+  sizeBytes: number;
+  uploadedBy: UserRef | null;
+  createdAt: number;
+}
+
 /** A repo label option for the Inspector's label picker. */
 export interface RepoLabelOption {
   name: string;
@@ -113,6 +142,10 @@ export interface IssueDetail {
   issue: IssueListItem;
   body: string;
   comments: CommentItem[];
+  /** Internal work notes for the issue, oldest first. */
+  workNotes: WorkNoteItem[];
+  /** Files uploaded to the issue's dropbox, oldest first. */
+  attachments: AttachmentItem[];
   /** Every label defined on the issue's repo (reserved and non-reserved). */
   repoLabels: RepoLabelOption[];
   /** Users assignable on the issue's repo, plus current assignees (SPEC §9.2). */
@@ -124,9 +157,11 @@ export interface IssueDetail {
  * for the inline editors and each prose field also carries sanitized HTML for
  * `{@html}` (SPEC §2.2).
  */
-export interface RenderedIssueDetail extends Omit<IssueDetail, "comments"> {
+export interface RenderedIssueDetail
+  extends Omit<IssueDetail, "comments" | "workNotes"> {
   bodyHtml: string;
   comments: RenderedComment[];
+  workNotes: RenderedWorkNote[];
 }
 
 /** A staged intake submission with its sanitized HTML body for display. */

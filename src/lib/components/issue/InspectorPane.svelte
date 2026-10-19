@@ -9,7 +9,8 @@
 	import BlockActionDialog from '#lib/components/board/BlockActionDialog.svelte';
 	import Composer from '#lib/components/detail/Composer.svelte';
 	import DetailShell from '#lib/components/detail/DetailShell.svelte';
-	import CommentTimeline from '#lib/components/issue/CommentTimeline.svelte';
+	import ActivityTimeline from '#lib/components/issue/ActivityTimeline.svelte';
+	import AttachmentDropbox from '#lib/components/issue/AttachmentDropbox.svelte';
 	import IssueActionDialog from '#lib/components/issue/IssueActionDialog.svelte';
 	import * as Alert from '#lib/components/ui/alert';
 	import { Button } from '#lib/components/ui/button';
@@ -18,13 +19,19 @@
 	import {
 		addIssueComment,
 		addIssueLabels,
+		addWorkNote,
 		blockIssue,
 		closeIssue,
+		deleteAttachment,
+		deleteWorkNote,
 		fetchIssueDetail,
+		publishWorkNote,
 		removeIssueLabel,
 		reopenIssue,
 		unblockIssue,
 		updateIssue,
+		updateWorkNote,
+		uploadAttachment,
 		type CloseReason,
 		type UpdateIssuePatch
 	} from '#lib/client/mutations';
@@ -53,8 +60,13 @@
 		labelTint
 	} from '#lib/labels';
 	import { absoluteTime } from '#lib/time';
+	import { ATTACHMENTS_FLAG, WORK_NOTES_FLAG } from '#lib/features';
 	import { viewOf } from '#lib/issue-url';
-	import type { RenderedIssueDetail, UserRef } from '#lib/server/issues/types';
+	import type {
+		AttachmentItem,
+		RenderedIssueDetail,
+		UserRef
+	} from '#lib/server/issues/types';
 	import { cn } from '#lib/utils';
 	import CircleDashedIcon from '@lucide/svelte/icons/circle-dashed';
 	import BanIcon from '@lucide/svelte/icons/ban';
@@ -97,6 +109,26 @@
 	let renderedBody = $state('');
 	/** The trailing `funnel_metadata` envelope, kept out of the body editor. */
 	let metadataBlock = $state<string | null>(null);
+
+	/** Footer composer channel: a GitHub comment or an internal work note. */
+	let composerMode = $state<'comment' | 'note'>('comment');
+	/** In-flight Funnel-local note mutation, e.g. `note:<uuid>`. */
+	let noteBusy = $state<string | null>(null);
+	/** Attachments still uploading (drives the dropbox label). */
+	let uploading = $state(0);
+	/** Attachment being deleted. */
+	let deletingId = $state<string | null>(null);
+
+	// Feature flags are shared per-browser; the local features default to on so a
+	// missing flag never hides the journal or the dropbox.
+	const featureFlags = $derived(
+		(page.data as { features?: Record<string, boolean> }).features ?? {}
+	);
+	const workNotesEnabled = $derived(featureFlags[WORK_NOTES_FLAG] ?? true);
+	const attachmentsEnabled = $derived(featureFlags[ATTACHMENTS_FLAG] ?? true);
+	const viewerLogin = $derived(
+		(page.data as { viewerGithub?: { login?: string } | null }).viewerGithub?.login ?? null
+	);
 
 	/** Structured block/unblock dialog (SPEC §5.1). */
 	let blockedDialogMode = $state<'block' | 'unblock' | null>(null);
@@ -147,6 +179,8 @@
 	const githubLink = $derived(`${githubUrl}/${repo}/issues/${number}`);
 	/** Only show the composer once the issue has loaded. */
 	const canEdit = $derived(issue !== null && detail !== null);
+	/** Split into the two-column layout only when the side column has content. */
+	const hasAside = $derived(canEdit && (workNotesEnabled || attachmentsEnabled));
 
 	/** Guards against an out-of-order fetch clobbering a newer one. */
 	let loadSeq = 0;
@@ -465,16 +499,138 @@
 		// The mirror updates in the background; refetch to show the new comment.
 		await load();
 	}
+
+	/** Create an internal work note from the shared composer draft. */
+	async function submitWorkNote() {
+		const text = comment.trim();
+		if (!text || noteBusy) return;
+		noteBusy = 'note:new';
+		const result = await addWorkNote(repo, number, text);
+		noteBusy = null;
+		if (!result.ok) {
+			notifyFailure('Could not add work note', result.error);
+			return;
+		}
+		comment = '';
+		await load();
+	}
+
+	function submitComposer() {
+		if (composerMode === 'note') void submitWorkNote();
+		else void submitComment();
+	}
+
+	async function editWorkNote(id: string, text: string) {
+		noteBusy = `note:${id}`;
+		const result = await updateWorkNote(repo, number, id, text);
+		noteBusy = null;
+		if (!result.ok) {
+			notifyFailure('Could not update work note', result.error);
+			return;
+		}
+		await load();
+	}
+
+	async function removeWorkNote(id: string) {
+		noteBusy = `note:${id}`;
+		const result = await deleteWorkNote(repo, number, id);
+		noteBusy = null;
+		if (!result.ok) {
+			notifyFailure('Could not delete work note', result.error);
+			return;
+		}
+		await load();
+	}
+
+	async function publishNote(id: string) {
+		noteBusy = `note:${id}`;
+		const result = await publishWorkNote(repo, number, id);
+		noteBusy = null;
+		if (!result.ok) {
+			notifyFailure('Could not publish work note', result.error);
+			return;
+		}
+		toast('Work note published as a comment');
+		await load();
+	}
+
+	async function uploadFiles(files: File[]) {
+		if (files.length === 0) return;
+		uploading += files.length;
+		let changed = false;
+		for (const file of files) {
+			const result = await uploadAttachment(repo, number, file);
+			if (result.ok) changed = true;
+			else notifyFailure(`Could not upload ${file.name}`, result.error);
+		}
+		uploading -= files.length;
+		if (changed) await load();
+	}
+
+	async function removeAttachment(item: AttachmentItem) {
+		if (deletingId) return;
+		deletingId = item.id;
+		const result = await deleteAttachment(item.id);
+		deletingId = null;
+		if (!result.ok) {
+			notifyFailure('Could not delete attachment', result.error);
+			return;
+		}
+		await load();
+	}
 </script>
 
 {#snippet composer()}
 	<Composer
 		bind:value={comment}
-		busy={busy === 'comment'}
+		bind:mode={composerMode}
+		busy={busy === 'comment' || noteBusy === 'note:new'}
 		label="Comment"
-		placeholder="Add a comment…"
-		onsubmit={submitComment}
+		showModeToggle={workNotesEnabled}
+		onattach={attachmentsEnabled ? (files) => void uploadFiles(files) : undefined}
+		onsubmit={submitComposer}
 	/>
+{/snippet}
+
+{#snippet aside()}
+	{#if detail}
+		{#if workNotesEnabled}
+			<section class="flex flex-col gap-3" aria-label="Work notes">
+				<div class="flex items-center justify-between">
+					<h2 class="text-foreground text-base font-semibold">Work notes</h2>
+					<span class="mono text-muted-foreground text-xs">{detail.workNotes.length}</span>
+				</div>
+				{#if detail.workNotes.length === 0}
+					<div
+						class="border-border text-muted-foreground rounded-lg border border-dashed px-3 py-6 text-center text-xs"
+					>
+						No work notes yet. Internal notes stay in Funnel unless you publish them.
+					</div>
+				{:else}
+					<ActivityTimeline
+						comments={[]}
+						workNotes={detail.workNotes}
+						filter="notes"
+						viewerLogin={viewerLogin}
+						busyId={noteBusy}
+						onedit={editWorkNote}
+						ondelete={removeWorkNote}
+						onpublish={publishNote}
+					/>
+				{/if}
+			</section>
+		{/if}
+
+		{#if attachmentsEnabled}
+			<AttachmentDropbox
+				attachments={detail.attachments}
+				uploading={uploading}
+				busyId={deletingId}
+				onupload={(files) => void uploadFiles(files)}
+				ondelete={(item) => void removeAttachment(item)}
+			/>
+		{/if}
+	{/if}
 {/snippet}
 
 <DetailShell
@@ -484,7 +640,9 @@
 			? 'min-w-0 flex-1 border-l-0'
 			: 'w-120 border-l max-[1100px]:absolute max-[1100px]:inset-y-0 max-[1100px]:right-0 max-[1100px]:z-40 max-[1100px]:w-[min(480px,100%)] max-[1100px]:shadow-lg'
 	)}
-	contentKey={`${repo}#${number}:${detail?.bodyHtml ?? ''}:${detail?.comments.length ?? 0}`}
+	contentKey={`${repo}#${number}:${detail?.bodyHtml ?? ''}:${detail?.comments.length ?? 0}:${detail?.workNotes.length ?? 0}`}
+	wide={fill}
+	aside={hasAside ? aside : undefined}
 	footer={canEdit ? composer : undefined}
 >
 	{#snippet header()}
@@ -759,7 +917,15 @@
 					No comments yet.
 				</div>
 			{:else}
-				<CommentTimeline comments={detail.comments} bubbles={commentBubbles} />
+				<ActivityTimeline
+					comments={detail.comments}
+					workNotes={[]}
+					filter="comments"
+					bubbles={commentBubbles}
+					onedit={editWorkNote}
+					ondelete={removeWorkNote}
+					onpublish={publishNote}
+				/>
 			{/if}
 		</section>
 	{/if}

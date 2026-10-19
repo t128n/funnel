@@ -61,6 +61,15 @@ config.repos; // [{ repo: "orgA/core", shortcode: "CORE" }, ...]
 The **Projects** list on the Settings page maps GitHub labels to project names
 and enables the **Project** group-by option in the issue feeds.
 
+The issue inspector also carries Funnel-local, internal-only **work notes**
+(ITSM-style journal entries that stay in Funnel until explicitly published —
+publishing posts the note as a GitHub comment and removes it from the internal
+journal) and a **dropbox** for attaching files to an issue. Both
+live in durable `state_*` tables keyed by `owner/name` + issue number, so they
+survive mirror pruning and re-sync; attachment bytes are written under
+`FUNNEL_UPLOAD_DIR`. Either surface can be hidden per browser or instance from
+**Settings > Features**.
+
 ## Developing
 
 Install dependencies and start the development server:
@@ -94,6 +103,11 @@ Server configuration is read from the environment by the adapter:
 | `HOST` | `0.0.0.0` | Listen address |
 | `ORIGIN` | — | Public origin, e.g. `https://funnel.example.com` (set to `FUNNEL_URL`) |
 | `PROTOCOL_HEADER` / `HOST_HEADER` | — | Forwarded proto/host when behind a TLS-terminating proxy |
-| `BODY_SIZE_LIMIT` | `512K` | Max request body (sufficient for intake) |
+| `BODY_SIZE_LIMIT` | `512K` | Max request body. Raise it to cover issue attachment uploads |
+| `FUNNEL_UPLOAD_DIR` | `./data/uploads` | Where uploaded issue attachments are stored |
+| `FUNNEL_UPLOAD_MAX_BYTES` | `10485760` | Max size of a single attachment (10 MiB) |
 | `SHUTDOWN_TIMEOUT` | `30` | Graceful shutdown window in seconds |
+
+Uploads larger than `BODY_SIZE_LIMIT` are rejected before they reach Funnel, so
+set it at least as large as `FUNNEL_UPLOAD_MAX_BYTES` when using the dropbox.
 

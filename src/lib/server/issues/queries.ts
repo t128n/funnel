@@ -34,8 +34,10 @@ import {
   mirrorGithubRepoLabel,
   mirrorGithubUser,
 } from "#lib/server/db/schema";
+import { listAttachments } from "#lib/server/attachments/store";
 import { listSubmissions } from "#lib/server/intake/staging";
 import { listRepos } from "#lib/server/sync/mirror";
+import { listWorkNotes } from "#lib/server/work-notes";
 import { readBlocked } from "#lib/funnel-metadata";
 import {
   assigneeExists,
@@ -605,5 +607,17 @@ export function getIssueDetail(
     a.login.localeCompare(b.login),
   );
 
-  return { issue, body: bodyRow?.body ?? "", comments, repoLabels, assigneeOptions };
+  // Funnel-owned state (work notes, attachments) is keyed by `owner/name`, not
+  // the disposable `repoId`, so it outlives mirror pruning and re-sync.
+  const [org, name] = issue.repo.split("/");
+
+  return {
+    issue,
+    body: bodyRow?.body ?? "",
+    comments,
+    workNotes: listWorkNotes(org, name, number),
+    attachments: listAttachments(org, name, number),
+    repoLabels,
+    assigneeOptions,
+  };
 }
