@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/state';
+	import { onDestroy } from 'svelte';
 	import { toast } from 'svelte-sonner';
 	import Avatar from '#lib/components/common/Avatar.svelte';
 	import PriorityIcon from '#lib/components/common/PriorityIcon.svelte';
@@ -54,6 +55,7 @@
 		splitFunnelMetadata,
 		writeBlocked
 	} from '#lib/funnel-metadata';
+	import { issueThreadMarkdown, shouldScopeSelectAll } from '#lib/issue-copy';
 	import { timeAgo } from '#lib/client/clock.svelte';
 	import {
 		SIZE_OPTIONS,
@@ -81,7 +83,9 @@
 	import { cn } from '#lib/utils';
 	import CircleDashedIcon from '@lucide/svelte/icons/circle-dashed';
 	import BanIcon from '@lucide/svelte/icons/ban';
+	import CheckIcon from '@lucide/svelte/icons/check';
 	import CircleUserIcon from '@lucide/svelte/icons/circle-user';
+	import CopyIcon from '@lucide/svelte/icons/copy';
 	import ExternalLinkIcon from '@lucide/svelte/icons/external-link';
 	import RulerIcon from '@lucide/svelte/icons/ruler';
 	import SignalIcon from '@lucide/svelte/icons/signal';
@@ -116,6 +120,8 @@
 	let body = $state('');
 	let comment = $state('');
 	let editingBody = $state(false);
+	/** Whether the title shows its inline editor instead of plain text. */
+	let editingTitle = $state(false);
 	/** Raw Markdown the server-rendered `bodyHtml` was produced from. */
 	let renderedBody = $state('');
 	/** The trailing `funnel_metadata` envelope, kept out of the body editor. */
@@ -129,6 +135,18 @@
 	let uploading = $state(0);
 	/** Attachment being deleted. */
 	let deletingId = $state<string | null>(null);
+
+	/** Pane root, so Mod+A can be scoped to this issue instead of the page. */
+	let paneEl = $state<HTMLElement | null>(null);
+	/** The title heading; the start of a Mod+A thread selection. */
+	let titleEl = $state<HTMLElement | null>(null);
+	/** The Activity section; the end of a Mod+A thread selection. */
+	let activityEl = $state<HTMLElement | null>(null);
+	/** Flips the copy button to a check for a moment after a successful copy. */
+	let copied = $state(false);
+	let copyTimeout: ReturnType<typeof setTimeout> | undefined;
+
+	onDestroy(() => clearTimeout(copyTimeout));
 
 	// Feature flags are shared per-browser; the local features default to on so a
 	// missing flag never hides the journal or the dropbox.
@@ -239,6 +257,7 @@
 			renderedBody = split.content;
 			metadataBlock = split.block;
 			editingBody = false;
+			editingTitle = false;
 		} else {
 			detail = null;
 			error = result.error;
@@ -377,9 +396,87 @@
 		dialogMode = null;
 	}
 
+	/**
+	 * A click that did not select text. The title and the description open
+	 * their editor on such a click only, so dragging to select prose — which
+	 * is how the thread gets copied — never flips the pane into edit mode.
+	 */
+	function isPlainClick(): boolean {
+		return window.getSelection()?.isCollapsed ?? true;
+	}
+
+	function startTitleEdit() {
+		if (!mayWrite || !issue) return;
+		title = issue.title;
+		editingTitle = true;
+	}
+
+	/** Escape abandons an in-progress title edit; nothing is written. */
+	function cancelTitleEdit() {
+		title = issue?.title ?? '';
+		editingTitle = false;
+	}
+
 	async function saveTitle() {
-		if (!titleDirty || busy) return;
-		await runPatch({ title: title.trim() }, 'title');
+		if (!editingTitle || busy) return;
+		if (!titleDirty) {
+			editingTitle = false;
+			return;
+		}
+		const ok = await runPatch({ title: title.trim() }, 'title');
+		if (ok) editingTitle = false;
+	}
+
+	/**
+	 * Whether the caret or focus already lives in this pane. Clicking prose
+	 * puts a collapsed caret in its text node while focus stays on `<body>`,
+	 * so both are checked before Mod+A is re-scoped.
+	 */
+	function paneHasFocusOrCaret(): boolean {
+		if (!paneEl) return false;
+		const active = document.activeElement;
+		if (active && paneEl.contains(active)) return true;
+		const anchor = window.getSelection()?.anchorNode ?? null;
+		return anchor !== null && paneEl.contains(anchor);
+	}
+
+	/**
+	 * Select the thread — title through the last comment — instead of letting
+	 * the browser select the whole page. Focus inside a field (title editor,
+	 * description editor, composer) keeps its native select-all.
+	 */
+	function onWindowKeydown(event: KeyboardEvent) {
+		if (!shouldScopeSelectAll(event)) return;
+		if (!titleEl || !activityEl || !paneHasFocusOrCaret()) return;
+		event.preventDefault();
+		const range = document.createRange();
+		range.setStartBefore(titleEl);
+		// Ends at the Activity section, so work notes, attachments and the
+		// composer stay out of the selection.
+		range.setEndAfter(activityEl);
+		const selection = window.getSelection();
+		selection?.removeAllRanges();
+		selection?.addRange(range);
+	}
+
+	/** Copy the whole thread as Markdown, metadata and work notes excluded. */
+	async function copyThread() {
+		if (!issue) return;
+		const markdown = issueThreadMarkdown({
+			url: githubLink,
+			issue,
+			body: renderedBody,
+			comments: detail?.comments ?? []
+		});
+		try {
+			await navigator.clipboard.writeText(markdown);
+		} catch {
+			notifyFailure('Could not copy issue', 'Clipboard access was denied');
+			return;
+		}
+		copied = true;
+		clearTimeout(copyTimeout);
+		copyTimeout = setTimeout(() => (copied = false), 2000);
 	}
 
 	async function saveBody() {
@@ -728,6 +825,7 @@
 {/snippet}
 
 <DetailShell
+	bind:element={paneEl}
 	ariaLabel="Issue inspector"
 	class={cn(
 		fill
@@ -743,24 +841,54 @@
 		<div class="flex min-w-0 flex-1 flex-col gap-1 py-0.5">
 			{#if issue}
 				<div class="flex min-w-0 items-center gap-2">
-					<Input
-						class="hover:bg-accent/50 h-auto -ml-1 min-w-0 flex-1 rounded-sm border-0 bg-transparent px-1 text-xl leading-tight font-semibold tracking-tight shadow-none md:text-xl dark:bg-transparent"
-						value={title}
-						oninput={(e) => (title = e.currentTarget.value)}
-						onblur={saveTitle}
-						onkeydown={(e) => {
-							if (e.key === 'Enter') {
-								e.preventDefault();
-								e.currentTarget.blur();
-							}
-						}}
-						aria-label="Issue title"
-						disabled={busy === 'title' || !mayWrite}
-					/>
-					{#if busy === 'title'}
-						<Spinner size={14} />
-					{:else if titleDirty}
-						<Button variant="secondary" size="sm" onclick={saveTitle}>Save</Button>
+					{#if editingTitle}
+						<Input
+							class="hover:bg-accent/50 h-auto -ml-1 min-w-0 flex-1 rounded-sm border-0 bg-transparent px-1 text-xl leading-tight font-semibold tracking-tight shadow-none md:text-xl dark:bg-transparent"
+							value={title}
+							oninput={(e) => (title = e.currentTarget.value)}
+							onblur={saveTitle}
+							onkeydown={(e) => {
+								if (e.key === 'Enter') {
+									e.preventDefault();
+									e.currentTarget.blur();
+								} else if (e.key === 'Escape') {
+									e.preventDefault();
+									cancelTitleEdit();
+								}
+							}}
+							aria-label="Issue title"
+							disabled={busy === 'title'}
+						/>
+						{#if busy === 'title'}
+							<Spinner size={14} />
+						{:else if titleDirty}
+							<Button variant="secondary" size="sm" onclick={saveTitle}>Save</Button>
+						{/if}
+					{:else}
+						<!--
+							Plain text rather than an input: a rendered input value is not
+							part of a text selection, so Mod+A could never include it.
+						-->
+						<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+						<h2
+							bind:this={titleEl}
+							class={cn(
+								'text-foreground -ml-1 h-auto min-w-0 flex-1 rounded-sm px-1 text-xl leading-tight font-semibold tracking-tight md:text-xl',
+								mayWrite && 'hover:bg-accent/50 cursor-text'
+							)}
+							tabindex={mayWrite ? 0 : undefined}
+							role={mayWrite ? 'button' : undefined}
+							aria-label={mayWrite ? 'Issue title; activate to edit' : 'Issue title'}
+							onclick={() => mayWrite && isPlainClick() && startTitleEdit()}
+							onkeydown={(e) => {
+								if (mayWrite && (e.key === 'Enter' || e.key === ' ')) {
+									e.preventDefault();
+									startTitleEdit();
+								}
+							}}
+						>
+							{title}
+						</h2>
 					{/if}
 				</div>
 			{/if}
@@ -784,6 +912,20 @@
 			</div>
 		</div>
 		<div class="flex shrink-0 items-center gap-1">
+			<Button
+				variant="ghost"
+				size="icon-sm"
+				title={copied ? 'Copied' : 'Copy issue as Markdown'}
+				aria-label="Copy issue as Markdown"
+				disabled={!issue}
+				onclick={() => void copyThread()}
+			>
+				{#if copied}
+					<CheckIcon />
+				{:else}
+					<CopyIcon />
+				{/if}
+			</Button>
 			<Button
 				variant="ghost"
 				size="icon-sm"
@@ -852,7 +994,7 @@
 					role={mayWrite ? 'button' : undefined}
 					tabindex={mayWrite ? 0 : undefined}
 					aria-label={mayWrite ? 'Issue description; activate to edit' : 'Issue description'}
-					onclick={() => mayWrite && (editingBody = true)}
+					onclick={() => mayWrite && isPlainClick() && (editingBody = true)}
 					onkeydown={(e) => {
 						if (mayWrite && (e.key === 'Enter' || e.key === ' ')) {
 							e.preventDefault();
@@ -871,7 +1013,7 @@
 			{/if}
 		</section>
 
-		<section class="flex flex-wrap items-center gap-1.5" aria-label="Issue properties">
+		<section class="flex flex-wrap items-center gap-1.5 select-none" aria-label="Issue properties">
 			<button
 				class={selectTriggerClass(
 					'pill',
@@ -1035,7 +1177,7 @@
 			</section>
 		{/if}
 
-		<section class="flex flex-col gap-3" aria-label="Activity">
+		<section bind:this={activityEl} class="flex flex-col gap-3" aria-label="Activity">
 			<div class="flex items-center justify-between">
 				<h2 class="text-foreground text-base font-semibold">
 					Activity
@@ -1063,6 +1205,10 @@
 		</section>
 	{/if}
 </DetailShell>
+
+<svelte:window onkeydown={onWindowKeydown} />
+<!-- Announced to screen readers; kept outside the pane so a Mod+A transcript never picks it up. -->
+<span aria-live="polite" class="sr-only">{copied ? 'Issue copied' : ''}</span>
 
 <IssueActionDialog
 	open={dialogMode !== null}
