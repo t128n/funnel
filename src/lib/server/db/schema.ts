@@ -141,6 +141,62 @@ export const stateAttachment = sqliteTable(
 );
 
 // ---------------------------------------------------------------------------
+// State: per-user notifications.
+// A notification snapshots everything the center renders (title, body, actor,
+// url) so rendering never depends on the disposable mirror. `dedupe_key` is
+// unique across all users: it names the GitHub event (or intake submission)
+// that produced the row, so a re-poll or post-write refresh cannot repeat it.
+// Rows are keyed by `auth_user.id`; retention is "until read".
+// ---------------------------------------------------------------------------
+export const stateNotification = sqliteTable(
+  "state_notification",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id").notNull(),
+    /** `assigned` | `mentioned` | `comment` | `status` | `priority` | `state` | `new_intake`. */
+    kind: text("kind").notNull(),
+    dedupeKey: text("dedupe_key").notNull(),
+    title: text("title").notNull().default(""),
+    body: text("body").notNull().default(""),
+    url: text("url").notNull().default(""),
+    actorLogin: text("actor_login"),
+    actorAvatarUrl: text("actor_avatar_url"),
+    createdAt: integer("created_at").notNull(),
+    readAt: integer("read_at"),
+  },
+  (t) => [
+    uniqueIndex("uq_state_notification_dedupe").on(t.dedupeKey),
+    index("idx_state_notification_user_created").on(t.userId, t.createdAt),
+    index("idx_state_notification_user_read").on(t.userId, t.readAt),
+  ],
+);
+
+// ---------------------------------------------------------------------------
+// State: issue watches.
+// Keyed by `org/name` + issue number rather than a mirror FK so a watch
+// survives mirror pruning and a re-sync. Watchers receive comment and
+// status/priority/open-closed notifications (never their own actions).
+// ---------------------------------------------------------------------------
+export const stateIssueWatch = sqliteTable(
+  "state_issue_watch",
+  {
+    userId: text("user_id").notNull(),
+    org: text("org").notNull(),
+    name: text("name").notNull(),
+    issueNumber: integer("issue_number").notNull(),
+    createdAt: integer("created_at").notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.userId, t.org, t.name, t.issueNumber] }),
+    index("idx_state_issue_watch_issue").on(
+      t.org,
+      t.name,
+      t.issueNumber,
+    ),
+  ],
+);
+
+// ---------------------------------------------------------------------------
 // Auth: Better Auth tables (SPEC 7, 8). Field names match Better Auth's
 // stock schema. Date columns use timestamp mode and `emailVerified`
 // boolean mode: the drizzle adapter passes Date/boolean objects, and
