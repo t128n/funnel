@@ -102,6 +102,22 @@ function installStorage(initial: Record<string, string> = {}) {
   return store;
 }
 
+function installBlockedStorage() {
+  const blocked = () => {
+    throw new Error("storage blocked");
+  };
+  Object.defineProperty(globalThis, "localStorage", {
+    configurable: true,
+    writable: true,
+    value: {
+      getItem: blocked,
+      setItem: blocked,
+      removeItem: blocked,
+      clear: blocked,
+    },
+  });
+}
+
 function restore(name: keyof typeof original) {
   const descriptor = original[name];
   if (descriptor) Object.defineProperty(globalThis, name, descriptor);
@@ -257,6 +273,45 @@ describe("startNativeNotifications", () => {
     await settle();
     expect(calls).toHaveLength(2);
     expect(calls[1]).toContain(`after=${CREATED_BASE + 1000}`);
+
+    stop();
+  });
+
+  test("opting in after mount starts the listener without a reload", async () => {
+    const store = installStorage();
+    installBrowser("default");
+    const calls = installFetch();
+
+    const stop = startNativeNotifications(true);
+    expect(FakeEventSource.last).toBeNull();
+
+    await expect(enableNativeNotifications()).resolves.toBe("granted");
+    expect(store.get(STORAGE_KEY)).toBe("true");
+    expect(FakeEventSource.last).not.toBeNull();
+
+    FakeEventSource.last!.emit("notifications", { type: "notifications" });
+    await settle();
+
+    expect(calls).toHaveLength(1);
+    expect(FakeNotification.instances).toHaveLength(rows.length);
+
+    stop();
+    expect(FakeEventSource.last!.listeners.size).toBe(0);
+  });
+
+  test("a granted opt-in works in this tab when storage is blocked", async () => {
+    installBlockedStorage();
+    installBrowser("default");
+    const calls = installFetch();
+
+    const stop = startNativeNotifications(true);
+    await expect(enableNativeNotifications()).resolves.toBe("granted");
+    expect(FakeEventSource.last).not.toBeNull();
+
+    FakeEventSource.last!.emit("notifications", { type: "notifications" });
+    await settle();
+
+    expect(calls).toHaveLength(1);
 
     stop();
   });
