@@ -38,6 +38,11 @@ export const POST: RequestHandler = async ({ params, locals }) => {
   // The comment now carries the content; drop the internal note.
   deleteWorkNote(params.id);
   // Pull the new comment into the mirror so both open inspectors converge.
-  scheduleRefresh(target.org, target.name, target.issueNumber);
+  scheduleRefresh(
+    target.org,
+    target.name,
+    target.issueNumber,
+    locals.user?.id,
+  );
   return Response.json({ id: params.id });
 };

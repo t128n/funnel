@@ -23,6 +23,8 @@ export const DELETE: RequestHandler = async ({ params, locals }) => {
     number,
     name: params.name,
   });
-  if (result.ok) scheduleRefresh(params.owner, params.repo, number);
+  if (result.ok) {
+    scheduleRefresh(params.owner, params.repo, number, locals.user?.id);
+  }
   return outcomeResponse(result);
 };

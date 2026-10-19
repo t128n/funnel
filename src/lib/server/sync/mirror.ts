@@ -564,6 +564,65 @@ export function getIssueLabels(repoId: number, number: number): string[] {
     .map((r) => r.name);
 }
 
+/** GitHub ids of the people currently assigned to an issue. */
+export function getIssueAssigneeIds(repoId: number, number: number): number[] {
+  return db
+    .select({ userId: mirrorGithubIssueAssignee.userId })
+    .from(mirrorGithubIssueAssignee)
+    .where(
+      and(
+        eq(mirrorGithubIssueAssignee.repoId, repoId),
+        eq(mirrorGithubIssueAssignee.issueNumber, number),
+      ),
+    )
+    .all()
+    .map((row) => row.userId);
+}
+
+export interface IssueCommentRow {
+  githubId: number;
+  body: string;
+  authorLogin?: string;
+  authorAvatarUrl?: string;
+}
+
+/** Comments for an issue in chronological order, with their author identity. */
+export function getIssueComments(
+  repoId: number,
+  number: number,
+): IssueCommentRow[] {
+  return db
+    .select({
+      githubId: mirrorGithubComment.githubId,
+      body: mirrorGithubComment.body,
+      authorLogin: mirrorGithubUser.login,
+      authorAvatarUrl: mirrorGithubUser.avatarUrl,
+    })
+    .from(mirrorGithubComment)
+    .leftJoin(
+      mirrorGithubUser,
+      eq(mirrorGithubComment.authorId, mirrorGithubUser.githubId),
+    )
+    .where(
+      and(
+        eq(mirrorGithubComment.repoId, repoId),
+        eq(mirrorGithubComment.issueNumber, number),
+      ),
+    )
+    .orderBy(asc(mirrorGithubComment.createdAt), asc(mirrorGithubComment.githubId))
+    .all()
+    .map((row) => ({
+      githubId: row.githubId,
+      body: row.body,
+      ...(row.authorLogin !== null
+        ? {
+            authorLogin: row.authorLogin,
+            authorAvatarUrl: row.authorAvatarUrl ?? "",
+          }
+        : {}),
+    }));
+}
+
 export function getIssue(
   repoId: number,
   number: number,

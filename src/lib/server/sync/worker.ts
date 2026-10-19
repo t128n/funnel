@@ -393,6 +393,7 @@ export async function refreshIssue(
   owner: string,
   repo: string,
   number: number,
+  actorUserId?: string,
 ): Promise<void> {
   const installationId = await getInstallationId(owner, repo);
   const repoRow = await ensureRepoMirror(owner, repo, installationId);
@@ -403,9 +404,13 @@ export async function refreshIssue(
   );
   const issue = data as RestIssue;
   if (issue.pull_request || typeof issue.node_id !== "string") return;
-  const records = await hydrateAndStore(installationId, repoRow.githubId, [
-    issue.node_id,
-  ]);
+  const records = await hydrateAndStore(
+    installationId,
+    repoRow.githubId,
+    [issue.node_id],
+    undefined,
+    { actorUserId },
+  );
   await resolveConflicts(octokit, repoRow, records);
   publish({ type: "issues", repo: `${owner}/${repo}`, numbers: [number] });
 }

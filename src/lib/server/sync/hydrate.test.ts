@@ -1,6 +1,20 @@
 import { beforeEach, describe, expect, test } from "bun:test";
+import { db } from "#lib/server/db/index";
+import {
+  authAccount,
+  authUser,
+  mirrorGithubUser,
+  stateIssueWatch,
+  stateNotification,
+} from "#lib/server/db/schema";
+import { watchIssue } from "#lib/server/notifications/service";
 import { clearMirror } from "#tests/mirror-helpers";
 import { deriveMetadata } from "./conflicts";
+import type {
+  NotificationDraft,
+  PlanIssueInput,
+  Recipient,
+} from "#lib/server/notifications/types";
 import {
   BATCH_SIZE,
   chunk,
@@ -8,14 +22,56 @@ import {
   hydrateAndStore,
   hydrateNodes,
   normalizeNode,
+  notifyIssueChanges,
+  snapshotIssue,
   type GraphqlFn,
+  type IssueChangeInput,
 } from "./hydrate";
 import * as mirror from "./mirror";
 
 beforeEach(() => {
   clearMirror();
+  db.delete(stateNotification).run();
+  db.delete(stateIssueWatch).run();
+  db.delete(authAccount).run();
+  db.delete(authUser).run();
   mirror.upsertRepo({ githubId: 1, org: "orgA", name: "core", archived: false });
 });
+
+function seedUser(
+  id: string,
+  githubId: number,
+  login: string,
+): void {
+  const now = new Date();
+  db.insert(authUser)
+    .values({
+      id,
+      name: login,
+      email: `${login}@example.com`,
+      role: "read",
+      createdAt: now,
+      updatedAt: now,
+    })
+    .run();
+  db.insert(authAccount)
+    .values({
+      id: `account-${id}`,
+      accountId: String(githubId),
+      providerId: "github",
+      userId: id,
+      createdAt: now,
+      updatedAt: now,
+    })
+    .run();
+  db.insert(mirrorGithubUser)
+    .values({ githubId, login, avatarUrl: "" })
+    .run();
+}
+
+function seedWatcher(): void {
+  seedUser("w1", 42, "wanda");
+}
 
 const ISSUE_NODE = {
   databaseId: 101,
@@ -133,6 +189,204 @@ describe("hydrateNodes", () => {
   });
 });
 
+const METADATA = {
+  status: null,
+  priority: null,
+  size: null,
+  blocked: false,
+  labelConflict: false,
+};
+
+function issueRecord(overrides: Partial<mirror.IssueRecord> = {}): mirror.IssueRecord {
+  return {
+    githubId: 101,
+    repoId: 1,
+    number: 1,
+    title: "Fix the thing",
+    body: "",
+    state: "open",
+    stateReason: null,
+    author: { githubId: 7, login: "octocat", avatarUrl: "" },
+    milestoneNumber: null,
+    createdAt: 1,
+    updatedAt: 2,
+    closedAt: null,
+    labels: [],
+    assignees: [],
+    comments: [],
+    ...overrides,
+  };
+}
+
+const WATCHER: Recipient = {
+  userId: "w1",
+  githubId: 42,
+  login: "wanda",
+  avatarUrl: "",
+};
+const ACTOR: Recipient = {
+  userId: "a1",
+  githubId: 7,
+  login: "amy",
+  avatarUrl: "",
+};
+
+describe("snapshotIssue", () => {
+  test("maps the mirrored issue, assignees and comments", () => {
+    mirror.upsertIssue(
+      issueRecord({
+        updatedAt: 1000,
+        assignees: [{ githubId: 42, login: "wanda", avatarUrl: "" }],
+        comments: [
+          {
+            githubId: 500,
+            author: { githubId: 7, login: "octocat", avatarUrl: "https://a/7" },
+            body: "hello",
+            createdAt: 10,
+            updatedAt: 10,
+          },
+        ],
+      }),
+      { ...METADATA, status: "in-progress", priority: "p2" },
+    );
+
+    expect(snapshotIssue(1, 1)).toEqual({
+      status: "in-progress",
+      priority: "p2",
+      state: "open",
+      updatedAt: 1000,
+      assigneeIds: [42],
+      comments: [
+        {
+          githubId: 500,
+          body: "hello",
+          authorLogin: "octocat",
+          authorAvatarUrl: "https://a/7",
+        },
+      ],
+      title: "Fix the thing",
+      number: 1,
+    });
+  });
+
+  test("returns null for an issue that is not mirrored", () => {
+    expect(snapshotIssue(1, 99)).toBeNull();
+  });
+});
+
+describe("notifyIssueChanges", () => {
+  const previous = {
+    status: "todo",
+    priority: "p2",
+    state: "open",
+    updatedAt: 1000,
+    assigneeIds: [] as number[],
+    comments: [] as [],
+  };
+  const next = {
+    status: "in-progress",
+    priority: "p2",
+    state: "open",
+    updatedAt: 2000,
+    assigneeIds: [42],
+    comments: [] as [],
+  };
+
+  function input(overrides: Partial<IssueChangeInput> = {}): IssueChangeInput {
+    return {
+      repoId: 1,
+      org: "orgA",
+      name: "core",
+      number: 7,
+      previous,
+      next,
+      ...overrides,
+    };
+  }
+
+  test("test_first_sight_is_silent", () => {
+    let planned = 0;
+    const created = notifyIssueChanges(input({ previous: null }), {
+      listWatchers: () => [WATCHER],
+      planIssueNotifications: () => {
+        planned += 1;
+        return [];
+      },
+      createNotifications: () => {
+        throw new Error("nothing should be stored");
+      },
+    });
+
+    expect(created).toBe(0);
+    expect(planned).toBe(0);
+  });
+
+  test("hands the diff, watchers and repo to the planner", () => {
+    const plans: PlanIssueInput[] = [];
+    const drafts: NotificationDraft[] = [
+      {
+        userId: "w1",
+        kind: "status",
+        dedupeKey: "status:orgA/core#7:w1:2000",
+        createdAt: 2000,
+      },
+    ];
+    const created = notifyIssueChanges(input(), {
+      listWatchers: () => [WATCHER],
+      planIssueNotifications: (planInput) => {
+        plans.push(planInput);
+        return drafts;
+      },
+      createNotifications: (batch) => batch.length,
+      now: 2000,
+    });
+
+    expect(created).toBe(1);
+    expect(plans).toHaveLength(1);
+    expect(plans[0]).toMatchObject({
+      previous,
+      next,
+      repo: "orgA/core",
+      watchers: [WATCHER],
+      now: 2000,
+    });
+  });
+
+  test("test_self_write_is_silent", () => {
+    const drafts: NotificationDraft[] = [
+      {
+        userId: ACTOR.userId,
+        kind: "assigned",
+        dedupeKey: "assigned:orgA/core#7:a1:2000",
+        createdAt: 2000,
+      },
+      {
+        userId: WATCHER.userId,
+        kind: "assigned",
+        dedupeKey: "assigned:orgA/core#7:w1:2000",
+        createdAt: 2000,
+      },
+    ];
+    const stored: NotificationDraft[] = [];
+    const created = notifyIssueChanges(
+      input({ actorUserId: ACTOR.userId, next: { ...next, assigneeIds: [7] } }),
+      {
+        actor: ACTOR,
+        recipients: [ACTOR, WATCHER],
+        listWatchers: () => [WATCHER],
+        planIssueNotifications: () => drafts,
+        createNotifications: (batch) => {
+          stored.push(...batch);
+          return batch.length;
+        },
+      },
+    );
+
+    expect(created).toBe(1);
+    expect(stored.map((draft) => draft.userId)).toEqual([WATCHER.userId]);
+  });
+});
+
 describe("hydrateAndStore", () => {
   test("persists records with derived metadata", async () => {
     const graphql: GraphqlFn = async () => ({ nodes: [ISSUE_NODE] });
@@ -158,5 +412,150 @@ describe("hydrateAndStore", () => {
     await hydrateAndStore(1, 1, ["n1"], graphql);
     expect(mirror.getIssue(1, 1)?.labelConflict).toBe(1);
     expect(deriveMetadata(["todo", "in-progress"]).conflicts).toEqual(["status"]);
+  });
+
+  test("test_first_sight_is_silent", async () => {
+    const calls: IssueChangeInput[] = [];
+    const graphql: GraphqlFn = async () => ({ nodes: [ISSUE_NODE] });
+
+    await hydrateAndStore(1, 1, ["n1"], graphql, {
+      notificationsEnabled: () => true,
+      notify: (input) => {
+        calls.push(input);
+        return 1;
+      },
+    });
+
+    expect(mirror.getIssue(1, 1)?.title).toBe("Fix the thing");
+    expect(calls).toEqual([]);
+  });
+
+  test("test_new_comment_notifies_watcher_once", async () => {
+    seedWatcher();
+    watchIssue("w1", "orgA", "core", 1);
+
+    const first: GraphqlFn = async () => ({ nodes: [ISSUE_NODE] });
+    const second: GraphqlFn = async () => ({
+      nodes: [
+        {
+          ...ISSUE_NODE,
+          comments: {
+            nodes: [
+              ...ISSUE_NODE.comments.nodes,
+              {
+                databaseId: 501,
+                author: {
+                  databaseId: 7,
+                  login: "octocat",
+                  avatarUrl: "",
+                },
+                body: "a new comment",
+                createdAt: "2026-01-03T00:00:00Z",
+                updatedAt: "2026-01-03T00:00:00Z",
+              },
+            ],
+          },
+        },
+      ],
+    });
+
+    const options = { notificationsEnabled: () => true };
+    await hydrateAndStore(1, 1, ["n1"], first, options);
+    await hydrateAndStore(1, 1, ["n1"], second, options);
+    // GitHub re-sends the boundary issue; the diff is empty, so nothing new lands.
+    await hydrateAndStore(1, 1, ["n1"], second, options);
+
+    const rows = db.select().from(stateNotification).all();
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      userId: "w1",
+      kind: "comment",
+      dedupeKey: "comment:orgA/core#1:w1:501",
+    });
+  });
+
+  test("test_self_write_is_silent", async () => {
+    seedWatcher();
+    seedUser("a1", 7, "amy");
+    watchIssue("w1", "orgA", "core", 1);
+    watchIssue("a1", "orgA", "core", 1);
+
+    await hydrateAndStore(
+      1,
+      1,
+      ["n1"],
+      async () => ({
+        nodes: [
+          {
+            ...ISSUE_NODE,
+            labels: { nodes: [{ name: "todo" }] },
+          },
+        ],
+      }),
+      { notificationsEnabled: () => true },
+    );
+    await hydrateAndStore(
+      1,
+      1,
+      ["n1"],
+      async () => ({
+        nodes: [
+          {
+            ...ISSUE_NODE,
+            labels: { nodes: [{ name: "in-progress" }] },
+          },
+        ],
+      }),
+      { actorUserId: "a1", notificationsEnabled: () => true },
+    );
+
+    const rows = db.select().from(stateNotification).all();
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      userId: "w1",
+      kind: "status",
+      body: "status changed from todo to in-progress",
+    });
+  });
+
+  test("skips the hook when notifications are disabled", async () => {
+    const graphql: GraphqlFn = async () => ({ nodes: [ISSUE_NODE] });
+    await hydrateAndStore(1, 1, ["n1"], graphql);
+    const calls: IssueChangeInput[] = [];
+
+    await hydrateAndStore(
+      1,
+      1,
+      ["n1"],
+      async () => ({
+        nodes: [
+          {
+            ...ISSUE_NODE,
+            state: "CLOSED",
+            comments: {
+              nodes: [
+                ...ISSUE_NODE.comments.nodes,
+                {
+                  databaseId: 502,
+                  author: { databaseId: 42, login: "wanda", avatarUrl: "" },
+                  body: "closed",
+                  createdAt: "2026-01-04T00:00:00Z",
+                  updatedAt: "2026-01-04T00:00:00Z",
+                },
+              ],
+            },
+          },
+        ],
+      }),
+      {
+        notificationsEnabled: () => false,
+        notify: (input) => {
+          calls.push(input);
+          return 1;
+        },
+      },
+    );
+
+    expect(calls).toEqual([]);
   });
 });

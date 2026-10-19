@@ -53,4 +53,36 @@ describe("intake staging store", () => {
     expect(getSubmission(id)).toBeUndefined();
     expect(deleteSubmission(id)).toBe(false);
   });
+
+  test("notifies admins after a submission lands", () => {
+    const calls: Array<{ id: string; title: string }> = [];
+    const { id } = createSubmission(
+      { title: "Crash on save" },
+      {
+        enabled: () => true,
+        notifyNewIntake: (submission) => {
+          calls.push(submission);
+          return 1;
+        },
+      },
+    );
+
+    expect(calls).toEqual([{ id, title: "Crash on save" }]);
+  });
+
+  test("skips new-intake notices when they are disabled", () => {
+    let calls = 0;
+    createSubmission(
+      { title: "Quiet" },
+      {
+        enabled: () => false,
+        notifyNewIntake: () => {
+          calls += 1;
+          return 1;
+        },
+      },
+    );
+
+    expect(calls).toBe(0);
+  });
 });

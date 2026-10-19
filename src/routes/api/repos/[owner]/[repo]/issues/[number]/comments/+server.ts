@@ -89,6 +89,8 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
     number,
     body: parsed.output.body,
   });
-  if (result.ok) scheduleRefresh(params.owner, params.repo, number);
+  if (result.ok) {
+    scheduleRefresh(params.owner, params.repo, number, locals.user?.id);
+  }
   return outcomeResponse(result, 201);
 };

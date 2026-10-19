@@ -119,6 +119,8 @@ export const PATCH: RequestHandler = async ({
     blocked: parsed.output.blocked,
     milestone: parsed.output.milestone,
   });
-  if (result.ok) scheduleRefresh(params.owner, params.repo, number);
+  if (result.ok) {
+    scheduleRefresh(params.owner, params.repo, number, locals.user?.id);
+  }
   return outcomeResponse(result);
 };
