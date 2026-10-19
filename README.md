@@ -98,27 +98,123 @@ process is required: the background polling worker, the nightly reconciliation
 timer, and the `/api/events` SSE stream cannot survive on a serverless target.
 
 ```sh
-bun run build
-bun run start   # bun ./build/index.js
+bun run build      # build/  (the adapter-node server)
+bun run start      # bun ./build/index.js
 ```
 
-The server **must run under Bun** — the database layer uses `bun:sqlite`, so
-`node build/index.js` will not work. Production `dependencies` are kept external
-by the adapter, so `node_modules` must be installed alongside `build/`.
+`mise run exe` additionally compiles the whole thing — server, client assets,
+migrations, and the native Markdown addon — into a single self-contained
+executable in `dist/`; see [Deploying](#deploying).
 
-Server configuration is read from the environment by the adapter:
+The server **must run under Bun** — the database layer uses `bun:sqlite`, so
+`node build/index.js` will not work.
+
+Server configuration is read from the environment (a `.env` in the working
+directory is loaded too):
 
 | Variable | Default | Purpose |
 | :--- | :--- | :--- |
-| `PORT` | `3000` | Listen port |
-| `HOST` | `0.0.0.0` | Listen address |
-| `ORIGIN` | — | Public origin, e.g. `https://funnel.example.com` (set to `FUNNEL_URL`) |
-| `PROTOCOL_HEADER` / `HOST_HEADER` | — | Forwarded proto/host when behind a TLS-terminating proxy |
-| `BODY_SIZE_LIMIT` | `512K` | Max request body. Raise it to cover issue attachment uploads |
+| `FUNNEL_SECRET` | — | **Required.** Encryption secret, at least 32 characters |
+| `FUNNEL_URL` | — | Public origin, e.g. `https://funnel.example.com` |
+| `FUNNEL_DATA_DIR` | `./data` | Base directory for the database and uploads (packaged executable) |
+| `FUNNEL_DB` | `./data/funnel.db` | SQLite database file |
 | `FUNNEL_UPLOAD_DIR` | `./data/uploads` | Where uploaded issue attachments are stored |
 | `FUNNEL_UPLOAD_MAX_BYTES` | `10485760` | Max size of a single attachment (10 MiB) |
+| `BODY_SIZE_LIMIT` | `512K` | Max request body. Raise it to cover attachment uploads |
+| `PORT` / `HOST` | `3000` / `0.0.0.0` | Listen port and address |
+| `FUNNEL_ONBOARDING_TOKEN` | — | Optional one-time token gating the first-run wizard |
+| `GITHUB_URL` / `GITHUB_API_URL` | `https://github.com` / `https://api.github.com` | GitHub host; set both for GitHub Enterprise Server |
+| `PROTOCOL_HEADER` / `HOST_HEADER` | — | Forwarded proto/host when behind a TLS-terminating proxy |
 | `SHUTDOWN_TIMEOUT` | `30` | Graceful shutdown window in seconds |
+| `LOG_LEVEL` | `info` | `fatal` … `silent` |
+| `TZ` | — | Recommended; set it explicitly (e.g. `UTC`) |
 
 Uploads larger than `BODY_SIZE_LIMIT` are rejected before they reach Funnel, so
 set it at least as large as `FUNNEL_UPLOAD_MAX_BYTES` when using the dropbox.
+
+## Deploying
+
+`mise.toml` is the single source of truth for the build, so local runs and CI
+use the same commands ([mise](https://mise.jdx.dev) required — run
+`mise trust` once per checkout so its tasks load):
+
+```sh
+mise run          # list tasks
+mise run build    # build/  (adapter-node server)
+mise run exe      # dist/funnel(.exe)  — self-contained executable
+mise run docker   # container image
+mise run verify   # check + test + build + exe
+```
+
+### Windows (primary)
+
+Funnel ships as a single executable, so a bare-metal Windows server needs no
+Node, no Bun, and no container runtime.
+
+```powershell
+mise run exe                   # -> dist\funnel.exe
+.\dist\funnel.exe --version    # smoke test
+```
+
+Install it as a service (WinSW wrapper; run from an **elevated** prompt). This
+copies the executable to `C:\ProgramData\Funnel`, downloads the WinSW host,
+writes the service definition, adds a firewall rule, and generates a starter
+`.env` with a random `FUNNEL_SECRET`:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File packaging\windows\install-service.ps1
+```
+
+Then:
+
+1. Edit `C:\ProgramData\Funnel\.env` — at minimum set `FUNNEL_URL` to the public
+   URL. (The service's working directory is the data directory, so Bun loads
+   that `.env` automatically.)
+2. Restart: `C:\ProgramData\Funnel\funnel-service.exe restart`
+3. Open the instance and finish onboarding at `http://<host>:3000/`.
+
+All state — `funnel.db`, `uploads/`, and `.env` — lives in
+`C:\ProgramData\Funnel`, so **upgrades are: stop the service, replace
+`funnel.exe`, start it**. Migrations are applied automatically on boot.
+
+When terminating TLS in an existing reverse proxy, forward
+`X-Forwarded-Proto` and the `Host` header; adapter-node derives the request
+origin from them. Point health checks at `/healthz` (liveness) and `/readyz`
+(readiness). Remove the service with
+`packaging\windows\uninstall-service.ps1`.
+
+### Container (Railway / Coolify / Fly / Kubernetes)
+
+The `Dockerfile` builds the same Linux executable and wraps it in a minimal
+image, so the PaaS paths use the identical artifact:
+
+```sh
+docker build -t funnel .
+docker run --rm -p 3000:3000 -v funnel-data:/data \
+  -e FUNNEL_SECRET=... -e FUNNEL_URL=https://funnel.example.com funnel
+```
+
+- Mount a volume at **`/data`** (`FUNNEL_DATA_DIR`) — the SQLite database and
+  uploads live there and are not in the image.
+- Funnel is a **single instance**. It owns a SQLite file; do not scale it
+  horizontally or run multiple replicas against one volume.
+- `FUNNEL_SECRET` is required; everything else is optional. The GitHub App is
+  created by the in-app onboarding wizard.
+- Health: `/healthz` (liveness) and `/readyz` (readiness). The image's
+  `HEALTHCHECK` uses `funnel --healthcheck`.
+
+### Migrations
+
+Schema changes ship as committed SQL under `drizzle/`. They are applied:
+
+- **automatically on boot** by the packaged executable (and therefore the
+  container), and
+- **manually** for a separate release phase:
+  - `./funnel --migrate` (packaged executable, against `FUNNEL_DB`),
+  - or `bun run release` (from a checkout / the build stage).
+
+`/readyz` reports `503` until the database is reachable and every committed
+migration has been applied, so a load balancer never sends traffic to a
+half-migrated instance.
+
 

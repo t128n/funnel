@@ -43,13 +43,16 @@ export const init: ServerInit = async () => {
 /**
  * Paths the first-run gate never redirects. `/onboarding` is the wizard
  * itself, `/_app` and asset-looking paths (a dot in the last segment) are the
- * page's own bundle, and `/api/auth` must reach its handler (which answers 503
- * while unconfigured rather than serving the wizard).
+ * page's own bundle, `/api/auth` must reach its handler (which answers 503
+ * while unconfigured rather than serving the wizard), and the health probes
+ * must answer for a process supervisor / load balancer even on a fresh
+ * instance (the packaged executable is health-checked before anyone onboards).
  */
 function isOnboardingExempt(pathname: string): boolean {
   if (pathname === "/onboarding" || pathname.startsWith("/onboarding/")) {
     return true;
   }
+  if (pathname === "/healthz" || pathname === "/readyz") return true;
   if (pathname === "/_app" || pathname.startsWith("/_app/")) return true;
   if (pathname === "/api/auth" || pathname.startsWith("/api/auth/")) {
     return true;

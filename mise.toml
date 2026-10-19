@@ -1,2 +1,97 @@
+# One source of truth for building Funnel. Local development and any CI
+# (GitHub Actions, Jenkins, …) call these tasks, so nothing important lives
+# only in a pipeline definition.
+#
+#   mise run            # list the available tasks
+#   mise run build      # production build into build/
+#   mise run exe        # self-contained executable into dist/
+#   mise run docker     # container image (secondary / PaaS target)
+#   mise run verify     # everything the release pipeline relies on
+#
+# Overrides:
+#   mise run exe --target=bun-linux-x64   # cross-target (needs that platform's
+#                                         # satteri package installed)
+#   TARGET=bun-linux-x64 mise run exe      # same, via the environment
+#   mise run docker --version=1.2.3
+#   VERSION=1.2.3 mise run docker
+
 [tools]
-bun = "latest"
+bun = "1.4.3"
+
+[tasks.default]
+description = "List the available tasks"
+run = "mise tasks"
+
+[tasks."bun:install"]
+description = "Install dependencies from the lockfile"
+run = "bun install --frozen-lockfile"
+
+[tasks.check]
+description = "Type-check the project"
+run = "bun run check"
+
+[tasks.test]
+description = "Run the test suite"
+run = "bun run test"
+
+[tasks.build]
+description = "Production SvelteKit build (build/)"
+sources = [
+  "src/**",
+  "static/**",
+  "drizzle/**",
+  "package.json",
+  "bun.lock",
+  "tsconfig.json",
+  "vite.config.ts",
+]
+outputs = ["build"]
+run = "bun run build"
+
+[tasks.release]
+description = "Apply pending database migrations (the release phase)"
+run = "bun run release"
+
+[tasks.exe]
+description = "Build the self-contained executable for this OS into dist/"
+depends = ["build"]
+usage = '''
+flag "--target <target>" env="TARGET" default="" help="Bun compile target, e.g. bun-linux-x64"
+'''
+sources = [
+  "build/**",
+  "drizzle/**",
+  "src/standalone.ts",
+  "scripts/build-standalone.ts",
+  "scripts/standalone/**",
+  "package.json",
+  "bun.lock",
+]
+# Target-aware, so switching compile targets always rebuilds instead of
+# reusing the other platform's artifact.
+outputs = [
+  'dist/funnel{% if (usage.target and "windows" in usage.target) or (not usage.target and os() == "windows") %}.exe{% endif %}',
+]
+run = 'bun scripts/build-standalone.ts{% if usage.target %} --target={{ usage.target }}{% endif %}'
+
+[tasks.docker]
+description = "Build the container image (secondary / PaaS target)"
+usage = 'flag "--version <version>" env="VERSION" default="dev"'
+run = 'docker build -t funnel:{{ usage.version }} .'
+
+[tasks.verify]
+description = "Run everything the release pipeline relies on"
+run = [
+  { task = "check" },
+  { task = "test" },
+  { task = "build" },
+  { task = "exe" },
+]
+
+[tasks."service:install"]
+description = "Install Funnel as a Windows service (run elevated)"
+run = "powershell -NoProfile -ExecutionPolicy Bypass -File packaging/windows/install-service.ps1"
+
+[tasks."service:uninstall"]
+description = "Remove the Funnel Windows service (run elevated)"
+run = "powershell -NoProfile -ExecutionPolicy Bypass -File packaging/windows/uninstall-service.ps1"

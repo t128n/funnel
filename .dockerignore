@@ -1,0 +1,47 @@
+# Build context for the container image.
+#
+# Keep in sync with `.gitignore`. The image builds from source, so the source
+# tree, `drizzle/` (migrations) and `scripts/release.ts` must stay included —
+# the only things excluded here are VCS metadata, local state, and dev-only
+# material that is never needed to build or run the server.
+
+# ---- Version control & tooling ------------------------------------------
+.git
+.gitignore
+.github
+.editorconfig
+.vscode
+.agents
+.claude
+skills-lock.json
+
+# ---- Never bake local state into an image -------------------------------
+data
+dist
+*.db
+*.db-wal
+*.db-shm
+
+# ---- Build artifacts (rebuilt inside the image) -------------------------
+node_modules
+build
+.svelte-kit
+.output
+.vercel
+.netlify
+.wrangler
+
+# ---- Secrets ------------------------------------------------------------
+.env
+.env.*
+!.env.example
+
+# ---- Not needed to build or run -----------------------------------------
+tests
+docs
+scripts/intake.ps1
+scripts/install-intake-shortcut.ps1
+
+# Migration snapshots are only used by `drizzle-kit generate`; the runtime
+# migrator reads `migration.sql` only.
+drizzle/**/snapshot.json

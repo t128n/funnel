@@ -3,11 +3,17 @@
 	"private": true,
 	"version": "0.0.1",
 	"type": "module",
+	"packageManager": "bun@1.4.3",
+	"engines": {
+		"bun": ">=1.4.3"
+	},
 	"scripts": {
 		"dev": "bun --bun vite dev",
 		"build": "bun --bun vite build",
 		"preview": "bun --bun vite preview",
 		"start": "bun ./build/index.js",
+		"release": "bun scripts/release.ts",
+		"build:standalone": "bun scripts/build-standalone.ts",
 		"prepare": "bun --bun svelte-kit sync || echo ''",
 		"check": "bun --bun svelte-kit sync && bun --bun svelte-check --tsconfig ./tsconfig.json",
 		"check:watch": "bun --bun svelte-kit sync && bun --bun svelte-check --tsconfig ./tsconfig.json --watch",

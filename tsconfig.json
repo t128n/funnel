@@ -9,5 +9,12 @@
 			"#tests/*": ["./tests/*"]
 		}
 	},
-	"include": ["src", "vite.config.ts"]
+	"include": ["src", "vite.config.ts"],
+	"exclude": [
+		"build",
+		"dist",
+		"node_modules",
+		".svelte-kit",
+		"src/standalone-entry.ts"
+	]
 }
