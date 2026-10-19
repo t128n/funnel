@@ -43,6 +43,36 @@ export const stateSetting = sqliteTable("state_setting", {
 });
 
 // ---------------------------------------------------------------------------
+// State: the GitHub App (SPEC §4, §8).
+// A single row (id = 'default') holding the App created through GitHub's App
+// Manifest Flow during onboarding. This is the source of truth for the App
+// credentials — there are no credential environment variables. Secrets
+// (`client_secret`, `webhook_secret`, the RSA `pem`) are encrypted with a key
+// derived from FUNNEL_SECRET before they reach this layer (see
+// `#lib/server/crypto/secrets`); reads decrypt them.
+// ---------------------------------------------------------------------------
+export const stateGithubApp = sqliteTable("state_github_app", {
+  /** Singleton key; always `default`. */
+  id: text("id").primaryKey(),
+  appId: integer("app_id").notNull(),
+  slug: text("slug").notNull(),
+  name: text("name").notNull(),
+  ownerLogin: text("owner_login").notNull().default(""),
+  /** `User` or `Organization`; used to describe the owner in the UI. */
+  ownerType: text("owner_type").notNull().default(""),
+  htmlUrl: text("html_url").notNull().default(""),
+  /** Public origin captured when the App was created (manifest URLs). */
+  baseUrl: text("base_url").notNull().default(""),
+  clientId: text("client_id").notNull(),
+  clientSecretEnc: text("client_secret_enc").notNull(),
+  webhookSecretEnc: text("webhook_secret_enc"),
+  privateKeyEnc: text("private_key_enc").notNull(),
+  installationId: integer("installation_id"),
+  createdAt: integer("created_at").notNull(),
+  updatedAt: integer("updated_at").notNull(),
+});
+
+// ---------------------------------------------------------------------------
 // State: internal work notes (ITSM-style journal).
 // Funnel-owned and *never* posted to GitHub unless a note is explicitly
 // published — and publishing *deletes* the note, turning it into a comment.

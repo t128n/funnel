@@ -4,19 +4,22 @@ import { symmetricDecrypt, symmetricEncrypt } from "better-auth/crypto";
 import { FUNNEL_SECRET } from "$app/env/private";
 import { db } from "#lib/server/db/index";
 import { authAccount, authUser } from "#lib/server/db/schema";
-import { auth, getUserAccessToken } from "./index";
+import { getAuth, getUserAccessToken } from "./index";
 
 describe("auth smoke", () => {
-  test("github provider configured with client id", () => {
-    const providers = auth.options.socialProviders;
+  test("github provider configured with client id", async () => {
+    const auth = await getAuth();
+    const providers = auth?.options.socialProviders;
     expect(providers?.github?.clientId).toBe("Iv1.0123456789abcdef");
   });
 
-  test("oauth tokens are encrypted at rest", () => {
-    expect(auth.options.account?.encryptOAuthTokens).toBe(true);
+  test("oauth tokens are encrypted at rest", async () => {
+    const auth = await getAuth();
+    expect(auth?.options.account?.encryptOAuthTokens).toBe(true);
   });
 
   test("sign-in stores oauth state and returns github url", async () => {
+    const auth = (await getAuth())!;
     const res = await auth.api.signInSocial({
       body: { provider: "github", callbackURL: "/" },
     });
@@ -30,8 +33,9 @@ describe("auth smoke", () => {
     expect(rows.length).toBe(1);
   });
 
-  test("session expiry matches 30-day idle default", () => {
-    expect(auth.options.session?.expiresIn).toBe(60 * 60 * 24 * 30);
+  test("session expiry matches 30-day idle default", async () => {
+    const auth = await getAuth();
+    expect(auth?.options.session?.expiresIn).toBe(60 * 60 * 24 * 30);
   });
 });
 

@@ -8,12 +8,19 @@ import type { RequestHandler } from "./$types";
 // route is the explicit mount and handles requests the hook does not (e.g.
 // when the request origin differs from `auth.options.baseURL`).
 //
-// `auth` is imported lazily: `auth/index.ts` pulls in `bun:sqlite` via the DB
-// layer, which SvelteKit's build-time route analysis (running on Node) cannot
-// resolve. Importing inside the handler keeps the DB out of that analysis
-// while still mounting the endpoints.
+// `getAuth()` is imported lazily: `auth/index.ts` pulls in `bun:sqlite` via the
+// DB layer, which SvelteKit's build-time route analysis (running on Node)
+// cannot resolve. Importing inside the handler keeps the DB out of that
+// analysis. While the instance is un-onboarded there is no auth instance, so
+// the endpoint reports 503 instead of crashing.
 const handler: RequestHandler = async ({ request }) => {
-  const { auth } = await import("#lib/server/auth/index");
+  const { getAuth } = await import("#lib/server/auth/index");
+  const auth = await getAuth();
+  if (!auth) {
+    return new Response("Onboarding incomplete: no GitHub App configured", {
+      status: 503,
+    });
+  }
   return auth.handler(request);
 };
 

@@ -96,46 +96,15 @@ export const variables = defineEnvVars({
     ),
   },
 
-  GITHUB_APP_ID: {
-    description: "The GitHub App ID.",
-    schema: v.pipe(
-      v.string(),
-      v.trim(),
-      v.nonEmpty("GitHub App ID cannot be empty."),
-      v.digits("GitHub App ID must contain only digits."),
-    ),
-  },
-  GITHUB_APP_PRIVATE_KEY: {
-    description: "The PEM-encoded RSA private key for the GitHub App.",
-    schema: v.pipe(
-      v.string(),
-      v.trim(),
-      // Convert escaped newlines from CI/Docker env injectors into actual line breaks
-      v.transform((key) => key.replace(/\\n/g, "\n")),
-      v.startsWith("-----BEGIN ", "Private key must have a valid PEM header."),
-      v.includes(
-        "PRIVATE KEY-----",
-        "Private key must be a valid PEM private key.",
+  FUNNEL_ONBOARDING_TOKEN: {
+    description:
+      "Optional one-time token gating the first-run /onboarding wizard. Leave unset to allow anyone who can reach a fresh instance to claim it.",
+    schema: v.optional(
+      v.pipe(
+        v.string(),
+        v.trim(),
+        v.transform((val) => (val === "" ? undefined : val)),
       ),
-    ),
-  },
-  GITHUB_CLIENT_ID: {
-    description: "The GitHub App Client ID.",
-    schema: v.pipe(
-      v.string(),
-      v.trim(),
-      v.regex(
-        /^(Iv1\.[0-9a-zA-Z]+|(?:Iv|Ov)[0-9a-zA-Z]{18}|[a-f0-9]{20})$/,
-        "Invalid GitHub Client ID format.",
-      ),
-    ),
-  },
-  GITHUB_CLIENT_SECRET: {
-    description: "The GitHub App Client Secret.",
-    schema: v.pipe(
-      v.string(),
-      v.trim(),
-      v.minLength(40, "GitHub Client Secret must be at least 40 characters."),
     ),
   },
 

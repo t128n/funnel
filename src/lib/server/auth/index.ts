@@ -1,12 +1,7 @@
 import { and, eq } from "drizzle-orm";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "@better-auth/drizzle-adapter";
-import {
-  FUNNEL_SECRET,
-  FUNNEL_URL,
-  GITHUB_CLIENT_ID,
-  GITHUB_CLIENT_SECRET,
-} from "$app/env/private";
+import { FUNNEL_SECRET, FUNNEL_URL } from "$app/env/private";
 import { db } from "#lib/server/db/index";
 import {
   authAccount,
@@ -14,11 +9,13 @@ import {
   authUser,
   authVerification,
 } from "#lib/server/db/schema";
+import { getGithubCredentials } from "#lib/server/github/credentials";
 import { readSettings } from "#lib/server/settings/store";
 
 // SPEC section 11: `session.idle_days` (default 30), read from instance
-// settings at startup. Better Auth builds its options once per process, so a
-// change made from the UI applies to sessions created after a restart.
+// settings. Better Auth builds its options once per build, so a change made
+// from the UI applies to sessions created after the auth instance is rebuilt
+// (a credential change) or the process restarts.
 function sessionIdleDays(): number {
   try {
     return readSettings().session.idle_days;
@@ -28,55 +25,95 @@ function sessionIdleDays(): number {
   }
 }
 
-const SESSION_IDLE_DAYS = sessionIdleDays();
 const DAY_SECONDS = 60 * 60 * 24;
 
-export const auth = betterAuth({
-  // Doubles as the secret for signing and for encrypting stored OAuth tokens.
-  secret: FUNNEL_SECRET,
-  baseURL: FUNNEL_URL,
-  database: drizzleAdapter(db, {
-    provider: "sqlite",
-    schema: {
-      user: authUser,
-      session: authSession,
-      account: authAccount,
-      verification: authVerification,
-    },
-  }),
-  socialProviders: {
-    github: {
-      clientId: GITHUB_CLIENT_ID,
-      clientSecret: GITHUB_CLIENT_SECRET,
-      // `repo` covers issue reads/writes on private repos (SPEC 8:
-      // the installation needs Issues read/write). `read:user` identifies
-      // who signed in. No admin or workflow scopes.
-      scope: ["read:user", "repo"],
-    },
-  },
-  account: {
-    // SPEC 8: user-to-server OAuth tokens and refresh tokens are stored
-    // encrypted at rest in `auth_account`, keyed off FUNNEL_SECRET. With this
-    // flag Better Auth encrypts `accessToken`/`refreshToken` on write (see
-    // `linkOAuthAccount`) and decrypts them on read (`getAccessToken`,
-    // `accountInfo`, `refreshToken`). The cipher is XChaCha20-Poly1305 with a
-    // SHA-256-derived key — an AEAD, so the ciphertext is authenticated too.
-    // Better Auth picks the algorithm; the earlier "AES-GCM" wording in the
-    // roadmap is superseded by this built-in.
-    encryptOAuthTokens: true,
-  },
-  session: {
-    expiresIn: DAY_SECONDS * SESSION_IDLE_DAYS,
-    updateAge: DAY_SECONDS,
-  },
-});
+/**
+ * Build the Better Auth instance for the current GitHub App.
+ *
+ * The App is created by the manifest flow during onboarding, so the OAuth
+ * client credentials are not known at import time — and there may be none at
+ * all on a fresh instance. This returns `null` until an App exists; the
+ * first-run gate in `hooks.server.ts` routes such instances to `/onboarding`.
+ *
+ * `baseURL` is the public origin captured when the App was created (falling
+ * back to `FUNNEL_URL` when set), so the OAuth callback URL registered on
+ * GitHub as `{baseUrl}/api/auth/callback/github` resolves consistently.
+ */
+async function createAuth() {
+  const credentials = getGithubCredentials();
+  if (!credentials) return null;
 
-/** Server-side session lookup for `load` functions and API routes. */
-export function getSession(request: Request) {
-  return auth.api.getSession({ headers: request.headers });
+  return betterAuth({
+    // Doubles as the secret for signing and for encrypting stored OAuth tokens.
+    secret: FUNNEL_SECRET,
+    baseURL: FUNNEL_URL ?? credentials.baseUrl ?? undefined,
+    database: drizzleAdapter(db, {
+      provider: "sqlite",
+      schema: {
+        user: authUser,
+        session: authSession,
+        account: authAccount,
+        verification: authVerification,
+      },
+    }),
+    socialProviders: {
+      github: {
+        clientId: credentials.clientId,
+        clientSecret: credentials.clientSecret,
+        // `repo` covers issue reads/writes on private repos (SPEC 8:
+        // the installation needs Issues read/write). `read:user` identifies
+        // who signed in. No admin or workflow scopes.
+        scope: ["read:user", "repo"],
+      },
+    },
+    account: {
+      // SPEC 8: user-to-server OAuth tokens and refresh tokens are stored
+      // encrypted at rest in `auth_account`, keyed off FUNNEL_SECRET. With this
+      // flag Better Auth encrypts `accessToken`/`refreshToken` on write (see
+      // `linkOAuthAccount`) and decrypts them on read (`getAccessToken`,
+      // `accountInfo`, `refreshToken`). The cipher is XChaCha20-Poly1305 with a
+      // SHA-256-derived key — an AEAD, so the ciphertext is authenticated too.
+      encryptOAuthTokens: true,
+    },
+    session: {
+      expiresIn: DAY_SECONDS * sessionIdleDays(),
+      updateAge: DAY_SECONDS,
+    },
+  });
 }
 
-export type Session = typeof auth.$Infer.Session;
+/** The built instance type, used to derive the `Session` shape below. */
+export type AuthInstance = NonNullable<Awaited<ReturnType<typeof createAuth>>>;
+
+/** The `{ session, user }` shape threaded through `App.Locals`. */
+export type Session = AuthInstance["$Infer"]["Session"];
+
+let authPromise: Promise<AuthInstance | null> | undefined;
+
+/**
+ * The process-wide auth instance, or `null` while the instance is
+ * unconfigured. Memoized, and re-armed on failure so a transient error does
+ * not poison the process. Reset via {@link resetAuthCache} after onboarding
+ * saves credentials.
+ */
+export function getAuth(): Promise<AuthInstance | null> {
+  return (authPromise ??= createAuth().catch((error: unknown) => {
+    authPromise = undefined;
+    throw error;
+  }));
+}
+
+/** Drop the cached auth instance (tests, or after a credential change). */
+export function resetAuthCache(): void {
+  authPromise = undefined;
+}
+
+/** Server-side session lookup for `load` functions and API routes. */
+export async function getSession(request: Request) {
+  const auth = await getAuth();
+  if (!auth) return null;
+  return auth.api.getSession({ headers: request.headers });
+}
 
 /**
  * Resolve a currently-valid GitHub user access token for `userId`.
@@ -91,6 +128,8 @@ export type Session = typeof auth.$Infer.Session;
  * `await github.asUser(await getUserAccessToken(userId))`.
  */
 export async function getUserAccessToken(userId: string): Promise<string> {
+  const auth = await getAuth();
+  if (!auth) throw new Error("No GitHub App configured");
   const [account] = await db
     .select({ id: authAccount.id })
     .from(authAccount)

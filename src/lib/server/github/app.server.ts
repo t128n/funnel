@@ -1,40 +1,47 @@
 import { App, Octokit } from "octokit";
-import {
-  GITHUB_APP_ID,
-  GITHUB_APP_PRIVATE_KEY,
-  GITHUB_CLIENT_ID,
-  GITHUB_CLIENT_SECRET,
-} from "$app/env/private";
 import { getConfig } from "#/lib/server/config";
+import {
+  getGithubCredentials,
+  GithubAppUnconfiguredError,
+} from "./credentials";
+
+export { GithubAppUnconfiguredError };
 
 let appPromise: Promise<App> | undefined;
 
 /**
- * Build the shared GitHub App. Every REST/JWT/installation call derives its
- * host from `github.api_url`, so the same code targets github.com or an
- * enterprise instance (`https://acme.ghe.com/api/v3`). The same `baseUrl` also
- * drives GraphQL: `@octokit/graphql` rewrites a trailing `/api/v3` to
- * `/api/graphql`, so enterprise instances resolve `acme.ghe.com/api/graphql`
- * while Cloud resolves `api.github.com/graphql`. `@octokit/app` has no
- * top-level `baseUrl`, so we hand it a pre-defaulted Octokit class; it reuses
- * that class for installation clients (via `auth.octokit.constructor`) and for
- * its OAuth app.
+ * Build the shared GitHub App. Credentials come from the `state_github_app`
+ * row (created via onboarding), the host from `github.api_url` (config).
+ * Every REST/JWT/installation call derives its host from `github.api_url`, so
+ * the same code targets github.com or an enterprise instance
+ * (`https://acme.ghe.com/api/v3`). The same `baseUrl` also drives GraphQL:
+ * `@octokit/graphql` rewrites a trailing `/api/v3` to `/api/graphql`, so
+ * enterprise instances resolve `acme.ghe.com/api/graphql` while Cloud resolves
+ * `api.github.com/graphql`. `@octokit/app` has no top-level `baseUrl`, so we
+ * hand it a pre-defaulted Octokit class; it reuses that class for installation
+ * clients (via `auth.octokit.constructor`) and for its OAuth app.
  */
 async function createApp(): Promise<App> {
+  const credentials = getGithubCredentials();
+  if (!credentials) throw new GithubAppUnconfiguredError();
   const { github: hosts } = await getConfig();
   const HostOctokit = Octokit.defaults({ baseUrl: hosts.api_url });
   return new App({
-    appId: GITHUB_APP_ID,
-    privateKey: GITHUB_APP_PRIVATE_KEY,
-    oauth: { clientId: GITHUB_CLIENT_ID, clientSecret: GITHUB_CLIENT_SECRET },
+    appId: credentials.appId,
+    privateKey: credentials.privateKey,
+    oauth: {
+      clientId: credentials.clientId,
+      clientSecret: credentials.clientSecret,
+    },
     Octokit: HostOctokit,
   });
 }
 
 /**
- * Shared GitHub App singleton. Credentials come from private env, the host
- * from `github.api_url` (config). Memoized, and re-armed on failure so a
- * transient config error does not poison the process.
+ * Shared GitHub App singleton. Credentials come from the credential store, the
+ * host from `github.api_url` (config). Memoized, and re-armed on failure so a
+ * transient error (or an App that is not configured yet) does not poison the
+ * process.
  */
 export function getApp(): Promise<App> {
   return (appPromise ??= createApp().catch((error) => {

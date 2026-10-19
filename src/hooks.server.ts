@@ -1,6 +1,7 @@
 import { building } from "$app/env";
+import { redirect } from "@sveltejs/kit";
 import { svelteKitHandler } from "better-auth/svelte-kit";
-import { auth } from "#lib/server/auth/index";
+import { getAuth } from "#lib/server/auth/index";
 import { provisionCanonicalLabels } from "#lib/server/github/labels";
 import { createLogger } from "#lib/server/log";
 import { scheduleReconciliation } from "#lib/server/sync/reconcile";
@@ -12,12 +13,14 @@ const log = createLogger({ component: "startup" });
 /**
  * Startup self-healing label provisioning (SPEC §5.2(4)). Runs before the
  * server answers its first request. `provisionCanonicalLabels` swallows all
- * errors, so an unreachable GitHub or missing config logs a warning instead
- * of blocking or crashing startup. Skipped during `vite build`/prerender.
+ * errors, so an unreachable GitHub, a missing App (fresh, un-onboarded
+ * instance), or missing config logs a warning instead of blocking or crashing
+ * startup. Skipped during `vite build`/prerender.
  *
  * The sync worker and nightly reconciliation timer are then started
  * fire-and-forget so startup is never blocked by a backfill; both rely on the
- * long-lived adapter-node process (SPEC §3.1).
+ * long-lived adapter-node process (SPEC §3.1) and are no-ops until onboarding
+ * has created the App and repositories are configured.
  */
 export const init: ServerInit = async () => {
   if (building) return;
@@ -37,16 +40,50 @@ export const init: ServerInit = async () => {
   scheduleReconciliation();
 };
 
+/**
+ * Paths the first-run gate never redirects. `/onboarding` is the wizard
+ * itself, `/_app` and asset-looking paths (a dot in the last segment) are the
+ * page's own bundle, and `/api/auth` must reach its handler (which answers 503
+ * while unconfigured rather than serving the wizard).
+ */
+function isOnboardingExempt(pathname: string): boolean {
+  if (pathname === "/onboarding" || pathname.startsWith("/onboarding/")) {
+    return true;
+  }
+  if (pathname === "/_app" || pathname.startsWith("/_app/")) return true;
+  if (pathname === "/api/auth" || pathname.startsWith("/api/auth/")) {
+    return true;
+  }
+  const lastSegment = pathname.slice(pathname.lastIndexOf("/") + 1);
+  return lastSegment.includes(".");
+}
+
 export const handle: Handle = async ({ event, resolve }) => {
+  if (building) return resolve(event);
+
   // Populate `event.locals` once per request so `load` functions and actions
-  // can read the session without re-resolving it. Better Auth's handler still
-  // owns the `/api/auth/*` routes via `svelteKitHandler` below.
-  if (!building) {
+  // can read the session without re-resolving it. `getAuth()` is `null` until
+  // onboarding has created the GitHub App.
+  const auth = await getAuth();
+  if (auth) {
     const session = await auth.api.getSession({
       headers: event.request.headers,
     });
     event.locals.session = session?.session ?? null;
     event.locals.user = session?.user ?? null;
+  } else {
+    event.locals.session = null;
+    event.locals.user = null;
   }
-  return svelteKitHandler({ auth, event, resolve, building });
+
+  // First-run gate: an unconfigured instance can only reach the wizard.
+  if (!auth && !isOnboardingExempt(event.url.pathname)) {
+    throw redirect(303, "/onboarding");
+  }
+
+  // Better Auth owns `/api/auth/*`; when unconfigured that route answers 503.
+  if (auth) {
+    return svelteKitHandler({ auth, event, resolve, building });
+  }
+  return resolve(event);
 };

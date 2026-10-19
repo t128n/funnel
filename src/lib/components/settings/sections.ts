@@ -6,6 +6,7 @@
  * labels, icons, and hrefs cannot drift. Declarations only — no data loading —
  * so the shell stays thin.
  */
+import BotIcon from '@lucide/svelte/icons/bot';
 import CircleUserIcon from '@lucide/svelte/icons/circle-user';
 import FlagIcon from '@lucide/svelte/icons/flag';
 import FolderGit2Icon from '@lucide/svelte/icons/folder-git-2';
@@ -76,6 +77,7 @@ export const settingsGroups: SettingsGroup[] = [
 		id: 'system',
 		label: 'System',
 		sections: [
+			{ id: 'github-app', label: 'GitHub App', href: '/settings/github-app', icon: BotIcon },
 			{ id: 'sync', label: 'Sync', href: '/settings/sync', icon: RefreshCwIcon },
 			{ id: 'session', label: 'Session', href: '/settings/session', icon: TimerIcon }
 		]

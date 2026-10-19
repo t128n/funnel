@@ -40,13 +40,24 @@ intake default, sync cadence, board behaviour, and session lifetime all live in
 the `state_setting` table; writes are validated and applied without a restart
 (the sync scheduler re-reads config; open cockpits refresh over SSE).
 
-A fresh install starts with no repositories — add them on the Settings page.
+A fresh install starts with no repositories — pick them during onboarding or
+add them on the Settings page.
 
 Deploy-time values come from the environment (see `.env.example`):
 
 - `GITHUB_URL` / `GITHUB_API_URL` — the GitHub host. Defaults to
   github.com; set both to your host for GitHub Enterprise Server.
-- `FUNNEL_SECRET`, `FUNNEL_DB`, the GitHub App credentials, and `LOG_LEVEL`.
+- `FUNNEL_URL`, `FUNNEL_SECRET`, `FUNNEL_DB`, `FUNNEL_ONBOARDING_TOKEN`,
+  and `LOG_LEVEL`.
+
+The **GitHub App** is not configured through environment variables. A fresh
+install gates every route to **`/onboarding`**, which walks through GitHub's
+[App Manifest Flow](https://docs.github.com/en/apps/sharing-github-apps/registering-a-github-app-from-a-manifest):
+create the App (personal, organization, or a GitHub Enterprise host), exchange
+the one-time code for credentials, then install it and pick repositories. The
+App id, client id/secret, webhook secret, and RSA key are stored in the
+`state_github_app` table with the secrets encrypted under `FUNNEL_SECRET`.
+Manage the App afterwards in **Settings → GitHub App**.
 
 Reads stay programmatic and are unchanged:
 

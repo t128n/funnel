@@ -1,17 +1,8 @@
 import { mock } from "bun:test";
-import { generateKeyPairSync } from "node:crypto";
 import { fileURLToPath } from "node:url";
 
 // Runs via `bun test --preload ./tests/setup.ts` before any test file
 // loads, so the `$app/env/private` mock below applies to static imports.
-// A real RSA key is generated so `@octokit/auth-app` JWT signing works
-// offline (tests stub `fetch` for the network itself).
-const { privateKey } = generateKeyPairSync("rsa", {
-  modulusLength: 2048,
-  publicKeyEncoding: { type: "spki", format: "pem" },
-  privateKeyEncoding: { type: "pkcs8", format: "pem" },
-});
-
 mock.module("$app/env/private", () => ({
   FUNNEL_URL: "http://localhost:5173",
   FUNNEL_SECRET: "0123456789abcdef0123456789abcdef",
@@ -21,10 +12,7 @@ mock.module("$app/env/private", () => ({
   GITHUB_URL: "https://github.com",
   GITHUB_API_URL: "https://api.github.com",
   FUNNEL_COMMENT_UI: "compact",
-  GITHUB_APP_ID: "123456",
-  GITHUB_APP_PRIVATE_KEY: privateKey,
-  GITHUB_CLIENT_ID: "Iv1.0123456789abcdef",
-  GITHUB_CLIENT_SECRET: "0123456789abcdef0123456789abcdef01234567",
+  FUNNEL_ONBOARDING_TOKEN: undefined,
   LOG_LEVEL: "silent",
 }));
 
@@ -50,3 +38,9 @@ const { migrate } = await import("drizzle-orm/bun-sqlite/migrator");
 migrate(db, {
   migrationsFolder: fileURLToPath(new URL("../drizzle", import.meta.url)),
 });
+
+// Seed the GitHub App the server would have created via onboarding. Must run
+// after `migrate` (it writes to `state_github_app`) and after the env mock
+// (the credential store reads FUNNEL_SECRET to derive its encryption key).
+const { seedTestGithubApp } = await import("./github-app");
+await seedTestGithubApp();
