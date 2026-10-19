@@ -17,10 +17,10 @@ From the repository root in PowerShell:
 mise trust
 mise run exe
 .\dist\funnel.exe --version
-mise run verify        # optional: check + test + build + exe
+mise run verify        # optional: check + test + intake:check + build + exe
 ```
 
-`mise run exe` depends on `mise run build` and writes `dist\funnel.exe`. The executable embeds Bun, the server, client assets, the native Markdown addon and the committed migrations; the host needs no Node, Bun or container runtime.
+`mise run exe` depends on `mise run build` and `mise run intake:exe`, and writes `dist\funnel.exe` (plus the optional `dist\funnel-intake.exe`, which the service does not use). The executable embeds Bun, the server, client assets, the native Markdown addon and the committed migrations; the host needs no Node, Bun or container runtime.
 
 Build on Windows for Windows. Cross-compiling with `--target=bun-windows-x64` requires the Windows `satteri` package to be installed on the build host, so building natively is the reliable path.
 

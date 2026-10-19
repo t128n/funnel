@@ -6,6 +6,7 @@ Build and ship Funnel's artefacts — the adapter-node server, the self-containe
 
 - **mise**, trusted once per checkout (`mise trust`) so its tasks load. If you do not use mise, the underlying `bun run` scripts in `package.json` are equivalent.
 - **Bun 1.4.3** (pinned by `mise.toml`).
+- **Go 1.27** for the optional Windows intake helper (also pinned by `mise.toml`).
 - **Docker**, only for the container path.
 
 ## Tasks
@@ -14,11 +15,13 @@ Build and ship Funnel's artefacts — the adapter-node server, the self-containe
 
 | Task                | Runs                              | Produces |
 | :------------------ | :-------------------------------- | :------- |
-| `mise run verify`   | `check` → `test` → `build` → `exe` | Everything the release pipeline relies on. |
+| `mise run verify`   | `check` → `test` → `intake:check` → `build` → `exe` | Everything the release pipeline relies on. |
 | `mise run check`    | `bun run check`                   | Type-check. |
 | `mise run test`     | `bun run test`                    | The test suite (see [testing.md](./testing.md)). |
+| `mise run intake:check` | `go vet` → `go test`          | The intake helper's Go vet and test results. |
 | `mise run build`    | `bun run build`                   | Production SvelteKit build in `build/`. |
-| `mise run exe`      | `bun scripts/build-standalone.ts` | Self-contained executable in `dist/`; depends on `build`. |
+| `mise run exe`      | `bun scripts/build-standalone.ts`, plus `intake:exe` | Self-contained executable in `dist/`, and `dist\funnel-intake.exe`; depends on `build`. |
+| `mise run intake:exe` | `bun scripts/build-intake.ts`   | Native Windows intake helper in `dist\funnel-intake.exe`. |
 | `mise run docker`   | `docker build -t funnel:<version> .` | Container image (secondary / PaaS target). |
 | `mise run release`  | `bun run release`                 | Applies pending migrations (the release phase). |
 
@@ -74,6 +77,7 @@ The executable also handles `--migrate`, `--healthcheck` (probes `/healthz`), `-
 | :-------------------- | :------------------------------------ | :---- |
 | adapter-node server   | `build/`                              | Run with `bun ./build/index.js` (`bun run start`); client assets in `build/client`. |
 | Standalone executable | `dist/funnel` (Linux/macOS), `dist/funnel.exe` (Windows) | One file: Bun runtime, adapter-node output, dependencies, client assets, and `drizzle/` migrations embedded. |
+| Intake helper         | `dist\funnel-intake.exe` (Windows)    | Optional per-user hotkey helper; pure Go, no cgo. Built by `intake:exe`, which `exe` also runs. |
 | Container image       | tagged `funnel:<version>`             | Built from `Dockerfile`; compiles the Linux executable and copies it to `/usr/local/bin/funnel`; `ENTRYPOINT ["/usr/local/bin/funnel"]`, `VOLUME /data`, healthcheck via `funnel --healthcheck`. |
 
 `scripts/build-standalone.ts` accepts `--target=<bun-target>`, `--outdir=<dir>` (default `dist`), and `--outfile=<name>` (default `funnel`, or `funnel.exe` for a Windows target). Cross-target builds need that platform's `satteri` package installed, so building natively per OS is the reliable path.
@@ -82,7 +86,7 @@ The executable also handles `--migrate`, `--healthcheck` (probes `/healthz`), `-
 
 1. Bump `version` in `package.json`.
 2. If the schema changed, run `bun run db:generate` and commit the new `drizzle/<timestamp>_<name>/` directory.
-3. Run `mise run verify` locally (check + test + build + exe).
+3. Run `mise run verify` locally (check + test + intake:check + build + exe).
 4. Build the artefacts: `mise run build`, `mise run exe`, and `mise run docker --version=<version>`.
 5. Deploy the executable or image:
    - **Windows:** stop the service, replace `funnel.exe`, start it — migrations run automatically on boot.
