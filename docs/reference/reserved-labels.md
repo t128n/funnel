@@ -20,6 +20,10 @@ The canonical list is defined in `src/lib/labels.ts` and re-exported by the serv
 | `md` | `size` | `2aacb8` | Size: Medium |
 | `lg` | `size` | `e28d78` | Size: Large |
 
+## Priority inputs
+
+Priority is currently projected from the `p1`–`p3` labels. The triage inputs behind a future derived priority are **impact** and **urgency**, stored in the issue body metadata rather than as labels. Those scales, their P0–P3 lookup matrix, the unset-axis default, and the per-instance override shape are defined in [Impact, urgency, and priority](./priority.md). The `p1`–`p3` labels remain authoritative until the derived-priority migration replaces them.
+
 ## One label per group
 
 An issue carries at most one label from each group. Status, priority, and size are single-valued workflow groups. `blocked` is an orthogonal flag: it belongs to its own group and can coexist with any status, priority, or size.

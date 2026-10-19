@@ -86,6 +86,7 @@ Learning-oriented, with one path and expected results.
 - [Build tasks](reference/build-tasks.md) — the `mise` tasks and what each one produces.
 - [Settings](reference/settings.md) — the instance settings stored in SQLite, with defaults and validation rules.
 - [Reserved labels](reference/reserved-labels.md) — the canonical status, priority, size, and flag vocabulary.
+- [Impact, urgency, and priority](reference/priority.md) — the input scales, the P0–P3 lookup matrix, and how the axes round-trip.
 - [Roles and permissions](reference/roles-and-permissions.md) — what `read`, `write`, and `admin` may do.
 - [HTTP API](reference/http-api.md) — the intake endpoint, mutation endpoints, mirror reads, and health probes.
 - [Database schema](reference/database-schema.md) — mirror tables, Funnel-owned state, and authentication tables.
