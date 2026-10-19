@@ -86,6 +86,34 @@ export function dropIndexAt(
   return cards[cards.length - 1].index + 1;
 }
 
+/**
+ * Read the rendered card rectangles under `root`, tagged with their *virtual*
+ * index.
+ *
+ * The virtual index lives on the card's `[data-board-card-index]` wrapper (the
+ * card inside the lane is virtualized, so its DOM position is not its item
+ * index); `data-board-card` alone cannot resolve a slot. Result is sorted by
+ * index so a mid-drag reorder cannot leave the comparison order stale.
+ */
+export function collectCardRects(root: ParentNode): DropCardRect[] {
+  const cards: DropCardRect[] = [];
+  for (const element of root.querySelectorAll<HTMLElement>(
+    "[data-board-card]",
+  )) {
+    const rect = element.getBoundingClientRect();
+    const holder = element.closest<HTMLElement>("[data-board-card-index]");
+    const raw = Number(
+      holder?.dataset.boardCardIndex ?? element.dataset.boardCardIndex,
+    );
+    cards.push({
+      index: Number.isFinite(raw) ? raw : 0,
+      top: rect.top,
+      bottom: rect.bottom,
+    });
+  }
+  return cards.sort((a, b) => a.index - b.index);
+}
+
 /** Cleanup returned by every Svelte action here. */
 export interface ActionHandle {
   destroy(): void;
@@ -147,19 +175,7 @@ export function droppableLane(
   const setIndicator = (index: number | null) => current.onIndicator?.(index);
 
   function renderedCards(): DropCardRect[] {
-    const cards: DropCardRect[] = [];
-    for (const element of node.querySelectorAll<HTMLElement>(
-      "[data-board-card]",
-    )) {
-      const rect = element.getBoundingClientRect();
-      const raw = Number(element.dataset.boardCardIndex);
-      cards.push({
-        index: Number.isFinite(raw) ? raw : 0,
-        top: rect.top,
-        bottom: rect.bottom,
-      });
-    }
-    return cards.sort((a, b) => a.index - b.index);
+    return collectCardRects(node);
   }
 
   function indexAt(clientY: number): number {
