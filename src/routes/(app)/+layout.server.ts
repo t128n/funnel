@@ -4,7 +4,11 @@ import { FEATURES_COOKIE, parseFeatureOverrides } from "#lib/features";
 import { getConfig, repoShortcodeMap } from "#lib/server/config";
 import { COMMENT_BUBBLES_FLAG, resolveFeatures } from "#lib/server/flags";
 import { EMPTY_FILTER } from "#lib/server/issues/filters";
-import { attentionIssues, filterOptions, inbox } from "#lib/server/issues/queries";
+import {
+  attentionIssues,
+  filterOptions,
+  inboxCount,
+} from "#lib/server/issues/queries";
 import { getUser } from "#lib/server/sync/mirror";
 import type { LayoutServerLoad } from "./$types";
 
@@ -29,8 +33,9 @@ export const load: LayoutServerLoad = async ({ locals, url, cookies }) => {
     viewerGithubId === null ? null : (getUser(viewerGithubId) ?? null);
 
   // Sidebar badge for Inbox: pending submissions + untriaged open issues
-  // (SPEC §2.1), the queue a maintainer actually has to triage.
-  const inboxCount = inbox(EMPTY_FILTER).entries.length;
+  // (SPEC §2.1), the queue a maintainer actually has to triage. Counted
+  // directly so the badge never hydrates the whole queue.
+  const inboxTotal = inboxCount(EMPTY_FILTER);
 
   return {
     user,
@@ -38,7 +43,7 @@ export const load: LayoutServerLoad = async ({ locals, url, cookies }) => {
     viewerGithub,
     options,
     attention: attentionIssues(),
-    inboxCount,
+    inboxCount: inboxTotal,
     githubUrl: config.github.url,
     defaultRepo: config.intake.default_repo ?? config.repos[0]?.repo ?? "",
     repoShortcodes: repoShortcodeMap(config),

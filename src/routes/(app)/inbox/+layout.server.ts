@@ -16,8 +16,10 @@ export const load: LayoutServerLoad = async ({ url, parent }) => {
   const filter = parseIssueFilter(url.searchParams, filterContext(viewerGithubId));
 
   // Submission bodies are anonymous, untrusted Markdown; render them to
-  // sanitized HTML at the delivery boundary (SPEC §2.2).
-  const entries: RenderedInboxEntry[] = inbox(filter).entries.map((entry) =>
+  // sanitized HTML at the delivery boundary (SPEC §2.2). The store pages on
+  // `items`; `entries` stays as an alias for the detail routes.
+  const page = inbox(filter);
+  const items: RenderedInboxEntry[] = page.items.map((entry) =>
     entry.kind === "submission"
       ? {
           kind: "submission",
@@ -28,5 +30,12 @@ export const load: LayoutServerLoad = async ({ url, parent }) => {
         }
       : entry,
   );
-  return { inbox: { entries } };
+  return {
+    inbox: {
+      items,
+      entries: items,
+      total: page.total,
+      nextCursor: page.nextCursor,
+    },
+  };
 };
