@@ -244,6 +244,17 @@ describe("inboxPage", () => {
     expect(page.items[0].kind).toBe("submission");
     expect(page.items[0].submission?.bodyHtml).toContain("please");
   });
+
+  test("rejects a cursor minted for the All Issues feed", () => {
+    // `state=open` makes both feeds parse the same filter, so only the feed
+    // identity in the signature distinguishes them.
+    const issues = issuesPage(search("state=open&limit=1"), null);
+    expect(issues.nextCursor).not.toBeNull();
+
+    expect(() =>
+      inboxPage(search(`state=open&cursor=${issues.nextCursor}`), null),
+    ).toThrow("Invalid cursor");
+  });
 });
 
 describe("boardPage", () => {

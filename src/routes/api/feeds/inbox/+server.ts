@@ -67,7 +67,8 @@ export function inboxPage(
 ): ListPage<RenderedInboxEntry> {
   const filter = parseIssueFilter(search, filterContext(viewerGithubId));
   const opts = pageOptions(search);
-  requireCursor(opts.cursor ?? null, filterSignature(filter));
+  // Must match `inbox()`'s signature, including its `inbox` discriminator.
+  requireCursor(opts.cursor ?? null, filterSignature(filter, "inbox"));
   const page = inbox(filter, opts);
   return { ...page, items: page.items.map(renderEntry) };
 }
