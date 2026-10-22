@@ -7,11 +7,11 @@
  * are skipped implicitly: only an `... on Issue` inline fragment is requested,
  * so a PR node comes back without the issue fields and is dropped.
  *
- * The installation GraphQL client is host-aware (`github.graphql`), so the same
- * code targets github.com or a GHES instance. `hydrateNodes` is pure over an
- * injected `graphql` function for testability.
+ * The installation provider's GraphQL client is host-aware (`provider.graphql`),
+ * so the same code targets github.com or a GHES instance. `hydrateNodes` is
+ * pure over an injected `graphql` function for testability.
  */
-import { github } from "#lib/server/github/app.server";
+import { forge } from "#lib/server/forge/providers.server";
 import { deriveMetadata } from "./conflicts";
 import * as mirror from "./mirror";
 
@@ -204,7 +204,8 @@ export async function hydrateAndStore(
   nodeIds: readonly string[],
   graphqlFn?: GraphqlFn,
 ): Promise<mirror.IssueRecord[]> {
-  const gql = graphqlFn ?? (await github.graphql(installationId));
+  const provider = graphqlFn ? undefined : await forge.installationProvider(installationId);
+  const gql: GraphqlFn = graphqlFn ?? ((query, variables) => provider!.graphql(query, variables));
   const records = await hydrateNodes(gql, repoId, nodeIds);
   for (const record of records) {
     const derived = deriveMetadata(record.labels);

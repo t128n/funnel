@@ -1,5 +1,6 @@
-import { beforeEach, describe, expect, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, spyOn, test } from "bun:test";
 import { clearMirror } from "#tests/mirror-helpers";
+import { forge } from "#/lib/server/forge/providers.server";
 import { deriveMetadata } from "./conflicts";
 import {
   BATCH_SIZE,
@@ -158,5 +159,50 @@ describe("hydrateAndStore", () => {
     await hydrateAndStore(1, 1, ["n1"], graphql);
     expect(mirror.getIssue(1, 1)?.labelConflict).toBe(1);
     expect(deriveMetadata(["todo", "in-progress"]).conflicts).toEqual(["status"]);
+  });
+});
+
+const fakeGraphql = async () => ({
+  nodes: [{ databaseId: 101, number: 1, title: "live", state: "OPEN", createdAt: "2026-01-01T00:00:00Z", updatedAt: "2026-01-01T00:00:00Z", labels: { nodes: [] }, assignees: { nodes: [] }, comments: { nodes: [] } }],
+});
+
+describe("hydrateAndStore injection", () => {
+  test("stores normalized nodes from the injected graphql", async () => {
+    const records = await hydrateAndStore(7, 1, ["n1"], fakeGraphql as never);
+    expect(records).toHaveLength(1);
+    expect(records[0]).toMatchObject({ githubId: 101, number: 1, title: "live" });
+  });
+  test("does nothing for an empty batch", async () => {
+    expect(await hydrateAndStore(7, 1, [], fakeGraphql as never)).toEqual([]);
+  });
+});
+
+describe("hydrateAndStore provider", () => {
+  const provider = {
+    marker: "provider",
+    async graphql(_query: string, _variables?: Record<string, unknown>) {
+      // An unbound method call would lose `this`.
+      expect(this.marker).toBe("provider");
+      return { nodes: [ISSUE_NODE] };
+    },
+  };
+  let providerSpy: ReturnType<typeof spyOn>;
+
+  beforeEach(() => {
+    providerSpy = spyOn(forge, "installationProvider").mockResolvedValue(
+      provider as never,
+    );
+  });
+
+  afterEach(() => {
+    providerSpy.mockRestore();
+  });
+
+  test("calls the provider graphql through a bound function", async () => {
+    const records = await hydrateAndStore(7, 1, ["n1"]);
+
+    expect(providerSpy).toHaveBeenCalledWith(7);
+    expect(records).toHaveLength(1);
+    expect(records[0]).toMatchObject({ githubId: 101, number: 1 });
   });
 });
