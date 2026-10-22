@@ -64,10 +64,10 @@ export async function reconcileRepo(
   });
   // Refresh the repo's milestone set so closed/renamed milestones converge.
   await refreshRepoMilestones(installationId, repoRow);
-  const removed = mirror.deleteIssuesNotIn(repoRow.githubId, result.seenNumbers);
+  const removed = mirror.deleteIssuesNotIn(repoRow.id, result.seenNumbers);
   const summary = await provisionRepoLabels(owner, repo);
-  mirror.setRepoReconciledAt(repoRow.githubId, Date.now());
-  mirror.setRepoDegraded(repoRow.githubId, false);
+  mirror.setRepoReconciledAt(repoRow.id, Date.now());
+  mirror.setRepoDegraded(repoRow.id, false);
 
   return {
     repo: `${owner}/${repo}`,

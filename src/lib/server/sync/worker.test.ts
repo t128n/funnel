@@ -26,6 +26,7 @@ let deletedLabels: string[] = [];
 let nodes: unknown[] = [];
 let graphqlCalls: Array<Record<string, unknown>> = [];
 let failIssues = false;
+let repoId = 0;
 
 /** Returned by the fake provider's assignable-users listing. */
 interface FakeAssignee {
@@ -166,6 +167,7 @@ function issueNode(overrides: Record<string, unknown> = {}) {
   return {
     databaseId: 101,
     number: 1,
+    url: "https://github.com/orgA/core/issues/1",
     title: "t",
     body: "",
     state: "OPEN",
@@ -177,6 +179,14 @@ function issueNode(overrides: Record<string, unknown> = {}) {
     ...overrides,
   };
 }
+
+const NULL_METADATA = {
+  status: null,
+  priority: null,
+  size: null,
+  blocked: false,
+  labelConflict: false,
+};
 
 beforeEach(() => {
   clearMirror();
@@ -202,7 +212,15 @@ beforeEach(() => {
     }
     return new Response("{}", { status: 404 });
   }) as typeof fetch;
-  mirror.upsertRepo({ githubId: 1, org: "orgA", name: "core", archived: false });
+  repoId = mirror.upsertRepo({
+    externalId: "1",
+    forge: "github",
+    instance: "github.com",
+    org: "orgA",
+    name: "core",
+    url: "https://github.com/orgA/core",
+    archived: false,
+  }).id;
   spy = spyOn(forge, "installationProvider").mockResolvedValue(
     fakeProvider as never,
   );
@@ -222,13 +240,13 @@ describe("inHistoryWindow", () => {
   test("keeps recently closed issues and drops old ones", () => {
     expect(
       inHistoryWindow(
-        { state: "closed", closedAt: new Date("2026-02-01T00:00:00Z") },
+        { state: "closed", closedAt: Date.parse("2026-02-01T00:00:00Z") },
         cutoff,
       ),
     ).toBe(true);
     expect(
       inHistoryWindow(
-        { state: "closed", closedAt: new Date("2020-01-01T00:00:00Z") },
+        { state: "closed", closedAt: Date.parse("2020-01-01T00:00:00Z") },
         cutoff,
       ),
     ).toBe(false);
@@ -243,10 +261,10 @@ describe("inHistoryWindow", () => {
 
 describe("pollRepo", () => {
   test("sends the stored ETag and short-circuits on notModified", async () => {
-    mirror.setRepoEtag(1, '"cached"');
+    mirror.setRepoEtag(repoId, '"cached"');
     notModified = true;
 
-    const result = await pollRepo(mirror.getRepo(1)!, 42, 1000);
+    const result = await pollRepo(mirror.getRepo(repoId)!, 42, 1000);
 
     expect(listQueries[0]?.cursor).toEqual({ etag: '"cached"' });
     expect(result.notModified).toBe(true);
@@ -258,15 +276,17 @@ describe("pollRepo", () => {
     const updated = Date.parse("2026-01-01T00:00:00Z");
     mirror.upsertIssue(
       {
-        githubId: 999,
-        repoId: 1,
+        externalId: "999",
+        repoId,
         number: 99,
+        kind: "issue",
         title: "seen",
         body: "",
         state: "open",
         stateReason: null,
         author: null,
         milestoneNumber: null,
+        url: "https://github.com/orgA/core/issues/99",
         createdAt: 0,
         updatedAt: updated,
         closedAt: null,
@@ -274,10 +294,10 @@ describe("pollRepo", () => {
         assignees: [],
         comments: [],
       },
-      { status: null, priority: null, size: null, blocked: false, labelConflict: false },
+      NULL_METADATA,
     );
 
-    await pollRepo(mirror.getRepo(1)!, 42, Date.now());
+    await pollRepo(mirror.getRepo(repoId)!, 42, Date.now());
 
     expect(listQueries[0]).toMatchObject({
       kind: "issue",
@@ -303,15 +323,15 @@ describe("pollRepo", () => {
     nodes = [issueNode({ databaseId: 101, number: 1, updatedAt: updated })];
 
     const result = await pollRepo(
-      mirror.getRepo(1)!,
+      mirror.getRepo(repoId)!,
       42,
       Date.parse("2026-01-03T00:00:00Z"),
     );
 
     expect(result).toMatchObject({ notModified: false, changed: 1, hydrated: 1 });
-    expect(mirror.getIssue(1, 1)?.title).toBe("t");
-    expect(mirror.getRepoCursor(1)).toBe(Date.parse(updated));
-    expect(mirror.getRepo(1)?.etag).toBe('"e1"');
+    expect(mirror.getIssue(repoId, 1)?.title).toBe("t");
+    expect(mirror.getRepoCursor(repoId)).toBe(Date.parse(updated));
+    expect(mirror.getRepo(repoId)?.etag).toBe('"e1"');
   });
 
   test("skips pull requests", async () => {
@@ -323,7 +343,7 @@ describe("pollRepo", () => {
     ];
     nodes = [issueNode({ databaseId: 101, number: 1 })];
 
-    const result = await pollRepo(mirror.getRepo(1)!, 42, Date.now());
+    const result = await pollRepo(mirror.getRepo(repoId)!, 42, Date.now());
 
     expect(listQueries[0]?.kind).toBe("issue");
     expect(result.changed).toBe(1);
@@ -336,7 +356,7 @@ describe("pollRepo", () => {
     );
     pages = [firstPage, [thread({ number: 101, externalId: "n101" })]];
 
-    const result = await pollRepo(mirror.getRepo(1)!, 42, Date.now());
+    const result = await pollRepo(mirror.getRepo(repoId)!, 42, Date.now());
 
     expect(result.changed).toBe(101);
     expect(listQueries).toHaveLength(2);
@@ -348,15 +368,17 @@ describe("pollRepo", () => {
   test("prunes changed issues that aged out of the window", async () => {
     mirror.upsertIssue(
       {
-        githubId: 101,
-        repoId: 1,
+        externalId: "101",
+        repoId,
         number: 1,
+        kind: "issue",
         title: "old",
         body: "",
         state: "closed",
         stateReason: "completed",
         author: null,
         milestoneNumber: null,
+        url: "https://github.com/orgA/core/issues/1",
         createdAt: 0,
         updatedAt: 0,
         closedAt: 0,
@@ -364,7 +386,7 @@ describe("pollRepo", () => {
         assignees: [],
         comments: [],
       },
-      { status: null, priority: null, size: null, blocked: false, labelConflict: false },
+      NULL_METADATA,
     );
     pages = [
       [
@@ -378,13 +400,13 @@ describe("pollRepo", () => {
     ];
 
     const result = await pollRepo(
-      mirror.getRepo(1)!,
+      mirror.getRepo(repoId)!,
       42,
       Date.parse("2026-01-01T00:00:00Z"),
     );
 
     expect(result.pruned).toBe(1);
-    expect(mirror.getIssue(1, 1)).toBeUndefined();
+    expect(mirror.getIssue(repoId, 1)).toBeUndefined();
     expect(graphqlCalls).toEqual([]);
   });
 
@@ -412,13 +434,13 @@ describe("pollRepo", () => {
       },
     ] as ForgeEvent[];
 
-    const result = await pollRepo(mirror.getRepo(1)!, 42, Date.now());
+    const result = await pollRepo(mirror.getRepo(repoId)!, 42, Date.now());
 
     expect(result.conflicts).toBe(1);
     expect(deletedLabels).toEqual(["todo"]);
-    expect(mirror.getIssue(1, 1)?.status).toBe("in-progress");
-    expect(mirror.getIssue(1, 1)?.labelConflict).toBe(0);
-    expect(mirror.getIssueLabels(1, 1)).toEqual(["in-progress"]);
+    expect(mirror.getIssue(repoId, 1)?.status).toBe("in-progress");
+    expect(mirror.getIssue(repoId, 1)?.labelConflict).toBe(0);
+    expect(mirror.getIssueLabels(repoId, 1)).toEqual(["in-progress"]);
   });
 
   test("publishes a sync event for changed issues", async () => {
@@ -427,7 +449,7 @@ describe("pollRepo", () => {
     pages = [[thread({ number: 1, externalId: "n1" })]];
     nodes = [issueNode({ databaseId: 101, number: 1 })];
 
-    await pollRepo(mirror.getRepo(1)!, 42, Date.now());
+    await pollRepo(mirror.getRepo(repoId)!, 42, Date.now());
 
     expect(events).toEqual([
       { type: "issues", repo: "orgA/core", numbers: [1] },
@@ -437,23 +459,25 @@ describe("pollRepo", () => {
   test("stays quiet (no event, no etag change) on notModified", async () => {
     const events: unknown[] = [];
     subscribe((e) => events.push(e));
-    mirror.setRepoEtag(1, '"cached"');
+    mirror.setRepoEtag(repoId, '"cached"');
     notModified = true;
 
-    await pollRepo(mirror.getRepo(1)!, 42, Date.now());
+    await pollRepo(mirror.getRepo(repoId)!, 42, Date.now());
 
     expect(events).toEqual([]);
   });
 });
 
 describe("ensureRepoMirror", () => {
-  test("upserts the provider's numeric repo id", async () => {
+  test("upserts the provider's repo identity", async () => {
     const { ensureRepoMirror } = await import("./worker");
 
     const row = await ensureRepoMirror("orgA", "core", 7);
 
     expect(row).toMatchObject({
-      githubId: 1,
+      externalId: "1",
+      forge: "github",
+      instance: "github.com",
       org: "orgA",
       name: "core",
       archived: 0,
@@ -469,9 +493,9 @@ describe("runRepoCycle", () => {
     const result = await runRepoCycle("orgA", "core");
 
     expect(result.changed).toBe(1);
-    expect(mirror.getRepo(1)?.name).toBe("core");
-    expect(mirror.getRepo(1)?.degraded).toBe(0);
-    expect(mirror.getIssue(1, 1)?.title).toBe("t");
+    expect(mirror.getRepo(repoId)?.name).toBe("core");
+    expect(mirror.getRepo(repoId)?.degraded).toBe(0);
+    expect(mirror.getIssue(repoId, 1)?.title).toBe("t");
   });
 
   test("mirrors the repo's assignable users", async () => {
@@ -482,10 +506,13 @@ describe("runRepoCycle", () => {
 
     await runRepoCycle("orgA", "core");
 
-    expect(mirror.getRepoAssignees(1).map((u) => u.login)).toEqual([
+    expect(mirror.getRepoAssignees(repoId).map((u) => u.login)).toEqual([
       "amy",
       "zoe",
     ]);
+    expect(
+      mirror.getRepoAssignees(repoId).map((u) => u.externalId),
+    ).toEqual(["42", "43"]);
   });
 
   test("mirrors the repo's milestones and replaces the set wholesale", async () => {
@@ -502,18 +529,19 @@ describe("runRepoCycle", () => {
     ];
 
     await runRepoCycle("orgA", "core");
-    expect(mirror.getRepoMilestones(1).map((m) => m.title)).toEqual(["v1"]);
+    expect(mirror.getRepoMilestones(repoId).map((m) => m.title)).toEqual(["v1"]);
+    expect(mirror.getRepoMilestones(repoId)[0]?.externalId).toBe("11");
 
     repoMilestones = [{ number: 2, id: 12, title: "v2", state: "open" }];
     await runRepoCycle("orgA", "core");
-    expect(mirror.getRepoMilestones(1).map((m) => m.title)).toEqual(["v2"]);
+    expect(mirror.getRepoMilestones(repoId).map((m) => m.title)).toEqual(["v2"]);
   });
 
   test("marks the repo degraded and rethrows when polling fails", async () => {
     failIssues = true;
 
     await expect(runRepoCycle("orgA", "core")).rejects.toThrow("boom");
-    expect(mirror.getRepo(1)?.degraded).toBe(1);
+    expect(mirror.getRepo(repoId)?.degraded).toBe(1);
   });
 });
 
@@ -525,7 +553,7 @@ describe("refreshIssue", () => {
 
     await refreshIssue("orgA", "core", 1);
 
-    expect(mirror.getIssue(1, 1)?.title).toBe("t");
+    expect(mirror.getIssue(repoId, 1)?.title).toBe("t");
     expect(events).toEqual([
       { type: "issues", repo: "orgA/core", numbers: [1] },
     ]);
@@ -543,7 +571,7 @@ describe("syncAllRepos", () => {
 
     await syncAllRepos();
 
-    expect(mirror.getIssue(1, 1)?.title).toBe("t");
+    expect(mirror.getIssue(repoId, 1)?.title).toBe("t");
   });
 });
 

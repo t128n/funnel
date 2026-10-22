@@ -38,10 +38,10 @@ const DAY_MS = 86_400_000;
 /** How often the scheduler wakes to check which repos are due. */
 const TICK_MS = 5_000;
 
-/** The subset of a provider thread the poller needs. */
+/** The subset of a provider thread the poller needs (times in epoch ms). */
 export interface HistoryThread {
   state: string;
-  closedAt?: Date | null;
+  closedAt?: number | null;
 }
 
 export interface PollOptions {
@@ -83,9 +83,8 @@ export function inHistoryWindow(
   cutoff: number,
 ): boolean {
   if (thread.state === "open") return true;
-  if (thread.state === "closed" && thread.closedAt instanceof Date) {
-    const closedAt = thread.closedAt.getTime();
-    return !Number.isNaN(closedAt) && closedAt >= cutoff;
+  if (thread.state === "closed" && typeof thread.closedAt === "number") {
+    return !Number.isNaN(thread.closedAt) && thread.closedAt >= cutoff;
   }
   return false;
 }
@@ -110,7 +109,7 @@ async function resolveConflicts(
       record.number,
       record.labels,
     );
-    mirror.setIssueMetadata(repo.githubId, record.number, {
+    mirror.setIssueMetadata(repo.id, record.number, {
       status: resolved.metadata.status,
       priority: resolved.metadata.priority,
       size: resolved.metadata.size,
@@ -120,7 +119,7 @@ async function resolveConflicts(
     if (resolved.removed.length > 0) {
       const removed = new Set(resolved.removed.map((n) => n.toLowerCase()));
       mirror.replaceIssueLabels(
-        repo.githubId,
+        repo.id,
         record.number,
         record.labels.filter((n) => !removed.has(n.toLowerCase())),
       );
@@ -143,7 +142,7 @@ export async function pollRepo(
   const { sync } = await getConfig();
   const provider = await forge.installationProvider(installationId);
   const repoRef = forge.repoRef(repo.org, repo.name);
-  const cursor = options.full ? null : mirror.getRepoCursor(repo.githubId);
+  const cursor = options.full ? null : mirror.getRepoCursor(repo.id);
 
   const query: ThreadQuery = {
     kind: "issue",
@@ -157,8 +156,8 @@ export async function pollRepo(
 
   const first = await provider.threads.list(repoRef, query).page();
   if (first.notModified) {
-    mirror.setRepoPolledAt(repo.githubId, now);
-    mirror.setRepoDegraded(repo.githubId, false);
+    mirror.setRepoPolledAt(repo.id, now);
+    mirror.setRepoDegraded(repo.id, false);
     return {
       notModified: true,
       changed: 0,
@@ -189,7 +188,11 @@ export async function pollRepo(
   for (const thread of threads) {
     const number = Number(thread.ref.number);
     if (!Number.isInteger(number)) continue;
-    if (inHistoryWindow(thread, cutoff)) {
+    const windowed = {
+      state: thread.state,
+      closedAt: thread.closedAt ? thread.closedAt.getTime() : null,
+    };
+    if (inHistoryWindow(windowed, cutoff)) {
       seenNumbers.push(number);
       if (typeof thread.ref.externalId === "string") {
         nodeIds.push(thread.ref.externalId);
@@ -201,16 +204,16 @@ export async function pollRepo(
 
   const hydrated =
     nodeIds.length > 0
-      ? await hydrateAndStore(installationId, repo.githubId, nodeIds)
+      ? await hydrateAndStore(installationId, repo.id, nodeIds)
       : [];
   const conflicts = await resolveConflicts(provider, repo, hydrated);
 
   // Changed issues that aged out of the window are dropped from the mirror.
-  for (const number of pruned) mirror.deleteIssue(repo.githubId, number);
+  for (const number of pruned) mirror.deleteIssue(repo.id, number);
 
-  mirror.setRepoEtag(repo.githubId, first.etag ?? null);
-  mirror.setRepoPolledAt(repo.githubId, now);
-  mirror.setRepoDegraded(repo.githubId, false);
+  mirror.setRepoEtag(repo.id, first.etag ?? null);
+  mirror.setRepoPolledAt(repo.id, now);
+  mirror.setRepoDegraded(repo.id, false);
 
   if (seenNumbers.length > 0) {
     publish({
@@ -230,7 +233,7 @@ export async function pollRepo(
   };
 }
 
-/** Upsert `mirror_github_repo` from the provider's repo read (FK target). */
+/** Upsert `mirror_repo` from the provider's repo read (FK target). */
 export async function ensureRepoMirror(
   owner: string,
   repo: string,
@@ -238,16 +241,17 @@ export async function ensureRepoMirror(
 ): Promise<mirror.RepoRow> {
   const provider = await forge.installationProvider(installationId);
   const info = await provider.repos.get(forge.repoRef(owner, repo));
-  const externalId = Number(info.ref.externalId);
-  if (!Number.isInteger(externalId)) {
-    throw new Error(
-      `GitHub returned no numeric id for ${owner}/${repo}`,
-    );
+  const externalId = info.ref.externalId;
+  if (typeof externalId !== "string" || externalId.length === 0) {
+    throw new Error(`GitHub returned no id for ${owner}/${repo}`);
   }
   return mirror.upsertRepo({
-    githubId: externalId,
+    externalId,
+    forge: info.ref.forge,
+    instance: info.ref.instance,
     org: info.ref.owner || owner,
     name: info.ref.name || repo,
+    url: info.url ?? "",
     archived: info.isArchived,
   });
 }
@@ -260,13 +264,42 @@ export async function refreshRepoLabels(
   const provider = await forge.installationProvider(installationId);
   const labels = await listRepoLabels(provider, repo.org, repo.name);
   mirror.replaceRepoLabels(
-    repo.githubId,
+    repo.id,
     labels.map((l) => ({
       name: l.name,
       color: l.color,
       description: l.description ?? "",
     })),
   );
+}
+
+/**
+ * The actor directory still reports GitHub-shaped users; keep the legacy
+ * `githubId` readable while preferring the forge-neutral fields.
+ */
+type DirectoryUser = {
+  externalId?: string;
+  githubId?: number;
+  login: string;
+  avatarUrl?: string;
+  url?: string;
+};
+
+function directoryUser(
+  user: DirectoryUser,
+  repo: mirror.RepoRow,
+): mirror.UserRecord | null {
+  const externalId = user.externalId ?? String(user.githubId ?? "");
+  if (externalId.length === 0) return null;
+  return {
+    id: 0,
+    externalId,
+    forge: repo.forge,
+    instance: repo.instance,
+    login: user.login,
+    avatarUrl: user.avatarUrl ?? "",
+    url: user.url ?? "",
+  };
 }
 
 /** Refresh a repo's assignable users (Inspector assignee picker, SPEC §9.2). */
@@ -276,7 +309,10 @@ export async function refreshRepoAssignees(
 ): Promise<void> {
   const provider = await forge.installationProvider(installationId);
   const users = await listRepoAssignees(provider, repo.org, repo.name);
-  mirror.replaceRepoAssignees(repo.githubId, users);
+  const records = users
+    .map((user) => directoryUser(user as unknown as DirectoryUser, repo))
+    .filter((user): user is mirror.UserRecord => user !== null);
+  mirror.replaceRepoAssignees(repo.id, records);
 }
 
 /**
@@ -289,7 +325,37 @@ export async function refreshRepoMilestones(
 ): Promise<void> {
   const provider = await forge.installationProvider(installationId);
   const milestones = await listRepoMilestones(provider, repo.org, repo.name);
-  mirror.replaceRepoMilestones(repo.githubId, milestones);
+  mirror.replaceRepoMilestones(
+    repo.id,
+    milestones.map((milestone) => {
+      // The milestone reader still exposes the GitHub-shaped identity/URL.
+      const legacy = milestone as unknown as {
+        externalId?: string;
+        githubId?: number;
+        url?: string;
+        htmlUrl?: string;
+        creator?: DirectoryUser | null;
+      };
+      const creator = legacy.creator
+        ? directoryUser(legacy.creator, repo)
+        : null;
+      return {
+        number: milestone.number,
+        externalId: legacy.externalId ?? String(legacy.githubId ?? ""),
+        title: milestone.title,
+        description: milestone.description,
+        state: milestone.state,
+        dueOn: milestone.dueOn,
+        openIssues: milestone.openIssues,
+        closedIssues: milestone.closedIssues,
+        creator,
+        createdAt: milestone.createdAt,
+        updatedAt: milestone.updatedAt,
+        closedAt: milestone.closedAt,
+        url: legacy.url ?? legacy.htmlUrl ?? "",
+      };
+    }),
+  );
 }
 
 /**
@@ -325,7 +391,7 @@ export async function runRepoCycle(
     log.debug({ repo: `${owner}/${repo}`, ...result }, "repo polled");
     return result;
   } catch (error) {
-    mirror.setRepoDegraded(repoRow.githubId, true);
+    mirror.setRepoDegraded(repoRow.id, true);
     log.warn(
       { repo: `${owner}/${repo}`, err: errorMessage(error) },
       "repo poll failed",
@@ -351,7 +417,7 @@ export async function refreshIssue(
     forge.threadRef(repoRef, "issue", number),
   );
   if (typeof thread.ref.externalId !== "string") return;
-  const records = await hydrateAndStore(installationId, repoRow.githubId, [
+  const records = await hydrateAndStore(installationId, repoRow.id, [
     thread.ref.externalId,
   ]);
   await resolveConflicts(provider, repoRow, records);

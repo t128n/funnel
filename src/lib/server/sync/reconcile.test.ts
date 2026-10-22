@@ -131,19 +131,32 @@ afterEach(() => {
   forge.resetCaches();
 });
 
+let seededRepoId = 0;
+
 function seedStaleIssue() {
-  mirror.upsertRepo({ githubId: 1, org: "recon", name: "core", archived: false });
+  const repo = mirror.upsertRepo({
+    externalId: "1",
+    forge: "github",
+    instance: "github.com",
+    org: "recon",
+    name: "core",
+    url: "https://github.com/recon/core",
+    archived: false,
+  });
+  seededRepoId = repo.id;
   mirror.upsertIssue(
     {
-      githubId: 999,
-      repoId: 1,
+      externalId: "999",
+      repoId: repo.id,
       number: 999,
+      kind: "issue",
       title: "deleted upstream",
       body: "",
       state: "open",
       stateReason: null,
       author: null,
       milestoneNumber: null,
+      url: "https://github.com/recon/core/issues/999",
       createdAt: 0,
       updatedAt: 0,
       closedAt: null,
@@ -179,9 +192,9 @@ describe("reconcileRepo", () => {
     expect(result.pruned).toBe(1);
     expect(result.hydrated).toBe(1);
     expect(result.labels?.created.length).toBeGreaterThan(0);
-    expect(mirror.getIssue(1, 999)).toBeUndefined();
-    expect(mirror.getIssue(1, 1)?.title).toBe("live");
-    expect(mirror.getRepo(1)?.lastReconciledAt).not.toBeNull();
+    expect(mirror.getIssue(seededRepoId, 999)).toBeUndefined();
+    expect(mirror.getIssue(seededRepoId, 1)?.title).toBe("live");
+    expect(mirror.getRepo(seededRepoId)?.lastReconciledAt).not.toBeNull();
   });
 });
 

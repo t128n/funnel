@@ -23,6 +23,7 @@ export const HYDRATE_QUERY = `query FunnelHydrate($ids: [ID!]!) {
     ... on Issue {
       databaseId
       number
+      url
       title
       body
       state
@@ -70,6 +71,7 @@ interface GqlComment {
 interface GqlNode {
   databaseId?: number | null;
   number?: number | null;
+  url?: string | null;
   title?: string | null;
   body?: string | null;
   state?: string | null;
@@ -90,7 +92,11 @@ function ms(value: string | null | undefined): number | null {
   return Number.isNaN(parsed) ? null : parsed;
 }
 
-function toUser(actor: GqlActor | null | undefined): mirror.UserRecord | null {
+function toUser(
+  actor: GqlActor | null | undefined,
+  forge: string,
+  instance: string,
+): mirror.UserRecord | null {
   if (
     !actor ||
     typeof actor.databaseId !== "number" ||
@@ -99,19 +105,27 @@ function toUser(actor: GqlActor | null | undefined): mirror.UserRecord | null {
     return null;
   }
   return {
-    githubId: actor.databaseId,
+    id: 0,
+    externalId: String(actor.databaseId),
+    forge,
+    instance,
     login: actor.login,
     avatarUrl: actor.avatarUrl ?? "",
+    url: "",
   };
 }
 
 /**
  * Convert one GraphQL node to a mirror record. Returns `null` for PRs (the
  * `... on Issue` fragment leaves them empty) and anything missing identity.
+ * The node carries no forge identity, so callers that know the repository
+ * pass its `forge`/`instance`; the defaults target github.com.
  */
 export function normalizeNode(
   node: GqlNode | null | undefined,
   repoId: number,
+  forge = "github",
+  instance = "github.com",
 ): mirror.IssueRecord | null {
   if (
     !node ||
@@ -129,7 +143,7 @@ export function normalizeNode(
     .filter((name): name is string => typeof name === "string");
 
   const assignees = (node.assignees?.nodes ?? [])
-    .map(toUser)
+    .map((actor) => toUser(actor, forge, instance))
     .filter((u): u is mirror.UserRecord => u !== null);
 
   const comments = (node.comments?.nodes ?? [])
@@ -138,24 +152,26 @@ export function normalizeNode(
         typeof c.databaseId === "number",
     )
     .map((c) => ({
-      githubId: c.databaseId,
-      author: toUser(c.author),
+      externalId: String(c.databaseId),
+      author: toUser(c.author, forge, instance),
       body: c.body ?? "",
       createdAt: ms(c.createdAt) ?? 0,
       updatedAt: ms(c.updatedAt) ?? 0,
     }));
 
   return {
-    githubId: node.databaseId,
+    externalId: String(node.databaseId),
     repoId,
     number: node.number,
+    kind: "issue",
     title: node.title ?? "",
     body: node.body ?? "",
     state: (node.state ?? "open").toLowerCase(),
     stateReason: node.stateReason?.toLowerCase() ?? null,
-    author: toUser(node.author),
+    author: toUser(node.author, forge, instance),
     milestoneNumber:
       typeof node.milestone?.number === "number" ? node.milestone.number : null,
+    url: node.url ?? "",
     createdAt,
     updatedAt,
     closedAt: ms(node.closedAt),
@@ -179,6 +195,8 @@ export async function hydrateNodes(
   graphqlFn: GraphqlFn,
   repoId: number,
   nodeIds: readonly string[],
+  forge = "github",
+  instance = "github.com",
 ): Promise<mirror.IssueRecord[]> {
   const records: mirror.IssueRecord[] = [];
   for (const ids of chunk(nodeIds, BATCH_SIZE)) {
@@ -186,7 +204,7 @@ export async function hydrateNodes(
       nodes?: Array<GqlNode | null>;
     };
     for (const node of result?.nodes ?? []) {
-      const record = normalizeNode(node, repoId);
+      const record = normalizeNode(node, repoId, forge, instance);
       if (record) records.push(record);
     }
   }
@@ -206,7 +224,15 @@ export async function hydrateAndStore(
 ): Promise<mirror.IssueRecord[]> {
   const provider = graphqlFn ? undefined : await forge.installationProvider(installationId);
   const gql: GraphqlFn = graphqlFn ?? ((query, variables) => provider!.graphql(query, variables));
-  const records = await hydrateNodes(gql, repoId, nodeIds);
+  // The node has no forge identity of its own; use the mirrored repo's.
+  const repo = mirror.getRepo(repoId);
+  const records = await hydrateNodes(
+    gql,
+    repoId,
+    nodeIds,
+    repo?.forge ?? "github",
+    repo?.instance ?? "github.com",
+  );
   for (const record of records) {
     const derived = deriveMetadata(record.labels);
     mirror.upsertIssue(record, {

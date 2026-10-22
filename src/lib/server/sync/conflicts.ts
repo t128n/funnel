@@ -6,7 +6,7 @@
  * **latest added label wins**; the superseded labels are removed on GitHub with
  * the App installation token. An ambiguous timeline (no `labeled` events, or a
  * tie on the newest timestamp) leaves the labels untouched and flags the item
- * (`mirror_github_issue.label_conflict`) for the UI instead of guessing.
+ * (`mirror_thread.label_conflict`) for the UI instead of guessing.
  *
  * `deriveMetadata` is the pure single-label projection shared by hydration and
  * the UI; `resolveIssueConflict` performs the network round-trips.
