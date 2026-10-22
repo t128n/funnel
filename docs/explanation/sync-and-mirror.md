@@ -4,11 +4,11 @@ Funnel's mirror is a rebuildable SQLite copy of GitHub issues, kept current by c
 
 ## The mirror is disposable
 
-Everything under `mirror_github_*` is a cache. Repositories, users, issues, labels, assignees and comments can all be recreated from GitHub. The sync worker upserts hydrated records, the conflict resolver rewrites label assignments, and reconciliation removes rows that no longer exist upstream. No user-authored content depends on those rows.
+Everything under `mirror_*` is a cache. Repositories, users, issues, labels, assignees and comments can all be recreated from GitHub. The sync worker upserts hydrated records, the conflict resolver rewrites label assignments, and reconciliation removes rows that no longer exist upstream. No user-authored content depends on those rows.
 
-Durable state lives elsewhere and is keyed by `owner/name` plus issue number, not by a foreign key to `mirror_github_issue`. Work notes and attachment metadata survive mirror pruning and a full re-sync; attachment bytes live under the upload directory. That separation is what makes aggressive pruning safe. It also means a repaired or partially rebuilt mirror does not take anyone's internal notes with it.
+Durable state lives elsewhere and is keyed by `owner/name` plus issue number, not by a foreign key to `mirror_thread`. Work notes and attachment metadata survive mirror pruning and a full re-sync; attachment bytes live under the upload directory. That separation is what makes aggressive pruning safe. It also means a repaired or partially rebuilt mirror does not take anyone's internal notes with it.
 
-The cursor is derived rather than stored, which gives the mirror a useful self-healing property: drop the `mirror_github_*` tables and the next poll sees no newest `updated_at`, falls back to an unconditional listing, and repopulates. There is no separate cursor row to drift out of sync with the data it describes.
+The cursor is derived rather than stored, which gives the mirror a useful self-healing property: drop the `mirror_*` tables and the next poll sees no newest `updated_at`, falls back to an unconditional listing, and repopulates. There is no separate cursor row to drift out of sync with the data it describes.
 
 ## ETag polling and a derived cursor
 
@@ -55,7 +55,7 @@ Funnel's workflow vocabulary allows at most one label per group: status, priorit
 
 The decision rule is **latest added label wins**, read from the issue timeline's `labeled` events. The timeline is paginated and reduced to label names and timestamps. If the timeline has no `labeled` events for the contenders, or two candidates share the newest timestamp, the result is ambiguous.
 
-Ambiguity is not guessed at. `resolveIssueConflict` leaves the labels untouched, stores the deterministic projection for display, and sets `mirror_github_issue.label_conflict`. The UI can then warn that GitHub holds conflicting reserved labels. When the timeline is decisive, every obsolete label is deleted through the installation token and the metadata is recomputed from the survivors.
+Ambiguity is not guessed at. `resolveIssueConflict` leaves the labels untouched, stores the deterministic projection for display, and sets `mirror_thread.label_conflict`. The UI can then warn that GitHub holds conflicting reserved labels. When the timeline is decisive, every obsolete label is deleted through the installation token and the metadata is recomputed from the survivors.
 
 The deterministic projection matters: `deriveMetadata` must return something even when the label set is contradictory. It picks the first label in canonical order, but also reports the conflicting groups so callers know not to treat that choice as a resolution. Writes made through Funnel are group-aware (`withReserved` swaps the sibling rather than adding to it), so conflicts should be rare; the resolver exists for the cases where GitHub was edited elsewhere.
 

@@ -4,7 +4,7 @@ Funnel keeps its workflow state on GitHub itself, in a small reserved label voca
 
 ## Labels are the source of truth
 
-Funnel does not own the workflow. An issue's stage, priority, size, and blocked flag are ordinary GitHub labels, and GitHub remains authoritative for all of them. The local SQLite tables (`mirror_github_issue.status`, `.priority`, `.size`, `.blocked`) are a *cache*, computed when a mirrored issue is hydrated and recomputed when it is synced again. The schema comment says as much: `status`/`priority`/`size` are "derived caches of the reserved-label groups computed at sync time".
+Funnel does not own the workflow. An issue's stage, priority, size, and blocked flag are ordinary GitHub labels, and GitHub remains authoritative for all of them. The local SQLite tables (`mirror_thread.status`, `.priority`, `.size`, `.blocked`) are a *cache*, computed when a mirrored issue is hydrated and recomputed when it is synced again. The schema comment says as much: `status`/`priority`/`size` are "derived caches of the reserved-label groups computed at sync time".
 
 This is a deliberate inversion of the usual tracker design. Rather than Funnel holding state and publishing a read-only mirror to GitHub, Funnel reads its state *from* GitHub labels that anyone with repository access can see and change. Two consequences follow immediately: the workflow is visible and portable outside Funnel, and Funnel has to be robust to labels changing underneath it — including labels added by humans, other bots, or automation that has never heard of Funnel. That robustness is what most of the machinery described below exists to provide.
 
@@ -50,7 +50,7 @@ This matters because being blocked is information *about* work that is otherwise
 
 ## Milestones are repository metadata
 
-Milestones are not part of the reserved vocabulary. They are ordinary GitHub milestones, mirrored per repository in `mirror_github_milestone`, and they carry no workflow authority: an issue's stage, priority, size and blocked flag are still the labels. GitHub scopes a milestone to exactly one repository, so Funnel treats `owner/name` plus milestone number as the identity and never merges equal titles across repositories.
+Milestones are not part of the reserved vocabulary. They are ordinary GitHub milestones, mirrored per repository in `mirror_milestone`, and they carry no workflow authority: an issue's stage, priority, size and blocked flag are still the labels. GitHub scopes a milestone to exactly one repository, so Funnel treats `owner/name` plus milestone number as the identity and never merges equal titles across repositories.
 
 The cockpit uses milestones in three places: the **Milestones** view groups them by repository with progress and due dates, the issue feeds add a milestone filter and group-by dimension (`?milestone=owner/name#number`, `none` for unmilestoned issues), and the Inspector can set or clear an issue's milestone. The Inspector picker can create a milestone lazily in the issue's repository, which is the only milestone write Funnel performs; everything else is managed on GitHub.
 
@@ -94,7 +94,7 @@ Two durable Funnel concepts deliberately do *not* map to GitHub labels:
 - **Work notes** (`state_work_note`) are an internal journal. A note is never posted upstream unless explicitly published, and publishing *deletes* the note, turning it into a GitHub comment.
 - **Attachments** (`state_attachment`) are a dropbox: metadata in SQLite, bytes under `FUNNEL_UPLOAD_DIR`.
 
-Both are keyed by `owner/name` plus issue number rather than a foreign key to the disposable `mirror_github_issue`, so they survive mirror pruning and a re-sync. Both also snapshot author identity so they still render after the mirror's user table is rebuilt. This is the mirror image of the label model: labels are GitHub-owned and Funnel-cached; notes and attachments are Funnel-owned and GitHub-invisible. Keeping them out of the label vocabulary is what stops an internal note from becoming a change that other tools react to, and what lets Funnel own durable data that GitHub's label API has no place for. Each surface can be hidden in the current browser through its feature flag; there is no instance-wide switch for either.
+Both are keyed by `owner/name` plus issue number rather than a foreign key to the disposable `mirror_thread`, so they survive mirror pruning and a re-sync. Both also snapshot author identity so they still render after the mirror's user table is rebuilt. This is the mirror image of the label model: labels are GitHub-owned and Funnel-cached; notes and attachments are Funnel-owned and GitHub-invisible. Keeping them out of the label vocabulary is what stops an internal note from becoming a change that other tools react to, and what lets Funnel own durable data that GitHub's label API has no place for. Each surface can be hidden in the current browser through its feature flag; there is no instance-wide switch for either.
 
 ## Trade-offs: labels as state
 

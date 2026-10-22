@@ -116,7 +116,15 @@ beforeEach(async () => {
   setConfig({ ...TEST_CONFIG, repos: [{ repo: REPO_SLUG, shortcode: "CORE" }] });
   forge.resetCaches();
   globalThis.fetch = stubFetch as typeof fetch;
-  upsertRepo({ githubId: 1, org: OWNER, name: REPO, archived: false });
+  upsertRepo({
+    externalId: "1",
+    forge: "github",
+    instance: "github.com",
+    org: OWNER,
+    name: REPO,
+    url: `https://github.com/${REPO_SLUG}`,
+    archived: false,
+  });
   await seedViewer();
 });
 

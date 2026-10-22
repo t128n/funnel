@@ -41,11 +41,11 @@
 
 	// `assignee=me` is owned by `ViewSegment`, matching the Issues view.
 	const mine = $derived(page.url.searchParams.getAll('assignee').includes('me'));
-	const viewer = $derived(data.viewerGithubId ?? null);
+	const viewer = $derived(data.viewerExternalId ?? null);
 	const items = $derived(
 		mine
 			? data.attention.filter((item) =>
-					item.issue.assignees.some((person) => person.githubId === viewer)
+					item.issue.assignees.some((person) => person.externalId === viewer)
 				)
 			: data.attention
 	);

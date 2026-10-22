@@ -6,7 +6,7 @@ Definitions of the terms used across Funnel's reference documentation.
 
 **Funnel** — A self-hosted GitHub issue cockpit. It mirrors configured repositories into a local SQLite cache, provides inbox triage, issue feeds, a status board, an attention view and an issue Inspector, and exposes a public intake endpoint. It runs as a single long-lived Bun process. See the [project README](../../README.md).
 
-**Mirror** — Funnel's disposable local copy of GitHub repositories, issues, labels, comments and users, stored in the `mirror_github_*` tables. The mirror is rebuilt by sync, can be pruned by the history window or reconciliation, and is never the source of truth. See [Database schema](./database-schema.md#mirror-tables).
+**Mirror** — Funnel's disposable local copy of GitHub repositories, issues, labels, comments and users, stored in the `mirror_*` tables. The mirror is rebuilt by sync, can be pruned by the history window or reconciliation, and is never the source of truth. See [Database schema](./database-schema.md#mirror-tables).
 
 **Hydration** — Fetching the full issue payload for changed issue node ids in batched GraphQL queries (up to 100 ids per query) and writing the result into the mirror. Hydration supplies bodies, labels, assignees and the first page of comments that the REST change-detection poll does not carry. See [`hydrate.ts`](../../src/lib/server/sync/hydrate.ts).
 
@@ -24,7 +24,7 @@ Definitions of the terms used across Funnel's reference documentation.
 
 **Shortcode** — A short uppercase project key for a repository, at most six characters, used in compact issue references such as `FIT-12`. A configured `repos[].shortcode` wins; otherwise it is derived from the repository name (for example `funnel-issue-tracker` → `FIT`). Shortcodes are unique across configured repositories (enforced by config validation). See [`issue-ref.ts`](../../src/lib/issue-ref.ts).
 
-**Milestone** — A GitHub milestone, mirrored per repository in `mirror_github_milestone`. GitHub scopes a milestone to exactly one repository, so Funnel never merges equal titles across repositories; an issue references its milestone by number. The cockpit offers a read-only Milestones view, a milestone filter and group-by dimension, and a set-or-clear picker that can lazily create a milestone in the issue's repository. See [Use milestones](../how-to/use/milestones.md).
+**Milestone** — A GitHub milestone, mirrored per repository in `mirror_milestone`. GitHub scopes a milestone to exactly one repository, so Funnel never merges equal titles across repositories; an issue references its milestone by number. The cockpit offers a read-only Milestones view, a milestone filter and group-by dimension, and a set-or-clear picker that can lazily create a milestone in the issue's repository. See [Use milestones](../how-to/use/milestones.md).
 
 **Intake** — Funnel's public submission channel, available as the `/intake` form and `POST /api/intake`. Anonymous submissions are staged locally and nothing reaches GitHub until a triager accepts them. See [HTTP API](./http-api.md#public-surface).
 

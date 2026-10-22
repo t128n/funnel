@@ -12,8 +12,8 @@ import type { LayoutServerLoad } from "./$types";
  * route's actions.
  */
 export const load: LayoutServerLoad = async ({ url, parent }) => {
-  const { viewerGithubId } = await parent();
-  const filter = parseIssueFilter(url.searchParams, filterContext(viewerGithubId));
+  const { viewerExternalId } = await parent();
+  const filter = parseIssueFilter(url.searchParams, filterContext(viewerExternalId));
 
   // Submission bodies are anonymous, untrusted Markdown; render them to
   // sanitized HTML at the delivery boundary (SPEC §2.2).

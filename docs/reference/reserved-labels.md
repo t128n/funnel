@@ -52,7 +52,7 @@ If an issue carries more than one label from a group, the sync worker resolves t
 - The other labels in that group are deleted on GitHub, and the mirror's metadata is recomputed from the surviving labels.
 - Only reserved labels participate; other labels are ignored.
 
-A timeline is ambiguous when no `labeled` event exists for the conflicted group, or when two candidates tie for the newest timestamp. In that case Funnel removes nothing, leaves the labels untouched, and sets `mirror_github_issue.label_conflict` so the UI can flag the issue. While a conflict is unresolved, the read projection chooses the first label in canonical order.
+A timeline is ambiguous when no `labeled` event exists for the conflicted group, or when two candidates tie for the newest timestamp. In that case Funnel removes nothing, leaves the labels untouched, and sets `mirror_thread.label_conflict` so the UI can flag the issue. While a conflict is unresolved, the read projection chooses the first label in canonical order.
 
 ## Idempotent provisioning
 

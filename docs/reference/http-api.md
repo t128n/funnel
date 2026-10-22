@@ -143,11 +143,11 @@ Detail responses:
 | `issue` | `IssueListItem`: `repoId`, `repo`, `number`, `title`, `state`, `stateReason`, `status`, `priority`, `size`, `blocked`, `labelConflict`, `createdAt`, `updatedAt`, `closedAt`, `author`, `assignees`, `labels`, `milestone`. |
 | `body` | Raw Markdown body from the mirror. |
 | `bodyHtml` | Sanitised HTML rendered from `body`. |
-| `comments` | `RenderedComment[]`: `githubId`, `author`, `body`, `createdAt`, `bodyHtml`. |
+| `comments` | `RenderedComment[]`: `externalId`, `author`, `body`, `createdAt`, `bodyHtml`. |
 | `workNotes` | `RenderedWorkNote[]`: `id`, `author`, `body`, `createdAt`, `updatedAt`, `bodyHtml`. |
 | `attachments` | `AttachmentItem[]`: `id`, `filename`, `mimeType`, `sizeBytes`, `uploadedBy`, `createdAt`. |
 | `repoLabels` | `{ "name": string, "color": string }[]`. |
-| `assigneeOptions` | `UserRef[]`: `githubId`, `login`, `avatarUrl`. |
+| `assigneeOptions` | `UserRef[]`: `externalId`, `forge`, `instance`, `login`, `avatarUrl`. |
 | `milestoneOptions` | `RepoMilestoneRef[]`: `repo`, `number`, `title`, `state`, `dueOn`. |
 
 `author` and `uploadedBy` are `UserRef` objects or `null` — as are `comments[].author` and `workNotes[].author` when the mirror cannot resolve the person — while entries in `assignees` are always `UserRef` objects. Markdown is rendered with the server's sanitised renderer at the delivery boundary; the raw body is retained for the Inspector's editors.

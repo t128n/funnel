@@ -160,7 +160,7 @@ export async function assignToMe(
   issue: IssueListItem,
   viewer: UserRef,
 ): Promise<boolean> {
-  if (issue.assignees.some((person) => person.githubId === viewer.githubId)) {
+  if (issue.assignees.some((person) => person.externalId === viewer.externalId)) {
     return true;
   }
   const assignees = [...issue.assignees, viewer];
@@ -185,11 +185,11 @@ export async function unassignFromMe(
   issue: IssueListItem,
   viewer: UserRef,
 ): Promise<boolean> {
-  if (!issue.assignees.some((person) => person.githubId === viewer.githubId)) {
+  if (!issue.assignees.some((person) => person.externalId === viewer.externalId)) {
     return true;
   }
   const assignees = issue.assignees.filter(
-    (person) => person.githubId !== viewer.githubId,
+    (person) => person.externalId !== viewer.externalId,
   );
   const result = await mutate({
     key: overlayKey(issue.repo, issue.number),

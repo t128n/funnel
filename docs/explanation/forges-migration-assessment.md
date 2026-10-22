@@ -11,9 +11,9 @@ The client swap is feasible and mostly mechanical. `forges` covers every GitHub 
 But replacing Octokit does **not** make Funnel independent of GitHub. Octokit is a thin transport dependency: it is imported at runtime in one file (`src/lib/server/github/app.server.ts`) and only as a type in four others. The actual coupling is the product model:
 
 - onboarding creates a GitHub App through the manifest flow, and sign-in is GitHub OAuth;
-- the mirror schema is `mirror_github_*` with numeric GitHub ids and node ids;
+- the mirror schema is `mirror_*` with text external ids scoped by `forge`/`instance`, plus GitHub node ids;
 - the public `/api/repos/...` surface returns raw GitHub REST bodies verbatim;
-- the domain and UI use `owner/repo`, `githubId`, `htmlUrl` and GitHub issue numbering.
+- the domain and UI use `owner/repo`, `externalId`, `url` and GitHub issue numbering.
 
 So there are two projects, not one:
 
@@ -72,16 +72,16 @@ Docs: `https://forges.link/llms.txt`, full text at `/llms-full.txt`. The package
 | Milestone `number`, `open_issues`, `closed_issues`, creator, created/updated/closed timestamps (Milestones view, progress, DB identity) | `Milestone` has `id`, `title`, `state`, `description`, `dueOn`, `url` only | Keep the milestone read on `provider.request()` for GitHub, or upstream the fields. Losing the counts is a visible product regression. |
 | Raw GitHub REST passthrough at `/api/repos/...` | Normalised model only; `provider.request()` can proxy but returns unnormalised bodies | Keep as a documented GitHub-only compatibility surface, or replace it with the normalised `/api/mirror/...` routes. |
 | GraphQL hydration | Only the **GitHub** provider has `graphql()` | Keep a GitHub branch for hydration; other forges use `threads.getMany` + `threads.comments` (more requests). |
-| `html_url`, `node_id`, `databaseId`, `github_id` in responses and DB | Model uses `url`, `ref.externalId`, keys | Schema/domain refactor. |
+| `html_url`, `node_id`, `databaseId`, `external_id` in responses and DB | Model uses `url`, `ref.externalId`, keys | Schema/domain refactor. |
 | Issues and PRs share numbering | Not true on every forge | Thread refs carry `kind` + `number`; PR-specific code must branch on kind. |
 
 ## Where the real coupling is
 
 1. **Onboarding** — `src/routes/onboarding/*`, `src/lib/server/github/manifest.ts`, `manifest-flow.server.ts`. Creates a GitHub App, stores `state_github_app`, redirects through install. There is no cross-forge equivalent; other forges need a different onboarding path (token, OAuth app, or app installation where the forge has one).
 2. **Sign-in** — `src/lib/server/auth/index.ts:83-101` registers Better Auth's `github` provider with `read:user` + `repo`. The identity, account id and token refresh are GitHub-specific. Forge-agnostic auth is a separate project.
-3. **Mirror schema** — `src/lib/server/db/schema.ts:233-411`: `mirror_github_repo/user/milestone/issue/repo_label/issue_label/issue_assignee/repo_assignee/comment`, plus `state_work_note.author_github_id` and `state_attachment.uploaded_by_github_id`. Needs `forge` + `instance` + `external_id`, and table renames/rebuilds in SQLite.
+3. **Mirror schema** — `src/lib/server/db/schema.ts`: `mirror_repo/user/milestone/thread/repo_label/thread_label/thread_assignee/repo_assignee/comment`, plus `state_work_note.author_external_id` and `state_attachment.uploaded_by_external_id`. The forge-neutral schema now carries `forge` + `instance` + `external_id` and `url`.
 4. **HTTP API** — `src/routes/api/repos/**` and `src/lib/server/github/api-passthrough.server.ts` deliberately proxy GitHub REST verbatim, including `Link` rewriting, `pull_request` filtering, ETag cache and GitHub rate-limit headers. A multi-forge API cannot keep that contract.
-5. **Domain and UI** — `issues/types.ts` (`githubId`, `RepoMilestoneRef`, `htmlUrl`), `lib/issue-url.ts`, `lib/issue-ref.ts`, `server/viewer.ts`, settings validation (`owner/name` regex), and every hard-coded `github.com` link.
+5. **Domain and UI** — `issues/types.ts` (`externalId`, `RepoMilestoneRef`, `url`), `lib/issue-url.ts`, `lib/issue-ref.ts`, `server/viewer.ts`, settings validation (`owner/name` regex), and every hard-coded `github.com` link.
 6. **Sync** — `sync/worker.ts`, `hydrate.ts`, `conflicts.ts`, `mirror.ts` assume GitHub REST + GraphQL node ids, `since`, ETag-as-304 and timeline label events. The algorithm ports, but the shapes and the tests do not.
 
 ## DX comparison: `forges` vs Octokit
@@ -95,13 +95,13 @@ Octokit is a typed HTTP client for one forge's raw API. `forges` is a normalised
 **Pagination and snake_case mapping.** Today every listing repeats the same loop, casts the body and renames fields. `labels.ts`, `assignees.ts`, `milestones.ts` and `conflicts.ts` each have their own copy, plus their own `Rest*` interface.
 
 ```ts
-// today — src/lib/server/github/assignees.ts
+// before — src/lib/server/github/assignees.ts
 for (let page = 1; ; page++) {
   const { data } = await octokit.request("GET /repos/{owner}/{repo}/assignees",
     { owner, repo, per_page: PER_PAGE, page })
   const items = data as unknown as RestAssignee[]
   for (const item of items) {
-    all.push({ githubId: item.id, login: item.login, avatarUrl: item.avatar_url ?? "" })
+    all.push({ externalId: String(item.id), login: item.login, avatarUrl: item.avatar_url ?? "" })
   }
   if (items.length < PER_PAGE) break
 }
@@ -203,8 +203,8 @@ Replace `app.server.ts` with a provider factory and port `labels.ts`, `milestone
 
 ### Phase B — forge-neutral domain (2–4 weeks)
 
-1. Schema: add `forge` and `instance` to mirror and durable state; rename `github_id` → `external_id`; add `url`; migrate `mirror_github_*` → `mirror_*` with table rebuilds and a data migration.
-2. Domain: `UserRef.githubId` → `externalId` + `forge`; `Thread`/`Repo` refs instead of `owner/name`; `htmlUrl` → `url`.
+1. Schema: add `forge` and `instance` to mirror and durable state; use text `external_id`; add `url`; build the forge-neutral `mirror_*` tables (implemented).
+2. Domain: `UserRef` carries `externalId` + `forge` + `instance`; `Thread`/`Repo` refs instead of `owner/name`; `url` instead of `htmlUrl`.
 3. Queries and routes: `/api/...` carries `forge`/`instance`; `parseUrl()` for pasted links; `urlFor()` for links.
 4. Sync: feature-detect with `provider.can(verb, kind)`; fall back to `threads.getMany` + `comments` where `graphql()` is unavailable.
 5. Tests: query/route tests move to `forges/fake`.
@@ -248,7 +248,7 @@ As of 2026-10-22, **Phase A (transport swap) is implemented** on `superlite/forg
 - `app.server.ts` is reduced to `installationErrorResponse`; GraphQL hydration still uses GitHub's `provider.graphql()`.
 - Verification: 501 tests pass, `svelte-check` reports 0 errors/0 warnings, and the adapter-node build succeeds with the usual environment variables.
 
-Phase A deliberately keeps the GitHub-shaped product model: `mirror_github_*` tables with numeric `github_id` columns, GitHub App manifest onboarding, GitHub OAuth sign-in, and `/api/repos/...` mirroring GitHub REST. Phases B–D in the plan above are still open. The final review of the transport slice raised two issues that were fixed (rate-limit reset metadata on passthrough errors; partial-write reporting) and three accepted as known gaps: `forges` error objects carry no response headers beyond `RateLimit`, `updateIssue` can partially apply across several requests, and the sync fakes are not yet backed by recorded real-forge fixtures.
+Phase A deliberately kept the GitHub-shaped product model. Phase B now uses forge-neutral `mirror_*` tables with `forge`/`instance`/`external_id` and `url`, and the domain and UI carry `externalId`/`url`. GitHub App manifest onboarding, GitHub OAuth sign-in and `/api/repos/...` mirroring GitHub REST remain; Phases C–D in the plan above are still open. The final review of the transport slice raised two issues that were fixed (rate-limit reset metadata on passthrough errors; partial-write reporting) and three accepted as known gaps: `forges` error objects carry no response headers beyond `RateLimit`, `updateIssue` can partially apply across several requests, and the sync fakes are not yet backed by recorded real-forge fixtures.
 
 ## Sources
 

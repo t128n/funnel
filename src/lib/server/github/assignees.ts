@@ -22,15 +22,17 @@ export async function listRepoAssignees(
   repo: string,
 ): Promise<UserRecord[]> {
   const all: UserRecord[] = [];
-  for await (const actor of provider.repos.assignableUsers(
-    forge.repoRef(owner, repo),
-  )) {
-    const githubId = Number(actor.id);
-    if (!Number.isInteger(githubId)) continue;
+  const ref = forge.repoRef(owner, repo);
+  for await (const actor of provider.repos.assignableUsers(ref)) {
+    if (actor.id.length === 0) continue;
     all.push({
-      githubId,
+      id: 0,
+      externalId: actor.id,
+      forge: "github",
+      instance: ref.instance,
       login: actor.login,
       avatarUrl: actor.avatarUrl ?? "",
+      url: actor.url ?? "",
     });
   }
   return all;

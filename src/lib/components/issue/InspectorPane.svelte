@@ -236,7 +236,9 @@
 	function localAssignee(login: string): UserRef {
 		return (
 			assigneeOptions.find((u) => u.login === login) ?? {
-				githubId: 0,
+				externalId: '',
+				forge: '',
+				instance: '',
 				login,
 				avatarUrl: ''
 			}

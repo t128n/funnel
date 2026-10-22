@@ -87,7 +87,7 @@
 		item.needs ? `${item.blocker} — needs: ${item.needs}` : item.blocker || 'Blocked'
 	);
 	const assignedToViewer = $derived(
-		viewer != null && issue.assignees.some((person) => person.githubId === viewer.githubId)
+		viewer != null && issue.assignees.some((person) => person.externalId === viewer.externalId)
 	);
 
 	const quickDates = $derived(quickRecheckDates(today));
@@ -173,7 +173,7 @@
 
 		{#if issue.assignees.length > 0}
 			<div class="hidden shrink-0 items-center -space-x-1.5 sm:flex">
-				{#each issue.assignees.slice(0, 3) as person (person.githubId)}
+				{#each issue.assignees.slice(0, 3) as person (person.externalId)}
 					<Avatar login={person.login} avatarUrl={person.avatarUrl} size={16} />
 				{/each}
 			</div>
