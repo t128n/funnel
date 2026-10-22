@@ -10,7 +10,7 @@
  * is always REST via the installation provider — GraphQL only pays off
  * for batched sync hydration, not per-request serving.
  */
-import { ForgeApiError } from "forges";
+import { ForgeApiError, RateLimitedError } from "forges";
 import type { GitHubProvider } from "forges/github";
 import { getConfig } from "#/lib/server/config";
 import {
@@ -256,7 +256,16 @@ export async function passthrough(
       const retryAfter = header(uh, "retry-after");
       const rateReset = header(uh, "x-ratelimit-reset");
       if (retryAfter) headers["Retry-After"] = retryAfter;
-      if (rateReset) headers["X-RateLimit-Reset"] = rateReset;
+      // `forges` errors carry no response headers, so aside from the fields we
+      // can reconstruct, upstream headers are unavailable here. Errors that
+      // include them (e.g. a plain Octokit error) still pass them through.
+      const resetAt = e instanceof RateLimitedError ? e.resetAt : undefined;
+      const resetSeconds =
+        resetAt instanceof Date && !Number.isNaN(resetAt.getTime())
+          ? String(Math.floor(resetAt.getTime() / 1000))
+          : null;
+      const effectiveReset = rateReset ?? resetSeconds;
+      if (effectiveReset) headers["X-RateLimit-Reset"] = effectiveReset;
       return { status, body, headers };
     }
 

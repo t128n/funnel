@@ -14,10 +14,7 @@
  */
 import type { Thread, ThreadInput, ThreadRef, ThreadUpdate } from "forges";
 import { getConfig, isConfiguredRepo } from "#lib/server/config";
-import {
-  forge,
-  type GitHubProvider,
-} from "#lib/server/forge/providers.server";
+import { forge, type GitHubProvider } from "#lib/server/forge/providers.server";
 import {
   errorMessage,
   errorStatus,
@@ -27,7 +24,12 @@ import { createLogger } from "#lib/server/log";
 import { CANONICAL_LABELS, type LabelGroup } from "#lib/server/github/labels";
 import { createRepoMilestone } from "#lib/server/github/milestones";
 import { publish } from "#lib/server/sync/events";
-import { groupOf, PRIORITY_VALUES, SIZE_VALUES, STATUS_VALUES } from "./filters";
+import {
+  groupOf,
+  PRIORITY_VALUES,
+  SIZE_VALUES,
+  STATUS_VALUES,
+} from "./filters";
 
 const log = createLogger({ component: "issues" });
 
@@ -259,7 +261,11 @@ export async function createIssue(
       { repo: input.repo, err: errorMessage(error) },
       "create issue failed",
     );
-    return { ok: false, status: errorStatus(error), message: errorMessage(error) };
+    return {
+      ok: false,
+      status: errorStatus(error),
+      message: errorMessage(error),
+    };
   }
 
   const number = Number(created.ref.number);
@@ -367,7 +373,11 @@ export async function updateIssue(
         labels = withReserved(labels, "size", input.size);
       }
       if (input.blocked !== undefined) {
-        labels = withReserved(labels, "flags", input.blocked ? "blocked" : null);
+        labels = withReserved(
+          labels,
+          "flags",
+          input.blocked ? "blocked" : null,
+        );
       }
       const replaced = await replaceIssueLabels(input.provider, ref, labels);
       if (replaced) htmlUrl = replaced;
@@ -381,7 +391,13 @@ export async function updateIssue(
       },
       "update issue failed",
     );
-    return { ok: false, status: errorStatus(error), message: errorMessage(error) };
+    // This path may have made several writes (update, close, milestone,
+    // labels); earlier ones are already applied when a later one fails.
+    return {
+      ok: false,
+      status: errorStatus(error),
+      message: `${errorMessage(error)} (some changes may already have been applied)`,
+    };
   }
 
   publish({ type: "issues", repo: input.repo, numbers: [input.number] });
@@ -426,7 +442,11 @@ export async function addIssueLabels(
       { repo: input.repo, number: input.number, err: errorMessage(error) },
       "add labels failed",
     );
-    return { ok: false, status: errorStatus(error), message: errorMessage(error) };
+    return {
+      ok: false,
+      status: errorStatus(error),
+      message: errorMessage(error),
+    };
   }
 
   publish({ type: "issues", repo: input.repo, numbers: [input.number] });
@@ -456,7 +476,11 @@ export async function removeIssueLabel(
       { repo: input.repo, number: input.number, err: errorMessage(error) },
       "remove label failed",
     );
-    return { ok: false, status: errorStatus(error), message: errorMessage(error) };
+    return {
+      ok: false,
+      status: errorStatus(error),
+      message: errorMessage(error),
+    };
   }
 
   publish({ type: "issues", repo: input.repo, numbers: [input.number] });
@@ -487,7 +511,11 @@ export async function addIssueComment(
       { repo: input.repo, number: input.number, err: errorMessage(error) },
       "add comment failed",
     );
-    return { ok: false, status: errorStatus(error), message: errorMessage(error) };
+    return {
+      ok: false,
+      status: errorStatus(error),
+      message: errorMessage(error),
+    };
   }
 
   const id = comment.ref?.id ?? comment.id;
@@ -537,6 +565,10 @@ export async function createMilestone(
       { repo: input.repo, err: errorMessage(error) },
       "create milestone failed",
     );
-    return { ok: false, status: errorStatus(error), message: errorMessage(error) };
+    return {
+      ok: false,
+      status: errorStatus(error),
+      message: errorMessage(error),
+    };
   }
 }

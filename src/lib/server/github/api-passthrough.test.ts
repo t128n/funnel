@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, test } from "bun:test";
-import { ForgeApiError } from "forges";
+import { ForgeApiError, RateLimitedError } from "forges";
 import {
   passthrough,
   rewriteLink,
@@ -321,6 +321,31 @@ describe("passthrough errors", () => {
     });
     expect(res.headers["Retry-After"]).toBeUndefined();
     expect(res.headers["X-RateLimit-Reset"]).toBeUndefined();
+  });
+
+  test("RateLimitedError resetAt becomes X-RateLimit-Reset unix seconds", async () => {
+    const resetAt = new Date("2026-01-02T03:04:05.000Z");
+    const res = await passthrough(
+      provider(
+        fail(
+          new RateLimitedError(
+            "Rate limited",
+            429,
+            JSON.stringify({ message: "API rate limit exceeded" }),
+            { resetAt },
+          ),
+        ),
+      ),
+      7,
+      "/repos/o/r/issues",
+      Q(),
+      null,
+      {},
+    );
+    expect(res.status).toBe(429);
+    expect(res.headers["X-RateLimit-Reset"]).toBe(
+      String(Math.floor(resetAt.getTime() / 1000)),
+    );
   });
 
   test("status without response payload yields generic message", async () => {

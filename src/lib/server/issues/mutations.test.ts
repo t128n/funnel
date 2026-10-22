@@ -55,10 +55,7 @@ function stubProvider(options: StubOptions = {}): {
 
   const provider = {
     threads: {
-      create: async (
-        repo: { owner: string; name: string },
-        input: unknown,
-      ) => {
+      create: async (repo: { owner: string; name: string }, input: unknown) => {
         calls.push({ op: "create", args: [repo, input] });
         fail("create");
         return issueThread(
@@ -161,11 +158,9 @@ describe("normalizeReserved", () => {
 
 describe("withReserved", () => {
   test("swaps the sibling in the group", () => {
-    expect(withReserved(["todo", "bug", "p2"], "status", "in-progress")).toEqual([
-      "bug",
-      "p2",
-      "in-progress",
-    ]);
+    expect(
+      withReserved(["todo", "bug", "p2"], "status", "in-progress"),
+    ).toEqual(["bug", "p2", "in-progress"]);
   });
 
   test("clears the group when the target is null", () => {
@@ -233,7 +228,11 @@ describe("createIssue", () => {
       assignees: ["octocat"],
     });
     expect(events).toContainEqual(
-      expect.objectContaining({ type: "issues", repo: "orgA/core", numbers: [42] }),
+      expect.objectContaining({
+        type: "issues",
+        repo: "orgA/core",
+        numbers: [42],
+      }),
     );
   });
 
@@ -267,7 +266,11 @@ describe("createIssue", () => {
       repo: "orgA/core",
       title: "Bad",
     });
-    expect(result).toEqual({ ok: false, status: 422, message: "Validation Failed" });
+    expect(result).toEqual({
+      ok: false,
+      status: 422,
+      message: "Validation Failed",
+    });
   });
 });
 
@@ -310,7 +313,11 @@ describe("updateIssue", () => {
     expect(calls[0].op).toBe("close");
     expect(calls[0].args[1]).toMatchObject({ reason: "completed" });
     expect(events).toContainEqual(
-      expect.objectContaining({ type: "issues", repo: "orgA/core", numbers: [5] }),
+      expect.objectContaining({
+        type: "issues",
+        repo: "orgA/core",
+        numbers: [5],
+      }),
     );
   });
 
@@ -442,7 +449,11 @@ describe("updateIssue", () => {
 
   test("rejects an empty update", async () => {
     const { provider } = stubProvider();
-    const result = await updateIssue({ provider, repo: "orgA/core", number: 5 });
+    const result = await updateIssue({
+      provider,
+      repo: "orgA/core",
+      number: 5,
+    });
     expect((result as { status: number }).status).toBe(400);
   });
 
@@ -459,7 +470,32 @@ describe("updateIssue", () => {
       number: 5,
       title: "x",
     });
-    expect(result).toEqual({ ok: false, status: 403, message: "Forbidden" });
+    expect(result).toEqual({
+      ok: false,
+      status: 403,
+      message: "Forbidden (some changes may already have been applied)",
+    });
+  });
+
+  test("warns that earlier writes may have been applied when setLabels fails", async () => {
+    const { provider, calls } = stubProvider({
+      fail: {
+        op: "setLabels",
+        error: Object.assign(new Error("Unprocessable"), { status: 422 }),
+      },
+    });
+    const result = await updateIssue({
+      provider,
+      repo: "orgA/core",
+      number: 5,
+      title: "Renamed",
+      status: "in-progress",
+    });
+    expect(result.ok).toBe(false);
+    expect((result as { message: string }).message).toContain(
+      "(some changes may already have been applied)",
+    );
+    expect(ops(calls)).toEqual(["update", "get", "setLabels"]);
   });
 });
 
@@ -516,7 +552,11 @@ describe("addIssueLabels", () => {
       number: 5,
       labels: ["bug"],
     });
-    expect(result).toEqual({ ok: false, status: 422, message: "Unprocessable" });
+    expect(result).toEqual({
+      ok: false,
+      status: 422,
+      message: "Unprocessable",
+    });
   });
 });
 
@@ -569,7 +609,10 @@ describe("addIssueComment", () => {
 
     expect(result).toEqual({
       ok: true,
-      value: { id: 9, htmlUrl: "https://github.com/orgA/core/issues/5#issuecomment-9" },
+      value: {
+        id: 9,
+        htmlUrl: "https://github.com/orgA/core/issues/5#issuecomment-9",
+      },
     });
     expect(calls[0].op).toBe("createComment");
     expect(calls[0].args[1]).toBe("hello");
@@ -579,7 +622,9 @@ describe("addIssueComment", () => {
     const { provider } = stubProvider({
       fail: {
         op: "createComment",
-        error: Object.assign(new Error("Resource not accessible"), { status: 403 }),
+        error: Object.assign(new Error("Resource not accessible"), {
+          status: 403,
+        }),
       },
     });
     const result = await addIssueComment({
