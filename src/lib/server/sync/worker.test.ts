@@ -1,7 +1,17 @@
 import { afterEach, beforeEach, describe, expect, spyOn, test } from "bun:test";
 import type { ForgeEvent, Thread, ThreadQuery } from "forges";
 import { setConfig } from "#/lib/server/config";
-import { forge } from "#/lib/server/forge/providers.server";
+import { db } from "#lib/server/db/index";
+import {
+  authAccount,
+  authUser,
+  mirrorUser,
+  stateIssueWatch,
+  stateNotification,
+} from "#lib/server/db/schema";
+import { forge } from "#lib/server/forge/providers.server";
+import { watchIssue } from "#lib/server/notifications/service";
+import { clearSettings } from "#lib/server/settings/store";
 import { TEST_CONFIG } from "#tests/test-config";
 import { clearMirror } from "#tests/mirror-helpers";
 import { resetEventBus, subscribe } from "./events";
@@ -180,6 +190,45 @@ function issueNode(overrides: Record<string, unknown> = {}) {
   };
 }
 
+/** Seed a linked Funnel user plus the mirror identity notifications resolve. */
+function seedNotificationUser(
+  id: string,
+  externalId: string,
+  login: string,
+): void {
+  const now = new Date();
+  db.insert(authUser)
+    .values({
+      id,
+      name: login,
+      email: `${login}@example.com`,
+      role: "read",
+      createdAt: now,
+      updatedAt: now,
+    })
+    .run();
+  db.insert(authAccount)
+    .values({
+      id: `account-${id}`,
+      accountId: externalId,
+      providerId: "github",
+      userId: id,
+      createdAt: now,
+      updatedAt: now,
+    })
+    .run();
+  db.insert(mirrorUser)
+    .values({
+      externalId,
+      forge: "github",
+      instance: "github.com",
+      login,
+      avatarUrl: "",
+      url: "",
+    })
+    .run();
+}
+
 const NULL_METADATA = {
   status: null,
   impact: null,
@@ -192,6 +241,7 @@ const NULL_METADATA = {
 
 beforeEach(() => {
   clearMirror();
+  clearSettings();
   resetEventBus();
   stopSyncWorker();
   setConfig(TEST_CONFIG);
@@ -548,6 +598,13 @@ describe("runRepoCycle", () => {
 });
 
 describe("refreshIssue", () => {
+  afterEach(() => {
+    db.delete(stateNotification).run();
+    db.delete(stateIssueWatch).run();
+    db.delete(authAccount).run();
+    db.delete(authUser).run();
+  });
+
   test("hydrates a single issue and publishes an event", async () => {
     const events: unknown[] = [];
     subscribe((e) => events.push(e));
@@ -559,6 +616,29 @@ describe("refreshIssue", () => {
     expect(events).toEqual([
       { type: "issues", repo: "orgA/core", numbers: [1] },
     ]);
+  });
+
+  test("passes the actor through and suppresses their own notice", async () => {
+    db.delete(stateNotification).run();
+    db.delete(stateIssueWatch).run();
+    db.delete(authAccount).run();
+    db.delete(authUser).run();
+    seedNotificationUser("w1", "42", "wanda");
+    seedNotificationUser("a1", "7", "amy");
+    watchIssue("w1", "orgA", "core", 1);
+    watchIssue("a1", "orgA", "core", 1);
+
+    nodes = [issueNode({ labels: { nodes: [{ name: "todo" }] } })];
+    await refreshIssue("orgA", "core", 1);
+
+    nodes = [issueNode({ labels: { nodes: [{ name: "in-progress" }] } })];
+    await refreshIssue("orgA", "core", 1, "a1");
+    // A re-poll of the same change must not repeat the notice.
+    await refreshIssue("orgA", "core", 1, "a1");
+
+    const rows = db.select().from(stateNotification).all();
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ userId: "w1", kind: "status" });
   });
 });
 

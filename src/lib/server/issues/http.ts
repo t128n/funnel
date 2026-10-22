@@ -54,8 +54,9 @@ export function scheduleRefresh(
   owner: string,
   repo: string,
   number: number,
+  actorUserId?: string,
 ): void {
-  void refreshIssue(owner, repo, number).catch((error) => {
+  void refreshIssue(owner, repo, number, actorUserId).catch((error) => {
     log.warn(
       { repo: `${owner}/${repo}`, number, err: errorMessage(error) },
       "post-write refresh failed",

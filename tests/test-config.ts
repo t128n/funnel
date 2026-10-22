@@ -22,6 +22,7 @@ export const TEST_CONFIG: FunnelConfig = {
   },
   board: { done_days: 14, wip_limits: {} },
   session: { idle_days: 30 },
+  notifications: { enabled: true, native: true, new_intake: true },
 };
 
 /** A GitHub Enterprise config for exercising the dynamic host wiring. */

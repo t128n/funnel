@@ -2,6 +2,7 @@ import { getIssueDetail } from "#lib/server/issues/queries";
 import type { RenderedIssueDetail } from "#lib/server/issues/types";
 import { apiRole } from "#lib/server/http/session";
 import { renderMarkdown } from "#lib/server/markdown/render";
+import { isWatching } from "#lib/server/notifications/service";
 import { getRepoByOrgName } from "#lib/server/sync/mirror";
 import type { RequestHandler } from "./$types";
 
@@ -12,8 +13,8 @@ import type { RequestHandler } from "./$types";
  * from. Requires a signed-in `read` session, like every other cockpit read.
  */
 export const GET: RequestHandler = ({ params, locals }) => {
-  const denied = apiRole(locals, "read");
-  if (denied instanceof Response) return denied;
+  const userId = apiRole(locals, "read");
+  if (userId instanceof Response) return userId;
 
   const repo = getRepoByOrgName(params.owner, params.repo);
   if (!repo) {
@@ -42,6 +43,7 @@ export const GET: RequestHandler = ({ params, locals }) => {
   // raw body is preserved for the Inspector's inline editors (SPEC §2.2).
   const payload: RenderedIssueDetail = {
     ...detail,
+    watching: isWatching(userId, repo.org, repo.name, number),
     bodyHtml: renderMarkdown(detail.body),
     comments: detail.comments.map((comment) => ({
       ...comment,

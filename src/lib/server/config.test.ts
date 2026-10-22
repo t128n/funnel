@@ -25,6 +25,7 @@ const BASE: SettingsInput = {
   },
   board: { done_days: 14, wip_limits: {} },
   session: { idle_days: 30 },
+  notifications: { enabled: true, native: true, new_intake: true },
 };
 
 /** Write settings to the in-memory `state_setting` table. */
@@ -75,6 +76,7 @@ describe("loadFunnelConfig", () => {
       },
       board: { done_days: 7, wip_limits: { "in-progress": 3 } },
       session: { idle_days: 1 },
+      notifications: { enabled: true, native: true, new_intake: true },
     });
   });
 
@@ -87,6 +89,7 @@ describe("loadFunnelConfig", () => {
     expect(config.sync).toEqual(DEFAULT_CONFIG.sync);
     expect(config.board).toEqual(DEFAULT_CONFIG.board);
     expect(config.session).toEqual(DEFAULT_CONFIG.session);
+    expect(config.notifications).toEqual(DEFAULT_CONFIG.notifications);
     expect(config.intake).toEqual({});
   });
 

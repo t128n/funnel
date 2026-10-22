@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { page } from "$app/state";
-	import BellIcon from "@lucide/svelte/icons/bell";
+	import AlarmClockIcon from "@lucide/svelte/icons/alarm-clock";
+	import BellRingIcon from "@lucide/svelte/icons/bell-ring";
 	import CircleDotIcon from "@lucide/svelte/icons/circle-dot";
 	import FunnelIcon from "@lucide/svelte/icons/funnel";
 	import InboxIcon from "@lucide/svelte/icons/inbox";
@@ -37,6 +38,8 @@
 		dueCount?: number;
 		/** Pending submissions + untriaged issues, for the Inbox badge. */
 		inboxCount?: number;
+		/** The viewer's unread notifications, for the Notifications badge. */
+		unreadNotifications?: number;
 		/** Focus the shared search; wired to the global `Mod+K` / `/`. */
 		onSearch?: () => void;
 		/** Open the new-issue flow; wired to the global `C`. */
@@ -48,6 +51,7 @@
 		user,
 		dueCount = 0,
 		inboxCount = 0,
+		unreadNotifications,
 		onSearch,
 		onNewIssue,
 		collapsible = "icon",
@@ -55,6 +59,14 @@
 	}: Props = $props();
 
 	const path = $derived(page.url.pathname);
+	// The layout load owns the count. The prop lets a parent pass it explicitly;
+	// otherwise read the same field from the shared page data, so the badge still
+	// updates after `invalidateAll()` without a second data path.
+	const unread = $derived(
+		unreadNotifications ??
+			(page.data as { unreadNotifications?: number }).unreadNotifications ??
+			0
+	);
 	// `assignee=me` scopes the Issues feed to the viewer. It is the only
 	// personal variant of a shared view, so Issues yields its highlight to it.
 	const mine = $derived(
@@ -66,6 +78,7 @@
 	const boardActive = $derived(viewOf(path) === "board");
 	const milestonesActive = $derived(path.startsWith("/milestones"));
 	const attentionActive = $derived(path.startsWith("/attention"));
+	const notificationsActive = $derived(path.startsWith("/notifications"));
 	const workspaceCollapsed = $derived(isWorkspaceCollapsed());
 	// `read` viewers may browse but not start the new-issue flow.
 	const mayWrite = $derived(canWrite(user.role));
@@ -81,9 +94,16 @@
 		},
 		{ href: "/issues?assignee=me", label: "My Issues", icon: UserIcon, active: mine },
 		{
+			href: "/notifications",
+			label: "Notifications",
+			icon: BellRingIcon,
+			active: notificationsActive,
+			badge: unread
+		},
+		{
 			href: "/attention",
 			label: "Attention",
-			icon: BellIcon,
+			icon: AlarmClockIcon,
 			active: attentionActive,
 			badge: dueCount,
 			tone: "destructive"

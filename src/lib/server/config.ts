@@ -106,6 +106,11 @@ export const DEFAULT_CONFIG = {
   session: {
     idle_days: 30,
   },
+  notifications: {
+    enabled: true,
+    native: true,
+    new_intake: true,
+  },
 };
 
 export const configSchema = v.pipe(
@@ -143,6 +148,11 @@ export const configSchema = v.pipe(
     }),
     session: v.object({
       idle_days: count("session.idle_days"),
+    }),
+    notifications: v.object({
+      enabled: v.boolean("notifications.enabled must be a boolean"),
+      native: v.boolean("notifications.native must be a boolean"),
+      new_intake: v.boolean("notifications.new_intake must be a boolean"),
     }),
   }),
   v.check(

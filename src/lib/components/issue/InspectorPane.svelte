@@ -31,6 +31,7 @@
 		publishWorkNote,
 		removeIssueLabel,
 		reopenIssue,
+		setIssueWatching,
 		unblockIssue,
 		updateIssue,
 		updateWorkNote,
@@ -87,6 +88,7 @@
 	import CircleUserIcon from '@lucide/svelte/icons/circle-user';
 	import CopyIcon from '@lucide/svelte/icons/copy';
 	import ExternalLinkIcon from '@lucide/svelte/icons/external-link';
+	import EyeIcon from '@lucide/svelte/icons/eye';
 	import RulerIcon from '@lucide/svelte/icons/ruler';
 	import TagIcon from '@lucide/svelte/icons/tag';
 	import XIcon from '@lucide/svelte/icons/x';
@@ -108,6 +110,9 @@
 	let loading = $state(false);
 	let error = $state<string | null>(null);
 	let busy = $state<string | null>(null);
+	/** Whether the viewer watches this issue (T5 surfaces it on the detail). */
+	let watching = $state(false);
+	let watchBusy = $state(false);
 
 	/** Structured close/reopen dialog (SPEC §5.2.3). */
 	let dialogMode = $state<'close' | 'reopen' | null>(null);
@@ -239,6 +244,7 @@
 			reconcileIssues([result.value.issue]);
 			const projected = projectDetail(result.value) ?? result.value;
 			detail = projected;
+			watching = projected.watching;
 			title = projected.issue.title;
 			const split = splitFunnelMetadata(projected.body);
 			body = split.content;
@@ -640,6 +646,24 @@
 		await runPatch({ assignees: logins }, 'assignees');
 	}
 
+	/**
+	 * Watch/unwatch this issue. Watching is personal (not an issue field), so it
+	 * bypasses the optimistic overlay and refetches nothing: the next SSE refresh
+	 * re-reads the same server-computed flag.
+	 */
+	async function toggleWatch() {
+		if (watchBusy) return;
+		const next = !watching;
+		watchBusy = true;
+		const result = await setIssueWatching(repo, number, next);
+		watchBusy = false;
+		if (!result.ok) {
+			notifyFailure(next ? 'Could not watch issue' : 'Could not unwatch issue', result.error);
+			return;
+		}
+		watching = result.value?.watching ?? next;
+	}
+
 	async function setLabels(next: string[]) {
 		if (!detail) return;
 		const current = new Set(selectedLabels);
@@ -1029,6 +1053,27 @@
 			>
 				<BanIcon class="size-3.5" />
 				Blocked
+			</button>
+
+			<button
+				class={selectTriggerClass(
+					'pill',
+					cn(
+						'gap-1.5',
+						watching && 'text-foreground border-[color:var(--surface-accent)]'
+					)
+				)}
+				onclick={() => void toggleWatch()}
+				disabled={watchBusy || !canEdit}
+				title={watching ? 'Stop watching this issue' : 'Watch this issue'}
+				aria-pressed={watching}
+			>
+				{#if watchBusy}
+					<Spinner size={12} />
+				{:else}
+					<EyeIcon class="size-3.5" />
+				{/if}
+				{watching ? 'Watching' : 'Watch'}
 			</button>
 
 			<SingleSelect

@@ -45,6 +45,46 @@ Staged public intake submissions, newest first in the Inbox. A triage decision d
 
 Primary key: `id`. Foreign keys: none. Indexes: none; listing orders by `created_at DESC, rowid DESC` to break same-millisecond ties.
 
+### `state_notification`
+
+Per-user notification rows. Each row snapshots everything the notification center renders, including the title, body and actor, so reading the feed never depends on the disposable mirror. Rows are durable; read state is tracked and there is no automatic expiry.
+
+| Column | Type | Constraints / notes |
+| :--- | :--- | :--- |
+| `id` | TEXT | Primary key; UUID. |
+| `user_id` | TEXT | Not null; the recipient's `auth_user.id`, not a foreign key. |
+| `kind` | TEXT | Not null; `assigned`, `mentioned`, `comment`, `status`, `priority`, `state` or `new_intake`. |
+| `dedupe_key` | TEXT | Not null; names the GitHub event or intake submission that produced the row, for example `status:org/name#7:<userId>:<event>`. Unique across all users. |
+| `title` | TEXT | Not null, default `''`. |
+| `body` | TEXT | Not null, default `''`; a 140-character excerpt for comments and mentions. |
+| `url` | TEXT | Not null, default `''`; `/issues/{owner}/{repo}/{number}` or `/inbox/submission/{id}`. |
+| `actor_login` | TEXT | Nullable; snapshotted GitHub login. |
+| `actor_avatar_url` | TEXT | Nullable; snapshotted avatar URL. |
+| `created_at` | INTEGER | Not null, Unix ms. |
+| `read_at` | INTEGER | Nullable, Unix ms; `null` means unread. |
+
+Primary key: `id`. Foreign keys: none; the recipient id and actor identity are deliberately snapshotted. Indexes:
+
+- `uq_state_notification_dedupe` unique on `(dedupe_key)`.
+- `idx_state_notification_user_created` on `(user_id, created_at)`.
+- `idx_state_notification_user_read` on `(user_id, read_at)`.
+
+### `state_issue_watch`
+
+Which Funnel user watches which issue. The issue identity is the durable `org/name` plus number rather than a mirror foreign key, so watches survive mirror pruning and a re-sync.
+
+| Column | Type | Constraints / notes |
+| :--- | :--- | :--- |
+| `user_id` | TEXT | Not null; the watcher's `auth_user.id`, not a foreign key. |
+| `org` | TEXT | Not null; repository owner. |
+| `name` | TEXT | Not null; repository name. |
+| `issue_number` | INTEGER | Not null. |
+| `created_at` | INTEGER | Not null, Unix ms. |
+
+Primary key: `(user_id, org, name, issue_number)`. Foreign keys: none. Indexes:
+
+- `idx_state_issue_watch_issue` on `(org, name, issue_number)`.
+
 ### `state_setting`
 
 Normalised instance settings as JSON-encoded key/value rows. Lists (`repos`, `projects`) are stored under one key as a JSON array.
@@ -57,7 +97,7 @@ Normalised instance settings as JSON-encoded key/value rows. Lists (`repos`, `pr
 
 Primary key: `key`. Foreign keys: none. Indexes: none.
 
-Known keys: `repos`, `projects`, `intake.default_repo`, `sync.history_days`, `sync.poll_interval_active_seconds`, `sync.poll_interval_idle_seconds`, `board.done_days`, `board.wip_limits`, `session.idle_days`. `github.url` and `github.api_url` are environment values and are not stored here. Missing, unparseable or invalid rows fall back to per-key defaults.
+Known keys: `repos`, `projects`, `intake.default_repo`, `sync.history_days`, `sync.poll_interval_active_seconds`, `sync.poll_interval_idle_seconds`, `board.done_days`, `board.wip_limits`, `session.idle_days`, `notifications.enabled`, `notifications.native`, `notifications.new_intake`. `github.url` and `github.api_url` are environment values and are not stored here. Missing, unparseable or invalid rows fall back to per-key defaults.
 
 ### `state_github_app`
 
@@ -433,8 +473,9 @@ Indexes:
 | Mirrored milestone | `(repo_id, number)` | GitHub scopes milestones per repository. |
 | Person | `(forge, instance, external_id)` | Internal `id` is the FK target; `login` is unique per instance but can change upstream. |
 | Funnel account | `auth_user.id` | Text id; `email` is unique. |
-| GitHub account link | `auth_account.accountId` | GitHub account id stored as text for `providerId = 'github'`. |
-| Funnel-local issue state | `(org, name, issue_number)` | Work notes and attachments; durable across mirror pruning. |
+| GitHub account link | `auth_account.accountId` | Forge account id stored as text for `providerId = 'github'`; compared with `mirror_user.external_id`. |
+| Funnel-local issue state | `(org, name, issue_number)` | Work notes, attachments and issue watches; durable across mirror pruning. |
+| Notification | `id` | UUID; scoped to one `auth_user.id` and de-duplicated by `dedupe_key`. |
 | Instance setting | `key` | Dotted path; JSON-encoded `value`. |
 | GitHub App | `id = 'default'` | Singleton row. |
 
@@ -456,7 +497,7 @@ Foreign keys declared in the schema:
 | `mirror_repo_assignee.user_id` | `mirror_user.id` | `CASCADE` |
 | `mirror_comment.author_id` | `mirror_user.id` | `SET NULL` |
 
-The composite child tables `mirror_thread_label` and `mirror_thread_assignee`, and the `repo_id`/`thread_number` columns on `mirror_comment`, carry no foreign key to `mirror_thread`. `mirror_thread.milestone_number` also has no foreign key to `mirror_milestone`: the milestone set is replaced wholesale on refresh, and a thread may briefly reference a number that has not been mirrored yet. The sync layer therefore deletes labels, assignees and comments explicitly before deleting a thread row (`deleteIssue` in `src/lib/server/sync/mirror.ts`). `state_work_note` and `state_attachment` also carry no foreign key to the mirror: their author/uploader ids are snapshots, and their issue identity is the durable `org/name` plus number.
+The composite child tables `mirror_thread_label` and `mirror_thread_assignee`, and the `repo_id`/`thread_number` columns on `mirror_comment`, carry no foreign key to `mirror_thread`. `mirror_thread.milestone_number` also has no foreign key to `mirror_milestone`: the milestone set is replaced wholesale on refresh, and a thread may briefly reference a number that has not been mirrored yet. The sync layer therefore deletes labels, assignees and comments explicitly before deleting a thread row (`deleteIssue` in `src/lib/server/sync/mirror.ts`). `state_work_note`, `state_attachment`, `state_notification` and `state_issue_watch` also carry no foreign key to the mirror: their author/uploader/recipient/actor identities are snapshots, and their issue identity is the durable `org/name` plus number.
 
 ## Storage, pragmas and migrations
 
