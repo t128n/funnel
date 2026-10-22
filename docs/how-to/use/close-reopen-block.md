@@ -90,14 +90,14 @@ blocked:
 -->
 ```
 
-The envelope is an HTML comment, so it never appears in the rendered description. The inspector's body editor strips it while editing and re-attaches it on save. Keep it intact: Attention is driven by this metadata, not by the `blocked` label alone.
+The envelope is an HTML comment, so it never appears in the rendered description. The inspector's body editor strips it while editing and re-attaches it on save. Keep it intact: the structured blocker fields and re-check date come from this metadata. The `blocked` label is the flag that puts the issue in Attention, so a manually labelled issue with no envelope still appears, under **No re-check date**.
 
-A re-check date is optional for blocking, but an issue without a valid re-check date does not appear in Attention.
+A re-check date is optional for blocking. An issue without a valid re-check date appears in Attention under **No re-check date** rather than disappearing from the view.
 
 ### Revise or reschedule a block
 
 - **Update block…** on an Attention row opens the block dialog prefilled with the stored blocker, needs, trying and re-check values. Confirming posts a new blocker summary comment and replaces the stored metadata.
-- The **Reschedule re-check** menu on an Attention row offers the same quick anchors plus **Custom date…**. Choosing a quick anchor rewrites only the re-check date in the body metadata and does not post a comment. **Custom date…** opens the prefilled block dialog so you can pick a date and confirm.
+- The **Reschedule re-check** menu on an Attention row offers the same quick anchors plus **Custom date…** (the row labels it **Set re-check date** when the issue has none). Choosing a quick anchor rewrites only the re-check date in the body metadata and does not post a comment. **Custom date…** opens the prefilled block dialog so you can pick a date and confirm.
 
 ## Unblock an issue
 
@@ -112,7 +112,7 @@ The UI flips the blocked indicator before the write completes and rolls back if 
 
 ## Attention
 
-Attention lists open issues that carry the blocked flag, have `is_blocked: true` in their body metadata, and have a valid `YYYY-MM-DD` re-check date.
+Attention lists open issues that carry the blocked flag. The structured body metadata supplies the blocker fields and the optional re-check date; a manually labelled issue without that metadata is still listed, under **No re-check date**.
 
 The page groups items into:
 
@@ -121,14 +121,15 @@ The page groups items into:
 | **Overdue** | Re-check date before today |
 | **Due Today** | Re-check date is today |
 | **Upcoming** | After today, up to and including seven days from today |
+| **No re-check date** | Blocked, but the date is missing or malformed |
 
-Dates are compared in the browser's local timezone, and the shared clock re-evaluates “today” at midnight. A blocked issue whose re-check date is more than seven days away, or whose date is missing or malformed, does not appear in this view.
+Dates are compared in the browser's local timezone, and the shared clock re-evaluates “today” at midnight. A blocked issue whose re-check date is more than seven days away does not appear in the dated groups; a missing or malformed date appears under **No re-check date**.
 
-The sidebar Attention badge counts only overdue and due-today items. The **All/Mine** switch filters the list to issues assigned to you, using the same `assignee=me` scope as the Issues view.
+The sidebar Attention badge counts only overdue and due-today items, so **No re-check date** rows are listed without raising it. The **All/Mine** switch filters the whole list, including unscheduled rows, to issues assigned to you, using the same `assignee=me` scope as the Issues view.
 
 Each Attention row links to the issue in the Issues view and offers these actions on hover:
 
-- **Reschedule re-check** — quick dates, or a custom date through the prefilled block dialog.
+- **Reschedule re-check** — quick dates, or a custom date through the prefilled block dialog. Undated rows label this **Set re-check date**.
 - **Assign to me / Unassign me** — toggle your assignment.
 - **Mark done** — opens the structured close dialog.
 - **Issue actions** — **Update block…**, **Unblock…** or **Open issue**.

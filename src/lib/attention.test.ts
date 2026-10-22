@@ -2,10 +2,12 @@ import { describe, expect, test } from "bun:test";
 import {
   actionableCount,
   addDaysISO,
+  attentionUrgency,
   businessWeekEnd,
   classifyAttention,
   daysBetween,
   dedupeByValue,
+  isValidISODate,
   nextBusinessWeekStart,
   quickRecheckDates,
   recheckDateLabel,
@@ -63,19 +65,55 @@ describe("classifyAttention", () => {
     expect(buckets.upcoming.map((i) => i.recheck)).toEqual(["2026-10-25"]);
   });
 
-  test("drops malformed dates", () => {
-    const buckets = classifyAttention(items("not-a-date", ""), TODAY);
+  test("puts missing and malformed dates in unscheduled", () => {
+    const buckets = classifyAttention(
+      items("not-a-date", "", "2026-02-30"),
+      TODAY,
+    );
+    expect(buckets.unscheduled.map((i) => i.recheck)).toEqual([
+      "not-a-date",
+      "",
+      "2026-02-30",
+    ]);
     expect(
       buckets.overdue.length + buckets.today.length + buckets.upcoming.length,
     ).toBe(0);
   });
 
-  test("actionable count is overdue plus today", () => {
+  test("keeps dates beyond the window out of every dated bucket", () => {
+    const buckets = classifyAttention(items("2026-10-25", "2026-10-26"), TODAY);
+    expect(buckets.upcoming.map((i) => i.recheck)).toEqual(["2026-10-25"]);
+    expect(buckets.unscheduled).toEqual([]);
+  });
+
+  test("actionable count is overdue plus today and ignores unscheduled", () => {
     const buckets = classifyAttention(
-      items("2026-10-01", "2026-10-18", "2026-10-20"),
+      items("2026-10-01", "2026-10-18", "2026-10-20", ""),
       TODAY,
     );
     expect(actionableCount(buckets)).toBe(2);
+  });
+});
+
+describe("attentionUrgency", () => {
+  test("classifies overdue, today, upcoming and unscheduled", () => {
+    expect(attentionUrgency("2026-10-15", TODAY)).toBe("overdue");
+    expect(attentionUrgency("2026-10-18", TODAY)).toBe("today");
+    expect(attentionUrgency("2026-10-20", TODAY)).toBe("upcoming");
+    expect(attentionUrgency("", TODAY)).toBe("unscheduled");
+    expect(attentionUrgency("not-a-date", TODAY)).toBe("unscheduled");
+    expect(attentionUrgency("2026-02-30", TODAY)).toBe("unscheduled");
+  });
+});
+
+describe("isValidISODate", () => {
+  test("accepts real calendar dates only", () => {
+    expect(isValidISODate("2026-02-28")).toBe(true);
+    expect(isValidISODate("2026-10-18")).toBe(true);
+    expect(isValidISODate("2026-02-30")).toBe(false);
+    expect(isValidISODate("2026-13-01")).toBe(false);
+    expect(isValidISODate("2026-1-1")).toBe(false);
+    expect(isValidISODate("")).toBe(false);
   });
 });
 

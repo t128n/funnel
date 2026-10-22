@@ -17,9 +17,10 @@
 
 	const mayWrite = $derived(canWrite(data.user.role));
 
-	// The Attention badge counts overdue + due-today re-checks. Dates are compared
-	// in the browser's timezone and re-evaluated on the shared clock so the count
-	// is right after local midnight without a reload.
+	// The Attention badge counts overdue + due-today re-checks; blocked issues
+	// without a usable date are listed on the page but never raise the badge.
+	// Dates are compared in the browser's timezone and re-evaluated on the shared
+	// clock so the count is right after local midnight without a reload.
 	const dueCount = $derived.by(() => {
 		clockTick();
 		return actionableCount(classifyAttention(data.attention, toISODate(new Date()), 7));

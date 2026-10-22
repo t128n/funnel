@@ -5,7 +5,7 @@
 	import PriorityIcon from '#lib/components/common/PriorityIcon.svelte';
 	import * as DropdownMenu from '#lib/components/ui/dropdown-menu/index.js';
 	import * as Tooltip from '#lib/components/ui/tooltip/index.js';
-	import { daysBetween, quickRecheckDates, recheckDateLabel, recheckLabel } from '#lib/attention';
+	import { attentionUrgency, quickRecheckDates, recheckDateLabel, recheckLabel } from '#lib/attention';
 	import {
 		assignToMe,
 		requestBlock,
@@ -52,8 +52,7 @@
 	const href = $derived(issuePath('issues', issue.repo, issue.number));
 	const ref = $derived(issueRef(issue.repo, issue.number, repoShortcodes));
 
-	const days = $derived(daysBetween(today, item.recheck));
-	const urgency = $derived(days < 0 ? 'overdue' : days === 0 ? 'today' : 'upcoming');
+	const urgency = $derived(attentionUrgency(item.recheck, today));
 
 	/**
 	 * Urgency is carried by a quiet leading stripe and a tinted pill, never by a
@@ -71,6 +70,11 @@
 		upcoming: {
 			stripe: 'bg-[color:var(--surface-border)]',
 			badge: 'border-[color:var(--surface-border)] bg-[var(--surface-tag-bg)] text-muted-foreground'
+		},
+		unscheduled: {
+			stripe: 'bg-muted-foreground/40',
+			badge:
+				'border-dashed border-[color:var(--surface-border)] bg-[var(--surface-tag-bg)] text-muted-foreground'
 		}
 	} as const;
 	const tone = $derived(TONE[urgency]);
@@ -131,10 +135,10 @@
 			'inline-flex shrink-0 items-center gap-1 rounded-md border px-1.5 py-0.5 text-[11px] font-medium whitespace-nowrap',
 			tone.badge
 		)}
-		title={`Re-check ${recheckDateLabel(item.recheck)}`}
+		title={urgency === 'unscheduled' ? 'No re-check date — set one' : `Re-check ${recheckDateLabel(item.recheck)}`}
 	>
 		<ClockAlertIcon class="size-3" aria-hidden="true" />
-		{recheckLabel(item.recheck, today)}
+		{urgency === 'unscheduled' ? 'No date' : recheckLabel(item.recheck, today)}
 	</span>
 
 	<PriorityIcon priority={issue.priority} />
@@ -183,7 +187,7 @@
 		class="relative z-10 flex shrink-0 items-center gap-0.5 md:pointer-events-none md:absolute md:end-1 md:bg-linear-to-l md:from-[var(--surface-card-hover)] md:from-70% md:to-transparent md:pl-8 md:opacity-0 md:transition-opacity md:group-hover/row:pointer-events-auto md:group-hover/row:opacity-100 md:group-focus-within/row:pointer-events-auto md:group-focus-within/row:opacity-100"
 	>
 		<DropdownMenu.Root>
-			<DropdownMenu.Trigger class={actionBtn} title="Reschedule re-check" aria-label="Reschedule re-check">
+			<DropdownMenu.Trigger class={actionBtn} title={urgency === 'unscheduled' ? 'Set re-check date' : 'Reschedule re-check'} aria-label={urgency === 'unscheduled' ? 'Set re-check date' : 'Reschedule re-check'}>
 				<CalendarClockIcon class="size-3.5" />
 			</DropdownMenu.Trigger>
 			<DropdownMenu.Content align="end" class="w-52">

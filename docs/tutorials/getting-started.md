@@ -135,7 +135,7 @@ Use the sidebar to confirm the main views load:
 | :--- | :--- |
 | **Inbox** | Staged intake submissions followed by open issues with no status label. |
 | **My Issues** | Issues assigned to your GitHub identity. |
-| **Attention** | Open, blocked issues with a re-check date in the next seven days. |
+| **Attention** | Open, blocked issues grouped by re-check date, including those without one. |
 | **Issues** | Every triaged mirrored issue, filtered and grouped. |
 | **Board** | Backlog as a separate list, plus Todo, In Progress, In Review, and Done lanes. |
 

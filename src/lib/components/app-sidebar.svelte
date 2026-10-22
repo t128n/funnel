@@ -34,7 +34,7 @@
 
 	interface Props extends ComponentProps<typeof Sidebar.Root> {
 		user: { id: string; name: string; email: string; image: string | null; role: Role };
-		/** Count of overdue + due-today re-checks, for the Attention badge. */
+		/** Count of overdue + due-today re-checks, for the Attention badge (never unscheduled rows). */
 		dueCount?: number;
 		/** Pending submissions + untriaged issues, for the Inbox badge. */
 		inboxCount?: number;

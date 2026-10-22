@@ -92,8 +92,8 @@ export type InboxEntry =
   | { kind: "issue"; issue: IssueListItem };
 
 /**
- * A blocked issue whose body metadata carries a re-check date (SPEC §5.1).
- * Drives the Attention view and its sidebar badge.
+ * A blocked issue surfaced by Attention (SPEC §5.1). Drives the Attention view
+ * and its sidebar badge.
  */
 export interface AttentionItem {
   issue: IssueListItem;
@@ -103,7 +103,7 @@ export interface AttentionItem {
   needs: string;
   /** What is being attempted in the meantime (may be empty). */
   trying: string;
-  /** Re-check date, `YYYY-MM-DD`. */
+  /** Re-check date `YYYY-MM-DD`, or `""` when missing or malformed. */
   recheck: string;
 }
 

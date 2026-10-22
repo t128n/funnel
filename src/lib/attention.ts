@@ -1,6 +1,7 @@
 /**
- * Grouping for the Attention view (SPEC §5.1): blocked issues surfaced by their
- * re-check date, computed in the browser's local timezone.
+ * Grouping for the Attention view (SPEC §5.1): blocked issues grouped by their
+ * re-check date, computed in the browser's local timezone. Blocked issues with
+ * no usable date land in `unscheduled` rather than disappearing.
  *
  * The re-check date is a plain `YYYY-MM-DD` string, so bucket membership and
  * day maths compare ISO strings (and UTC-parsed epochs) rather than local
@@ -10,11 +11,26 @@
 const RECHECK_RE = /^\d{4}-\d{2}-\d{2}$/;
 const DAY_MS = 86_400_000;
 
+/** True for a real `YYYY-MM-DD` calendar date, not just a matching shape. */
+export function isValidISODate(value: string): boolean {
+  if (!RECHECK_RE.test(value)) return false;
+  const date = new Date(`${value}T00:00:00Z`);
+  return (
+    !Number.isNaN(date.getTime()) &&
+    date.toISOString().slice(0, 10) === value
+  );
+}
+
 export interface AttentionBuckets<T> {
   overdue: T[];
   today: T[];
   upcoming: T[];
+  /** Blocked items with no usable re-check date (missing or malformed). */
+  unscheduled: T[];
 }
+
+/** Urgency of one blocked item, including items with no usable re-check date. */
+export type AttentionUrgency = "overdue" | "today" | "upcoming" | "unscheduled";
 
 /** Local `YYYY-MM-DD` for a moment in time. */
 export function toISODate(date: Date): string {
@@ -82,8 +98,9 @@ export function quickRecheckDates(todayISO: string): RecheckOption[] {
 
 /**
  * Bucket dated items into overdue / due today / upcoming within `windowDays`.
- * Items further out (or with a malformed date) are dropped, matching the
- * "attention" intent rather than listing every future reminder.
+ * Items with a missing or malformed date go to `unscheduled` instead of
+ * disappearing; valid dates further out are dropped, matching the "attention"
+ * intent rather than listing every future reminder.
  */
 export function classifyAttention<T extends { recheck: string }>(
   items: readonly T[],
@@ -91,14 +108,34 @@ export function classifyAttention<T extends { recheck: string }>(
   windowDays = 7,
 ): AttentionBuckets<T> {
   const end = addDaysISO(todayISO, windowDays);
-  const buckets: AttentionBuckets<T> = { overdue: [], today: [], upcoming: [] };
+  const buckets: AttentionBuckets<T> = {
+    overdue: [],
+    today: [],
+    upcoming: [],
+    unscheduled: [],
+  };
   for (const item of items) {
-    if (!RECHECK_RE.test(item.recheck)) continue;
-    if (item.recheck < todayISO) buckets.overdue.push(item);
+    if (!isValidISODate(item.recheck)) {
+      buckets.unscheduled.push(item);
+    } else if (item.recheck < todayISO) buckets.overdue.push(item);
     else if (item.recheck === todayISO) buckets.today.push(item);
     else if (item.recheck <= end) buckets.upcoming.push(item);
   }
   return buckets;
+}
+
+/**
+ * Classify one item's urgency. Unlike `classifyAttention`, this does not apply
+ * the seven-day window: it answers "how does this row read?" for rows already
+ * selected by the feed.
+ */
+export function attentionUrgency(
+  recheck: string,
+  todayISO: string,
+): AttentionUrgency {
+  if (!isValidISODate(recheck)) return "unscheduled";
+  const days = daysBetween(todayISO, recheck);
+  return days < 0 ? "overdue" : days === 0 ? "today" : "upcoming";
 }
 
 /** The number of items that need action now (overdue plus due today). */

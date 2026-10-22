@@ -22,6 +22,7 @@ import {
   sql,
   type SQL,
 } from "drizzle-orm";
+import { isValidISODate } from "#lib/attention";
 import { getConfig } from "#lib/server/config";
 import { db } from "#lib/server/db/index";
 import {
@@ -653,10 +654,14 @@ export async function statusBoard(
 }
 
 /**
- * Attention (SPEC §5.1): open issues flagged `blocked` whose body metadata
- * carries a re-check date. The mirror stores the body, so the date is parsed on
- * read with the shared `funnel-metadata` helper rather than cached in a column;
- * blocked issues are few, so the scan is cheap. Sorted by re-check date.
+ * Attention (SPEC §5.1): open issues flagged `blocked` (the label is the source
+ * of truth), grouped by the re-check date in their body metadata. Issues with a
+ * missing or malformed date are returned too (with `recheck: ""`) so blocked
+ * work can never disappear from the view; the UI puts them in its "No re-check
+ * date" group. The mirror stores the body, so the date is parsed on read with
+ * the shared `funnel-metadata` helper rather than cached in a column; blocked
+ * issues are few, so the scan is cheap. Dated items sort first by date, then
+ * undated items by issue number.
  */
 export function attentionIssues(): AttentionItem[] {
   const rows = db
@@ -680,9 +685,12 @@ export function attentionIssues(): AttentionItem[] {
 
   const items: AttentionItem[] = [];
   for (const issue of hydrate(rows as unknown as RawRow[])) {
+    // The `blocked` column (the label) is the source of truth for inclusion;
+    // the body envelope only enriches the row. Manually labelled issues have no
+    // envelope and must still surface.
     const blocked = readBlocked(bodies.get(rowKey(issue.repoId, issue.number)) ?? "");
-    const recheck = blocked.info?.recheck ?? "";
-    if (!blocked.isBlocked || !/^\d{4}-\d{2}-\d{2}$/.test(recheck)) continue;
+    const raw = blocked.info?.recheck ?? "";
+    const recheck = isValidISODate(raw) ? raw : "";
     items.push({
       issue,
       blocker: blocked.info?.blocker ?? "",
@@ -692,7 +700,14 @@ export function attentionIssues(): AttentionItem[] {
     });
   }
 
-  return items.sort((a, b) => a.recheck.localeCompare(b.recheck));
+  return items.sort((a, b) => {
+    if (a.recheck && b.recheck) {
+      return a.recheck.localeCompare(b.recheck) || a.issue.number - b.issue.number;
+    }
+    if (a.recheck) return -1;
+    if (b.recheck) return 1;
+    return a.issue.number - b.issue.number;
+  });
 }
 
 /**
