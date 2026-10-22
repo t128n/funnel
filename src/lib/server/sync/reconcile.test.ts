@@ -67,13 +67,30 @@ beforeEach(() => {
   clearMirror();
   setConfig(TEST_CONFIG);
   resetAppCache();
-  globalThis.fetch = (async (input: unknown) => {
+  globalThis.fetch = (async (
+    input: unknown,
+    init?: { method?: string; body?: unknown },
+  ) => {
     const url = new URL(String(input));
     if (url.pathname.endsWith("/installation")) {
       if (url.pathname.startsWith("/repos/ghost/")) {
         return Response.json({ message: "Not Found" }, { status: 404 });
       }
       return Response.json({ id: 7 });
+    }
+    if (url.pathname.endsWith("/access_tokens")) {
+      return Response.json({
+        token: "ghs_test",
+        expires_at: new Date(Date.now() + 3_600_000).toISOString(),
+      });
+    }
+    // Label provisioning now runs through a `forges` provider: list and
+    // create both hit the same route.
+    if (url.pathname.endsWith("/labels")) {
+      if ((init?.method ?? "GET").toUpperCase() === "GET") {
+        return Response.json([]);
+      }
+      return Response.json(JSON.parse(String(init?.body ?? "{}")));
     }
     return new Response("{}", { status: 404 });
   }) as typeof fetch;

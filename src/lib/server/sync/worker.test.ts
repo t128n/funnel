@@ -138,6 +138,15 @@ beforeEach(() => {
     if (url.pathname.endsWith("/installation")) {
       return Response.json({ id: 7 });
     }
+    if (url.pathname.endsWith("/access_tokens")) {
+      return Response.json({
+        token: "ghs_test",
+        expires_at: new Date(Date.now() + 3_600_000).toISOString(),
+      });
+    }
+    if (url.pathname.endsWith("/labels")) {
+      return Response.json([]);
+    }
     return new Response("{}", { status: 404 });
   }) as typeof fetch;
   mirror.upsertRepo({ githubId: 1, org: "orgA", name: "core", archived: false });

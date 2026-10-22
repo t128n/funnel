@@ -23,6 +23,7 @@ import {
   github,
   type InstallationOctokit,
 } from "#/lib/server/github/app.server";
+import { forge } from "#/lib/server/forge/providers.server";
 import { listRepoLabels } from "#/lib/server/github/labels";
 import { listRepoMilestones } from "#/lib/server/github/milestones";
 import { listRepoAssignees } from "#/lib/server/github/assignees";
@@ -308,8 +309,8 @@ export async function refreshRepoLabels(
   installationId: number,
   repo: mirror.RepoRow,
 ): Promise<void> {
-  const octokit = await github.asInstallation(installationId);
-  const labels = await listRepoLabels(octokit, repo.org, repo.name);
+  const provider = await forge.installationProvider(installationId);
+  const labels = await listRepoLabels(provider, repo.org, repo.name);
   mirror.replaceRepoLabels(
     repo.githubId,
     labels.map((l) => ({
