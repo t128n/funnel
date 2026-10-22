@@ -11,6 +11,7 @@
  * permissions natively (SPEC §8).
  */
 import type { InstallationOctokit } from "./app.server";
+import type { GitHubProvider } from "#/lib/server/forge/providers.server";
 
 const PER_PAGE = 100;
 
@@ -89,29 +90,32 @@ export function toRepoMilestone(raw: RestMilestone): RepoMilestone {
 }
 
 /**
- * Walk paginated `GET /repos/{owner}/{repo}/milestones` until a short page.
- * `state=all` returns both open and closed milestones, newest due first.
+ * Walk paginated `GET /repos/{owner}/{repo}/milestones` through the provider's
+ * raw request, because `forges`' `Milestone` drops the counts, creator and
+ * timestamps the cockpit needs. `state=all` returns both open and closed
+ * milestones, newest due first.
  */
 export async function listRepoMilestones(
-  octokit: InstallationOctokit,
+  provider: GitHubProvider,
   owner: string,
   repo: string,
 ): Promise<RepoMilestone[]> {
   const all: RepoMilestone[] = [];
   for (let page = 1; ; page++) {
-    const { data } = await octokit.request(
-      "GET /repos/{owner}/{repo}/milestones",
+    const { data } = await provider.request<RestMilestone[]>(
+      "GET",
+      `/repos/${owner}/${repo}/milestones`,
       {
-        owner,
-        repo,
-        state: "all",
-        sort: "due_on",
-        direction: "desc",
-        per_page: PER_PAGE,
-        page,
+        query: {
+          state: "all",
+          sort: "due_on",
+          direction: "desc",
+          per_page: PER_PAGE,
+          page,
+        },
       },
     );
-    const items = data as unknown as RestMilestone[];
+    const items = Array.isArray(data) ? data : [];
     all.push(...items.map(toRepoMilestone));
     if (items.length < PER_PAGE) break;
   }

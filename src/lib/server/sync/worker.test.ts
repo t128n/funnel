@@ -39,6 +39,9 @@ interface FakeAssignee {
 }
 let repoAssignees: FakeAssignee[] = [];
 
+/** Raw milestone payloads returned by `GET /repos/{owner}/{repo}/milestones`. */
+let repoMilestones: unknown[] = [];
+
 const fake = {
   request: async (route: string, params: Record<string, unknown> = {}) => {
     const headers = (params.headers ?? {}) as Record<string, string>;
@@ -130,6 +133,7 @@ beforeEach(() => {
   graphqlCalls = [];
   failIssues = false;
   repoAssignees = [];
+  repoMilestones = [];
   globalThis.fetch = (async (input: unknown) => {
     const url = new URL(String(input));
     if (url.pathname.endsWith("/installation")) {
@@ -147,6 +151,10 @@ beforeEach(() => {
     if (url.pathname.endsWith("/assignees")) {
       const page = Number(url.searchParams.get("page") ?? 1);
       return Response.json(page === 1 ? repoAssignees : []);
+    }
+    if (url.pathname.endsWith("/milestones")) {
+      const page = Number(url.searchParams.get("page") ?? 1);
+      return Response.json(page === 1 ? repoMilestones : []);
     }
     return new Response("{}", { status: 404 });
   }) as typeof fetch;
@@ -367,6 +375,27 @@ describe("runRepoCycle", () => {
       "amy",
       "zoe",
     ]);
+  });
+
+  test("mirrors the repo's milestones and replaces the set wholesale", async () => {
+    repoMilestones = [
+      {
+        number: 1,
+        id: 11,
+        title: "v1",
+        state: "open",
+        due_on: "2026-01-01T00:00:00Z",
+        open_issues: 2,
+        closed_issues: 3,
+      },
+    ];
+
+    await runRepoCycle("orgA", "core");
+    expect(mirror.getRepoMilestones(1).map((m) => m.title)).toEqual(["v1"]);
+
+    repoMilestones = [{ number: 2, id: 12, title: "v2", state: "open" }];
+    await runRepoCycle("orgA", "core");
+    expect(mirror.getRepoMilestones(1).map((m) => m.title)).toEqual(["v2"]);
   });
 
   test("marks the repo degraded and rethrows when polling fails", async () => {

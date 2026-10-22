@@ -339,8 +339,8 @@ export async function refreshRepoMilestones(
   installationId: number,
   repo: mirror.RepoRow,
 ): Promise<void> {
-  const octokit = await github.asInstallation(installationId);
-  const milestones = await listRepoMilestones(octokit, repo.org, repo.name);
+  const provider = await forge.installationProvider(installationId);
+  const milestones = await listRepoMilestones(provider, repo.org, repo.name);
   mirror.replaceRepoMilestones(repo.githubId, milestones);
 }
 
