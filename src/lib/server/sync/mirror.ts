@@ -28,6 +28,12 @@ import {
   mirrorThreadLabel,
   mirrorUser,
 } from "#lib/server/db/schema";
+import {
+  retiredPriorityConflict,
+  type Impact,
+  type Priority,
+  type Urgency,
+} from "#lib/priority";
 
 export type RepoRow = typeof mirrorRepo.$inferSelect;
 
@@ -75,7 +81,10 @@ export interface IssueRecord {
 /** Cached reserved-label derivation stored on the thread row (SPEC §5.2). */
 export interface StoredMetadata {
   status: string | null;
-  priority: string | null;
+  impact: Impact | null;
+  urgency: Urgency | null;
+  /** Derived `P1`–`P3`, or `null` when neither axis is assessed. */
+  priority: Priority | null;
   size: string | null;
   /** Orthogonal `blocked` flag, stored as 0/1 (SPEC §5.1). */
   blocked: boolean;
@@ -507,6 +516,12 @@ export function upsertIssue(issue: IssueRecord, metadata: StoredMetadata): void 
     updatedAt: comment.updatedAt,
   }));
 
+  // A matching retired p-label is just stale; a mismatching one is a conflict
+  // the UI should surface, exactly like an ambiguous reserved-label timeline.
+  const labelConflict =
+    metadata.labelConflict ||
+    retiredPriorityConflict(metadata.priority, issue.labels);
+
   db.transaction((tx) => {
     tx.insert(mirrorThread)
       .values({
@@ -525,10 +540,12 @@ export function upsertIssue(issue: IssueRecord, metadata: StoredMetadata): void 
         updatedAt: issue.updatedAt,
         closedAt: issue.closedAt,
         status: metadata.status,
+        impact: metadata.impact,
+        urgency: metadata.urgency,
         priority: metadata.priority,
         size: metadata.size,
         blocked: metadata.blocked ? 1 : 0,
-        labelConflict: metadata.labelConflict ? 1 : 0,
+        labelConflict: labelConflict ? 1 : 0,
       })
       .onConflictDoUpdate({
         target: [mirrorThread.repoId, mirrorThread.number],
@@ -546,10 +563,12 @@ export function upsertIssue(issue: IssueRecord, metadata: StoredMetadata): void 
           updatedAt: issue.updatedAt,
           closedAt: issue.closedAt,
           status: metadata.status,
+          impact: metadata.impact,
+          urgency: metadata.urgency,
           priority: metadata.priority,
           size: metadata.size,
           blocked: metadata.blocked ? 1 : 0,
-          labelConflict: metadata.labelConflict ? 1 : 0,
+          labelConflict: labelConflict ? 1 : 0,
         },
       })
       .run();
@@ -628,6 +647,8 @@ export function setIssueMetadata(
   db.update(mirrorThread)
     .set({
       status: metadata.status,
+      impact: metadata.impact,
+      urgency: metadata.urgency,
       priority: metadata.priority,
       size: metadata.size,
       blocked: metadata.blocked ? 1 : 0,

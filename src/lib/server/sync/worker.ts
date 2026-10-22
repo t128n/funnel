@@ -26,6 +26,7 @@ import {
 import { listRepoLabels } from "#/lib/server/github/labels";
 import { listRepoMilestones } from "#/lib/server/github/milestones";
 import { listRepoAssignees } from "#/lib/server/github/assignees";
+import { retiredPriorityConflict } from "#lib/priority";
 import { deriveMetadata, resolveIssueConflict } from "./conflicts";
 import { clientCount, publish } from "./events";
 import { hydrateAndStore } from "./hydrate";
@@ -109,20 +110,25 @@ async function resolveConflicts(
       record.number,
       record.labels,
     );
+    const removed = new Set(
+      resolved.removed.map((name) => name.toLowerCase()),
+    );
+    const remaining = record.labels.filter(
+      (name) => !removed.has(name.toLowerCase()),
+    );
     mirror.setIssueMetadata(repo.id, record.number, {
       status: resolved.metadata.status,
+      impact: resolved.metadata.impact,
+      urgency: resolved.metadata.urgency,
       priority: resolved.metadata.priority,
       size: resolved.metadata.size,
       blocked: resolved.metadata.blocked,
-      labelConflict: resolved.ambiguous,
+      labelConflict:
+        resolved.ambiguous ||
+        retiredPriorityConflict(resolved.metadata.priority, remaining),
     });
     if (resolved.removed.length > 0) {
-      const removed = new Set(resolved.removed.map((n) => n.toLowerCase()));
-      mirror.replaceIssueLabels(
-        repo.id,
-        record.number,
-        record.labels.filter((n) => !removed.has(n.toLowerCase())),
-      );
+      mirror.replaceIssueLabels(repo.id, record.number, remaining);
     }
     processed += 1;
   }

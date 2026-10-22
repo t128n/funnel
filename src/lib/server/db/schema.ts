@@ -326,11 +326,11 @@ export const mirrorMilestone = sqliteTable(
 // Mirror: threads (SPEC 6.1). A "thread" is a federated issue/PR; this slice
 // only syncs `kind = 'issue'` but the column keeps the door open. Identity is
 // `(repoId, number)`; `externalId` is the forge's global id for GraphQL
-// hydration. `status`/`priority`/`size` are derived caches of the reserved
-// label groups (SPEC 5.2) computed at sync time. Done/Canceled derive from
-// (state, stateReason). Composite FKs from junction tables are enforced in
-// code (delete children first); single-column references below use FK
-// cascades.
+// hydration. `status`/`impact`/`urgency`/`size` are derived caches of the
+// reserved label groups (SPEC 5.2) computed at sync time; `priority` is the
+// derived P1–P3 cache. Done/Canceled derive from (state, stateReason).
+// Composite FKs from junction tables are enforced in code (delete children
+// first); single-column references below use FK cascades.
 // ---------------------------------------------------------------------------
 export const mirrorThread = sqliteTable(
   "mirror_thread",
@@ -357,6 +357,11 @@ export const mirrorThread = sqliteTable(
     updatedAt: integer("updated_at").notNull(),
     closedAt: integer("closed_at"),
     status: text("status"),
+    /** Triage inputs mirrored from the `sev`/`mod`/`min` impact labels. */
+    impact: integer("impact"),
+    /** Triage inputs mirrored from the `high`/`mid`/`low` urgency labels. */
+    urgency: integer("urgency"),
+    /** Derived `P1`–`P3` cache (never a GitHub label). */
     priority: text("priority"),
     size: text("size"),
     blocked: integer("blocked").notNull().default(0),

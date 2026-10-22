@@ -17,6 +17,7 @@
 
 [tools]
 bun = "1.4.3"
+go = "1.27"
 
 [tasks.default]
 description = "List the available tasks"
@@ -54,7 +55,7 @@ run = "bun run release"
 
 [tasks.exe]
 description = "Build the self-contained executable for this OS into dist/"
-depends = ["build"]
+depends = ["build", "intake:exe"]
 usage = '''
 flag "--target <target>" env="TARGET" default="" help="Bun compile target, e.g. bun-linux-x64"
 '''
@@ -84,9 +85,36 @@ description = "Run everything the release pipeline relies on"
 run = [
   { task = "check" },
   { task = "test" },
+  { task = "intake:check" },
   { task = "build" },
   { task = "exe" },
 ]
+
+[tasks."intake:exe"]
+description = "Build the native intake hotkey helper into dist/"
+sources = [
+  "tools/funnel-intake/**",
+  "scripts/build-intake.ts",
+  "package.json",
+  "bun.lock",
+]
+outputs = ["dist/funnel-intake.exe"]
+run = "bun scripts/build-intake.ts"
+
+[tasks."intake:check"]
+description = "Vet and test the intake hotkey helper"
+run = [
+  "go -C tools/funnel-intake vet -unsafeptr=false ./...",
+  "go -C tools/funnel-intake test ./...",
+]
+
+[tasks."intake:install"]
+description = "Install the intake hotkey helper for the current user"
+run = "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/install-intake.ps1"
+
+[tasks."intake:uninstall"]
+description = "Remove the intake hotkey helper"
+run = "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/install-intake.ps1 -Uninstall"
 
 [tasks."service:install"]
 description = "Install Funnel as a Windows service (run elevated)"

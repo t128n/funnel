@@ -143,11 +143,11 @@ beforeEach(() => {
 
 describe("normalizeReserved", () => {
   test("keeps the first label of each reserved group", () => {
-    expect(normalizeReserved(["todo", "blocked", "bug", "p1", "p2"])).toEqual([
+    expect(normalizeReserved(["todo", "blocked", "bug", "sev", "mod"])).toEqual([
       "todo",
       "blocked",
       "bug",
-      "p1",
+      "sev",
     ]);
   });
 
@@ -193,7 +193,7 @@ describe("createIssue", () => {
       body: "details",
       labels: ["bug"],
       status: "todo",
-      priority: "p1",
+      impact: "sev",
       assignees: ["octocat"],
     });
 
@@ -224,7 +224,7 @@ describe("createIssue", () => {
       kind: "issue",
       title: "New bug",
       body: "details",
-      labels: ["bug", "todo", "p1"],
+      labels: ["bug", "todo", "sev"],
       assignees: ["octocat"],
     });
     expect(events).toContainEqual(
@@ -421,18 +421,18 @@ describe("updateIssue", () => {
     expect(calls[1].args[1]).toEqual(["bug"]);
   });
 
-  test("swaps priority and size in the same request", async () => {
+  test("swaps impact and size in the same request", async () => {
     const { provider, calls } = stubProvider({ labels: ["todo", "bug"] });
 
     await updateIssue({
       provider,
       repo: "orgA/core",
       number: 5,
-      priority: "p1",
+      impact: "mod",
       size: "md",
     });
 
-    expect(calls[1].args[1]).toEqual(["todo", "bug", "p1", "md"]);
+    expect(calls[1].args[1]).toEqual(["todo", "bug", "mod", "md"]);
   });
 
   test("rejects an invalid reserved value", async () => {
@@ -671,5 +671,51 @@ describe("createMilestone", () => {
     });
     expect((result as { status: number }).status).toBe(400);
     expect(calls).toHaveLength(0);
+  });
+});
+
+describe("impact and urgency", () => {
+  test("create applies the impact and urgency shortcuts", async () => {
+    const { provider, calls } = stubProvider();
+    await createIssue({
+      provider,
+      repo: "orgA/core",
+      title: "Triage inputs",
+      status: "backlog",
+      impact: "sev",
+      urgency: "high",
+    });
+    const input = calls.find((c) => c.op === "create")?.args[1] as {
+      labels: string[];
+    };
+    expect(input.labels).toEqual(["backlog", "sev", "high"]);
+  });
+
+  test("create strips retired priority labels", async () => {
+    const { provider, calls } = stubProvider();
+    await createIssue({
+      provider,
+      repo: "orgA/core",
+      title: "Legacy label",
+      labels: ["bug", "p1", "P2"],
+    });
+    const input = calls.find((c) => c.op === "create")?.args[1] as {
+      labels: string[];
+    };
+    expect(input.labels).toEqual(["bug"]);
+  });
+
+  test("update swaps an impact label without touching urgency", async () => {
+    const { provider, calls } = stubProvider({
+      labels: ["todo", "sev", "mid"],
+    });
+    await updateIssue({
+      provider,
+      repo: "orgA/core",
+      number: 5,
+      impact: "mod",
+    });
+    const set = calls.find((c) => c.op === "setLabels")?.args[1];
+    expect(set).toEqual(["todo", "mid", "mod"]);
   });
 });

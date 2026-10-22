@@ -5,12 +5,12 @@ import {
   passthrough,
   toResponse,
 } from "#lib/server/github/api-passthrough.server";
+import { SIZE_VALUES, STATUS_VALUES } from "#lib/server/issues/filters";
 import { forge } from "#lib/server/forge/providers.server";
 import {
-  PRIORITY_VALUES,
-  SIZE_VALUES,
-  STATUS_VALUES,
-} from "#lib/server/issues/filters";
+  IMPACT_LABEL_VALUES,
+  URGENCY_LABEL_VALUES,
+} from "#lib/priority";
 import { authenticate, readJson, scheduleRefresh } from "#lib/server/issues/http";
 import { apiRole } from "#lib/server/http/session";
 import { createIssue } from "#lib/server/issues/mutations";
@@ -76,7 +76,8 @@ const createSchema = v.object({
     [],
   ),
   status: v.optional(v.picklist(STATUS_VALUES)),
-  priority: v.optional(v.picklist(PRIORITY_VALUES)),
+  impact: v.optional(v.picklist(IMPACT_LABEL_VALUES)),
+  urgency: v.optional(v.picklist(URGENCY_LABEL_VALUES)),
   size: v.optional(v.picklist(SIZE_VALUES)),
 });
 

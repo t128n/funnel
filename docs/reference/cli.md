@@ -87,6 +87,22 @@ The release module deliberately does not import the application environment, so 
 
 Bun loads a `.env` file from the working directory automatically. For the packaged executable, that is the directory it is started in, not necessarily the directory containing the binary. The Windows service sets the working directory and `FUNNEL_DATA_DIR` to `C:\ProgramData\Funnel`, so the `.env` beside the database is the one that is loaded.
 
+## Intake helper (`funnel-intake`)
+
+`dist\funnel-intake.exe` is a separate, per-user Windows helper (see [Windows intake hotkey](../how-to/integrate/windows-intake-hotkey.md)). It is GUI-subsystem, takes no positional arguments, and resolves its configuration before listening:
+
+| Flag | Behaviour |
+| :--- | :--- |
+| `-config` | Path to `config.json` (default `%LOCALAPPDATA%\Funnel\Intake\config.json`). |
+| `-url`, `-hotkey`, `-source` | Override both the config file and the environment. |
+| `-debug` | Also write logs to stderr when a console is attached. |
+| `-dry-run` | Log the prefill the hotkey would open instead of launching a browser. |
+| `-test` | Capture the current selection once, print the prefill, and exit. |
+| `-check` | Validate the configuration and exit `0`/`1`. |
+| `-version` | Print the version and exit. |
+
+It reads `FUNNEL_URL`, `FUNNEL_HOTKEY`, and `FUNNEL_SOURCE`, logs to `%LOCALAPPDATA%\Funnel\Intake\intake.log`, and reports fatal errors in a message box because there is no console.
+
 ## Relationship to package scripts
 
 | Entry point | Bootstrap | Flags | Migrations |

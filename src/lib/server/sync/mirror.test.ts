@@ -53,13 +53,7 @@ function seedIssue(repoId: number, number: number, updatedAt: number) {
       assignees: [],
       comments: [],
     },
-    {
-      status: "todo",
-      priority: null,
-      size: null,
-      blocked: false,
-      labelConflict: false,
-    },
+    { status: "todo", impact: null, urgency: null, priority: null, size: null, blocked: false, labelConflict: false },
   );
 }
 
@@ -176,13 +170,7 @@ describe("issue upsert", () => {
         assignees: [],
         comments: [],
       },
-      {
-        status: "in-progress",
-        priority: null,
-        size: null,
-        blocked: false,
-        labelConflict: false,
-      },
+      { status: "in-progress", impact: null, urgency: null, priority: null, size: null, blocked: false, labelConflict: false },
     );
 
     const issue = mirror.getIssue(repo.id, 1);
@@ -228,6 +216,8 @@ describe("issue upsert", () => {
       },
       {
         status: null,
+        impact: null,
+        urgency: null,
         priority: null,
         size: null,
         blocked: false,

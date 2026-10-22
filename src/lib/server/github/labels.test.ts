@@ -98,9 +98,12 @@ describe("CANONICAL_LABELS", () => {
       "in-progress",
       "in-review",
       "blocked",
-      "p1",
-      "p2",
-      "p3",
+      "sev",
+      "mod",
+      "min",
+      "high",
+      "mid",
+      "low",
       "sm",
       "md",
       "lg",
@@ -185,13 +188,13 @@ describe("provisionRepoLabels", () => {
     existing = [
       {
         name: "md",
-        colour: CANONICAL_LABELS[9].color,
+        colour: CANONICAL_LABELS.find((l) => l.name === "md")!.color,
         description: undefined,
       },
     ];
 
     const summary = await provisionRepoLabels("acme", "widgets", [
-      CANONICAL_LABELS[9],
+      CANONICAL_LABELS.find((l) => l.name === "md")!,
     ]);
 
     expect(summary.updated).toEqual(["md"]);
@@ -200,8 +203,9 @@ describe("provisionRepoLabels", () => {
         method: "PATCH",
         path: "/repos/acme/widgets/labels/md",
         body: {
-          color: CANONICAL_LABELS[9].color,
-          description: CANONICAL_LABELS[9].description,
+          color: CANONICAL_LABELS.find((l) => l.name === "md")!.color,
+          description: CANONICAL_LABELS.find((l) => l.name === "md")!
+            .description,
         },
       },
     ]);

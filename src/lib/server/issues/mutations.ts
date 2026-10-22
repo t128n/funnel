@@ -8,9 +8,11 @@
  * background {@link refreshIssue} (SPEC §7.2), keeping the mirror fresh without
  * blocking the response.
  *
- * Reserved-label edits are group-aware: status/priority/size are kept to at most
- * one label per group (SPEC §5.2.1) by reading the issue's authoritative label
- * set from the forge, swapping the sibling, and replacing the set in one call.
+ * Reserved-label edits are group-aware: status/impact/urgency/size are kept to
+ * at most one label per group (SPEC §5.2.1) by reading the issue's
+ * authoritative label set from the forge, swapping the sibling, and replacing
+ * the set in one call. Priority is derived from impact × urgency and carries no
+ * label; retired p-labels are refused or stripped from new writes.
  */
 import type { Thread, ThreadInput, ThreadRef, ThreadUpdate } from "forges";
 import { getConfig, isConfiguredRepo } from "#lib/server/config";
@@ -24,12 +26,8 @@ import { createLogger } from "#lib/server/log";
 import { CANONICAL_LABELS, type LabelGroup } from "#lib/server/github/labels";
 import { createRepoMilestone } from "#lib/server/github/milestones";
 import { publish } from "#lib/server/sync/events";
-import {
-  groupOf,
-  PRIORITY_VALUES,
-  SIZE_VALUES,
-  STATUS_VALUES,
-} from "./filters";
+import { isRetiredPriorityLabel } from "#lib/priority";
+import { groupOf, SIZE_VALUES, STATUS_VALUES } from "./filters";
 
 const log = createLogger({ component: "issues" });
 
@@ -60,7 +58,8 @@ export interface CreateIssueInput {
   assignees?: readonly string[];
   /** Convenience reserved-label shortcuts. */
   status?: string;
-  priority?: string;
+  impact?: string;
+  urgency?: string;
   size?: string;
 }
 
@@ -75,7 +74,8 @@ export interface UpdateIssueInput {
   stateReason?: "completed" | "not_planned" | null;
   /** `null` clears the label; `undefined` leaves the group untouched. */
   status?: string | null;
-  priority?: string | null;
+  impact?: string | null;
+  urgency?: string | null;
   size?: string | null;
   /** Toggles the orthogonal `blocked` flag (SPEC §5.1). */
   blocked?: boolean;
@@ -120,15 +120,23 @@ function splitRepo(repo: string): { owner: string; name: string } | null {
   return { owner: repo.slice(0, slash), name: repo.slice(slash + 1) };
 }
 
-const GROUP_VALUES: Record<LabelGroup, ReadonlySet<string>> = {
-  status: new Set(STATUS_VALUES),
-  priority: new Set(PRIORITY_VALUES),
-  size: new Set(SIZE_VALUES),
-  flags: new Set(
-    CANONICAL_LABELS.filter((label) => label.group === "flags").map((label) =>
+function namesIn(group: LabelGroup): Set<string> {
+  return new Set(
+    CANONICAL_LABELS.filter((label) => label.group === group).map((label) =>
       label.name.toLowerCase(),
     ),
-  ),
+  );
+}
+
+const GROUP_VALUES: Record<LabelGroup, ReadonlySet<string>> = {
+  status: new Set(STATUS_VALUES),
+  // Priority is no longer a label group; the set stays empty so the record
+  // remains total without accepting a retired p-label as canonical.
+  priority: new Set<string>(),
+  impact: namesIn("impact"),
+  urgency: namesIn("urgency"),
+  size: new Set(SIZE_VALUES),
+  flags: namesIn("flags"),
 };
 
 function isCanonical(group: LabelGroup, value: string): boolean {
@@ -235,9 +243,12 @@ export async function createIssue(
   const notConfigured = await requireConfiguredRepo(input.repo);
   if (notConfigured) return notConfigured;
 
-  let labels = normalizeReserved(input.labels ?? []);
+  let labels = normalizeReserved(
+    (input.labels ?? []).filter((label) => !isRetiredPriorityLabel(label)),
+  );
   if (input.status) labels = withReserved(labels, "status", input.status);
-  if (input.priority) labels = withReserved(labels, "priority", input.priority);
+  if (input.impact) labels = withReserved(labels, "impact", input.impact);
+  if (input.urgency) labels = withReserved(labels, "urgency", input.urgency);
   if (input.size) labels = withReserved(labels, "size", input.size);
 
   const thread: ThreadInput = {
@@ -305,7 +316,8 @@ export async function updateIssue(
 
   const reservedRequested =
     input.status !== undefined ||
-    input.priority !== undefined ||
+    input.impact !== undefined ||
+    input.urgency !== undefined ||
     input.size !== undefined ||
     input.blocked !== undefined;
 
@@ -331,7 +343,8 @@ export async function updateIssue(
 
   for (const [group, value] of [
     ["status", input.status],
-    ["priority", input.priority],
+    ["impact", input.impact],
+    ["urgency", input.urgency],
     ["size", input.size],
   ] as const) {
     if (value !== undefined && value !== null && !isCanonical(group, value)) {
@@ -366,8 +379,11 @@ export async function updateIssue(
       if (input.status !== undefined) {
         labels = withReserved(labels, "status", input.status);
       }
-      if (input.priority !== undefined) {
-        labels = withReserved(labels, "priority", input.priority);
+      if (input.impact !== undefined) {
+        labels = withReserved(labels, "impact", input.impact);
+      }
+      if (input.urgency !== undefined) {
+        labels = withReserved(labels, "urgency", input.urgency);
       }
       if (input.size !== undefined) {
         labels = withReserved(labels, "size", input.size);
@@ -421,6 +437,9 @@ export async function addIssueLabels(
   if (notConfigured) return notConfigured;
 
   if (input.labels.length === 0) return badRequest("No labels provided");
+  if (input.labels.some((label) => isRetiredPriorityLabel(label))) {
+    return badRequest("Priority labels are retired; set impact and urgency instead");
+  }
 
   const ref = forge.threadRef(
     forge.repoRef(parts.owner, parts.name),

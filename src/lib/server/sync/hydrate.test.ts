@@ -179,6 +179,48 @@ describe("hydrateAndStore", () => {
     expect(mirror.getIssueLabels(repoId, 1).sort()).toEqual(["bug", "todo"]);
   });
 
+  test("caches impact/urgency labels and derives priority", async () => {
+    const graphql: GraphqlFn = async () => ({
+      nodes: [
+        {
+          ...ISSUE_NODE,
+          labels: {
+            nodes: [{ name: "todo" }, { name: "sev" }, { name: "high" }],
+          },
+        },
+      ],
+    });
+    await hydrateAndStore(1, repoId, ["n1"], graphql);
+
+    const stored = mirror.getIssue(repoId, 1);
+    expect(stored?.impact).toBe(1);
+    expect(stored?.urgency).toBe(1);
+    expect(stored?.priority).toBe("P1");
+    expect(stored?.labelConflict).toBe(0);
+  });
+
+  test("flags a retired p-label that disagrees with the axes", async () => {
+    const graphql: GraphqlFn = async () => ({
+      nodes: [
+        {
+          ...ISSUE_NODE,
+          labels: {
+            nodes: [
+              { name: "todo" },
+              { name: "min" },
+              { name: "low" },
+              { name: "p1" },
+            ],
+          },
+        },
+      ],
+    });
+    await hydrateAndStore(1, repoId, ["n1"], graphql);
+
+    expect(mirror.getIssue(repoId, 1)?.priority).toBe("P3");
+    expect(mirror.getIssue(repoId, 1)?.labelConflict).toBe(1);
+  });
+
   test("flags a conflicted label set for later resolution", async () => {
     const graphql: GraphqlFn = async () => ({
       nodes: [

@@ -99,12 +99,12 @@ describe("writePriorityInputs / readPriorityInputs", () => {
   test("preserves blocker metadata while changing the axes", () => {
     const blocked = writeBlocked("body", INFO);
     const withPriority = writePriorityInputs(blocked, {
-      impact: 4,
+      impact: 3,
       urgency: 2,
     });
     expect(readBlocked(withPriority).info).toEqual(INFO);
     expect(readPriorityInputs(withPriority)).toEqual({
-      impact: 4,
+      impact: 3,
       urgency: 2,
     });
   });
@@ -144,13 +144,13 @@ describe("writePriorityInputs / readPriorityInputs", () => {
   });
 
   test("accepts the legacy top-level form and rewrites it canonically", () => {
-    const legacy = `body\n\n<!-- funnel_metadata\nimpact: 2\nurgency: 4\n-->`;
-    expect(readPriorityInputs(legacy)).toEqual({ impact: 2, urgency: 4 });
+    const legacy = `body\n\n<!-- funnel_metadata\nimpact: 2\nurgency: 3\n-->`;
+    expect(readPriorityInputs(legacy)).toEqual({ impact: 2, urgency: 3 });
     const rewritten = writePriorityInputs(legacy, {
       impact: 2,
-      urgency: 4,
+      urgency: 3,
     });
-    expect(rewritten).toContain("priority:\n  impact: 2\n  urgency: 4");
+    expect(rewritten).toContain("priority:\n  impact: 2\n  urgency: 3");
     expect(rewritten).not.toContain("\nimpact: 2");
   });
 
@@ -160,8 +160,8 @@ describe("writePriorityInputs / readPriorityInputs", () => {
   });
 
   test("aliases writeImpactUrgency", () => {
-    const body = writeImpactUrgency("body", { impact: 1, urgency: 4 });
-    expect(readPriorityInputs(body)).toEqual({ impact: 1, urgency: 4 });
+    const body = writeImpactUrgency("body", { impact: 1, urgency: 3 });
+    expect(readPriorityInputs(body)).toEqual({ impact: 1, urgency: 3 });
   });
 });
 

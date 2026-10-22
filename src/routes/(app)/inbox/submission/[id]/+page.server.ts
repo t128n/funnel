@@ -45,7 +45,7 @@ export const actions: Actions = {
     const repo = String(form.get("repo") ?? "").trim();
     if (!id) return fail(400, { message: "Missing submission id" });
 
-    const labels = ["priority", "size"]
+    const labels = ["size"]
       .map((key) => String(form.get(key) ?? "").trim())
       .filter((value) => value.length > 0);
 

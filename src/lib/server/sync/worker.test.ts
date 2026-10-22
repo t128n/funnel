@@ -182,6 +182,8 @@ function issueNode(overrides: Record<string, unknown> = {}) {
 
 const NULL_METADATA = {
   status: null,
+  impact: null,
+  urgency: null,
   priority: null,
   size: null,
   blocked: false,

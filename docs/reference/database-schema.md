@@ -293,7 +293,7 @@ Indexes: the composite primary key only.
 
 ### `mirror_thread`
 
-The thread cache (currently issues only). `status`, `priority`, `size` and `blocked` are derived caches of the reserved-label groups, recomputed at sync time. Done/Cancelled derive from `(state, state_reason)`.
+The thread cache (currently issues only). `status`, `impact`, `urgency`, `size` and `blocked` are derived caches of the active reserved-label groups, recomputed at sync time; `priority` is the derived P1–P3 cache. Done/Cancelled derive from `(state, state_reason)`.
 
 | Column | Type | Constraints / notes |
 | :--- | :--- | :--- |
@@ -312,10 +312,12 @@ The thread cache (currently issues only). `status`, `priority`, `size` and `bloc
 | `updated_at` | INTEGER | Not null, Unix ms. |
 | `closed_at` | INTEGER | Nullable, Unix ms. |
 | `status` | TEXT | Nullable; `backlog`, `todo`, `in-progress` or `in-review`. |
-| `priority` | TEXT | Nullable; `p1`, `p2` or `p3`. |
+| `impact` | INTEGER | Nullable; `1` Severe, `2` Moderate or `3` Minor. |
+| `urgency` | INTEGER | Nullable; `1` High, `2` Mid or `3` Low. |
+| `priority` | TEXT | Nullable derived cache; `P1`, `P2` or `P3` (never a label). |
 | `size` | TEXT | Nullable; `sm`, `md` or `lg`. |
 | `blocked` | INTEGER | Not null, default `0`; 0/1 orthogonal flag. |
-| `label_conflict` | INTEGER | Not null, default `0`; 0/1 ambiguous reserved-label timeline. |
+| `label_conflict` | INTEGER | Not null, default `0`; 0/1 ambiguous reserved-label timeline or a retired p-label that disagrees with the derived priority. |
 
 Primary key: `(repo_id, number)`. Foreign keys:
 

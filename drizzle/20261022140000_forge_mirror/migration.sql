@@ -135,6 +135,8 @@ CREATE TABLE `mirror_thread` (
 	`updated_at` integer NOT NULL,
 	`closed_at` integer,
 	`status` text,
+	`impact` integer,
+	`urgency` integer,
 	`priority` text,
 	`size` text,
 	`blocked` integer DEFAULT 0 NOT NULL,

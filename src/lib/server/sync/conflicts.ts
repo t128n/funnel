@@ -1,7 +1,8 @@
 /**
  * Reserved-label conflict resolution (SPEC §5.2).
  *
- * An issue may carry at most one label per group (status, priority, size). When
+ * An issue may carry at most one label per active group (status, impact,
+ * urgency, size). When
  * it accumulates several, `funnel[bot]` inspects the issue timeline and the
  * **latest added label wins**; the superseded labels are removed on GitHub with
  * the App installation token. An ambiguous timeline (no `labeled` events, or a
@@ -14,6 +15,14 @@
 import type { ForgeEvent } from "forges";
 import { CANONICAL_LABELS, type LabelGroup } from "#lib/server/github/labels";
 import {
+  IMPACT_LABELS,
+  URGENCY_LABELS,
+  derivePriorityOrNull,
+  type Impact,
+  type Priority,
+  type Urgency,
+} from "#lib/priority";
+import {
   forge,
   type GitHubProvider,
   type RepoRef,
@@ -23,7 +32,10 @@ import {
 /** Reserved-label projection cached on the issue row. */
 export interface DerivedMetadata {
   status: string | null;
-  priority: string | null;
+  impact: Impact | null;
+  urgency: Urgency | null;
+  /** Derived `P1`–`P3`, or `null` when neither axis is assessed. */
+  priority: Priority | null;
   size: string | null;
   /** Whether the orthogonal `blocked` flag is present (SPEC §5.1). */
   blocked: boolean;
@@ -33,7 +45,8 @@ export interface DerivedMetadata {
 
 export const GROUP_ORDER: readonly LabelGroup[] = [
   "status",
-  "priority",
+  "impact",
+  "urgency",
   "size",
   "flags",
 ];
@@ -79,6 +92,8 @@ export function deriveMetadata(labelNames: readonly string[]): DerivedMetadata {
   const grouped = groupLabels(labelNames);
   const metadata: DerivedMetadata = {
     status: null,
+    impact: null,
+    urgency: null,
     priority: null,
     size: null,
     blocked: false,
@@ -89,11 +104,13 @@ export function deriveMetadata(labelNames: readonly string[]): DerivedMetadata {
     if (!names || names.length === 0) continue;
     const winner = names.length === 1 ? names[0] : firstCanonical(names);
     if (group === "status") metadata.status = winner;
-    else if (group === "priority") metadata.priority = winner;
+    else if (group === "impact") metadata.impact = IMPACT_LABELS[winner] ?? null;
+    else if (group === "urgency") metadata.urgency = URGENCY_LABELS[winner] ?? null;
     else if (group === "size") metadata.size = winner;
-    else metadata.blocked = true;
+    else if (group === "flags") metadata.blocked = true;
     if (names.length > 1) metadata.conflicts.push(group);
   }
+  metadata.priority = derivePriorityOrNull(metadata.impact, metadata.urgency);
   return metadata;
 }
 

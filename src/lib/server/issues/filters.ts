@@ -30,6 +30,7 @@ import {
   mirrorUser,
 } from "#lib/server/db/schema";
 import { CANONICAL_LABELS, type LabelGroup } from "#lib/server/github/labels";
+import { isRetiredPriorityLabel } from "#lib/priority";
 
 /** Canonical status label names; absence means "untriaged" (Inbox). */
 export const STATUS_VALUES = [
@@ -38,6 +39,10 @@ export const STATUS_VALUES = [
   "in-progress",
   "in-review",
 ] as const;
+/**
+ * Priority filter vocabulary. The URL uses the lowercase form; the durable
+ * cache stores the canonical `P1`–`P3` value.
+ */
 export const PRIORITY_VALUES = ["p1", "p2", "p3"] as const;
 export const SIZE_VALUES = ["sm", "md", "lg"] as const;
 
@@ -235,7 +240,9 @@ export function parseIssueFilter(
     priorities: vocab(multi(params, "priority"), PRIORITY_SET),
     sizes: vocab(multi(params, "size"), SIZE_SET),
     labels: multi(params, "label").filter(
-      (name) => !RESERVED_GROUP.has(name.toLowerCase()),
+      (name) =>
+        !RESERVED_GROUP.has(name.toLowerCase()) &&
+        !isRetiredPriorityLabel(name),
     ),
     milestones: milestones.refs,
     noMilestone: milestones.none,
@@ -310,11 +317,22 @@ export function buildIssueWhere(filter: IssueFilter): SQL | undefined {
   for (const [column, values] of [
     [mirrorThread.state, filter.states],
     [mirrorThread.status, filter.statuses],
-    [mirrorThread.priority, filter.priorities],
     [mirrorThread.size, filter.sizes],
   ] as const) {
     const clause = dimension(column, values);
     if (clause) conditions.push(clause);
+  }
+
+  // Priority is the derived P1–P3 cache; the URL uses the lowercase form.
+  if (filter.priorities.length > 0) {
+    const parts = filter.priorities
+      .filter((value) => value !== NONE)
+      .map((value) => eq(mirrorThread.priority, value.toUpperCase()));
+    if (filter.priorities.includes(NONE)) {
+      parts.push(isNull(mirrorThread.priority));
+    }
+    if (parts.length === 1) conditions.push(parts[0]);
+    else if (parts.length > 1) conditions.push(or(...parts) as SQL);
   }
 
   if (filter.assignees.length > 0) {

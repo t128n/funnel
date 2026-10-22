@@ -41,6 +41,11 @@ import { listRepos } from "#lib/server/sync/mirror";
 import { listWorkNotes } from "#lib/server/work-notes";
 import { readBlocked } from "#lib/funnel-metadata";
 import {
+  isRetiredPriorityLabel,
+  parseImpact,
+  parseUrgency,
+} from "#lib/priority";
+import {
   assigneeExists,
   buildIssueWhere,
   RESERVED_GROUP,
@@ -74,8 +79,8 @@ const BOARD_LABELS: Record<StatusKey, string> = {
   done: "Done",
 };
 
-/** Default sort: priority (p1 first, unprioritized last) then updated. */
-const PRIORITY_RANK = sql`case ${mirrorThread.priority} when 'p1' then 0 when 'p2' then 1 when 'p3' then 2 else 3 end`;
+/** Default sort: derived priority (P1 first, unprioritized last) then updated. */
+const PRIORITY_RANK = sql`case ${mirrorThread.priority} when 'P1' then 0 when 'P2' then 1 when 'P3' then 2 else 3 end`;
 
 const issueColumns = {
   repoId: mirrorThread.repoId,
@@ -85,6 +90,8 @@ const issueColumns = {
   stateReason: mirrorThread.stateReason,
   status: mirrorThread.status,
   priority: mirrorThread.priority,
+  impact: mirrorThread.impact,
+  urgency: mirrorThread.urgency,
   size: mirrorThread.size,
   blocked: mirrorThread.blocked,
   labelConflict: mirrorThread.labelConflict,
@@ -112,6 +119,8 @@ interface RawRow {
   stateReason: string | null;
   status: string | null;
   priority: string | null;
+  impact: number | null;
+  urgency: number | null;
   size: string | null;
   blocked: number;
   labelConflict: number;
@@ -289,6 +298,8 @@ function hydrate(rows: RawRow[]): IssueListItem[] {
       stateReason: row.stateReason,
       status: row.status,
       priority: row.priority,
+      impact: parseImpact(row.impact),
+      urgency: parseUrgency(row.urgency),
       size: row.size,
       blocked: row.blocked === 1,
       labelConflict: row.labelConflict === 1,
@@ -566,7 +577,11 @@ export function filterOptions(): FilterOptions {
     ...new Set(
       labelRows
         .map((row) => row.name)
-        .filter((name) => !RESERVED_GROUP.has(name.toLowerCase())),
+        .filter(
+          (name) =>
+            !RESERVED_GROUP.has(name.toLowerCase()) &&
+            !isRetiredPriorityLabel(name),
+        ),
     ),
   ].sort((a, b) => a.localeCompare(b));
 
