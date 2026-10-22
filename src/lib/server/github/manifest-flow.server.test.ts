@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { setConfig } from "#/lib/server/config";
-import { resetAppCache } from "./app.server";
+import { forge } from "#/lib/server/forge/providers.server";
 import { GHE_CONFIG, TEST_CONFIG } from "#tests/test-config";
 import {
   exchangeManifestCode,
@@ -16,12 +16,12 @@ const realFetch = globalThis.fetch;
 
 beforeEach(() => {
   setConfig(TEST_CONFIG);
-  resetAppCache();
+  forge.resetCaches();
 });
 
 afterEach(() => {
   globalThis.fetch = realFetch;
-  resetAppCache();
+  forge.resetCaches();
 });
 
 const CONVERSION: ManifestConversion = {
@@ -78,7 +78,7 @@ describe("exchangeManifestCode", () => {
 
   test("follows the enterprise API base", async () => {
     setConfig(GHE_CONFIG);
-    resetAppCache();
+    forge.resetCaches();
     let seen = "";
     globalThis.fetch = (async (url: unknown) => {
       seen = String(url);

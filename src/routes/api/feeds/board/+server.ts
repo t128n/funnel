@@ -5,7 +5,7 @@
  * the bounded `done` window). Totals and cursors come from the server, so a
  * lane's WIP count never depends on which cards the client has loaded.
  */
-import { getViewerGithubId } from "#lib/server/auth/index";
+import { getViewerExternalId } from "#lib/server/auth/index";
 import { apiRole } from "#lib/server/http/session";
 import { parseIssueFilter, STATUS_VALUES } from "#lib/server/issues/filters";
 import {
@@ -52,12 +52,12 @@ function isStatusKey(value: string): value is StatusKey {
 /** One page of a single board lane, chosen by `?column=`. */
 async function boardPage(
   search: URLSearchParams,
-  viewerGithubId: number | null,
+  viewerExternalId: string | null,
 ): Promise<ListPage<IssueListItem>> {
   const column = search.get("column") ?? "";
   if (!isStatusKey(column)) throw new FeedRequestError("Unknown column");
 
-  const filter = parseIssueFilter(search, filterContext(viewerGithubId));
+  const filter = parseIssueFilter(search, filterContext(viewerExternalId));
   const opts = pageOptions(search);
   requireCursor(
     opts.cursor ?? null,
@@ -71,8 +71,8 @@ export const GET: RequestHandler = async ({ url, locals }) => {
   if (userId instanceof Response) return userId;
 
   try {
-    const viewerGithubId = await getViewerGithubId(userId);
-    return Response.json(await boardPage(url.searchParams, viewerGithubId));
+    const viewerExternalId = await getViewerExternalId(userId);
+    return Response.json(await boardPage(url.searchParams, viewerExternalId));
   } catch (error) {
     if (error instanceof FeedRequestError) {
       return Response.json({ message: error.message }, { status: 400 });

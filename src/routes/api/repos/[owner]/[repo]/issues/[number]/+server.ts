@@ -1,20 +1,16 @@
 import * as v from "valibot";
 import type { RequestHandler } from "./$types";
-import {
-  getInstallationId,
-  github,
-  installationErrorResponse,
-  webUrl,
-} from "#lib/server/github/app.server";
+import { installationErrorResponse } from "#lib/server/github/app.server";
 import {
   passthrough,
   toResponse,
 } from "#lib/server/github/api-passthrough.server";
+import { SIZE_VALUES, STATUS_VALUES } from "#lib/server/issues/filters";
+import { forge } from "#lib/server/forge/providers.server";
 import {
-  PRIORITY_VALUES,
-  SIZE_VALUES,
-  STATUS_VALUES,
-} from "#lib/server/issues/filters";
+  IMPACT_LABEL_VALUES,
+  URGENCY_LABEL_VALUES,
+} from "#lib/priority";
 import { authenticate, readJson, scheduleRefresh } from "#lib/server/issues/http";
 import { apiRole } from "#lib/server/http/session";
 import { updateIssue } from "#lib/server/issues/mutations";
@@ -27,18 +23,18 @@ export const GET: RequestHandler = async ({ params, request, locals }) => {
 
   let installationId: number;
   try {
-    installationId = await getInstallationId(params.owner, params.repo);
+    installationId = await forge.getInstallationId(params.owner, params.repo);
   } catch (e) {
     return installationErrorResponse(params.owner, params.repo, e);
   }
   const result = await passthrough(
-    await github.asInstallation(installationId),
+    await forge.installationProvider(installationId),
     installationId,
     `/repos/${params.owner}/${params.repo}/issues/${params.number}`,
     new URLSearchParams(),
     request.headers.get("if-none-match"),
     {
-      htmlUrlFallback: await webUrl(
+      htmlUrlFallback: await forge.webUrl(
         `${params.owner}/${params.repo}/issues/${params.number}`,
       ),
     },
@@ -48,7 +44,8 @@ export const GET: RequestHandler = async ({ params, request, locals }) => {
 
 /**
  * Update an issue with the signed-in user's token (SPEC §9.2): title/body and
- * assignees, open/closed state, and the reserved status/priority/size labels.
+ * assignees, open/closed state, and the reserved status/impact/urgency/size
+ * labels. Priority is derived from the axes and is not written to GitHub.
  */
 const updateSchema = v.object({
   title: v.optional(
@@ -66,7 +63,8 @@ const updateSchema = v.object({
     v.nullable(v.picklist(["completed", "not_planned"] as const)),
   ),
   status: v.optional(v.nullable(v.picklist(STATUS_VALUES))),
-  priority: v.optional(v.nullable(v.picklist(PRIORITY_VALUES))),
+  impact: v.optional(v.nullable(v.picklist(IMPACT_LABEL_VALUES))),
+  urgency: v.optional(v.nullable(v.picklist(URGENCY_LABEL_VALUES))),
   size: v.optional(v.nullable(v.picklist(SIZE_VALUES))),
   blocked: v.optional(v.boolean()),
   milestone: v.optional(
@@ -105,7 +103,7 @@ export const PATCH: RequestHandler = async ({
   }
 
   const result = await updateIssue({
-    octokit: auth.octokit,
+    provider: auth.provider,
     repo: `${params.owner}/${params.repo}`,
     number,
     title: parsed.output.title,
@@ -114,7 +112,8 @@ export const PATCH: RequestHandler = async ({
     state: parsed.output.state,
     stateReason: parsed.output.state_reason,
     status: parsed.output.status,
-    priority: parsed.output.priority,
+    impact: parsed.output.impact,
+    urgency: parsed.output.urgency,
     size: parsed.output.size,
     blocked: parsed.output.blocked,
     milestone: parsed.output.milestone,

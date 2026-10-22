@@ -4,7 +4,7 @@ import { FUNNEL_SECRET } from "$app/env/private";
 import { setConfig } from "#/lib/server/config";
 import { db } from "#/lib/server/db/index";
 import { authAccount, authUser } from "#/lib/server/db/schema";
-import { resetAppCache } from "#/lib/server/github/app.server";
+import { forge } from "#/lib/server/forge/providers.server";
 import { POST as createIssue } from "#/routes/api/repos/[owner]/[repo]/issues/+server";
 import { PATCH as patchIssue } from "#/routes/api/repos/[owner]/[repo]/issues/[number]/+server";
 import { POST as addComment } from "#/routes/api/repos/[owner]/[repo]/issues/[number]/comments/+server";
@@ -134,7 +134,7 @@ beforeEach(async () => {
     ...TEST_CONFIG,
     repos: [{ repo: REPO_SLUG, shortcode: "CORE" }],
   });
-  resetAppCache();
+  forge.resetCaches();
   globalThis.fetch = stubFetch as typeof fetch;
   await seedViewer();
 });

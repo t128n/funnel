@@ -18,7 +18,9 @@ import {
 } from "./store";
 
 const UPLOADER: UserRef = {
-  githubId: 9,
+  externalId: "9",
+  forge: "github",
+  instance: "github.com",
   login: "uploader",
   avatarUrl: "",
 };

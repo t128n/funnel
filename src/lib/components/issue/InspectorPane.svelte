@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/state';
+	import { onDestroy } from 'svelte';
 	import { toast } from 'svelte-sonner';
 	import Avatar from '#lib/components/common/Avatar.svelte';
 	import MultiSelect from '#lib/components/common/MultiSelect.svelte';
@@ -13,6 +14,7 @@
 	import AttachmentDropbox from '#lib/components/issue/AttachmentDropbox.svelte';
 	import IssueActionDialog from '#lib/components/issue/IssueActionDialog.svelte';
 	import MilestonePicker from '#lib/components/issue/MilestonePicker.svelte';
+	import PriorityPicker from '#lib/components/issue/PriorityPicker.svelte';
 	import * as Alert from '#lib/components/ui/alert';
 	import { Button } from '#lib/components/ui/button';
 	import { Input } from '#lib/components/ui/input';
@@ -52,14 +54,22 @@
 		splitFunnelMetadata,
 		writeBlocked
 	} from '#lib/funnel-metadata';
+	import { issueThreadMarkdown, shouldScopeSelectAll } from '#lib/issue-copy';
 	import { timeAgo } from '#lib/client/clock.svelte';
 	import {
-		PRIORITY_OPTIONS,
 		SIZE_OPTIONS,
 		STATUS_OPTIONS,
 		canonicalLabel,
 		labelTint
 	} from '#lib/labels';
+	import {
+		derivePriorityOrNull,
+		impactLabel,
+		isRetiredPriorityLabel,
+		parseImpactLabel,
+		parseUrgencyLabel,
+		urgencyLabel
+	} from '#lib/priority';
 	import { absoluteTime } from '#lib/time';
 	import { ATTACHMENTS_FLAG, WORK_NOTES_FLAG } from '#lib/features';
 	import { canWrite } from '#lib/roles';
@@ -73,10 +83,11 @@
 	import { cn } from '#lib/utils';
 	import CircleDashedIcon from '@lucide/svelte/icons/circle-dashed';
 	import BanIcon from '@lucide/svelte/icons/ban';
+	import CheckIcon from '@lucide/svelte/icons/check';
 	import CircleUserIcon from '@lucide/svelte/icons/circle-user';
+	import CopyIcon from '@lucide/svelte/icons/copy';
 	import ExternalLinkIcon from '@lucide/svelte/icons/external-link';
 	import RulerIcon from '@lucide/svelte/icons/ruler';
-	import SignalIcon from '@lucide/svelte/icons/signal';
 	import TagIcon from '@lucide/svelte/icons/tag';
 	import XIcon from '@lucide/svelte/icons/x';
 
@@ -108,6 +119,8 @@
 	let body = $state('');
 	let comment = $state('');
 	let editingBody = $state(false);
+	/** Whether the title shows its inline editor instead of plain text. */
+	let editingTitle = $state(false);
 	/** Raw Markdown the server-rendered `bodyHtml` was produced from. */
 	let renderedBody = $state('');
 	/** The trailing `funnel_metadata` envelope, kept out of the body editor. */
@@ -121,6 +134,18 @@
 	let uploading = $state(0);
 	/** Attachment being deleted. */
 	let deletingId = $state<string | null>(null);
+
+	/** Pane root, so Mod+A can be scoped to this issue instead of the page. */
+	let paneEl = $state<HTMLElement | null>(null);
+	/** The title heading; the start of a Mod+A thread selection. */
+	let titleEl = $state<HTMLElement | null>(null);
+	/** The Activity section; the end of a Mod+A thread selection. */
+	let activityEl = $state<HTMLElement | null>(null);
+	/** Flips the copy button to a check for a moment after a successful copy. */
+	let copied = $state(false);
+	let copyTimeout: ReturnType<typeof setTimeout> | undefined;
+
+	onDestroy(() => clearTimeout(copyTimeout));
 
 	// Feature flags are shared per-browser; the local features default to on so a
 	// missing flag never hides the journal or the dropbox.
@@ -164,6 +189,8 @@
 	];
 	const statusValue = $derived(closed ? 'done' : (issue?.status ?? null));
 	const priorityValue = $derived(issue?.priority ?? null);
+	const impactValue = $derived(issue?.impact ?? null);
+	const urgencyValue = $derived(issue?.urgency ?? null);
 	const sizeValue = $derived(issue?.size ?? null);
 	const milestoneValue = $derived(issue?.milestone ?? null);
 	const milestoneOptions = $derived(detail?.milestoneOptions ?? []);
@@ -177,11 +204,16 @@
 	const assignees = $derived(issue?.assignees ?? []);
 	const assigneeOptions = $derived(detail?.assigneeOptions ?? []);
 	const selectedLabels = $derived(
-		(issue?.labels ?? []).filter((name) => !canonicalLabel(name))
+		(issue?.labels ?? []).filter(
+			(name) => !canonicalLabel(name) && !isRetiredPriorityLabel(name)
+		)
 	);
 	const labelOptions = $derived(
 		(detail?.repoLabels ?? [])
-			.filter((label) => !canonicalLabel(label.name))
+			.filter(
+				(label) =>
+					!canonicalLabel(label.name) && !isRetiredPriorityLabel(label.name)
+			)
 			.map((label) => ({ value: label.name, label: label.name, color: label.color }))
 	);
 
@@ -213,6 +245,7 @@
 			renderedBody = split.content;
 			metadataBlock = split.block;
 			editingBody = false;
+			editingTitle = false;
 		} else {
 			detail = null;
 			error = result.error;
@@ -236,7 +269,9 @@
 	function localAssignee(login: string): UserRef {
 		return (
 			assigneeOptions.find((u) => u.login === login) ?? {
-				githubId: 0,
+				externalId: '',
+				forge: '',
+				instance: '',
 				login,
 				avatarUrl: ''
 			}
@@ -252,7 +287,6 @@
 		const next: IssuePatch = {};
 		if (patch.title !== undefined) next.title = patch.title;
 		if (patch.status !== undefined) next.status = patch.status;
-		if (patch.priority !== undefined) next.priority = patch.priority;
 		if (patch.size !== undefined) next.size = patch.size;
 		if (patch.blocked !== undefined) next.blocked = patch.blocked;
 		if (patch.assignees !== undefined) {
@@ -352,9 +386,87 @@
 		dialogMode = null;
 	}
 
+	/**
+	 * A click that did not select text. The title and the description open
+	 * their editor on such a click only, so dragging to select prose — which
+	 * is how the thread gets copied — never flips the pane into edit mode.
+	 */
+	function isPlainClick(): boolean {
+		return window.getSelection()?.isCollapsed ?? true;
+	}
+
+	function startTitleEdit() {
+		if (!mayWrite || !issue) return;
+		title = issue.title;
+		editingTitle = true;
+	}
+
+	/** Escape abandons an in-progress title edit; nothing is written. */
+	function cancelTitleEdit() {
+		title = issue?.title ?? '';
+		editingTitle = false;
+	}
+
 	async function saveTitle() {
-		if (!titleDirty || busy) return;
-		await runPatch({ title: title.trim() }, 'title');
+		if (!editingTitle || busy) return;
+		if (!titleDirty) {
+			editingTitle = false;
+			return;
+		}
+		const ok = await runPatch({ title: title.trim() }, 'title');
+		if (ok) editingTitle = false;
+	}
+
+	/**
+	 * Whether the caret or focus already lives in this pane. Clicking prose
+	 * puts a collapsed caret in its text node while focus stays on `<body>`,
+	 * so both are checked before Mod+A is re-scoped.
+	 */
+	function paneHasFocusOrCaret(): boolean {
+		if (!paneEl) return false;
+		const active = document.activeElement;
+		if (active && paneEl.contains(active)) return true;
+		const anchor = window.getSelection()?.anchorNode ?? null;
+		return anchor !== null && paneEl.contains(anchor);
+	}
+
+	/**
+	 * Select the thread — title through the last comment — instead of letting
+	 * the browser select the whole page. Focus inside a field (title editor,
+	 * description editor, composer) keeps its native select-all.
+	 */
+	function onWindowKeydown(event: KeyboardEvent) {
+		if (!shouldScopeSelectAll(event)) return;
+		if (!titleEl || !activityEl || !paneHasFocusOrCaret()) return;
+		event.preventDefault();
+		const range = document.createRange();
+		range.setStartBefore(titleEl);
+		// Ends at the Activity section, so work notes, attachments and the
+		// composer stay out of the selection.
+		range.setEndAfter(activityEl);
+		const selection = window.getSelection();
+		selection?.removeAllRanges();
+		selection?.addRange(range);
+	}
+
+	/** Copy the whole thread as Markdown, metadata and work notes excluded. */
+	async function copyThread() {
+		if (!issue) return;
+		const markdown = issueThreadMarkdown({
+			url: githubLink,
+			issue,
+			body: renderedBody,
+			comments: detail?.comments ?? []
+		});
+		try {
+			await navigator.clipboard.writeText(markdown);
+		} catch {
+			notifyFailure('Could not copy issue', 'Clipboard access was denied');
+			return;
+		}
+		copied = true;
+		clearTimeout(copyTimeout);
+		copyTimeout = setTimeout(() => (copied = false), 2000);
 	}
 
 	async function saveBody() {
@@ -411,8 +523,51 @@
 		}
 	}
 
-	async function setPriority(value: string | null) {
-		await runPatch({ priority: value }, 'priority');
+	/**
+	 * Write the impact/urgency labels (the axes' GitHub home) and apply the
+	 * derived priority optimistically. The mirror re-derives on refresh, so the
+	 * overlay reconciles against authoritative data.
+	 */
+	async function setPriorityLabels(patch: {
+		impact?: string | null;
+		urgency?: string | null;
+	}): Promise<boolean> {
+		if (!detail) return false;
+		const nextImpact =
+			patch.impact === undefined ? impactValue : parseImpactLabel(patch.impact);
+		const nextUrgency =
+			patch.urgency === undefined ? urgencyValue : parseUrgencyLabel(patch.urgency);
+		const derived = derivePriorityOrNull(nextImpact, nextUrgency);
+		const issuePatch: IssuePatch = {
+			impact: nextImpact,
+			urgency: nextUrgency,
+			priority: derived
+		};
+		busy = 'priority';
+		const outcome = await mutate({
+			key: overlayKey(repo, number),
+			patch: issuePatch,
+			failure: 'Could not update priority',
+			commit: () => updateIssue(repo, number, patch)
+		});
+		busy = null;
+		if (!outcome.ok) return false;
+		bake(issuePatch);
+		return true;
+	}
+
+	function commitPriorityAxis(
+		axis: 'impact' | 'urgency',
+		value: number | null
+	): Promise<boolean> {
+		return axis === 'impact'
+			? setPriorityLabels({ impact: impactLabel(value) })
+			: setPriorityLabels({ urgency: urgencyLabel(value) });
+	}
+
+	function clearPriority(): Promise<boolean> {
+		if (impactValue === null && urgencyValue === null) return Promise.resolve(true);
+		return setPriorityLabels({ impact: null, urgency: null });
 	}
 
 	async function setSize(value: string | null) {
@@ -493,7 +648,9 @@
 		const removed = [...selectedLabels].filter((name) => !target.has(name));
 		if (added.length === 0 && removed.length === 0) return;
 
-		const reserved = detail.issue.labels.filter((name) => canonicalLabel(name));
+		const reserved = detail.issue.labels.filter(
+			(name) => canonicalLabel(name) || isRetiredPriorityLabel(name)
+		);
 		const issuePatch: IssuePatch = { labels: [...reserved, ...next] };
 		busy = 'labels';
 		const outcome = await mutate({
@@ -667,6 +824,7 @@
 {/snippet}
 
 <DetailShell
+	bind:element={paneEl}
 	ariaLabel="Issue inspector"
 	class={cn(
 		fill
@@ -682,24 +840,54 @@
 		<div class="flex min-w-0 flex-1 flex-col gap-1 py-0.5">
 			{#if issue}
 				<div class="flex min-w-0 items-center gap-2">
-					<Input
-						class="hover:bg-accent/50 h-auto -ml-1 min-w-0 flex-1 rounded-sm border-0 bg-transparent px-1 text-xl leading-tight font-semibold tracking-tight shadow-none md:text-xl dark:bg-transparent"
-						value={title}
-						oninput={(e) => (title = e.currentTarget.value)}
-						onblur={saveTitle}
-						onkeydown={(e) => {
-							if (e.key === 'Enter') {
-								e.preventDefault();
-								e.currentTarget.blur();
-							}
-						}}
-						aria-label="Issue title"
-						disabled={busy === 'title' || !mayWrite}
-					/>
-					{#if busy === 'title'}
-						<Spinner size={14} />
-					{:else if titleDirty}
-						<Button variant="secondary" size="sm" onclick={saveTitle}>Save</Button>
+					{#if editingTitle}
+						<Input
+							class="hover:bg-accent/50 h-auto -ml-1 min-w-0 flex-1 rounded-sm border-0 bg-transparent px-1 text-xl leading-tight font-semibold tracking-tight shadow-none md:text-xl dark:bg-transparent"
+							value={title}
+							oninput={(e) => (title = e.currentTarget.value)}
+							onblur={saveTitle}
+							onkeydown={(e) => {
+								if (e.key === 'Enter') {
+									e.preventDefault();
+									e.currentTarget.blur();
+								} else if (e.key === 'Escape') {
+									e.preventDefault();
+									cancelTitleEdit();
+								}
+							}}
+							aria-label="Issue title"
+							disabled={busy === 'title'}
+						/>
+						{#if busy === 'title'}
+							<Spinner size={14} />
+						{:else if titleDirty}
+							<Button variant="secondary" size="sm" onclick={saveTitle}>Save</Button>
+						{/if}
+					{:else}
+						<!--
+							Plain text rather than an input: a rendered input value is not
+							part of a text selection, so Mod+A could never include it.
+						-->
+						<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+						<h2
+							bind:this={titleEl}
+							class={cn(
+								'text-foreground -ml-1 h-auto min-w-0 flex-1 rounded-sm px-1 text-xl leading-tight font-semibold tracking-tight md:text-xl',
+								mayWrite && 'hover:bg-accent/50 cursor-text'
+							)}
+							tabindex={mayWrite ? 0 : undefined}
+							role={mayWrite ? 'button' : undefined}
+							aria-label={mayWrite ? 'Issue title; activate to edit' : 'Issue title'}
+							onclick={() => mayWrite && isPlainClick() && startTitleEdit()}
+							onkeydown={(e) => {
+								if (mayWrite && (e.key === 'Enter' || e.key === ' ')) {
+									e.preventDefault();
+									startTitleEdit();
+								}
+							}}
+						>
+							{title}
+						</h2>
 					{/if}
 				</div>
 			{/if}
@@ -723,6 +911,20 @@
 			</div>
 		</div>
 		<div class="flex shrink-0 items-center gap-1">
+			<Button
+				variant="ghost"
+				size="icon-sm"
+				title={copied ? 'Copied' : 'Copy issue as Markdown'}
+				aria-label="Copy issue as Markdown"
+				disabled={!issue}
+				onclick={() => void copyThread()}
+			>
+				{#if copied}
+					<CheckIcon />
+				{:else}
+					<CopyIcon />
+				{/if}
+			</Button>
 			<Button
 				variant="ghost"
 				size="icon-sm"
@@ -753,8 +955,8 @@
 		{#if issue.labelConflict}
 			<Alert.Root>
 				<Alert.Description>
-					Conflicting reserved labels were detected on GitHub; the mirror used the latest
-					timeline entry.
+					GitHub carries a conflicting reserved label or a retired priority label. Funnel uses
+					the derived priority and does not trust the label.
 				</Alert.Description>
 			</Alert.Root>
 		{/if}
@@ -791,7 +993,7 @@
 					role={mayWrite ? 'button' : undefined}
 					tabindex={mayWrite ? 0 : undefined}
 					aria-label={mayWrite ? 'Issue description; activate to edit' : 'Issue description'}
-					onclick={() => mayWrite && (editingBody = true)}
+					onclick={() => mayWrite && isPlainClick() && (editingBody = true)}
 					onkeydown={(e) => {
 						if (mayWrite && (e.key === 'Enter' || e.key === ' ')) {
 							e.preventDefault();
@@ -810,7 +1012,7 @@
 			{/if}
 		</section>
 
-		<section class="flex flex-wrap items-center gap-1.5" aria-label="Issue properties">
+		<section class="flex flex-wrap items-center gap-1.5 select-none" aria-label="Issue properties">
 			<button
 				class={selectTriggerClass(
 					'pill',
@@ -842,19 +1044,14 @@
 				{/snippet}
 			</SingleSelect>
 
-			<SingleSelect
-				variant="pill"
-				label="No priority"
-				options={PRIORITY_OPTIONS}
-				value={priorityValue}
-				onselect={setPriority}
-				allowClear
-				disabled={busy === 'priority' || !mayWrite}
-			>
-				{#snippet icon()}
-					<SignalIcon class="size-3.5" style={labelTint(priorityValue)} />
-				{/snippet}
-			</SingleSelect>
+			<PriorityPicker
+				impact={impactValue}
+				urgency={urgencyValue}
+				priority={priorityValue}
+				disabled={!mayWrite || busy === 'priority'}
+				oncommit={commitPriorityAxis}
+				onclear={clearPriority}
+			/>
 
 			<SingleSelect
 				variant="pill"
@@ -946,7 +1143,7 @@
 			</section>
 		{/if}
 
-		<section class="flex flex-col gap-3" aria-label="Activity">
+		<section bind:this={activityEl} class="flex flex-col gap-3" aria-label="Activity">
 			<div class="flex items-center justify-between">
 				<h2 class="text-foreground text-base font-semibold">
 					Activity
@@ -974,6 +1171,10 @@
 		</section>
 	{/if}
 </DetailShell>
+
+<svelte:window onkeydown={onWindowKeydown} />
+<!-- Announced to screen readers; kept outside the pane so a Mod+A transcript never picks it up. -->
+<span aria-live="polite" class="sr-only">{copied ? 'Issue copied' : ''}</span>
 
 <IssueActionDialog
 	open={dialogMode !== null}

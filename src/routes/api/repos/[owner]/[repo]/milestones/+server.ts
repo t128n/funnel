@@ -56,7 +56,7 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
   const owner = params.owner;
   const repo = params.repo;
   const result = await createMilestone({
-    octokit: auth.octokit,
+    provider: auth.provider,
     repo: `${owner}/${repo}`,
     title: parsed.output.title,
     description: parsed.output.description,

@@ -3,7 +3,7 @@
  *
  * These are the pure, transport-agnostic *actions* behind the Inbox buttons.
  * A future SvelteKit server action (Milestone 6, `/inbox` route) resolves the
- * signed-in user and passes a user-token Octokit — SPEC §8: every write
+ * signed-in user and passes a user-token provider — SPEC §8: every write
  * executes with the user's token, and GitHub enforces repo permissions
  * natively. Keeping the session/token out of this module makes the decisions
  * directly unit-testable.
@@ -12,15 +12,16 @@
  * only after GitHub confirms the write. On failure the row is retained so the
  * triager can retry.
  */
-import type { Octokit } from "octokit";
 import { getConfig, isConfiguredRepo } from "#lib/server/config";
+import type { GitHubProvider } from "#lib/server/forge/providers.server";
+import type { Outcome } from "#lib/server/http/outcome";
 import {
-  errorMessage,
-  errorStatus,
-  type Outcome,
-} from "#lib/server/http/outcome";
+  addIssueComment,
+  createIssue,
+} from "#lib/server/issues/mutations";
 import { createLogger } from "#lib/server/log";
 import { getIssue, getRepoByOrgName } from "#lib/server/sync/mirror";
+import { isRetiredPriorityLabel } from "#lib/priority";
 import { publish } from "#lib/server/sync/events";
 import {
   deleteSubmission,
@@ -43,8 +44,8 @@ export interface AcceptResult {
 
 export interface AcceptInput {
   id: string;
-  /** User-token client (SPEC §8). */
-  octokit: Octokit;
+  /** User-token provider (SPEC §8). */
+  provider: GitHubProvider;
   /** Target repo; defaults to `intake.default_repo` when omitted. */
   repo?: string;
   /** Extra labels; the default status label is added if absent. */
@@ -54,7 +55,7 @@ export interface AcceptInput {
 
 export interface DuplicateInput {
   id: string;
-  octokit: Octokit;
+  provider: GitHubProvider;
   /** Existing mirrored issue to comment on, in `owner/name` form. */
   repo: string;
   number: number;
@@ -74,9 +75,18 @@ function composeBody(body: string, source: string | null): string {
     .join("\n\n");
 }
 
-/** Status label first, then any caller labels, de-duplicated. */
+/**
+ * Status label first, then any caller labels, de-duplicated. Retired priority
+ * labels are dropped so intake can never recreate the old projection.
+ */
 function acceptLabels(labels: readonly string[] | undefined): string[] {
-  return [...new Set([DEFAULT_ACCEPT_STATUS, ...(labels ?? [])])];
+  return [
+    ...new Set(
+      [DEFAULT_ACCEPT_STATUS, ...(labels ?? [])].filter(
+        (label) => !isRetiredPriorityLabel(label),
+      ),
+    ),
+  ];
 }
 
 /** Comment body for a duplicate decision: the submission text, in full. */
@@ -118,42 +128,22 @@ export async function acceptSubmission(
     };
   }
 
-  const slash = target.indexOf("/");
-  const owner = target.slice(0, slash);
-  const repo = target.slice(slash + 1);
   const labels = acceptLabels(input.labels);
 
-  const params: {
-    owner: string;
-    repo: string;
-    title: string;
-    body: string;
-    labels: string[];
-    assignees?: string[];
-  } = {
-    owner,
-    repo,
+  const created = await createIssue({
+    provider: input.provider,
+    repo: target,
     title: submission.title,
     body: composeBody(submission.body, submission.source),
     labels,
-  };
-  if (input.assignees && input.assignees.length > 0) {
-    params.assignees = [...input.assignees];
-  }
-
-  let data: { number?: number; html_url?: string };
-  try {
-    const res = await input.octokit.request(
-      "POST /repos/{owner}/{repo}/issues",
-      params,
-    );
-    data = res.data as typeof data;
-  } catch (error) {
+    assignees: input.assignees,
+  });
+  if (!created.ok) {
     log.warn(
-      { id: input.id, repo: target, err: errorMessage(error) },
+      { id: input.id, repo: target, err: created.message },
       "accept failed",
     );
-    return { ok: false, status: errorStatus(error), message: errorMessage(error) };
+    return created;
   }
 
   // GitHub is the source of truth: only a confirmed create clears the queue
@@ -165,11 +155,11 @@ export async function acceptSubmission(
     action: "accepted",
     id: input.id,
     repo: target,
-    number: data.number ?? null,
+    number: created.value.number,
   });
   return {
     ok: true,
-    value: { number: data.number ?? 0, htmlUrl: data.html_url ?? "" },
+    value: { number: created.value.number, htmlUrl: created.value.htmlUrl },
   };
 }
 
@@ -208,7 +198,7 @@ export async function duplicateSubmission(
       message: `Repository ${input.repo} is not mirrored`,
     };
   }
-  if (!getIssue(mirroredRepo.githubId, input.number)) {
+  if (!getIssue(mirroredRepo.id, input.number)) {
     return {
       ok: false,
       status: 404,
@@ -216,24 +206,23 @@ export async function duplicateSubmission(
     };
   }
 
-  let data: { html_url?: string };
-  try {
-    const res = await input.octokit.request(
-      "POST /repos/{owner}/{repo}/issues/{issue_number}/comments",
-      {
-        owner: org,
-        repo: name,
-        issue_number: input.number,
-        body: duplicateComment(submission),
-      },
-    );
-    data = res.data as typeof data;
-  } catch (error) {
+  const commented = await addIssueComment({
+    provider: input.provider,
+    repo: input.repo,
+    number: input.number,
+    body: duplicateComment(submission),
+  });
+  if (!commented.ok) {
     log.warn(
-      { id: input.id, repo: input.repo, number: input.number, err: errorMessage(error) },
+      {
+        id: input.id,
+        repo: input.repo,
+        number: input.number,
+        err: commented.message,
+      },
       "duplicate failed",
     );
-    return { ok: false, status: errorStatus(error), message: errorMessage(error) };
+    return commented;
   }
 
   deleteSubmission(input.id);
@@ -246,6 +235,6 @@ export async function duplicateSubmission(
   });
   return {
     ok: true,
-    value: { number: input.number, htmlUrl: data.html_url ?? "" },
+    value: { number: input.number, htmlUrl: commented.value.htmlUrl },
   };
 }

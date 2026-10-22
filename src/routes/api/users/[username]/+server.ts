@@ -1,9 +1,9 @@
 import type { RequestHandler } from "./$types";
-import { github, webUrl } from "#lib/server/github/app.server";
 import {
   passthrough,
   toResponse,
 } from "#lib/server/github/api-passthrough.server";
+import { forge } from "#lib/server/forge/providers.server";
 import { apiRole } from "#lib/server/http/session";
 
 /** Mirrors `GET /users/{username}` (login + avatar URLs).
@@ -14,12 +14,12 @@ export const GET: RequestHandler = async ({ params, request, locals }) => {
   if (denied instanceof Response) return denied;
 
   const result = await passthrough(
-    await github.asApp(),
+    await forge.appProvider(),
     0,
     `/users/${encodeURIComponent(params.username)}`,
     new URLSearchParams(),
     request.headers.get("if-none-match"),
-    { htmlUrlFallback: await webUrl(params.username) },
+    { htmlUrlFallback: await forge.webUrl(params.username) },
   );
   return toResponse(result);
 };

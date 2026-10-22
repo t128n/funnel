@@ -1,4 +1,5 @@
 import { BOARD_COLUMNS } from '#lib/labels';
+import { PRIORITY_VALUES, priorityMeta } from '#lib/priority';
 import type { IssueListItem } from '#lib/server/issues/types';
 
 /**
@@ -38,13 +39,12 @@ function milestoneKey(milestone: NonNullable<IssueListItem['milestone']>): strin
 const STATUS_ORDER = [...BOARD_COLUMNS.map((column) => column.key), 'none'];
 const STATUS_LABEL = new Map(BOARD_COLUMNS.map((column) => [column.key, column.label]));
 
-const PRIORITY_ORDER = ['p1', 'p2', 'p3', 'none'];
-const PRIORITY_LABEL: Record<string, string> = {
-  p1: 'P1 · Critical',
-  p2: 'P2 · High',
-  p3: 'P3 · Normal',
-  none: 'No priority'
-};
+const PRIORITY_ORDER = [...PRIORITY_VALUES, 'none'];
+function priorityLabel(key: string): string {
+  if (key === 'none') return 'No priority';
+  const meta = priorityMeta(key);
+  return meta ? `${meta.value} · ${meta.name}` : key;
+}
 
 /** Closed issues and explicit `done` share the board's Done window. */
 function statusKey(issue: IssueListItem): string {
@@ -90,7 +90,7 @@ function groupLabel(
   repoShortcodes: Record<string, string>,
   projects: readonly ProjectOption[]
 ): string {
-  if (groupBy === 'priority') return PRIORITY_LABEL[key] ?? key;
+  if (groupBy === 'priority') return priorityLabel(key);
   if (groupBy === 'repo') return repoShortcodes[key] ?? key;
   if (groupBy === 'project') {
     if (key === NO_PROJECT) return 'No project';

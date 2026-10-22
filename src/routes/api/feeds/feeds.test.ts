@@ -23,14 +23,22 @@ interface Page {
   nextCursor: string | null;
 }
 
-function user(githubId: number, login: string): UserRecord {
-  return { githubId, login, avatarUrl: `https://avatars/${login}.png` };
+function user(externalId: string, login: string): UserRecord {
+  return {
+    id: 0,
+    externalId,
+    forge: "github",
+    instance: "github.com",
+    login,
+    avatarUrl: `https://avatars/${login}.png`,
+    url: "",
+  };
 }
 
 function issue(input: {
   repoId: number;
   number: number;
-  githubId: number;
+  externalId: string;
   title: string;
   state?: "open" | "closed";
   stateReason?: string | null;
@@ -38,18 +46,20 @@ function issue(input: {
   closedAt?: number | null;
   labels?: string[];
   status: string | null;
-  priority: string | null;
+  priority: "P1" | "P2" | "P3" | null;
 }): void {
   upsertIssue(
     {
-      githubId: input.githubId,
+      externalId: input.externalId,
+      kind: "issue",
+      url: "",
       repoId: input.repoId,
       number: input.number,
       title: input.title,
       body: "",
       state: input.state ?? "open",
       stateReason: input.stateReason ?? null,
-      author: user(7, "octocat"),
+      author: user("7", "octocat"),
       milestoneNumber: null,
       createdAt: 1,
       updatedAt: input.updatedAt,
@@ -60,6 +70,8 @@ function issue(input: {
     },
     {
       status: input.status,
+      impact: null,
+      urgency: null,
       priority: input.priority,
       size: null,
       blocked: false,
@@ -69,22 +81,22 @@ function issue(input: {
 }
 
 function seed(): void {
-  upsertRepo({ githubId: 1, org: "orgA", name: "core", archived: false });
-  upsertRepo({ githubId: 2, org: "orgA", name: "web", archived: false });
+  upsertRepo({ externalId: "1", forge: "github", instance: "github.com", org: "orgA", name: "core", url: "https://github.com/orgA/core", archived: false });
+  upsertRepo({ externalId: "2", forge: "github", instance: "github.com", org: "orgA", name: "web", url: "https://github.com/orgA/web", archived: false });
 
   issue({
     repoId: 1,
     number: 1,
-    githubId: 101,
+    externalId: "101",
     title: "Alpha crash",
     updatedAt: 100,
     status: "todo",
-    priority: "p1",
+    priority: "P1",
   });
   issue({
     repoId: 1,
     number: 2,
-    githubId: 102,
+    externalId: "102",
     title: "Beta untriaged",
     updatedAt: 200,
     status: null,
@@ -93,16 +105,16 @@ function seed(): void {
   issue({
     repoId: 2,
     number: 3,
-    githubId: 103,
+    externalId: "103",
     title: "Gamma regression",
     updatedAt: 300,
     status: "in-progress",
-    priority: "p2",
+    priority: "P2",
   });
   issue({
     repoId: 2,
     number: 4,
-    githubId: 104,
+    externalId: "104",
     title: "Delta done",
     state: "closed",
     stateReason: "completed",
@@ -304,7 +316,7 @@ describe("GET /api/feeds/board", () => {
     issue({
       repoId: 1,
       number: 5,
-      githubId: 105,
+      externalId: "105",
       title: "Epsilon polish",
       updatedAt: 50,
       status: "in-progress",

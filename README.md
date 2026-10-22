@@ -8,7 +8,7 @@ Funnel is a self-hosted GitHub issue cockpit: a dense, keyboard-friendly triage 
 - **One inbox for two queues.** The Inbox combines staged submissions with untriaged open issues — open issues that carry no status label. Setting a status moves an issue out of the queue and into the cockpit.
 - **A local mirror, not a proxy.** Funnel polls the selected repositories in the background and serves every read from its own SQLite mirror, so filters, search, grouping, and the board stay fast and do not spend GitHub API calls on page loads.
 - **Milestones, scoped the way GitHub scopes them.** The Milestones view lists each configured repository's milestones with progress and due dates, and each opens the issues attached to it. Milestones are also a filter and group-by dimension, an issue-row chip, and a set-or-clear picker in the inspector that can create a milestone lazily in that repository.
-- **A workflow vocabulary, not free-form labels.** Reserved labels describe status (`backlog`, `todo`, `in-progress`, `in-review`), priority (`p1`–`p3`), size (`sm`, `md`, `lg`), and the orthogonal `blocked` flag. Funnel keeps at most one label per group and provisions the vocabulary in each configured repository.
+- **A workflow vocabulary, not free-form labels.** Reserved labels describe status (`backlog`, `todo`, `in-progress`, `in-review`), impact (`sev`, `mod`, `min`), urgency (`high`, `mid`, `low`), size (`sm`, `md`, `lg`), and the orthogonal `blocked` flag. Funnel keeps at most one label per group and provisions the vocabulary in each configured repository. Priority (P1–P3) is derived from impact × urgency and is never a GitHub label.
 - **Board and Attention.** The board has Todo, In Progress, In Review, and Done lanes, with Backlog as a separate list; cards drag between open lanes and Done closes with a resolution. Blocked issues with a re-check date surface in Attention, bucketed as overdue, due today, and the next seven days.
 - **An inspector that remembers context.** Read and edit an issue, comment, close or reopen with a required note, record a structured blocker, keep internal work notes that stay in Funnel until you publish them, and attach files to a dropbox stored outside the mirror.
 - **Roles that are enforced server-side.** `read` can browse, `write` can mutate issues and triage intake, and `admin` manages instance settings and people. New accounts start as `read`; the first account to sign in becomes `admin`.
@@ -56,6 +56,7 @@ Funnel is a single long-lived process that owns a SQLite database and an uploads
 | Delivery path | Build | Notes |
 | :--- | :--- | :--- |
 | Standalone executable | `mise run exe` → `dist/funnel` (or `dist\funnel.exe`) | Self-contained: Bun runtime, server, client assets, migrations, and the native Markdown addon. |
+| Desktop intake helper | `mise run intake:exe`, then `scripts\install-intake.ps1` | Optional per-user Windows helper: a global hotkey opens a prefilled `/intake` draft for the current selection. See [`scripts/README.md`](scripts/README.md). |
 | Container | `mise run docker` or `docker build -t funnel .` | Wraps the same Linux executable; mount a volume at `/data` for the database and uploads. |
 | Windows service | `mise run exe`, then `packaging\windows\install-service.ps1` | WinSW wrapper; state lives in `C:\ProgramData\Funnel`. |
 | Adapter-node build | `bun run build`, then `bun run release` and `bun run start` | `bun ./build/index.js`; still a long-lived process. Run the release step against the same `FUNNEL_DB` first — this path does not migrate on boot. |
@@ -63,6 +64,15 @@ Funnel is a single long-lived process that owns a SQLite database and an uploads
 The packaged executable (and therefore the container) applies pending migrations on boot. Health probes are `/healthz` (liveness) and `/readyz` (readiness; it reports `503` until every committed migration is applied). `funnel --help`, `--version`, `--migrate`, and `--healthcheck` cover the packaged binary's CLI.
 
 If you build with mise, run `mise trust` once per checkout so its tasks load.
+
+The **desktop intake helper** is optional and Windows-only. It runs per user, starts at login, and owns its global hotkey directly instead of relying on a Start Menu `.lnk`:
+
+```powershell
+mise run intake:exe
+powershell -ExecutionPolicy Bypass -File scripts\install-intake.ps1
+```
+
+Configuration, the hotkey syntax, and troubleshooting live in [`scripts/README.md`](scripts/README.md); the Go library and URL contract live in [`tools/funnel-intake/README.md`](tools/funnel-intake/README.md) and [`docs/how-to/integrate/windows-intake-hotkey.md`](docs/how-to/integrate/windows-intake-hotkey.md).
 
 ## Documentation
 

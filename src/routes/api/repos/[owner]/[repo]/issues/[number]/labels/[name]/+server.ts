@@ -18,7 +18,7 @@ export const DELETE: RequestHandler = async ({ params, locals }) => {
   }
 
   const result = await removeIssueLabel({
-    octokit: auth.octokit,
+    provider: auth.provider,
     repo: `${params.owner}/${params.repo}`,
     number,
     name: params.name,

@@ -7,7 +7,7 @@
  * works unchanged.
  */
 import { getConfig } from "#/lib/server/config";
-import { github } from "./app.server";
+import { forge } from "#/lib/server/forge/providers.server";
 import type { ManifestCredentialsInput } from "./credentials";
 
 /** The subset of the conversion response Funnel stores. */
@@ -99,11 +99,11 @@ export interface AppInstallation {
 
 /** List the App's installations (`GET /app/installations`, App JWT). */
 export async function listInstallations(): Promise<AppInstallation[]> {
-  const client = await github.asApp();
-  const { data } = await client.request("GET /app/installations", {
-    per_page: 100,
-  });
-  return (data as Array<{ id: number; account: { login: string; type: string } }>).map(
+  const client = await forge.appProvider();
+  const { data } = await client.request<
+    Array<{ id: number; account: { login: string; type: string } }>
+  >("GET", "/app/installations", { query: { per_page: 100 } });
+  return data.map(
     (installation) => ({
       id: installation.id,
       accountLogin: installation.account?.login ?? "",
@@ -123,23 +123,20 @@ export interface InstallationRepo {
 export async function listInstallationRepos(
   installationId: number,
 ): Promise<InstallationRepo[]> {
-  const octokit = await github.asInstallation(installationId);
+  const provider = await forge.installationProvider(installationId);
   const all: InstallationRepo[] = [];
   for (let page = 1; ; page++) {
-    const { data } = await octokit.request("GET /installation/repositories", {
-      per_page: 100,
-      page,
+    const { data } = await provider.request<{
+      repositories?: Array<{
+        full_name: string;
+        private: boolean;
+        archived: boolean;
+        html_url: string;
+      }>;
+    }>("GET", "/installation/repositories", {
+      query: { per_page: 100, page },
     });
-    const repositories = (
-      data as {
-        repositories?: Array<{
-          full_name: string;
-          private: boolean;
-          archived: boolean;
-          html_url: string;
-        }>;
-      }
-    ).repositories;
+    const repositories = data.repositories;
     if (!repositories?.length) break;
     for (const repo of repositories) {
       all.push({

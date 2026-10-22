@@ -1,123 +1,125 @@
 # Windows intake hotkey
 
-Capture the text currently selected in a Windows app and stage it as a Funnel intake with a single global hotkey, without leaving the app or switching windows.
+Capture the text currently selected in a Windows app and open a prefilled Funnel intake draft with a single global hotkey, without leaving the app or switching windows.
 
-> **Status: work in progress — not yet verified working.**
-> The scripts in `scripts/` are a scratchpad implementation. See [DEVELOPMENT.md](../../../scripts/DEVELOPMENT.md) for the current state, suspected failure points, and next steps.
+The helper is a small resident Go executable (`funnel-intake.exe`). It registers the hotkey itself, captures the selection through the clipboard, and opens `{FUNNEL_URL}/intake?…` in the default browser. Nothing is submitted: the form opens as an editable draft.
 
 ## Prerequisites
 
-- **Windows PowerShell 5.1** (`powershell.exe`). The shortcut targets `%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe` on purpose, because 5.1 is always present. Keep 5.1 as the supported target.
-- **A running Funnel instance.** The helper defaults to the dev server at `http://localhost:5173` (`bun run dev`). It submits to `POST /api/intake`.
+- Windows 10 or 11.
+- A reachable Funnel instance. The dev server (`bun run dev`) listens on `http://localhost:5173`; the packaged service listens on `http://localhost:3000`.
+- To build from a checkout: [mise](https://mise.jdx.dev) with `mise trust` run once, plus the Go toolchain that `mise.toml` pins.
 
 ## Install
 
-From the repository root:
-
 ```powershell
-# install with the default hotkey (Ctrl+Alt+I)
-powershell -ExecutionPolicy Bypass -File scripts\install-intake-shortcut.ps1
+mise run intake:exe
+powershell -ExecutionPolicy Bypass -File scripts\install-intake.ps1
 ```
 
-This creates `Funnel Intake.lnk` under `%APPDATA%\Microsoft\Windows\Start Menu\Programs`, bound to the hotkey and running `scripts\intake.ps1` hidden. The shortcut must stay in the Start Menu for the hotkey to fire globally.
+The installer:
 
-Then select text in Teams, Outlook, or anywhere else and press the hotkey.
+1. Copies `dist\funnel-intake.exe` to `%LOCALAPPDATA%\Funnel\Intake\funnel-intake.exe`.
+2. Writes `%LOCALAPPDATA%\Funnel\Intake\config.json` (default `http://localhost:3000`, `Ctrl+Alt+I`).
+3. Creates `…\Startup\Funnel Intake.lnk` so the helper starts at login.
+4. Removes the legacy `Funnel Intake.lnk` from the Start Menu or Desktop. That shortcut owned `Ctrl+Alt+I`; leaving it in place makes Windows refuse to register the new hotkey.
+5. Starts the helper (unless `-NoStart` is passed).
 
-```powershell
-# a different combo
-powershell -ExecutionPolicy Bypass -File scripts\install-intake-shortcut.ps1 -Hotkey "Ctrl+Shift+I"
-
-# remove it
-powershell -ExecutionPolicy Bypass -File scripts\install-intake-shortcut.ps1 -Uninstall
-```
-
-### Hotkey options and constraints
-
-| Option     | Default      | Notes                                                                         |
-| :--------- | :----------- | :---------------------------------------------------------------------------- |
-| `-Hotkey`  | `Ctrl+Alt+I` | `.lnk` hotkeys only support `Ctrl+Alt+<key>` / `Ctrl+Shift+<key>` combos.      |
-| `-Uninstall` | off        | Removes `Funnel Intake.lnk` from the Start Menu.                              |
-
-- The `.lnk` hotkey only registers while the shortcut lives in the Start Menu (or on the Desktop).
-- Windows may need a sign-out/in (or an Explorer restart) before a new `.lnk` hotkey registers.
-- Another application may already own the combination — try `-Hotkey "Ctrl+Shift+I"`.
-- A console may flash briefly on trigger; that is the hidden PowerShell host starting up.
-
-### `-BaseUrl` and `-Source`
-
-`scripts\intake.ps1` itself accepts two parameters:
-
-| Parameter  | Default                  | Purpose                                                              |
-| :--------- | :----------------------- | :------------------------------------------------------------------- |
-| `-BaseUrl` | `http://localhost:5173`  | Funnel instance base URL. The helper appends `/api/intake`.          |
-| `-Source`  | `""` (auto-detect)       | Provenance label; empty means detect from the foreground app.        |
-
-The installed shortcut runs the script with no extra arguments, so it uses the default `-BaseUrl`. To target a different instance, run the script directly with `-BaseUrl`, or edit the shortcut's target arguments:
+Point it at a different instance or hotkey, then verify the process is running:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File scripts\intake.ps1 -BaseUrl https://funnel.example.com
+powershell -ExecutionPolicy Bypass -File scripts\install-intake.ps1 `
+  -Url https://funnel.example.com -Hotkey "Ctrl+Shift+I"
+
+Get-Process funnel-intake
 ```
 
-## What the capture does
+| Option | Default | Purpose |
+| :--- | :--- | :--- |
+| `-Url` | `http://localhost:3000` | Funnel base URL; the helper appends `/intake`. |
+| `-Hotkey` | `Ctrl+Alt+I` | Any combo supported by the parser (at least one modifier). |
+| `-Source` | auto-detect | Fixed source label; disables foreground-app detection. |
+| `-ExePath` | `dist\funnel-intake.exe` | Binary to install. |
+| `-NoStart` | off | Install without launching the helper. |
+| `-KeepConfig` | off | With `-Uninstall`, keep `config.json` and the log. |
+| `-Uninstall` | — | Stop the helper and remove the shortcut and install directory. |
 
-Selecting text then pressing the hotkey runs this pipeline inside `intake.ps1`:
+The equivalent mise tasks are `mise run intake:install` and `mise run intake:uninstall`.
 
-1. Detect the foreground app (`GetForegroundWindow` + `GetWindowThreadProcessId`) and map it to `source` (`ms-teams`, `outlook`, or the lowercased process name).
-2. Save the current clipboard text.
-3. Put a unique sentinel string on the clipboard.
-4. Send `Ctrl+C` to the foreground window via `keybd_event`.
-5. Poll the clipboard for ~1.2 s until it changes away from the sentinel.
-6. Restore the saved clipboard.
-7. Map the selection to the payload.
-8. `POST {BaseUrl}/api/intake` as UTF-8 JSON.
-9. Show a Windows notification with the staged id, or the error.
+## Use
 
-The selection is mapped to the API payload as:
+Select text in Teams, Outlook, a browser, or any other app, then press the hotkey. The helper builds:
 
-| Field    | Value                                                          |
-| :------- | :------------------------------------------------------------- |
-| `title`  | First non-empty line, whitespace collapsed, max 256 chars      |
-| `body`   | The full selection, max 65536 chars                            |
-| `source` | Detected app (`ms-teams`, `outlook`, …), else the process name |
+| Field | Value |
+| :--- | :--- |
+| `title` | First non-empty line, whitespace collapsed, max 256 characters |
+| `body` | The full selection, max 65 536 characters |
+| `source` | Teams/Slack/Discord → `chat`, Outlook/Thunderbird → `email`, Zoom/Webex → `meeting`, otherwise the process name |
 
-### Clipboard behaviour and restoration limits
+The link is compressed with the same `?d=` deeplink the composer uses, so long selections usually fit. If a selection still exceeds the 8 000-character deeplink limit, the body is trimmed to fit and the trim is logged. With no selection, a blank form opens prefilled with the source only.
 
-- The current clipboard text is **restored afterwards**.
-- Windows' clipboard history is not cleared: the synthetic copy, and the restore, may each add an entry.
-- **Non-text clipboard contents (images, files) cannot be restored.** After capture the clipboard is re-seeded with text only.
-- If the clipboard held nothing, it is cleared to empty rather than restored.
-- With no selection, nothing is submitted and the notification says so.
-- `Get-Clipboard -Raw` is known to append a trailing newline on some Windows PowerShell versions; the sentinel comparison uses `.Trim()` for that reason.
+## Configure
 
-## Logging
+`%LOCALAPPDATA%\Funnel\Intake\config.json`:
 
-Everything is logged to **`%TEMP%\funnel-intake.log`**. Read it first when anything misbehaves. The fastest way to observe a run is to invoke the script directly in a console so output and errors are visible:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File scripts\intake.ps1 -BaseUrl http://localhost:5173
+```json
+{
+  "url": "http://localhost:3000",
+  "hotkey": "Ctrl+Alt+I",
+  "source": "self-service",
+  "sourceMap": { "ms-teams": "chat", "outlook": "email" }
+}
 ```
+
+- `url` — Funnel origin. A base path is preserved (`https://host/funnel/` → `…/funnel/intake`); query strings and fragments are rejected.
+- `hotkey` — for example `Ctrl+Alt+I`, `Win+Shift+F9`, `Ctrl+Alt+Space`, `Ctrl+Shift+Numpad5`. At least one modifier is required.
+- `source` — optional fixed source; disables foreground detection.
+- `sourceMap` — process name (lower case, without `.exe`) to intake source. An empty value removes an override; the built-in defaults then apply again.
+
+Environment variables override the file; command-line flags override both:
+
+| Variable | Flag | Purpose |
+| :--- | :--- | :--- |
+| `FUNNEL_URL` | `-url` | Funnel base URL. |
+| `FUNNEL_HOTKEY` | `-hotkey` | Global hotkey. |
+| `FUNNEL_SOURCE` | `-source` | Fixed source label. |
+| — | `-config` | Alternative config path. |
+| — | `-debug` | Also write logs to stderr when a console is attached. |
+| — | `-dry-run` | Log what would be opened instead of launching a browser. |
+| — | `-test` | Capture once, print the prefill, and exit. |
+| — | `-check` | Validate config and exit. |
+| — | `-version` | Print the version and exit. |
 
 ## Troubleshooting
 
-Work down this checklist:
+Read `%LOCALAPPDATA%\Funnel\Intake\intake.log` first. Useful checks:
 
-- [ ] **Is the Funnel instance actually up?** Try
-      `curl http://localhost:5173/api/intake -Method Post -Body '{"title":"smoke"}' -ContentType application/json`
-      or check the notification text.
-- [ ] **Does the log show anything at all?** No entry means the hotkey never fired — a shortcut/hotkey problem, not a script problem. Confirm `Funnel Intake.lnk` is present under `%APPDATA%\Microsoft\Windows\Start Menu\Programs`, and try signing out and back in so Explorer picks up the registration.
-- [ ] **Does the log show `no selection captured`?** That is a capture problem. Verify the target window (Teams/Outlook) itself has focus when you press the hotkey; synthetic `Ctrl+C` needs the focused window. Some WebView2-based Teams modes may not respond to a synthetic copy.
-- [ ] **Does the log show a submit error?** Check the URL/port and the response detail. A `400` from the API carries a JSON body with `message`/`issues`.
+```powershell
+# validate config without listening
+& "$env:LOCALAPPDATA\Funnel\Intake\funnel-intake.exe" -check
 
-Known unverified areas, from `scripts/DEVELOPMENT.md`:
+# log what the next hotkey would open, without launching a browser
+& "$env:LOCALAPPDATA\Funnel\Intake\funnel-intake.exe" -dry-run
+```
 
-- Hotkey registration may require a sign-out/in or Explorer restart.
-- Notifications rely on a WinForms `NotifyIcon` balloon, which may not render reliably without a message pump.
-- Corporate antivirus sometimes blocks synthetic keystrokes or `-ExecutionPolicy Bypass`; check AV logs if the script silently dies.
-- `-WindowStyle Hidden` still spawns a `powershell.exe` that can flash briefly; a `wscript.exe` + `.vbs` launcher would avoid it (not implemented).
+- **The hotkey does nothing or logs "already registered".** Another application owns the combination, or the legacy `.lnk` is still present. Re-run the installer or choose a different `-Hotkey`.
+- **The log shows `no selection captured`.** The target window must be focused when the hotkey fires, and it must respond to synthetic `Ctrl+C`. Some apps copy rich content that is read as plain text.
+- **An elevated app is not captured.** Windows UIPI blocks synthetic input from reaching higher-integrity processes unless the helper also runs elevated.
+- **The browser does not open.** Check the log for an `open browser:` error (usually no default browser handler).
+
+Known limitations: only plain-text clipboard contents are restored (images and files are replaced); the captured text becomes part of the browser URL and history; the configuration is read at startup, so edits require a restart.
+
+## Uninstall
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\install-intake.ps1 -Uninstall
+```
+
+Stops the helper, removes the Startup shortcut, and deletes the install directory. Pass `-KeepConfig` to keep `config.json` and the log.
 
 ## Related
 
-- [Intake API](./intake-api.md)
-- `scripts/README.md` — end-user usage
-- `scripts/DEVELOPMENT.md` — work-in-progress notes and next steps
-- `scripts/intake.ps1`, `scripts/install-intake-shortcut.ps1`
+- [Intake API](./intake-api.md) — the JSON endpoint the composer posts to.
+- [`scripts/README.md`](../../../scripts/README.md) — install and configuration reference.
+- [`tools/funnel-intake/README.md`](../../../tools/funnel-intake/README.md) — the Go library and URL contract.
+- [`scripts/DEVELOPMENT.md`](../../../scripts/DEVELOPMENT.md) — build, test, and debugging notes.

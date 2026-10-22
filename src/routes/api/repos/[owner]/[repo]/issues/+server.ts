@@ -1,19 +1,16 @@
 import * as v from "valibot";
 import type { RequestHandler } from "./$types";
-import {
-  getInstallationId,
-  github,
-  installationErrorResponse,
-} from "#lib/server/github/app.server";
+import { installationErrorResponse } from "#lib/server/github/app.server";
 import {
   passthrough,
   toResponse,
 } from "#lib/server/github/api-passthrough.server";
+import { SIZE_VALUES, STATUS_VALUES } from "#lib/server/issues/filters";
+import { forge } from "#lib/server/forge/providers.server";
 import {
-  PRIORITY_VALUES,
-  SIZE_VALUES,
-  STATUS_VALUES,
-} from "#lib/server/issues/filters";
+  IMPACT_LABEL_VALUES,
+  URGENCY_LABEL_VALUES,
+} from "#lib/priority";
 import { authenticate, readJson, scheduleRefresh } from "#lib/server/issues/http";
 import { apiRole } from "#lib/server/http/session";
 import { createIssue } from "#lib/server/issues/mutations";
@@ -42,7 +39,7 @@ export const GET: RequestHandler = async ({ params, url, request, locals }) => {
 
   let installationId: number;
   try {
-    installationId = await getInstallationId(params.owner, params.repo);
+    installationId = await forge.getInstallationId(params.owner, params.repo);
   } catch (e) {
     return installationErrorResponse(params.owner, params.repo, e);
   }
@@ -51,7 +48,7 @@ export const GET: RequestHandler = async ({ params, url, request, locals }) => {
     if (ALLOWED.has(k)) query.append(k, v);
   }
   const result = await passthrough(
-    await github.asInstallation(installationId),
+    await forge.installationProvider(installationId),
     installationId,
     `/repos/${params.owner}/${params.repo}/issues`,
     query,
@@ -79,7 +76,8 @@ const createSchema = v.object({
     [],
   ),
   status: v.optional(v.picklist(STATUS_VALUES)),
-  priority: v.optional(v.picklist(PRIORITY_VALUES)),
+  impact: v.optional(v.picklist(IMPACT_LABEL_VALUES)),
+  urgency: v.optional(v.picklist(URGENCY_LABEL_VALUES)),
   size: v.optional(v.picklist(SIZE_VALUES)),
 });
 
@@ -105,7 +103,7 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
   }
 
   const result = await createIssue({
-    octokit: auth.octokit,
+    provider: auth.provider,
     repo: `${params.owner}/${params.repo}`,
     ...parsed.output,
   });

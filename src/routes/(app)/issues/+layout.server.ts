@@ -12,8 +12,8 @@ import type { LayoutServerLoad } from "./$types";
  * parent `+page.server.ts`).
  */
 export const load: LayoutServerLoad = async ({ url, parent }) => {
-  const { viewerGithubId } = await parent();
-  const filter = parseIssueFilter(url.searchParams, filterContext(viewerGithubId));
+  const { viewerExternalId } = await parent();
+  const filter = parseIssueFilter(url.searchParams, filterContext(viewerExternalId));
   // Issues default to the open state, matching the cockpit's "what needs
   // attention" focus; `?state=closed` or `?state=open&state=closed` opt out.
   if (filter.states.length === 0) filter.states = ["open"];

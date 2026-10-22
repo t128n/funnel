@@ -89,7 +89,7 @@
 
 {#if bubbles}
 	<ul class="flex flex-col gap-4">
-		{#each entries as entry (entry.kind === 'comment' ? `c${entry.comment.githubId}` : entry.note.id)}
+		{#each entries as entry (entry.kind === 'comment' ? `c${entry.comment.externalId}` : entry.note.id)}
 			{#if entry.kind === 'comment'}
 				<li>
 					<Message.Root>
@@ -149,7 +149,7 @@
 	</ul>
 {:else}
 	<ul class="flex flex-col">
-		{#each entries as entry (entry.kind === 'comment' ? `c${entry.comment.githubId}` : entry.note.id)}
+		{#each entries as entry (entry.kind === 'comment' ? `c${entry.comment.externalId}` : entry.note.id)}
 			<li
 				class={cn(
 					'border-border flex gap-2.5 border-t py-3 first:border-t-0 first:pt-0 last:pb-0',

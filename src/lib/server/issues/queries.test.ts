@@ -36,15 +36,23 @@ import {
 } from "./queries";
 
 const DAY_MS = 86_400_000;
-const VIEWER = 42;
+const VIEWER = "42";
 
-function user(githubId: number, login: string): UserRecord {
-  return { githubId, login, avatarUrl: `https://avatars/${login}.png` };
+function user(externalId: string, login: string): UserRecord {
+  return {
+    id: 0,
+    externalId,
+    forge: "github",
+    instance: "github.com",
+    login,
+    avatarUrl: `https://avatars/${login}.png`,
+    url: "",
+  };
 }
 
 function seed(): void {
-  upsertRepo({ githubId: 1, org: "orgA", name: "core", archived: false });
-  upsertRepo({ githubId: 2, org: "orgA", name: "web", archived: false });
+  upsertRepo({ externalId: "1", forge: "github", instance: "github.com", org: "orgA", name: "core", url: "https://github.com/orgA/core", archived: false });
+  upsertRepo({ externalId: "2", forge: "github", instance: "github.com", org: "orgA", name: "web", url: "https://github.com/orgA/web", archived: false });
 
   const base = {
     state: "open" as const,
@@ -59,27 +67,31 @@ function seed(): void {
   upsertIssue(
     {
       ...base,
-      githubId: 101,
+      externalId: "101",
+      kind: "issue",
+      url: "",
       repoId: 1,
       number: 1,
       title: "Alpha crash",
       body: "stack trace",
-      author: user(7, "octocat"),
+      author: user("7", "octocat"),
       updatedAt: 100,
       closedAt: null,
-      labels: ["todo", "p1", "sm", "bug"],
+      labels: ["todo", "sev", "sm", "bug"],
       assignees: [user(VIEWER, "me")],
       comments: [
-        { githubId: 1001, author: user(7, "octocat"), body: "repro steps", createdAt: 11, updatedAt: 11 },
+        { externalId: "1001", author: user("7", "octocat"), body: "repro steps", createdAt: 11, updatedAt: 11 },
       ],
     },
-    { status: "todo", priority: "p1", size: "sm", blocked: false, labelConflict: false },
+    { status: "todo", impact: null, urgency: null, priority: "P1", size: "sm", blocked: false, labelConflict: false },
   );
 
   upsertIssue(
     {
       ...base,
-      githubId: 102,
+      externalId: "102",
+      kind: "issue",
+      url: "",
       repoId: 1,
       number: 2,
       title: "Beta feature",
@@ -88,29 +100,33 @@ function seed(): void {
       closedAt: null,
       labels: [],
     },
-    { status: null, priority: null, size: null, blocked: false, labelConflict: false },
+    { status: null, impact: null, urgency: null, priority: null, size: null, blocked: false, labelConflict: false },
   );
 
   upsertIssue(
     {
       ...base,
-      githubId: 103,
+      externalId: "103",
+      kind: "issue",
+      url: "",
       repoId: 2,
       number: 3,
       title: "Gamma regression",
-      author: user(8, "alice"),
+      author: user("8", "alice"),
       updatedAt: 300,
       closedAt: null,
-      labels: ["in-progress", "p2", "frontend"],
-      assignees: [user(7, "octocat")],
+      labels: ["in-progress", "mod", "frontend"],
+      assignees: [user("7", "octocat")],
     },
-    { status: "in-progress", priority: "p2", size: null, blocked: false, labelConflict: false },
+    { status: "in-progress", impact: null, urgency: null, priority: "P2", size: null, blocked: false, labelConflict: false },
   );
 
   upsertIssue(
     {
       ...base,
-      githubId: 104,
+      externalId: "104",
+      kind: "issue",
+      url: "",
       repoId: 2,
       number: 4,
       title: "Delta done",
@@ -121,13 +137,15 @@ function seed(): void {
       closedAt: Date.now() - DAY_MS,
       labels: ["lg"],
     },
-    { status: null, priority: null, size: "lg", blocked: false, labelConflict: false },
+    { status: null, impact: null, urgency: null, priority: null, size: "lg", blocked: false, labelConflict: false },
   );
 
   upsertIssue(
     {
       ...base,
-      githubId: 105,
+      externalId: "105",
+      kind: "issue",
+      url: "",
       repoId: 1,
       number: 5,
       title: "Epsilon canceled",
@@ -138,23 +156,25 @@ function seed(): void {
       closedAt: Date.now() - 2 * DAY_MS,
       labels: [],
     },
-    { status: null, priority: null, size: null, blocked: false, labelConflict: false },
+    { status: null, impact: null, urgency: null, priority: null, size: null, blocked: false, labelConflict: false },
   );
 
   upsertIssue(
     {
       ...base,
-      githubId: 106,
+      externalId: "106",
+      kind: "issue",
+      url: "",
       repoId: 1,
       number: 6,
       title: "Zeta polish",
       author: null,
       updatedAt: 50,
       closedAt: null,
-      labels: ["backlog", "p3", "lg", "bug"],
-      assignees: [user(7, "octocat"), user(8, "alice")],
+      labels: ["backlog", "min", "lg", "bug"],
+      assignees: [user("7", "octocat"), user("8", "alice")],
     },
-    { status: "backlog", priority: "p3", size: "lg", blocked: false, labelConflict: false },
+    { status: "backlog", impact: null, urgency: null, priority: "P3", size: "lg", blocked: false, labelConflict: false },
   );
 }
 
@@ -165,18 +185,20 @@ function parse(query: string) {
 function seedExtra(input: {
   repoId: number;
   number: number;
-  githubId: number;
+  externalId: string;
   title?: string;
   state?: "open" | "closed";
   stateReason?: string | null;
   updatedAt: number;
   closedAt?: number | null;
   status: string | null;
-  priority: string | null;
+  priority: "P1" | "P2" | "P3" | null;
 }): void {
   upsertIssue(
     {
-      githubId: input.githubId,
+      externalId: input.externalId,
+      kind: "issue",
+      url: "",
       repoId: input.repoId,
       number: input.number,
       title: input.title ?? `Issue ${input.number}`,
@@ -194,6 +216,8 @@ function seedExtra(input: {
     },
     {
       status: input.status,
+      impact: null,
+      urgency: null,
       priority: input.priority,
       size: null,
       blocked: false,
@@ -228,7 +252,7 @@ describe("allIssues", () => {
     const [first] = allIssues(parse("")).items;
     expect(first.repo).toBe("orgA/core");
     expect(first.number).toBe(1);
-    expect(first.labels.sort()).toEqual(["bug", "p1", "sm", "todo"]);
+    expect(first.labels.sort()).toEqual(["bug", "sev", "sm", "todo"]);
     expect(first.assignees.map((a) => a.login)).toEqual(["me"]);
     expect(first.author?.login).toBe("octocat");
     expect(first.author?.avatarUrl).toBe("https://avatars/octocat.png");
@@ -361,13 +385,15 @@ describe("statusBoard", () => {
 describe("attentionIssues", () => {
   function seedBlockedIssue(
     number: number,
-    githubId: number,
+    externalId: string,
     body: string,
     blocked: boolean,
   ): void {
     upsertIssue(
       {
-        githubId,
+        externalId,
+        kind: "issue",
+        url: "",
         repoId: 1,
         number,
         title: `Blocked ${number}`,
@@ -383,7 +409,7 @@ describe("attentionIssues", () => {
         assignees: [],
         comments: [],
       },
-      { status: "in-progress", priority: null, size: null, blocked, labelConflict: false },
+      { status: "in-progress", impact: null, urgency: null, priority: null, size: null, blocked, labelConflict: false },
     );
   }
 
@@ -391,11 +417,11 @@ describe("attentionIssues", () => {
     writeBlocked("desc", { blocker: "Upstream API key", needs: "Token", trying: "", recheck });
 
   test("returns only blocked issues that carry a re-check date", () => {
-    seedBlockedIssue(7, 107, withRecheck("2026-10-25"), true);
+    seedBlockedIssue(7, "107", withRecheck("2026-10-25"), true);
     // Blocked but no metadata date.
-    seedBlockedIssue(8, 108, "plain body", true);
+    seedBlockedIssue(8, "108", "plain body", true);
     // Has a date in the body but is not flagged blocked.
-    seedBlockedIssue(9, 109, withRecheck("2026-10-20"), false);
+    seedBlockedIssue(9, "109", withRecheck("2026-10-20"), false);
 
     const items = attentionIssues();
     expect(items.map((item) => item.issue.number)).toEqual([7]);
@@ -404,8 +430,8 @@ describe("attentionIssues", () => {
   });
 
   test("sorts by re-check date", () => {
-    seedBlockedIssue(7, 107, withRecheck("2026-11-01"), true);
-    seedBlockedIssue(8, 108, withRecheck("2026-10-19"), true);
+    seedBlockedIssue(7, "107", withRecheck("2026-11-01"), true);
+    seedBlockedIssue(8, "108", withRecheck("2026-10-19"), true);
     expect(attentionIssues().map((item) => item.recheck)).toEqual([
       "2026-10-19",
       "2026-11-01",
@@ -425,39 +451,41 @@ describe("milestones", () => {
     replaceRepoMilestones(1, [
       {
         number: 1,
-        githubId: 10,
+        externalId: "10",
         title: "v1",
         description: "First release",
         state: "open",
         dueOn: 1_000,
         openIssues: 1,
         closedIssues: 0,
-        creator: user(7, "octocat"),
+        creator: user("7", "octocat"),
         createdAt: 1,
         updatedAt: 2,
         closedAt: null,
-        htmlUrl: "https://github.com/orgA/core/milestone/1",
+        url: "https://github.com/orgA/core/milestone/1",
       },
     ]);
     upsertIssue(
       {
-        githubId: 101,
+        externalId: "101",
+        kind: "issue",
+        url: "",
         repoId: 1,
         number: 1,
         title: "Alpha crash",
         body: "stack trace",
         state: "open",
         stateReason: null,
-        author: user(7, "octocat"),
+        author: user("7", "octocat"),
         milestoneNumber: 1,
         createdAt: 1,
         updatedAt: 100,
         closedAt: null,
-        labels: ["todo", "p1", "sm", "bug"],
+        labels: ["todo", "sev", "sm", "bug"],
         assignees: [user(VIEWER, "me")],
         comments: [],
       },
-      { status: "todo", priority: "p1", size: "sm", blocked: false, labelConflict: false },
+      { status: "todo", impact: null, urgency: null, priority: "P1", size: "sm", blocked: false, labelConflict: false },
     );
   }
 
@@ -571,18 +599,18 @@ describe("cursor pagination", () => {
     seedExtra({
       repoId: 1,
       number: 7,
-      githubId: 107,
+      externalId: "107",
       updatedAt: 300,
       status: "todo",
-      priority: "p2",
+      priority: "P2",
     });
     seedExtra({
       repoId: 2,
       number: 8,
-      githubId: 108,
+      externalId: "108",
       updatedAt: 300,
       status: "in-progress",
-      priority: "p2",
+      priority: "P2",
     });
 
     const page = allIssues(parse("priority=p2"));
@@ -614,7 +642,7 @@ describe("inbox pagination", () => {
     seedExtra({
       repoId: 1,
       number: 7,
-      githubId: 107,
+      externalId: "107",
       updatedAt: 10,
       status: null,
       priority: null,
@@ -622,7 +650,7 @@ describe("inbox pagination", () => {
     seedExtra({
       repoId: 1,
       number: 8,
-      githubId: 108,
+      externalId: "108",
       updatedAt: 20,
       status: null,
       priority: null,
@@ -689,7 +717,7 @@ describe("board pagination", () => {
     seedExtra({
       repoId: 1,
       number: 7,
-      githubId: 107,
+      externalId: "107",
       updatedAt: 10,
       status: "in-progress",
       priority: null,
@@ -697,7 +725,7 @@ describe("board pagination", () => {
     seedExtra({
       repoId: 1,
       number: 8,
-      githubId: 108,
+      externalId: "108",
       updatedAt: 20,
       status: "in-progress",
       priority: null,
@@ -721,7 +749,7 @@ describe("board pagination", () => {
     seedExtra({
       repoId: 1,
       number: 7,
-      githubId: 107,
+      externalId: "107",
       updatedAt: 10,
       status: "in-progress",
       priority: null,
@@ -753,7 +781,7 @@ describe("board pagination", () => {
     seedExtra({
       repoId: 1,
       number: 9,
-      githubId: 109,
+      externalId: "109",
       updatedAt: 900,
       state: "closed",
       stateReason: "not_planned",

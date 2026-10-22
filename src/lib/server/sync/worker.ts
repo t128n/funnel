@@ -1,12 +1,12 @@
 /**
- * REST conditional polling worker (SPEC §7.2).
+ * Conditional polling worker (SPEC §7.2).
  *
- * Per repo, Funnel sends `GET /repos/{o}/{r}/issues?since=<cursor>&sort=updated`
- * with the stored ETag. GitHub answers `304 Not Modified` while nothing changed,
- * which does not decrement the REST rate limit. The cursor is the newest
- * mirrored `updated_at` (SPEC §7.2, derived rather than stored), so the request
- * URL is stable during quiet periods and 304s keep firing; after a change is
- * hydrated the cursor advances and the next poll is one 200 before 304s resume.
+ * Per repo, Funnel asks the installation provider for issues updated since the
+ * newest mirrored `updated_at` (SPEC §7.2, derived rather than stored), carrying
+ * the stored ETag as `cursor.etag`. `forges` turns an unchanged feed into
+ * `page.notModified` instead of a thrown 304, so quiet polls stay cheap; after a
+ * change is hydrated the cursor advances and the next poll is one 200 before
+ * notModified resumes.
  *
  * Changed issues are hydrated in GraphQL batches (100/query) and reserved-label
  * conflicts are resolved with the App installation token. Cadence is 30s per
@@ -16,16 +16,17 @@
  * The scheduler starts once per process (adapter-node) and never blocks
  * startup: `startSyncWorker` returns immediately.
  */
+import type { Thread, ThreadQuery } from "forges";
 import { configuredRepoSlugs, getConfig } from "#/lib/server/config";
 import { createLogger } from "#/lib/server/log";
 import {
-  getInstallationId,
-  github,
-  type InstallationOctokit,
-} from "#/lib/server/github/app.server";
+  forge,
+  type GitHubProvider,
+} from "#/lib/server/forge/providers.server";
 import { listRepoLabels } from "#/lib/server/github/labels";
 import { listRepoMilestones } from "#/lib/server/github/milestones";
 import { listRepoAssignees } from "#/lib/server/github/assignees";
+import { retiredPriorityConflict } from "#lib/priority";
 import { deriveMetadata, resolveIssueConflict } from "./conflicts";
 import { clientCount, publish } from "./events";
 import { hydrateAndStore } from "./hydrate";
@@ -38,14 +39,10 @@ const DAY_MS = 86_400_000;
 /** How often the scheduler wakes to check which repos are due. */
 const TICK_MS = 5_000;
 
-/** The subset of a REST issue the poller needs. */
-export interface RestIssue {
-  number: number;
-  node_id?: string | null;
+/** The subset of a provider thread the poller needs (times in epoch ms). */
+export interface HistoryThread {
   state: string;
-  closed_at?: string | null;
-  updated_at?: string | null;
-  pull_request?: unknown;
+  closedAt?: number | null;
 }
 
 export interface PollOptions {
@@ -81,58 +78,16 @@ function errorMessage(error: unknown): string {
   return typeof status === "number" ? `${status} ${message}`.trim() : message;
 }
 
-function header(headers: Record<string, unknown>, name: string): string | null {
-  const value = headers[name] ?? headers[name.toLowerCase()];
-  return typeof value === "string" ? value : null;
-}
-
 /** Open issues, plus closed issues within `sync.history_days` (SPEC §7.1). */
-export function inHistoryWindow(issue: RestIssue, cutoff: number): boolean {
-  if (issue.state === "open") return true;
-  if (issue.state === "closed" && typeof issue.closed_at === "string") {
-    const closedAt = Date.parse(issue.closed_at);
-    return !Number.isNaN(closedAt) && closedAt >= cutoff;
+export function inHistoryWindow(
+  thread: HistoryThread,
+  cutoff: number,
+): boolean {
+  if (thread.state === "open") return true;
+  if (thread.state === "closed" && typeof thread.closedAt === "number") {
+    return !Number.isNaN(thread.closedAt) && thread.closedAt >= cutoff;
   }
   return false;
-}
-
-interface IssuesPage {
-  notModified: false;
-  data: RestIssue[];
-  etag: string | null;
-}
-
-interface NotModified {
-  notModified: true;
-}
-
-async function requestIssues(
-  octokit: Pick<InstallationOctokit, "request">,
-  owner: string,
-  repo: string,
-  params: Record<string, unknown>,
-  etag: string | null,
-): Promise<IssuesPage | NotModified> {
-  try {
-    const response = await octokit.request("GET /repos/{owner}/{repo}/issues", {
-      owner,
-      repo,
-      ...params,
-      headers: {
-        accept: "application/vnd.github+json",
-        ...(etag ? { "If-None-Match": etag } : {}),
-      },
-    });
-    return {
-      notModified: false,
-      data: response.data as RestIssue[],
-      etag: header(response.headers as Record<string, unknown>, "etag"),
-    };
-  } catch (error) {
-    // Octokit surfaces 304 as a thrown error; it is a successful no-op here.
-    if (statusOf(error) === 304) return { notModified: true };
-    throw error;
-  }
 }
 
 /**
@@ -140,35 +95,40 @@ async function requestIssues(
  * run as `funnel[bot]`; ambiguous timelines are flagged instead of changed.
  */
 async function resolveConflicts(
-  octokit: Pick<InstallationOctokit, "request">,
+  provider: GitHubProvider,
   repo: mirror.RepoRow,
   records: readonly mirror.IssueRecord[],
 ): Promise<number> {
+  const repoRef = forge.repoRef(repo.org, repo.name);
   let processed = 0;
   for (const record of records) {
     const derived = deriveMetadata(record.labels);
     if (derived.conflicts.length === 0) continue;
     const resolved = await resolveIssueConflict(
-      octokit,
-      repo.org,
-      repo.name,
+      provider,
+      repoRef,
       record.number,
       record.labels,
     );
-    mirror.setIssueMetadata(repo.githubId, record.number, {
+    const removed = new Set(
+      resolved.removed.map((name) => name.toLowerCase()),
+    );
+    const remaining = record.labels.filter(
+      (name) => !removed.has(name.toLowerCase()),
+    );
+    mirror.setIssueMetadata(repo.id, record.number, {
       status: resolved.metadata.status,
+      impact: resolved.metadata.impact,
+      urgency: resolved.metadata.urgency,
       priority: resolved.metadata.priority,
       size: resolved.metadata.size,
       blocked: resolved.metadata.blocked,
-      labelConflict: resolved.ambiguous,
+      labelConflict:
+        resolved.ambiguous ||
+        retiredPriorityConflict(resolved.metadata.priority, remaining),
     });
     if (resolved.removed.length > 0) {
-      const removed = new Set(resolved.removed.map((n) => n.toLowerCase()));
-      mirror.replaceIssueLabels(
-        repo.githubId,
-        record.number,
-        record.labels.filter((n) => !removed.has(n.toLowerCase())),
-      );
+      mirror.replaceIssueLabels(repo.id, record.number, remaining);
     }
     processed += 1;
   }
@@ -186,27 +146,24 @@ export async function pollRepo(
   options: PollOptions = {},
 ): Promise<PollResult> {
   const { sync } = await getConfig();
-  const octokit = await github.asInstallation(installationId);
-  const cursor = options.full ? null : mirror.getRepoCursor(repo.githubId);
+  const provider = await forge.installationProvider(installationId);
+  const repoRef = forge.repoRef(repo.org, repo.name);
+  const cursor = options.full ? null : mirror.getRepoCursor(repo.id);
 
-  const baseQuery: Record<string, unknown> = {
+  const query: ThreadQuery = {
+    kind: "issue",
     state: "all",
     sort: "updated",
     direction: "asc",
-    per_page: PER_PAGE,
+    perPage: PER_PAGE,
   };
-  if (cursor !== null) baseQuery.since = new Date(cursor).toISOString();
+  if (cursor !== null) query.since = new Date(cursor);
+  if (!options.full && repo.etag) query.cursor = { etag: repo.etag };
 
-  const first = await requestIssues(
-    octokit,
-    repo.org,
-    repo.name,
-    { ...baseQuery, page: 1 },
-    options.full ? null : repo.etag,
-  );
+  const first = await provider.threads.list(repoRef, query).page();
   if (first.notModified) {
-    mirror.setRepoPolledAt(repo.githubId, now);
-    mirror.setRepoDegraded(repo.githubId, false);
+    mirror.setRepoPolledAt(repo.id, now);
+    mirror.setRepoDegraded(repo.id, false);
     return {
       notModified: true,
       changed: 0,
@@ -217,48 +174,52 @@ export async function pollRepo(
     };
   }
 
-  // Paginate. `per_page` counts PRs too, so page until a short raw page.
-  const raw: RestIssue[] = [...first.data];
-  let lastPageLength = first.data.length;
-  for (let page = 2; lastPageLength === PER_PAGE; page += 1) {
-    const next = await requestIssues(
-      octokit,
-      repo.org,
-      repo.name,
-      { ...baseQuery, page },
-      null,
-    );
-    if (next.notModified) break;
-    raw.push(...next.data);
-    lastPageLength = next.data.length;
+  // Follow the provider cursor for the remaining pages of the feed.
+  const threads: Thread[] = [...first.items];
+  let next = first.cursor;
+  while (next) {
+    const page = await provider.threads.list(repoRef, {
+      ...query,
+      cursor: next,
+    }).page();
+    if (page.notModified) break;
+    threads.push(...page.items);
+    next = page.cursor;
   }
 
   const cutoff = now - sync.history_days * DAY_MS;
   const seenNumbers: number[] = [];
   const nodeIds: string[] = [];
   const pruned: number[] = [];
-  for (const item of raw) {
-    if (item.pull_request) continue; // PRs are excluded from the mirror.
-    if (inHistoryWindow(item, cutoff)) {
-      seenNumbers.push(item.number);
-      if (typeof item.node_id === "string") nodeIds.push(item.node_id);
+  for (const thread of threads) {
+    const number = Number(thread.ref.number);
+    if (!Number.isInteger(number)) continue;
+    const windowed = {
+      state: thread.state,
+      closedAt: thread.closedAt ? thread.closedAt.getTime() : null,
+    };
+    if (inHistoryWindow(windowed, cutoff)) {
+      seenNumbers.push(number);
+      if (typeof thread.ref.externalId === "string") {
+        nodeIds.push(thread.ref.externalId);
+      }
     } else {
-      pruned.push(item.number);
+      pruned.push(number);
     }
   }
 
   const hydrated =
     nodeIds.length > 0
-      ? await hydrateAndStore(installationId, repo.githubId, nodeIds)
+      ? await hydrateAndStore(installationId, repo.id, nodeIds)
       : [];
-  const conflicts = await resolveConflicts(octokit, repo, hydrated);
+  const conflicts = await resolveConflicts(provider, repo, hydrated);
 
   // Changed issues that aged out of the window are dropped from the mirror.
-  for (const number of pruned) mirror.deleteIssue(repo.githubId, number);
+  for (const number of pruned) mirror.deleteIssue(repo.id, number);
 
-  mirror.setRepoEtag(repo.githubId, first.etag);
-  mirror.setRepoPolledAt(repo.githubId, now);
-  mirror.setRepoDegraded(repo.githubId, false);
+  mirror.setRepoEtag(repo.id, first.etag ?? null);
+  mirror.setRepoPolledAt(repo.id, now);
+  mirror.setRepoDegraded(repo.id, false);
 
   if (seenNumbers.length > 0) {
     publish({
@@ -278,28 +239,26 @@ export async function pollRepo(
   };
 }
 
-/** Upsert `mirror_github_repo` from `GET /repos/{o}/{r}` (FK target). */
+/** Upsert `mirror_repo` from the provider's repo read (FK target). */
 export async function ensureRepoMirror(
   owner: string,
   repo: string,
   installationId: number,
 ): Promise<mirror.RepoRow> {
-  const octokit = await github.asInstallation(installationId);
-  const { data } = await octokit.request("GET /repos/{owner}/{repo}", {
-    owner,
-    repo,
-  });
-  const info = data as {
-    id: number;
-    name?: string;
-    archived?: boolean;
-    owner?: { login?: string };
-  };
+  const provider = await forge.installationProvider(installationId);
+  const info = await provider.repos.get(forge.repoRef(owner, repo));
+  const externalId = info.ref.externalId;
+  if (typeof externalId !== "string" || externalId.length === 0) {
+    throw new Error(`GitHub returned no id for ${owner}/${repo}`);
+  }
   return mirror.upsertRepo({
-    githubId: info.id,
-    org: info.owner?.login ?? owner,
-    name: info.name ?? repo,
-    archived: Boolean(info.archived),
+    externalId,
+    forge: info.ref.forge,
+    instance: info.ref.instance,
+    org: info.ref.owner || owner,
+    name: info.ref.name || repo,
+    url: info.url ?? "",
+    archived: info.isArchived,
   });
 }
 
@@ -308,10 +267,10 @@ export async function refreshRepoLabels(
   installationId: number,
   repo: mirror.RepoRow,
 ): Promise<void> {
-  const octokit = await github.asInstallation(installationId);
-  const labels = await listRepoLabels(octokit, repo.org, repo.name);
+  const provider = await forge.installationProvider(installationId);
+  const labels = await listRepoLabels(provider, repo.org, repo.name);
   mirror.replaceRepoLabels(
-    repo.githubId,
+    repo.id,
     labels.map((l) => ({
       name: l.name,
       color: l.color,
@@ -320,14 +279,41 @@ export async function refreshRepoLabels(
   );
 }
 
+/** A forge-neutral actor as reported by the assignee and milestone reads. */
+type DirectoryUser = {
+  externalId: string;
+  login: string;
+  avatarUrl?: string;
+  url?: string;
+};
+
+function directoryUser(
+  user: DirectoryUser,
+  repo: mirror.RepoRow,
+): mirror.UserRecord | null {
+  if (user.externalId.length === 0) return null;
+  return {
+    id: 0,
+    externalId: user.externalId,
+    forge: repo.forge,
+    instance: repo.instance,
+    login: user.login,
+    avatarUrl: user.avatarUrl ?? "",
+    url: user.url ?? "",
+  };
+}
+
 /** Refresh a repo's assignable users (Inspector assignee picker, SPEC §9.2). */
 export async function refreshRepoAssignees(
   installationId: number,
   repo: mirror.RepoRow,
 ): Promise<void> {
-  const octokit = await github.asInstallation(installationId);
-  const users = await listRepoAssignees(octokit, repo.org, repo.name);
-  mirror.replaceRepoAssignees(repo.githubId, users);
+  const provider = await forge.installationProvider(installationId);
+  const users = await listRepoAssignees(provider, repo.org, repo.name);
+  const records = users
+    .map((user) => directoryUser(user, repo))
+    .filter((user): user is mirror.UserRecord => user !== null);
+  mirror.replaceRepoAssignees(repo.id, records);
 }
 
 /**
@@ -338,9 +324,31 @@ export async function refreshRepoMilestones(
   installationId: number,
   repo: mirror.RepoRow,
 ): Promise<void> {
-  const octokit = await github.asInstallation(installationId);
-  const milestones = await listRepoMilestones(octokit, repo.org, repo.name);
-  mirror.replaceRepoMilestones(repo.githubId, milestones);
+  const provider = await forge.installationProvider(installationId);
+  const milestones = await listRepoMilestones(provider, repo.org, repo.name);
+  mirror.replaceRepoMilestones(
+    repo.id,
+    milestones.map((milestone) => {
+      const creator = milestone.creator
+        ? directoryUser(milestone.creator, repo)
+        : null;
+      return {
+        number: milestone.number,
+        externalId: milestone.externalId,
+        title: milestone.title,
+        description: milestone.description,
+        state: milestone.state,
+        dueOn: milestone.dueOn,
+        openIssues: milestone.openIssues,
+        closedIssues: milestone.closedIssues,
+        creator,
+        createdAt: milestone.createdAt,
+        updatedAt: milestone.updatedAt,
+        closedAt: milestone.closedAt,
+        url: milestone.url,
+      };
+    }),
+  );
 }
 
 /**
@@ -352,7 +360,7 @@ export async function refreshRepoMilestonesBySlug(
   owner: string,
   repo: string,
 ): Promise<void> {
-  const installationId = await getInstallationId(owner, repo);
+  const installationId = await forge.getInstallationId(owner, repo);
   const repoRow = await ensureRepoMirror(owner, repo, installationId);
   await refreshRepoMilestones(installationId, repoRow);
 }
@@ -366,7 +374,7 @@ export async function runRepoCycle(
   owner: string,
   repo: string,
 ): Promise<PollResult> {
-  const installationId = await getInstallationId(owner, repo);
+  const installationId = await forge.getInstallationId(owner, repo);
   const repoRow = await ensureRepoMirror(owner, repo, installationId);
   try {
     await refreshRepoLabels(installationId, repoRow);
@@ -376,7 +384,7 @@ export async function runRepoCycle(
     log.debug({ repo: `${owner}/${repo}`, ...result }, "repo polled");
     return result;
   } catch (error) {
-    mirror.setRepoDegraded(repoRow.githubId, true);
+    mirror.setRepoDegraded(repoRow.id, true);
     log.warn(
       { repo: `${owner}/${repo}`, err: errorMessage(error) },
       "repo poll failed",
@@ -394,19 +402,18 @@ export async function refreshIssue(
   repo: string,
   number: number,
 ): Promise<void> {
-  const installationId = await getInstallationId(owner, repo);
+  const installationId = await forge.getInstallationId(owner, repo);
   const repoRow = await ensureRepoMirror(owner, repo, installationId);
-  const octokit = await github.asInstallation(installationId);
-  const { data } = await octokit.request(
-    "GET /repos/{owner}/{repo}/issues/{issue_number}",
-    { owner, repo, issue_number: number },
+  const provider = await forge.installationProvider(installationId);
+  const repoRef = forge.repoRef(owner, repo);
+  const thread = await provider.threads.get(
+    forge.threadRef(repoRef, "issue", number),
   );
-  const issue = data as RestIssue;
-  if (issue.pull_request || typeof issue.node_id !== "string") return;
-  const records = await hydrateAndStore(installationId, repoRow.githubId, [
-    issue.node_id,
+  if (typeof thread.ref.externalId !== "string") return;
+  const records = await hydrateAndStore(installationId, repoRow.id, [
+    thread.ref.externalId,
   ]);
-  await resolveConflicts(octokit, repoRow, records);
+  await resolveConflicts(provider, repoRow, records);
   publish({ type: "issues", repo: `${owner}/${repo}`, numbers: [number] });
 }
 

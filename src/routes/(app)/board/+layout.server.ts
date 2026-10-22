@@ -13,8 +13,11 @@ import type { LayoutServerLoad } from "./$types";
  * from the server, so WIP counts never depend on which cards are loaded.
  */
 export const load: LayoutServerLoad = async ({ url, parent }) => {
-  const { viewerGithubId, viewerGithub, repoShortcodes } = await parent();
-  const filter = parseIssueFilter(url.searchParams, filterContext(viewerGithubId));
+  const { viewerExternalId, viewerGithub, repoShortcodes } = await parent();
+  const filter = parseIssueFilter(
+    url.searchParams,
+    filterContext(viewerExternalId),
+  );
   const board: PagedStatusBoard = await statusBoard(filter);
   return { board, repoShortcodes, viewerGithub };
 };

@@ -6,7 +6,7 @@ Definitions of the terms used across Funnel's reference documentation.
 
 **Funnel** — A self-hosted GitHub issue cockpit. It mirrors configured repositories into a local SQLite cache, provides inbox triage, issue feeds, a status board, an attention view and an issue Inspector, and exposes a public intake endpoint. It runs as a single long-lived Bun process. See the [project README](../../README.md).
 
-**Mirror** — Funnel's disposable local copy of GitHub repositories, issues, labels, comments and users, stored in the `mirror_github_*` tables. The mirror is rebuilt by sync, can be pruned by the history window or reconciliation, and is never the source of truth. See [Database schema](./database-schema.md#mirror-tables).
+**Mirror** — Funnel's disposable local copy of GitHub repositories, issues, labels, comments and users, stored in the `mirror_*` tables. The mirror is rebuilt by sync, can be pruned by the history window or reconciliation, and is never the source of truth. See [Database schema](./database-schema.md#mirror-tables).
 
 **Hydration** — Fetching the full issue payload for changed issue node ids in batched GraphQL queries (up to 100 ids per query) and writing the result into the mirror. Hydration supplies bodies, labels, assignees and the first page of comments that the REST change-detection poll does not carry. See [`hydrate.ts`](../../src/lib/server/sync/hydrate.ts).
 
@@ -14,17 +14,17 @@ Definitions of the terms used across Funnel's reference documentation.
 
 **Reconciliation** — The nightly full sweep that re-hydrates every open issue and every issue closed inside the history window, prunes mirror rows that were deleted, transferred or aged out, and re-provisions canonical labels. It is scheduled for 03:00 local time. See [`reconcile.ts`](../../src/lib/server/sync/reconcile.ts).
 
-**Reserved label** — One of Funnel's canonical labels: status `backlog`, `todo`, `in-progress`, `in-review`; priority `p1`, `p2`, `p3`; size `sm`, `md`, `lg`; and the orthogonal flag `blocked`. At most one label per group is authoritative; a conflicting set is resolved by the latest `labeled` timeline event, or flagged as a label conflict. Absence means untriaged, unprioritised, unestimated or not blocked. See [`labels.ts`](../../src/lib/labels.ts).
+**Reserved label** — One of Funnel's canonical labels: status `backlog`, `todo`, `in-progress`, `in-review`; impact `sev`, `mod`, `min`; urgency `high`, `mid`, `low`; size `sm`, `md`, `lg`; and the orthogonal flag `blocked`. At most one label per active group is authoritative; a conflicting set is resolved by the latest `labeled` timeline event, or flagged as a label conflict. Absence means untriaged, unassessed, unestimated or not blocked. Priority is derived, not a label. See [`labels.ts`](../../src/lib/labels.ts).
 
-**Impact** — The first of two triage inputs, on a fixed four-point scale from `1` Extensive to `4` Minor. Stored in the issue body metadata as `priority.impact`. See [Impact, urgency, and priority](./priority.md).
+**Impact** — The first of two triage inputs, a reserved label: `sev` (Severe), `mod` (Moderate) or `min` (Minor). The mirror caches it as `1`–`3`. See [Impact, urgency, and priority](./priority.md).
 
-**Urgency** — The second triage input, on a fixed four-point scale from `1` Critical to `4` Low. Stored in the issue body metadata as `priority.urgency`. See [Impact, urgency, and priority](./priority.md).
+**Urgency** — The second triage input, a reserved label: `high`, `mid` or `low`. The mirror caches it as `1`–`3`. See [Impact, urgency, and priority](./priority.md).
 
-**Priority** — The P0–P3 result of looking up impact × urgency in the published matrix. An unset or invalid axis yields P3. The `p1`–`p3` labels remain the current projection until derived priority replaces them. See [Impact, urgency, and priority](./priority.md).
+**Priority** — The P1–P3 (High/Medium/Low) result of looking up impact × urgency in the published matrix. One unset axis yields P3; both unset mean no priority. Priority is never a GitHub label; the retired `p1`–`p3` labels are only compared for the conflict flag. See [Impact, urgency, and priority](./priority.md).
 
 **Shortcode** — A short uppercase project key for a repository, at most six characters, used in compact issue references such as `FIT-12`. A configured `repos[].shortcode` wins; otherwise it is derived from the repository name (for example `funnel-issue-tracker` → `FIT`). Shortcodes are unique across configured repositories (enforced by config validation). See [`issue-ref.ts`](../../src/lib/issue-ref.ts).
 
-**Milestone** — A GitHub milestone, mirrored per repository in `mirror_github_milestone`. GitHub scopes a milestone to exactly one repository, so Funnel never merges equal titles across repositories; an issue references its milestone by number. The cockpit offers a read-only Milestones view, a milestone filter and group-by dimension, and a set-or-clear picker that can lazily create a milestone in the issue's repository. See [Use milestones](../how-to/use/milestones.md).
+**Milestone** — A GitHub milestone, mirrored per repository in `mirror_milestone`. GitHub scopes a milestone to exactly one repository, so Funnel never merges equal titles across repositories; an issue references its milestone by number. The cockpit offers a read-only Milestones view, a milestone filter and group-by dimension, and a set-or-clear picker that can lazily create a milestone in the issue's repository. See [Use milestones](../how-to/use/milestones.md).
 
 **Intake** — Funnel's public submission channel, available as the `/intake` form and `POST /api/intake`. Anonymous submissions are staged locally and nothing reaches GitHub until a triager accepts them. See [HTTP API](./http-api.md#public-surface).
 

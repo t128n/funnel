@@ -10,13 +10,13 @@ Funnel stores all durable state, auth records and the disposable GitHub mirror i
 | :--- | :--- | :--- |
 | `state_*` | Funnel | Durable Funnel-owned state. Backed up; never truncated by sync. |
 | `auth_*` | Better Auth | Durable authentication state. Columns use the library's camelCase names. |
-| `mirror_github_*` | Funnel sync | Disposable GitHub cache, rebuildable by a re-sync and prunable by the history window or reconciliation. |
+| `mirror_*` | Funnel sync | Disposable forge cache, rebuildable by a re-sync and prunable by the history window or reconciliation. |
 
 `state_intake_submission` is durable storage but an ephemeral queue by design: a triage decision hard-deletes the row.
 
 ### Timestamps
 
-- `state_*` and `mirror_github_*` timestamps are integer Unix milliseconds, written with `Date.now()` or parsed from GitHub timestamps.
+- `state_*` and `mirror_*` timestamps are integer Unix milliseconds, written with `Date.now()` or parsed from GitHub timestamps.
 - `auth_*` columns declared with Drizzle `{ mode: "timestamp" }` are integer Unix seconds; values are `Date` objects at the adapter boundary.
 - Boolean columns are integer `0`/`1`; the schema uses `{ mode: "boolean" }` for `auth_user.emailVerified` and `auth_user.banned`, and plain integers for mirror flags such as `archived`, `degraded`, `blocked` and `label_conflict`.
 
@@ -24,10 +24,10 @@ Funnel stores all durable state, auth records and the disposable GitHub mirror i
 
 - A mirrored issue is identified by `(repo_id, number)`.
 - A mirrored milestone is identified by `(repo_id, number)`, because GitHub scopes a milestone to one repository. An issue's milestone is stored as `milestone_number` with no foreign key to the milestone row.
-- A GitHub issue also has a globally unique `github_id`: the numeric database id. REST polling yields `node_id`s for hydration, and the GraphQL response's `databaseId` populates this column.
-- Repositories are identified by the numeric `github_id`, which survives renames; `(org, name)` is unique.
-- Funnel-local work notes and attachments are keyed by `org/name` plus issue number, not by the disposable mirror issue row, so they survive mirror pruning and re-sync.
-- People are keyed by numeric GitHub id (`mirror_github_user.github_id`). Better Auth users use a separate text id; `auth_account.accountId` stores the numeric GitHub id as a string for the `github` provider.
+- A mirrored thread is identified by `(repo_id, number)`; its forge-native id is `external_id` (text, because ids are opaque across forges). REST polling yields `node_id`s for hydration, and the GraphQL response's `databaseId` populates `external_id`.
+- Repositories are identified by `(forge, instance, external_id)`, which survives renames; `(forge, instance, org, name)` is unique. The internal `id` is the only foreign-key target.
+- Funnel-local work notes and attachments are keyed by `org/name` plus thread number, not by the disposable mirror thread row, so they survive mirror pruning and re-sync.
+- People are keyed by `(forge, instance, external_id)` and referenced internally by `mirror_user.id`. Better Auth users use a separate text id; `auth_account.accountId` stores the GitHub account id as a string for the `github` provider.
 
 ## State tables
 
@@ -93,7 +93,9 @@ Internal ITSM-style journal entries. They are never posted to GitHub unless expl
 | `org` | TEXT | Not null; repository owner. |
 | `name` | TEXT | Not null; repository name. |
 | `issue_number` | INTEGER | Not null. |
-| `author_github_id` | INTEGER | Nullable; snapshot, not a foreign key. |
+| `author_external_id` | TEXT | Nullable; snapshot, not a foreign key. |
+| `author_forge` | TEXT | Not null; snapshot, e.g. `github`. |
+| `author_instance` | TEXT | Not null; snapshot host, e.g. `github.com`. |
 | `author_login` | TEXT | Not null, default `''`; snapshot. |
 | `author_avatar_url` | TEXT | Not null, default `''`; snapshot. |
 | `body` | TEXT | Not null, default `''`. |
@@ -119,7 +121,9 @@ Metadata for issue attachment files. Bytes live on disk under `FUNNEL_UPLOAD_DIR
 | `mime_type` | TEXT | Not null, default `application/octet-stream`. |
 | `size_bytes` | INTEGER | Not null. |
 | `sha256` | TEXT | Not null, default `''`; content hash. |
-| `uploaded_by_github_id` | INTEGER | Nullable; snapshot, not a foreign key. |
+| `uploaded_by_external_id` | TEXT | Nullable; snapshot, not a foreign key. |
+| `uploaded_by_forge` | TEXT | Not null; snapshot, e.g. `github`. |
+| `uploaded_by_instance` | TEXT | Not null; snapshot host, e.g. `github.com`. |
 | `uploaded_by_login` | TEXT | Not null, default `''`; snapshot. |
 | `created_at` | INTEGER | Not null, Unix ms. |
 
@@ -216,202 +220,220 @@ Primary key: `id`. Foreign keys: none. Indexes: none.
 
 ## Mirror tables
 
-### `mirror_github_repo`
+### `mirror_repo`
 
-Configured repositories that sync has seen. The numeric GitHub id survives renames.
+Configured repositories that sync has seen. The forge-native id survives renames.
 
 | Column | Type | Constraints / notes |
 | :--- | :--- | :--- |
-| `github_id` | INTEGER | Primary key. |
+| `id` | INTEGER | Primary key; autoincrement. The internal foreign-key target. |
+| `forge` | TEXT | Not null; `github`. |
+| `instance` | TEXT | Not null; instance host, such as `github.com`. |
+| `external_id` | TEXT | Not null; forge-native repository id. |
 | `org` | TEXT | Not null. |
 | `name` | TEXT | Not null. |
+| `url` | TEXT | Not null, default `''`; web URL. |
 | `etag` | TEXT | Nullable; persisted REST ETag for conditional polling. |
 | `archived` | INTEGER | Not null, default `0`; 0/1. |
 | `degraded` | INTEGER | Not null, default `0`; 0/1. |
 | `last_polled_at` | INTEGER | Nullable, Unix ms. |
 | `last_reconciled_at` | INTEGER | Nullable, Unix ms. |
 
-Primary key: `github_id`. Foreign keys: none. Indexes:
+Primary key: `id`. Foreign keys: none. Indexes:
 
-- `uq_mirror_github_repo_org_name` unique on `(org, name)`.
+- `uq_mirror_repo_external` unique on `(forge, instance, external_id)`.
+- `uq_mirror_repo_slug` unique on `(forge, instance, org, name)`.
 
-### `mirror_github_user`
+### `mirror_user`
 
-Mirrored GitHub people: authors, assignees and collaborators.
+Mirrored forge people: authors, assignees and collaborators.
 
 | Column | Type | Constraints / notes |
 | :--- | :--- | :--- |
-| `github_id` | INTEGER | Primary key; numeric GitHub account id. |
-| `login` | TEXT | Not null, unique. |
+| `id` | INTEGER | Primary key; autoincrement. The internal foreign-key target. |
+| `forge` | TEXT | Not null; `github`. |
+| `instance` | TEXT | Not null; instance host, such as `github.com`. |
+| `external_id` | TEXT | Not null; forge-native account id. |
+| `login` | TEXT | Not null. |
 | `avatar_url` | TEXT | Not null, default `''`. |
+| `url` | TEXT | Not null, default `''`; profile URL. |
 
-Primary key: `github_id`. Foreign keys: none. Indexes: unique constraint on `login`.
+Primary key: `id`. Foreign keys: none. Indexes:
 
-### `mirror_github_milestone`
+- `uq_mirror_user_external` unique on `(forge, instance, external_id)`.
+- `uq_mirror_user_login` unique on `(forge, instance, login)`.
 
-Per-repository milestones. GitHub scopes a milestone to exactly one repository, so identity is `(repo_id, number)`; the same title in two repositories is two rows. The set is replaced wholesale on each milestone refresh, so issues reference a milestone by number without a foreign key.
+### `mirror_milestone`
+
+Per-repository milestones. GitHub scopes a milestone to exactly one repository, so identity is `(repo_id, number)`; the same title in two repositories is two rows. The set is replaced wholesale on each milestone refresh, so threads reference a milestone by number without a foreign key.
 
 | Column | Type | Constraints / notes |
 | :--- | :--- | :--- |
-| `repo_id` | INTEGER | Not null; FK to `mirror_github_repo.github_id`. |
+| `repo_id` | INTEGER | Not null; FK to `mirror_repo.id`. |
 | `number` | INTEGER | Not null; per-repo milestone number. |
-| `github_id` | INTEGER | Not null, default `0`; global node database id, or `0` when only REST has been seen. |
+| `external_id` | TEXT | Not null, default `''`; forge-native global id, or empty when only REST has been seen. |
 | `title` | TEXT | Not null, default `''`. |
 | `description` | TEXT | Not null, default `''`. |
 | `state` | TEXT | Not null, default `'open'`; `open` or `closed`. |
 | `due_on` | INTEGER | Nullable, Unix ms. |
 | `open_issues` | INTEGER | Not null, default `0`. |
 | `closed_issues` | INTEGER | Not null, default `0`. |
-| `creator_id` | INTEGER | Nullable; FK to `mirror_github_user.github_id`. |
+| `creator_id` | INTEGER | Nullable; FK to `mirror_user.id`. |
 | `created_at` | INTEGER | Not null, Unix ms. |
 | `updated_at` | INTEGER | Not null, Unix ms. |
 | `closed_at` | INTEGER | Nullable, Unix ms. |
-| `html_url` | TEXT | Not null, default `''`. |
+| `url` | TEXT | Not null, default `''`. |
 
 Primary key: `(repo_id, number)`. Foreign keys:
 
-- `repo_id` → `mirror_github_repo.github_id` on delete `CASCADE`.
-- `creator_id` → `mirror_github_user.github_id` on delete `SET NULL`.
+- `repo_id` → `mirror_repo.id` on delete `CASCADE`.
+- `creator_id` → `mirror_user.id` on delete `SET NULL`.
 
 Indexes: the composite primary key only.
 
-### `mirror_github_issue`
+### `mirror_thread`
 
-The issue cache. `status`, `priority`, `size` and `blocked` are derived caches of the reserved-label groups, recomputed at sync time. Done/Cancelled derive from `(state, state_reason)`.
+The thread cache (currently issues only). `status`, `impact`, `urgency`, `size` and `blocked` are derived caches of the active reserved-label groups, recomputed at sync time; `priority` is the derived P1–P3 cache. Done/Cancelled derive from `(state, state_reason)`.
 
 | Column | Type | Constraints / notes |
 | :--- | :--- | :--- |
-| `repo_id` | INTEGER | Not null; FK to `mirror_github_repo.github_id`. |
-| `number` | INTEGER | Not null; per-repo issue number. |
-| `github_id` | INTEGER | Not null, unique; global node database id. |
+| `repo_id` | INTEGER | Not null; FK to `mirror_repo.id`. |
+| `number` | INTEGER | Not null; per-repo thread number. |
+| `external_id` | TEXT | Not null; forge-native global id (`databaseId` as text). |
+| `kind` | TEXT | Not null, default `'issue'`; a pull request would be `pull_request`. |
 | `title` | TEXT | Not null. |
 | `body` | TEXT | Not null, default `''`. |
 | `state` | TEXT | Not null; `open` or `closed`. |
 | `state_reason` | TEXT | Nullable; `completed`, `not_planned` or null. |
-| `author_id` | INTEGER | Nullable; FK to `mirror_github_user.github_id`. |
-| `milestone_number` | INTEGER | Nullable; the issue's milestone number in its own repository. No foreign key: the milestone set is replaced wholesale on refresh. |
+| `author_id` | INTEGER | Nullable; FK to `mirror_user.id`. |
+| `milestone_number` | INTEGER | Nullable; the thread's milestone number in its own repository. No foreign key: the milestone set is replaced wholesale on refresh. |
+| `url` | TEXT | Not null, default `''`. |
 | `created_at` | INTEGER | Not null, Unix ms. |
 | `updated_at` | INTEGER | Not null, Unix ms. |
 | `closed_at` | INTEGER | Nullable, Unix ms. |
 | `status` | TEXT | Nullable; `backlog`, `todo`, `in-progress` or `in-review`. |
-| `priority` | TEXT | Nullable; `p1`, `p2` or `p3`. |
+| `impact` | INTEGER | Nullable; `1` Severe, `2` Moderate or `3` Minor. |
+| `urgency` | INTEGER | Nullable; `1` High, `2` Mid or `3` Low. |
+| `priority` | TEXT | Nullable derived cache; `P1`, `P2` or `P3` (never a label). |
 | `size` | TEXT | Nullable; `sm`, `md` or `lg`. |
 | `blocked` | INTEGER | Not null, default `0`; 0/1 orthogonal flag. |
-| `label_conflict` | INTEGER | Not null, default `0`; 0/1 ambiguous reserved-label timeline. |
+| `label_conflict` | INTEGER | Not null, default `0`; 0/1 ambiguous reserved-label timeline or a retired p-label that disagrees with the derived priority. |
 
 Primary key: `(repo_id, number)`. Foreign keys:
 
-- `repo_id` → `mirror_github_repo.github_id` on delete `CASCADE`.
-- `author_id` → `mirror_github_user.github_id` on delete `SET NULL`.
+- `repo_id` → `mirror_repo.id` on delete `CASCADE`.
+- `author_id` → `mirror_user.id` on delete `SET NULL`.
 
 Indexes:
 
-- `idx_mirror_github_issue_status_updated` on `(status, updated_at)`.
-- `idx_mirror_github_issue_priority_updated` on `(priority, updated_at)`.
-- `idx_mirror_github_issue_state` on `(state, state_reason)`.
-- `idx_mirror_github_issue_repo_updated` on `(repo_id, updated_at)`.
-- `idx_mirror_github_issue_milestone` on `(repo_id, milestone_number)`.
-- Unique constraint on `github_id`.
+- `uq_mirror_thread_external` unique on `(repo_id, external_id)`.
+- `idx_mirror_thread_status_updated` on `(status, updated_at)`.
+- `idx_mirror_thread_priority_updated` on `(priority, updated_at)`.
+- `idx_mirror_thread_state` on `(state, state_reason)`.
+- `idx_mirror_thread_repo_updated` on `(repo_id, updated_at)`.
+- `idx_mirror_thread_milestone` on `(repo_id, milestone_number)`.
 
-### `mirror_github_repo_label`
+### `mirror_repo_label`
 
 The per-repo label set, refreshed during sync.
 
 | Column | Type | Constraints / notes |
 | :--- | :--- | :--- |
-| `repo_id` | INTEGER | Not null; FK to `mirror_github_repo.github_id`. |
+| `repo_id` | INTEGER | Not null; FK to `mirror_repo.id`. |
 | `name` | TEXT | Not null. |
 | `color` | TEXT | Not null, default `''`. |
 | `description` | TEXT | Not null, default `''`. |
 
 Primary key: `(repo_id, name)`. Foreign keys:
 
-- `repo_id` → `mirror_github_repo.github_id` on delete `CASCADE`.
+- `repo_id` → `mirror_repo.id` on delete `CASCADE`.
 
 Indexes: the composite primary key only.
 
-### `mirror_github_issue_label`
+### `mirror_thread_label`
 
-Issue-to-label assignments. There is no foreign key to the issue row; the sync layer deletes children before the parent.
+Thread-to-label assignments. There is no foreign key to the thread row; the sync layer deletes children before the parent.
 
 | Column | Type | Constraints / notes |
 | :--- | :--- | :--- |
-| `repo_id` | INTEGER | Not null; part of the issue identity. |
-| `issue_number` | INTEGER | Not null; part of the issue identity. |
+| `repo_id` | INTEGER | Not null; part of the thread identity. |
+| `thread_number` | INTEGER | Not null; part of the thread identity. |
 | `label_name` | TEXT | Not null. |
 
-Primary key: `(repo_id, issue_number, label_name)`. Foreign keys: none. Indexes:
+Primary key: `(repo_id, thread_number, label_name)`. Foreign keys: none. Indexes:
 
-- `idx_mirror_github_issue_label_name` on `(label_name)`.
+- `idx_mirror_thread_label_name` on `(label_name)`.
 
-### `mirror_github_issue_assignee`
+### `mirror_thread_assignee`
 
-Current issue assignees. `user_id` references the user table; the repo/issue pair does not reference the issue row.
+Current thread assignees. `user_id` references the user table; the repo/thread pair does not reference the thread row.
 
 | Column | Type | Constraints / notes |
 | :--- | :--- | :--- |
-| `repo_id` | INTEGER | Not null; part of the issue identity. |
-| `issue_number` | INTEGER | Not null; part of the issue identity. |
-| `user_id` | INTEGER | Not null; FK to `mirror_github_user.github_id`. |
+| `repo_id` | INTEGER | Not null; part of the thread identity. |
+| `thread_number` | INTEGER | Not null; part of the thread identity. |
+| `user_id` | INTEGER | Not null; FK to `mirror_user.id`. |
 
-Primary key: `(repo_id, issue_number, user_id)`. Foreign keys:
+Primary key: `(repo_id, thread_number, user_id)`. Foreign keys:
 
-- `user_id` → `mirror_github_user.github_id` on delete `CASCADE`.
+- `user_id` → `mirror_user.id` on delete `CASCADE`.
 
 Indexes:
 
-- `idx_mirror_github_issue_assignee_user` on `(user_id)`.
+- `idx_mirror_thread_assignee_user` on `(user_id)`.
 
-### `mirror_github_repo_assignee`
+### `mirror_repo_assignee`
 
-The per-repo collaborator set offered by the assignee picker. Distinct from `mirror_github_issue_assignee`, which records who is currently assigned.
+The per-repo collaborator set offered by the assignee picker. Distinct from `mirror_thread_assignee`, which records who is currently assigned.
 
 | Column | Type | Constraints / notes |
 | :--- | :--- | :--- |
-| `repo_id` | INTEGER | Not null; FK to `mirror_github_repo.github_id`. |
-| `user_id` | INTEGER | Not null; FK to `mirror_github_user.github_id`. |
+| `repo_id` | INTEGER | Not null; FK to `mirror_repo.id`. |
+| `user_id` | INTEGER | Not null; FK to `mirror_user.id`. |
 
 Primary key: `(repo_id, user_id)`. Foreign keys:
 
-- `repo_id` → `mirror_github_repo.github_id` on delete `CASCADE`.
-- `user_id` → `mirror_github_user.github_id` on delete `CASCADE`.
+- `repo_id` → `mirror_repo.id` on delete `CASCADE`.
+- `user_id` → `mirror_user.id` on delete `CASCADE`.
 
 Indexes: the composite primary key only.
 
-### `mirror_github_comment`
+### `mirror_comment`
 
-Mirrored issue comments. The comment's global GitHub id is the primary key; `repo_id`/`issue_number` are not foreign keys.
+Mirrored thread comments. `(repo_id, external_id)` is the forge identity; the internal `id` is what the UI links to.
 
 | Column | Type | Constraints / notes |
 | :--- | :--- | :--- |
-| `github_id` | INTEGER | Primary key. |
-| `repo_id` | INTEGER | Not null; part of the issue identity. |
-| `issue_number` | INTEGER | Not null; part of the issue identity. |
-| `author_id` | INTEGER | Nullable; FK to `mirror_github_user.github_id`. |
+| `id` | INTEGER | Primary key; autoincrement. |
+| `repo_id` | INTEGER | Not null; part of the thread identity. |
+| `thread_number` | INTEGER | Not null; part of the thread identity. |
+| `external_id` | TEXT | Not null; forge-native comment id. |
+| `author_id` | INTEGER | Nullable; FK to `mirror_user.id`. |
 | `body` | TEXT | Not null, default `''`. |
 | `created_at` | INTEGER | Not null, Unix ms. |
 | `updated_at` | INTEGER | Not null, Unix ms. |
 
-Primary key: `github_id`. Foreign keys:
+Primary key: `id`. Foreign keys:
 
-- `author_id` → `mirror_github_user.github_id` on delete `SET NULL`.
+- `author_id` → `mirror_user.id` on delete `SET NULL`.
 
 Indexes:
 
-- `idx_mirror_github_comment_issue` on `(repo_id, issue_number)`.
+- `uq_mirror_comment_external` unique on `(repo_id, external_id)`.
+- `idx_mirror_comment_thread` on `(repo_id, thread_number)`.
 
 ## Identity and keys
 
 | Concept | Key | Notes |
 | :--- | :--- | :--- |
-| Mirrored issue | `(repo_id, number)` | Primary key; scopes a GitHub issue number to its repo. |
-| GitHub issue node | `github_id` | Unique across the mirror; the numeric `databaseId` returned by GraphQL hydration. |
-| Mirrored repo | `github_id` | Numeric id survives owner/name changes. |
-| Mirrored repo slug | `(org, name)` | Unique index. |
+| Mirrored thread | `(repo_id, number)` | Primary key; scopes a forge thread number to its repo. |
+| Forge thread id | `external_id` | Unique per repo; the `databaseId` returned by GraphQL hydration, as text. |
+| Mirrored repo | `(forge, instance, external_id)` | Forge-native id survives owner/name changes. |
+| Mirrored repo slug | `(forge, instance, org, name)` | Unique index; the internal `id` is the FK target. |
 | Mirrored milestone | `(repo_id, number)` | GitHub scopes milestones per repository. |
-| Person | `github_id` | `login` is unique but can change upstream. |
+| Person | `(forge, instance, external_id)` | Internal `id` is the FK target; `login` is unique per instance but can change upstream. |
 | Funnel account | `auth_user.id` | Text id; `email` is unique. |
-| GitHub account link | `auth_account.accountId` | Numeric GitHub id stored as text for `providerId = 'github'`. |
+| GitHub account link | `auth_account.accountId` | GitHub account id stored as text for `providerId = 'github'`. |
 | Funnel-local issue state | `(org, name, issue_number)` | Work notes and attachments; durable across mirror pruning. |
 | Instance setting | `key` | Dotted path; JSON-encoded `value`. |
 | GitHub App | `id = 'default'` | Singleton row. |
@@ -424,17 +446,17 @@ Foreign keys declared in the schema:
 | :--- | :--- | :--- |
 | `auth_session.userId` | `auth_user.id` | `CASCADE` |
 | `auth_account.userId` | `auth_user.id` | `CASCADE` |
-| `mirror_github_issue.repo_id` | `mirror_github_repo.github_id` | `CASCADE` |
-| `mirror_github_issue.author_id` | `mirror_github_user.github_id` | `SET NULL` |
-| `mirror_github_milestone.repo_id` | `mirror_github_repo.github_id` | `CASCADE` |
-| `mirror_github_milestone.creator_id` | `mirror_github_user.github_id` | `SET NULL` |
-| `mirror_github_repo_label.repo_id` | `mirror_github_repo.github_id` | `CASCADE` |
-| `mirror_github_issue_assignee.user_id` | `mirror_github_user.github_id` | `CASCADE` |
-| `mirror_github_repo_assignee.repo_id` | `mirror_github_repo.github_id` | `CASCADE` |
-| `mirror_github_repo_assignee.user_id` | `mirror_github_user.github_id` | `CASCADE` |
-| `mirror_github_comment.author_id` | `mirror_github_user.github_id` | `SET NULL` |
+| `mirror_thread.repo_id` | `mirror_repo.id` | `CASCADE` |
+| `mirror_thread.author_id` | `mirror_user.id` | `SET NULL` |
+| `mirror_milestone.repo_id` | `mirror_repo.id` | `CASCADE` |
+| `mirror_milestone.creator_id` | `mirror_user.id` | `SET NULL` |
+| `mirror_repo_label.repo_id` | `mirror_repo.id` | `CASCADE` |
+| `mirror_thread_assignee.user_id` | `mirror_user.id` | `CASCADE` |
+| `mirror_repo_assignee.repo_id` | `mirror_repo.id` | `CASCADE` |
+| `mirror_repo_assignee.user_id` | `mirror_user.id` | `CASCADE` |
+| `mirror_comment.author_id` | `mirror_user.id` | `SET NULL` |
 
-The composite child tables `mirror_github_issue_label` and `mirror_github_issue_assignee`, and the `repo_id`/`issue_number` columns on `mirror_github_comment`, carry no foreign key to `mirror_github_issue`. `mirror_github_issue.milestone_number` also has no foreign key to `mirror_github_milestone`: the milestone set is replaced wholesale on refresh, and an issue may briefly reference a number that has not been mirrored yet. The sync layer therefore deletes labels, assignees and comments explicitly before deleting an issue row (`deleteIssue` in `src/lib/server/sync/mirror.ts`). `state_work_note` and `state_attachment` also carry no foreign key to the mirror: their author/uploader ids are snapshots, and their issue identity is the durable `org/name` plus number.
+The composite child tables `mirror_thread_label` and `mirror_thread_assignee`, and the `repo_id`/`thread_number` columns on `mirror_comment`, carry no foreign key to `mirror_thread`. `mirror_thread.milestone_number` also has no foreign key to `mirror_milestone`: the milestone set is replaced wholesale on refresh, and a thread may briefly reference a number that has not been mirrored yet. The sync layer therefore deletes labels, assignees and comments explicitly before deleting a thread row (`deleteIssue` in `src/lib/server/sync/mirror.ts`). `state_work_note` and `state_attachment` also carry no foreign key to the mirror: their author/uploader ids are snapshots, and their issue identity is the durable `org/name` plus number.
 
 ## Storage, pragmas and migrations
 

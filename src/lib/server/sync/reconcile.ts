@@ -12,7 +12,7 @@
  */
 import { configuredRepoSlugs, getConfig } from "#/lib/server/config";
 import { createLogger } from "#/lib/server/log";
-import { getInstallationId } from "#/lib/server/github/app.server";
+import { forge } from "#/lib/server/forge/providers.server";
 import {
   provisionRepoLabels,
   type ProvisionSummary,
@@ -55,7 +55,7 @@ export async function reconcileRepo(
   owner: string,
   repo: string,
 ): Promise<ReconcileResult> {
-  const installationId = await getInstallationId(owner, repo);
+  const installationId = await forge.getInstallationId(owner, repo);
   const repoRow = await ensureRepoMirror(owner, repo, installationId);
 
   // `full` ignores the cursor and lists every issue (open + closed in window).
@@ -64,10 +64,10 @@ export async function reconcileRepo(
   });
   // Refresh the repo's milestone set so closed/renamed milestones converge.
   await refreshRepoMilestones(installationId, repoRow);
-  const removed = mirror.deleteIssuesNotIn(repoRow.githubId, result.seenNumbers);
+  const removed = mirror.deleteIssuesNotIn(repoRow.id, result.seenNumbers);
   const summary = await provisionRepoLabels(owner, repo);
-  mirror.setRepoReconciledAt(repoRow.githubId, Date.now());
-  mirror.setRepoDegraded(repoRow.githubId, false);
+  mirror.setRepoReconciledAt(repoRow.id, Date.now());
+  mirror.setRepoDegraded(repoRow.id, false);
 
   return {
     repo: `${owner}/${repo}`,

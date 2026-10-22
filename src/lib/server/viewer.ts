@@ -1,12 +1,12 @@
 /**
  * Resolve the signed-in viewer to a {@link UserRef} for Funnel-local writes.
  *
- * Prefers the mirrored GitHub identity (login + avatar, refreshed by sync) and
+ * Prefers the mirrored forge identity (login + avatar, refreshed by sync) and
  * falls back to the Better Auth profile when the viewer has not appeared on any
  * mirrored issue yet. Used to snapshot the author of a work note or the uploader
  * of an attachment.
  */
-import { getViewerGithubId } from "#lib/server/auth/index";
+import { getViewerExternalId } from "#lib/server/auth/index";
 import type { UserRef } from "#lib/server/issues/types";
 import { getUser } from "#lib/server/sync/mirror";
 
@@ -16,12 +16,14 @@ export async function resolveViewerRef(
   const user = locals.user;
   if (!user) return null;
 
-  const githubId = await getViewerGithubId(user.id);
-  if (githubId !== null) {
-    const mirrored = getUser(githubId);
+  const externalId = await getViewerExternalId(user.id);
+  if (externalId !== null) {
+    const mirrored = getUser(externalId, "github", "github.com");
     if (mirrored) {
       return {
-        githubId: mirrored.githubId,
+        externalId: mirrored.externalId,
+        forge: mirrored.forge,
+        instance: mirrored.instance,
         login: mirrored.login,
         avatarUrl: mirrored.avatarUrl,
       };
@@ -29,7 +31,9 @@ export async function resolveViewerRef(
   }
 
   return {
-    githubId: githubId ?? 0,
+    externalId: externalId ?? "",
+    forge: "github",
+    instance: "github.com",
     login: user.name || "unknown",
     avatarUrl: user.image ?? "",
   };

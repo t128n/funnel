@@ -7,7 +7,7 @@
  * was minted for a different filter is a client error (400), never a silent
  * restart at page one.
  */
-import { getViewerGithubId } from "#lib/server/auth/index";
+import { getViewerExternalId } from "#lib/server/auth/index";
 import { apiRole } from "#lib/server/http/session";
 import { parseIssueFilter } from "#lib/server/issues/filters";
 import {
@@ -51,9 +51,9 @@ function requireCursor(
 /** One page of All Issues, defaulting to the open state like the cockpit. */
 function issuesPage(
   search: URLSearchParams,
-  viewerGithubId: number | null,
+  viewerExternalId: string | null,
 ): ListPage<IssueListItem> {
-  const filter = parseIssueFilter(search, filterContext(viewerGithubId));
+  const filter = parseIssueFilter(search, filterContext(viewerExternalId));
   if (filter.states.length === 0) filter.states = ["open"];
   const opts = pageOptions(search);
   requireCursor(opts.cursor ?? null, filterSignature(filter));
@@ -65,8 +65,8 @@ export const GET: RequestHandler = async ({ url, locals }) => {
   if (userId instanceof Response) return userId;
 
   try {
-    const viewerGithubId = await getViewerGithubId(userId);
-    return Response.json(issuesPage(url.searchParams, viewerGithubId));
+    const viewerExternalId = await getViewerExternalId(userId);
+    return Response.json(issuesPage(url.searchParams, viewerExternalId));
   } catch (error) {
     if (error instanceof FeedRequestError) {
       return Response.json({ message: error.message }, { status: 400 });

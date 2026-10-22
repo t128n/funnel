@@ -1,5 +1,15 @@
 import { defineEnvVars } from "@sveltejs/kit/env";
+import { building } from "$app/env";
 import * as v from "valibot";
+
+/**
+ * `vite build` imports the server graph to analyse routes, so runtime-only
+ * secrets are evaluated with no environment present. Accept a throwaway value
+ * while building; at runtime `building` is false and the real validation runs.
+ * A string (not `undefined`) keeps the inferred type `string` and lets modules
+ * that derive keys at import time — `src/lib/server/crypto/secrets.ts` — load.
+ */
+const BUILD_ONLY_SECRET = "build-only-placeholder-not-used-at-runtime";
 
 export const variables = defineEnvVars({
   FUNNEL_URL: {
@@ -19,11 +29,13 @@ export const variables = defineEnvVars({
   FUNNEL_SECRET: {
     description:
       "The secret used to encrypt sensitive data (32-byte hex or base64 recommended).",
-    schema: v.pipe(
-      v.string(),
-      v.trim(),
-      v.minLength(32, "Encryption secret must be at least 32 characters."),
-    ),
+    schema: building
+      ? v.optional(v.string(), BUILD_ONLY_SECRET)
+      : v.pipe(
+          v.string(),
+          v.trim(),
+          v.minLength(32, "Encryption secret must be at least 32 characters."),
+        ),
   },
   FUNNEL_DB: {
     description: "Path to the SQLite database file.",

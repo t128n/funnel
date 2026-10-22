@@ -28,7 +28,7 @@ export const GET: RequestHandler = ({ params, locals }) => {
     return Response.json({ message: "Invalid issue number" }, { status: 400 });
   }
 
-  const detail = getIssueDetail(repo.githubId, number);
+  const detail = getIssueDetail(repo.id, number);
   if (!detail) {
     return Response.json(
       {

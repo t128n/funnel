@@ -70,7 +70,7 @@ export function filterSignature(filter: IssueFilter, extra?: string): string {
     repos: [...filter.repos].sort((a, b) => a - b),
     states: [...filter.states].sort(),
     statuses: [...filter.statuses].sort(),
-    assignees: [...filter.assignees].sort((a, b) => a - b),
+    assignees: [...filter.assignees].sort(),
     priorities: [...filter.priorities].sort(),
     sizes: [...filter.sizes].sort(),
     labels: [...filter.labels].sort(),

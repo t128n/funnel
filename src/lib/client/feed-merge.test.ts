@@ -24,6 +24,8 @@ function issue(overrides: Partial<IssueListItem> & { number: number }): IssueLis
     stateReason: null,
     status: "todo",
     priority: null,
+    impact: null,
+    urgency: null,
     size: null,
     blocked: false,
     labelConflict: false,

@@ -1,30 +1,30 @@
 /**
  * Self-healing provisioning of Funnel's canonical reserved labels.
  *
- * SPEC §5.1 fixes the plain-label vocabulary (`backlog`..`blocked`, `p1`-`p3`,
- * `sm`/`md`/`lg`), and SPEC §5.2(4) requires Funnel to create any missing
- * canonical labels across the configured repositories and restore their
- * canonical colors and descriptions. Provisioning runs with the GitHub App
+ * SPEC §5.1 fixes the plain-label vocabulary (`backlog`..`blocked`, `sm`/`md`/
+ * `lg`), and SPEC §5.2(4) requires Funnel to create any missing canonical labels
+ * across the configured repositories and restore their canonical colors and
+ * descriptions. Priority is no longer a label; see
+ * `#lib/server/issues/priority`. Provisioning runs with the GitHub App
  * installation token (`funnel[bot]`), independent of any signed-in user
  * (SPEC §8), and is idempotent: a converged repo issues zero writes.
  *
  * Only the reserved names in {@link CANONICAL_LABELS} are ever created or
  * patched. Every other label (`bug`, `frontend`, monorepo domain tags, ...)
- * is preserved untouched (SPEC §5.2(5)).
+ * is preserved untouched (SPEC §5.2(5)). Retired priority labels are left in
+ * place: dropping them is a separate, explicit upstream cleanup.
  *
- * Note: writes run through the shared installation Octokit, which includes
- * octokit's throttling plugin (one write per second). A repo missing all 11
- * labels therefore takes roughly ten seconds to converge; converged repos
- * issue zero writes and return immediately.
+ * Reads, creates and updates go through a `forges` installation provider.
+ * `forges` models listing and creating labels but not updating one, so drift
+ * is patched with the provider's raw `request()` escape hatch. A repo missing
+ * all canonical labels converges in one write per label; converged repos issue
+ * zero writes and return immediately.
  */
+import { ForgeApiError } from "forges";
 import { configuredRepoSlugs, getConfig } from "#/lib/server/config";
 import { CANONICAL_LABELS, type CanonicalLabel, type LabelGroup } from "#lib/labels";
 import { createLogger } from "#/lib/server/log";
-import {
-  getInstallationId,
-  github,
-  type InstallationOctokit,
-} from "./app.server";
+import { forge, type GitHubProvider } from "#/lib/server/forge/providers.server";
 
 const log = createLogger({ component: "labels" });
 
@@ -55,35 +55,26 @@ export interface RepoLabel {
   description: string | null;
 }
 
-const PER_PAGE = 100;
-
-/** Prefer "404 Not Found"-style text; Octokit errors carry a `status`. */
+/** Prefer "404 Not Found"-style text; `forges` errors carry a `status`. */
 function errorMessage(error: unknown): string {
   const message = error instanceof Error ? error.message : String(error);
-  const status =
-    typeof error === "object" && error !== null && "status" in error
-      ? (error as { status?: unknown }).status
-      : undefined;
+  const status = error instanceof ForgeApiError ? error.status : undefined;
   return typeof status === "number" ? `${status} ${message}`.trim() : message;
 }
 
-/** Walk paginated `GET /repos/{owner}/{repo}/labels` until a short page. */
+/** Every label defined on the repository, as Funnel's own shape. */
 export async function listRepoLabels(
-  octokit: InstallationOctokit,
+  provider: GitHubProvider,
   owner: string,
   repo: string,
 ): Promise<RepoLabel[]> {
   const all: RepoLabel[] = [];
-  for (let page = 1; ; page++) {
-    const { data } = await octokit.request("GET /repos/{owner}/{repo}/labels", {
-      owner,
-      repo,
-      per_page: PER_PAGE,
-      page,
+  for await (const label of provider.repos.labels(forge.repoRef(owner, repo))) {
+    all.push({
+      name: label.name,
+      color: label.colour ?? "",
+      description: label.description ?? null,
     });
-    const items = data as unknown as RepoLabel[];
-    all.push(...items);
-    if (items.length < PER_PAGE) break;
   }
   return all;
 }
@@ -98,9 +89,10 @@ export async function provisionRepoLabels(
   repo: string,
   labels: readonly CanonicalLabel[] = CANONICAL_LABELS,
 ): Promise<ProvisionSummary> {
-  const installationId = await getInstallationId(owner, repo);
-  const octokit = await github.asInstallation(installationId);
-  const existing = await listRepoLabels(octokit, owner, repo);
+  const installationId = await forge.getInstallationId(owner, repo);
+  const provider = await forge.installationProvider(installationId);
+  const ref = forge.repoRef(owner, repo);
+  const existing = await listRepoLabels(provider, owner, repo);
   // GitHub label names are case-insensitive; index them that way.
   const byName = new Map(existing.map((l) => [l.name.toLowerCase(), l]));
 
@@ -110,11 +102,9 @@ export async function provisionRepoLabels(
     const current = byName.get(label.name.toLowerCase());
 
     if (!current) {
-      await octokit.request("POST /repos/{owner}/{repo}/labels", {
-        owner,
-        repo,
+      await provider.repos.createLabel(ref, {
         name: label.name,
-        color: label.color,
+        colour: label.color,
         description: label.description,
       });
       summary.created.push(label.name);
@@ -125,13 +115,14 @@ export async function provisionRepoLabels(
     const descriptionDrift = (current.description ?? "") !== label.description;
     if (colorDrift || descriptionDrift) {
       // Patch under the existing spelling so GitHub matches the label.
-      await octokit.request("PATCH /repos/{owner}/{repo}/labels/{name}", {
-        owner,
-        repo,
-        name: current.name,
-        color: label.color,
-        description: label.description,
-      });
+      // `forges` has no update-label operation, so use the raw request.
+      await provider.request(
+        "PATCH",
+        `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/labels/${encodeURIComponent(current.name)}`,
+        {
+          body: { color: label.color, description: label.description },
+        },
+      );
       summary.updated.push(label.name);
       continue;
     }

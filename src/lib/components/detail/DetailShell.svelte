@@ -22,6 +22,8 @@
 		contentKey?: unknown;
 		/** Allow a wider measure than the reading column (two-column bodies). */
 		wide?: boolean;
+		/** The pane's root element, for callers that scope behavior to the pane. */
+		element?: HTMLElement | null;
 		/** Header bar content, laid out space-between. */
 		header: Snippet;
 		/** Optional docked action bar; constrained to the same measure. */
@@ -40,6 +42,7 @@
 		class: className,
 		contentKey,
 		wide = false,
+		element = $bindable(null),
 		header,
 		footer,
 		aside,
@@ -51,7 +54,11 @@
 	);
 </script>
 
-<aside class={cn('bg-background flex h-full flex-col', className)} aria-label={ariaLabel}>
+<aside
+	bind:this={element}
+	class={cn('bg-background flex h-full flex-col', className)}
+	aria-label={ariaLabel}
+>
 	<header class="flex min-h-10 shrink-0 items-center justify-between gap-2 border-b px-3 py-1.5">
 		{@render header()}
 	</header>

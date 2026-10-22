@@ -6,7 +6,7 @@
  * untrusted Markdown, so they are rendered to sanitized HTML at this delivery
  * boundary (SPEC §2.2) exactly as the Inbox layout does.
  */
-import { getViewerGithubId } from "#lib/server/auth/index";
+import { getViewerExternalId } from "#lib/server/auth/index";
 import { apiRole } from "#lib/server/http/session";
 import { parseIssueFilter } from "#lib/server/issues/filters";
 import {
@@ -63,9 +63,9 @@ function renderEntry(entry: InboxEntry): RenderedInboxEntry {
 /** One page of the Inbox: submissions first, then untriaged issues. */
 function inboxPage(
   search: URLSearchParams,
-  viewerGithubId: number | null,
+  viewerExternalId: string | null,
 ): ListPage<RenderedInboxEntry> {
-  const filter = parseIssueFilter(search, filterContext(viewerGithubId));
+  const filter = parseIssueFilter(search, filterContext(viewerExternalId));
   const opts = pageOptions(search);
   // Must match `inbox()`'s signature, including its `inbox` discriminator.
   requireCursor(opts.cursor ?? null, filterSignature(filter, "inbox"));
@@ -78,8 +78,8 @@ export const GET: RequestHandler = async ({ url, locals }) => {
   if (userId instanceof Response) return userId;
 
   try {
-    const viewerGithubId = await getViewerGithubId(userId);
-    return Response.json(inboxPage(url.searchParams, viewerGithubId));
+    const viewerExternalId = await getViewerExternalId(userId);
+    return Response.json(inboxPage(url.searchParams, viewerExternalId));
   } catch (error) {
     if (error instanceof FeedRequestError) {
       return Response.json({ message: error.message }, { status: 400 });
