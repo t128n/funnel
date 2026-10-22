@@ -295,6 +295,27 @@ describe("write route wiring", () => {
   });
 });
 
+describe("read route wiring", () => {
+  test("read routes use the forge provider", () => {
+    for (const file of [
+      "src/routes/api/repos/[owner]/[repo]/issues/+server.ts",
+      "src/routes/api/users/[username]/+server.ts",
+    ]) {
+      const text = readFileSync(file, "utf8");
+      // `installationErrorResponse` stays on `app.server.ts` until T13; every
+      // client and installation lookup must already come from the forge module.
+      for (const line of text.split("\n")) {
+        if (line.includes("github/app.server")) {
+          expect(line).toContain("installationErrorResponse");
+        }
+      }
+      expect(text).not.toContain("github.asInstallation");
+      expect(text).not.toContain("github.asApp");
+      expect(text).toContain("forge.");
+    }
+  });
+});
+
 describe("Better Auth mount", () => {
   test("catch-all route forwards /api/auth/* to the handler", async () => {
     const res = await authRoute({
