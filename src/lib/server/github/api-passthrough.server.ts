@@ -7,10 +7,11 @@
  * 404 `html_url` enrichment live in one place.
  *
  * Bodies pass through verbatim (no SQL, no field mapping). Transport
- * is always REST via the installation Octokit — GraphQL only pays off
+ * is always REST via the installation provider — GraphQL only pays off
  * for batched sync hydration, not per-request serving.
  */
-import type { InstallationOctokit } from "./app.server";
+import { ForgeApiError } from "forges";
+import type { GitHubProvider } from "forges/github";
 import { getConfig } from "#/lib/server/config";
 import {
   etagMatches,
@@ -83,9 +84,16 @@ function withRateHeaders(
   return out;
 }
 
-interface UpstreamSuccess {
-  data: unknown;
-  headers: Record<string, string | undefined>;
+function cachedResult(
+  cached: CacheEntry,
+  clientEtag: string | null,
+): PassthroughResult {
+  if (etagMatches(clientEtag, cached.etag)) {
+    return { status: 304, body: "", headers: clientHeaders(cached) };
+  }
+  const headers = withRateHeaders(clientHeaders(cached), cached);
+  if (cached.link) headers["Link"] = cached.link;
+  return { status: 200, body: cached.body, headers };
 }
 
 /** Convert a passthrough result to a SvelteKit `Response` (304s carry no body). */
@@ -102,6 +110,7 @@ export function toResponse(result: PassthroughResult): Response {
 }
 
 function errorStatus(e: unknown): number | null {
+  if (e instanceof ForgeApiError) return e.status;
   if (typeof e === "object" && e !== null && "status" in e) {
     const s = (e as { status?: unknown }).status;
     if (typeof s === "number") return s;
@@ -113,22 +122,37 @@ function errorPayload(e: unknown): {
   data: unknown;
   headers: Record<string, string | undefined>;
 } {
-  if (typeof e === "object" && e !== null && "response" in e) {
-    const r = (
-      e as {
-        response?: {
-          data?: unknown;
-          headers?: Record<string, string | undefined>;
-        };
-      }
-    ).response;
-    if (r) return { data: r.data, headers: r.headers ?? {} };
+  let body: string | null = null;
+  if (e instanceof ForgeApiError) {
+    body = e.body;
+  } else if (typeof e === "object" && e !== null && "body" in e) {
+    const raw = (e as { body?: unknown }).body;
+    if (typeof raw === "string") body = raw;
   }
-  return { data: null, headers: {} };
+
+  let data: unknown = null;
+  if (body) {
+    try {
+      data = JSON.parse(body);
+    } catch {
+      data = body;
+    }
+  }
+
+  let headers: Record<string, string | undefined> = {};
+  if (typeof e === "object" && e !== null && "headers" in e) {
+    const h = (e as { headers?: unknown }).headers;
+    if (h instanceof Headers) {
+      headers = Object.fromEntries(h.entries());
+    } else if (typeof h === "object" && h !== null) {
+      headers = h as Record<string, string | undefined>;
+    }
+  }
+  return { data, headers };
 }
 
 export async function passthrough(
-  octokit: Pick<InstallationOctokit, "request">,
+  provider: Pick<GitHubProvider, "request">,
   installationId: number,
   upstreamPath: string,
   clientQuery: URLSearchParams,
@@ -144,25 +168,29 @@ export async function passthrough(
   // Fresh cache: no GitHub call at all (saves secondary-limit points).
   if (cached && fresh) {
     setCache(key, cached);
-    if (etagMatches(clientEtag, cached.etag)) {
-      return { status: 304, body: "", headers: clientHeaders(cached) };
-    }
-    const headers = withRateHeaders(clientHeaders(cached), cached);
-    if (cached.link) headers["Link"] = cached.link;
-    return { status: 200, body: cached.body, headers };
+    return cachedResult(cached, clientEtag);
   }
 
-  const qs = clientQuery.toString();
-  const route = `GET ${upstreamPath}${qs ? `?${qs}` : ""}` as `GET ${string}`;
-
   try {
-    const res = (await octokit.request(route, {
+    const res = await provider.request("GET", upstreamPath, {
+      query: Object.fromEntries(clientQuery),
       headers: {
         accept: "application/vnd.github+json",
         ...(cached?.etag ? { "If-None-Match": cached.etag } : {}),
       },
-    })) as unknown as UpstreamSuccess;
+    });
 
+    // Conditional revalidation: upstream says our cache is still current.
+    if (res.status === 304 && cached) {
+      cached.fetchedAt = now;
+      setCache(key, cached);
+      return cachedResult(cached, clientEtag);
+    }
+    if (res.status === 304) {
+      return { status: 304, body: "", headers: {} };
+    }
+
+    const upstream = Object.fromEntries(res.headers.entries());
     let { data } = res;
     if (options.filterPullRequests && Array.isArray(data)) {
       data = data.filter(
@@ -175,27 +203,22 @@ export async function passthrough(
       );
     }
     const body = JSON.stringify(data);
-    const etag = header(res.headers, "etag");
-    const lastModified = header(res.headers, "last-modified");
+    const etag = header(upstream, "etag");
+    const lastModified = header(upstream, "last-modified");
     const entry: CacheEntry = {
       etag,
       lastModified,
-      link: rewriteLink(header(res.headers, "link"), hosts.api_url),
+      link: rewriteLink(header(upstream, "link"), hosts.api_url),
       body,
       fetchedAt: now,
-      rateLimit: header(res.headers, "x-ratelimit-limit"),
-      rateRemaining: header(res.headers, "x-ratelimit-remaining"),
-      rateReset: header(res.headers, "x-ratelimit-reset"),
-      retryAfter: header(res.headers, "retry-after"),
+      rateLimit: header(upstream, "x-ratelimit-limit"),
+      rateRemaining: header(upstream, "x-ratelimit-remaining"),
+      rateReset: header(upstream, "x-ratelimit-reset"),
+      retryAfter: header(upstream, "retry-after"),
     };
     setCache(key, entry);
 
-    if (etagMatches(clientEtag, etag)) {
-      return { status: 304, body: "", headers: clientHeaders(entry) };
-    }
-    const headers = withRateHeaders(clientHeaders(entry), entry);
-    if (entry.link) headers["Link"] = entry.link;
-    return { status: 200, body, headers };
+    return cachedResult(entry, clientEtag);
   } catch (e) {
     const status = errorStatus(e);
 
@@ -203,12 +226,7 @@ export async function passthrough(
     if (status === 304 && cached) {
       cached.fetchedAt = now;
       setCache(key, cached);
-      if (etagMatches(clientEtag, cached.etag)) {
-        return { status: 304, body: "", headers: clientHeaders(cached) };
-      }
-      const headers = withRateHeaders(clientHeaders(cached), cached);
-      if (cached.link) headers["Link"] = cached.link;
-      return { status: 200, body: cached.body, headers };
+      return cachedResult(cached, clientEtag);
     }
 
     if (status === 404) {
