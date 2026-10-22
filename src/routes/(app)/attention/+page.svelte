@@ -24,13 +24,13 @@
 	import type { PageProps } from './$types';
 
 	/**
-	 * Attention (SPEC §5.1): blocked issues with a re-check date, grouped
-	 * overdue → due today → the next 7 days as dense, scannable rows. Reached
-	 * from the sidebar; rows link into the Issues view and can be triaged in
-	 * place (reschedule, priority, assignee, done). Dates are compared in the
-	 * browser's timezone, and the shared clock re-evaluates "today" at midnight.
-	 * The All/Mine switch reuses the `assignee=me` scope, so the sidebar badge
-	 * stays global (and counts only overdue + due today).
+	 * Attention (SPEC §5.1): blocked issues grouped overdue → due today → the next
+	 * 7 days → no re-check date, as dense, scannable rows. Reached from the
+	 * sidebar; rows link into the Issues view and can be triaged in place
+	 * (reschedule, priority, assignee, done). Dates are compared in the browser's
+	 * timezone, and the shared clock re-evaluates "today" at midnight. The
+	 * All/Mine switch reuses the `assignee=me` scope, so the sidebar badge stays
+	 * global (and counts only overdue + due today).
 	 */
 	let { data }: PageProps = $props();
 
@@ -64,6 +64,12 @@
 			key: 'upcoming',
 			label: 'Upcoming',
 			items: buckets.upcoming,
+			tone: 'text-muted-foreground'
+		},
+		{
+			key: 'unscheduled',
+			label: 'No re-check date',
+			items: buckets.unscheduled,
 			tone: 'text-muted-foreground'
 		}
 	]);
@@ -113,7 +119,7 @@
 
 <PageHead
 	title="Attention"
-	description="Blocked issues with a re-check date in the next 7 days."
+	description="Blocked issues grouped by re-check date, including those without one."
 />
 
 <div class="surface-shell bg-[var(--surface-canvas)] flex min-h-0 min-w-0 flex-1 flex-col">
@@ -121,7 +127,7 @@
 		class="border-[color:var(--surface-divider)] flex h-11 shrink-0 items-center gap-2 border-b px-3"
 	>
 		<h1 class="text-base font-semibold tracking-tight">Attention</h1>
-		<span class="sr-only">Blocked issues with a re-check date in the next 7 days.</span>
+		<span class="sr-only">Blocked issues grouped by re-check date, including those without one.</span>
 		<div class="ml-auto flex shrink-0 items-center gap-1">
 			<ViewSegment />
 		</div>
@@ -132,8 +138,8 @@
 			<Empty.Root class="border-0">
 				<Empty.Description>
 					{mine
-						? 'No blocked issues assigned to you need a re-check in the next 7 days.'
-						: 'Nothing needs a re-check in the next 7 days.'}
+						? 'No blocked issues assigned to you.'
+						: 'No blocked issues need attention.'}
 				</Empty.Description>
 			</Empty.Root>
 		{:else}

@@ -416,17 +416,45 @@ describe("attentionIssues", () => {
   const withRecheck = (recheck: string) =>
     writeBlocked("desc", { blocker: "Upstream API key", needs: "Token", trying: "", recheck });
 
-  test("returns only blocked issues that carry a re-check date", () => {
+  test("returns blocked issues without a usable re-check date", () => {
     seedBlockedIssue(7, "107", withRecheck("2026-10-25"), true);
-    // Blocked but no metadata date.
+    // Blocked but no metadata at all.
     seedBlockedIssue(8, "108", "plain body", true);
-    // Has a date in the body but is not flagged blocked.
-    seedBlockedIssue(9, "109", withRecheck("2026-10-20"), false);
+    // Blocked with a malformed re-check date.
+    seedBlockedIssue(
+      9,
+      "109",
+      writeBlocked("desc", {
+        blocker: "Upstream API key",
+        needs: "Token",
+        trying: "",
+        recheck: "not-a-date",
+      }),
+      true,
+    );
+    // Has a valid date in the body but is not flagged blocked.
+    seedBlockedIssue(10, "110", withRecheck("2026-10-20"), false);
 
     const items = attentionIssues();
-    expect(items.map((item) => item.issue.number)).toEqual([7]);
+    expect(items.map((item) => [item.issue.number, item.recheck])).toEqual([
+      [7, "2026-10-25"],
+      [8, ""],
+      [9, ""],
+    ]);
     expect(items[0].blocker).toBe("Upstream API key");
-    expect(items[0].recheck).toBe("2026-10-25");
+  });
+
+  test("treats calendar-invalid dates as unscheduled", () => {
+    seedBlockedIssue(11, "111", withRecheck("2026-02-30"), true);
+    expect(attentionIssues().map((item) => [item.issue.number, item.recheck])).toEqual([
+      [11, ""],
+    ]);
+  });
+
+  test("orders equal re-check dates by issue number", () => {
+    seedBlockedIssue(12, "112", withRecheck("2026-10-25"), true);
+    seedBlockedIssue(11, "111", withRecheck("2026-10-25"), true);
+    expect(attentionIssues().map((item) => item.issue.number)).toEqual([11, 12]);
   });
 
   test("sorts by re-check date", () => {

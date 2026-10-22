@@ -34,7 +34,7 @@ The window is presentation only. It does not delete anything from the mirror, an
 
 ## Effect on counts
 
-Changing the Done window changes the Done column's count and the total number of cards on the board. It does not change the sidebar badges: **Inbox** counts pending submissions plus untriaged open issues, and **Attention** counts due or overdue re-checks. Those are computed independently of the board settings.
+Changing the Done window changes the Done column's count and the total number of cards on the board. It does not change the sidebar badges: **Inbox** counts pending submissions plus untriaged open issues, and **Attention** counts overdue or due-today re-checks. Blocked issues without a re-check date are listed on the Attention page but never counted in its badge. Those counts are computed independently of the board settings.
 
 ## After saving
 

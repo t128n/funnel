@@ -92,9 +92,9 @@ Click the card.
 
 Click **Attention** in the sidebar.
 
-**You should see:** the issue under **Upcoming**, with a re-check pill reading **in 1d** (or the equivalent for the date you chose) and a **Blocked** marker. Attention lists open, blocked issues whose re-check date falls within the next seven days, grouped as **Overdue**, **Due Today**, and **Upcoming**.
+**You should see:** the issue under **Upcoming**, with a re-check pill reading **in 1d** (or the equivalent for the date you chose) and a **Blocked** marker. Attention lists open, blocked issues, grouped as **Overdue**, **Due Today**, **Upcoming**, and **No re-check date**. The last group holds blocked issues whose date is missing or malformed.
 
-The sidebar badge counts only overdue and due-today items, so a re-check set for tomorrow does not raise the badge. Use the row's calendar action to move the re-check date without re-recording the block, or open the row to return to the issue.
+The sidebar badge counts only overdue and due-today items, so a re-check set for tomorrow does not raise the badge, and issues without a date are listed but not counted. Use the row's calendar action to move the re-check date without re-recording the block, or open the row to return to the issue.
 
 ## 9. Add a work note
 
