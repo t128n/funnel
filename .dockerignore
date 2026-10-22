@@ -39,8 +39,9 @@ build
 # ---- Not needed to build or run -----------------------------------------
 tests
 docs
-scripts/intake.ps1
-scripts/install-intake-shortcut.ps1
+tools
+scripts/build-intake.ts
+scripts/install-intake.ps1
 
 # Migration snapshots are only used by `drizzle-kit generate`; the runtime
 # migrator reads `migration.sql` only.

@@ -45,13 +45,13 @@ export const actions: Actions = {
     const repo = String(form.get("repo") ?? "").trim();
     if (!id) return fail(400, { message: "Missing submission id" });
 
-    const labels = ["priority", "size"]
+    const labels = ["size"]
       .map((key) => String(form.get(key) ?? "").trim())
       .filter((value) => value.length > 0);
 
     const result = await acceptSubmission({
       id,
-      octokit: auth.octokit,
+      provider: auth.provider,
       repo: repo || undefined,
       labels,
     });
@@ -100,7 +100,7 @@ export const actions: Actions = {
 
     const result = await duplicateSubmission({
       id,
-      octokit: auth.octokit,
+      provider: auth.provider,
       repo,
       number,
     });

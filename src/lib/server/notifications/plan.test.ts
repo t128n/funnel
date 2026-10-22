@@ -4,13 +4,13 @@ import type { IssueCommentSnapshot, IssueSnapshot, Recipient } from './types';
 
 const alice: Recipient = {
 	userId: 'u1',
-	githubId: 42,
+	externalId: "42",
 	login: 'alice',
 	avatarUrl: 'https://avatars/42'
 };
 const bob: Recipient = {
 	userId: 'u2',
-	githubId: 43,
+	externalId: "43",
 	login: 'bob',
 	avatarUrl: 'https://avatars/43'
 };
@@ -29,8 +29,8 @@ function snapshot(overrides: Partial<IssueSnapshot> = {}): IssueSnapshot {
 	};
 }
 
-function comment(githubId: number, body: string, authorLogin = 'carol'): IssueCommentSnapshot {
-	return { githubId, body, authorLogin, authorAvatarUrl: 'https://avatars/99' };
+function comment(externalId: string, body: string, authorLogin = 'carol'): IssueCommentSnapshot {
+	return { externalId, body, authorLogin, authorAvatarUrl: 'https://avatars/99' };
 }
 
 const base = {
@@ -57,7 +57,7 @@ describe('planIssueNotifications', () => {
 			planIssueNotifications({
 				...base,
 				previous: null,
-				next: snapshot({ assigneeIds: [42], comments: [comment(500, 'hello @alice')] }),
+				next: snapshot({ assigneeIds: ["42"], comments: [comment("500", 'hello @alice')] }),
 				watchers: [alice],
 				recipients: [alice]
 			})
@@ -68,7 +68,7 @@ describe('planIssueNotifications', () => {
 		const drafts = planIssueNotifications({
 			...base,
 			previous: snapshot(),
-			next: snapshot({ assigneeIds: [42] }),
+			next: snapshot({ assigneeIds: ["42"] }),
 			recipients: [alice],
 			actor: alice
 		});
@@ -79,7 +79,7 @@ describe('planIssueNotifications', () => {
 		const drafts = planIssueNotifications({
 			...base,
 			previous: snapshot(),
-			next: snapshot({ comments: [comment(500, 'hey @alice, take a look')] }),
+			next: snapshot({ comments: [comment("500", 'hey @alice, take a look')] }),
 			watchers: [alice],
 			recipients: [alice]
 		});
@@ -96,7 +96,7 @@ describe('planIssueNotifications', () => {
 		const drafts = planIssueNotifications({
 			...base,
 			previous: snapshot(),
-			next: snapshot({ assigneeIds: [42] }),
+			next: snapshot({ assigneeIds: ["42"] }),
 			recipients: [alice]
 		});
 		expect(drafts).toHaveLength(1);
@@ -111,8 +111,8 @@ describe('planIssueNotifications', () => {
 	test('does not repeat an assignment that was already known', () => {
 		const drafts = planIssueNotifications({
 			...base,
-			previous: snapshot({ assigneeIds: [42] }),
-			next: snapshot({ assigneeIds: [42] }),
+			previous: snapshot({ assigneeIds: ["42"] }),
+			next: snapshot({ assigneeIds: ["42"] }),
 			recipients: [alice]
 		});
 		expect(drafts).toEqual([]);
@@ -122,7 +122,7 @@ describe('planIssueNotifications', () => {
 		const drafts = planIssueNotifications({
 			...base,
 			previous: snapshot(),
-			next: snapshot({ comments: [comment(500, 'hi @bob', 'carol')] }),
+			next: snapshot({ comments: [comment("500", 'hi @bob', 'carol')] }),
 			watchers: [alice],
 			recipients: [bob]
 		});
@@ -141,12 +141,12 @@ describe('planIssueNotifications', () => {
 	});
 
 	test('notifies watchers about new comments but not known ones', () => {
-		const previous = snapshot({ comments: [comment(499, 'older')] });
+		const previous = snapshot({ comments: [comment("499", 'older')] });
 		const drafts = planIssueNotifications({
 			...base,
 			previous,
 			next: snapshot({
-				comments: [comment(499, 'older'), comment(500, '  a   new\ncomment  ')]
+				comments: [comment("499", 'older'), comment("500", '  a   new\ncomment  ')]
 			}),
 			watchers: [alice, bob]
 		});
@@ -161,7 +161,7 @@ describe('planIssueNotifications', () => {
 		const drafts = planIssueNotifications({
 			...base,
 			previous: snapshot(),
-			next: snapshot({ comments: [comment(500, 'my own comment', 'alice')] }),
+			next: snapshot({ comments: [comment("500", 'my own comment', 'alice')] }),
 			watchers: [alice]
 		});
 		expect(drafts).toEqual([]);
@@ -183,7 +183,7 @@ describe('planIssueNotifications', () => {
 		const drafts = planIssueNotifications({
 			...base,
 			previous: snapshot(),
-			next: snapshot({ comments: [comment(500, body)] }),
+			next: snapshot({ comments: [comment("500", body)] }),
 			watchers: [alice]
 		});
 		expect(drafts[0].body).toBe('word '.repeat(28).trim());

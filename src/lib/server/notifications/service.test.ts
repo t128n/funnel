@@ -4,14 +4,14 @@ import { db } from "#lib/server/db/index";
 import {
 	authAccount,
 	authUser,
-	mirrorGithubUser,
+	mirrorUser,
 	stateIssueWatch,
 	stateNotification,
 } from "#lib/server/db/schema";
 import { resetEventBus, subscribe } from "#lib/server/sync/events";
 import {
 	createNotifications,
-	getRecipientByGithubId,
+	getRecipientByExternalId,
 	getRecipientByLogin,
 	isWatching,
 	listAdminRecipients,
@@ -27,7 +27,7 @@ import {
 
 function seedUser(
 	id: string,
-	githubId: number,
+	externalId: string,
 	login: string,
 	role = "read",
 	avatarUrl = "",
@@ -46,14 +46,14 @@ function seedUser(
 	db.insert(authAccount)
 		.values({
 			id: `account-${id}`,
-			accountId: String(githubId),
+			accountId: externalId,
 			providerId: "github",
 			userId: id,
 			createdAt: now,
 			updatedAt: now,
 		})
 		.run();
-	db.insert(mirrorGithubUser).values({ githubId, login, avatarUrl }).run();
+	db.insert(mirrorUser).values({ externalId, forge: "github", instance: "github.com", login, avatarUrl, url: "" }).run();
 }
 
 beforeEach(() => {
@@ -61,14 +61,14 @@ beforeEach(() => {
 	db.delete(stateIssueWatch).run();
 	db.delete(authAccount).run();
 	db.delete(authUser).run();
-	db.delete(mirrorGithubUser).run();
+	db.delete(mirrorUser).run();
 	resetEventBus();
 });
 
 describe("notification store", () => {
 	test("test_unread_count_scopes_to_user", () => {
-		seedUser("u1", 42, "alice");
-		seedUser("u2", 43, "bob");
+		seedUser("u1", "42", "alice");
+		seedUser("u2", "43", "bob");
 		createNotifications([
 			{
 				userId: "u1",
@@ -89,8 +89,8 @@ describe("notification store", () => {
 	});
 
 	test("test_mark_all_read_only_own", () => {
-		seedUser("u1", 42, "alice");
-		seedUser("u2", 43, "bob");
+		seedUser("u1", "42", "alice");
+		seedUser("u2", "43", "bob");
 		createNotifications([
 			{
 				userId: "u1",
@@ -112,7 +112,7 @@ describe("notification store", () => {
 	});
 
 	test("test_watch_is_idempotent", () => {
-		seedUser("u1", 42, "alice");
+		seedUser("u1", "42", "alice");
 		watchIssue("u1", "orgA", "core", 7);
 		watchIssue("u1", "orgA", "core", 7);
 
@@ -134,7 +134,7 @@ describe("notification store", () => {
 	});
 
 	test("createNotifications skips an empty batch and publishes once per landing", () => {
-		seedUser("u1", 42, "alice");
+		seedUser("u1", "42", "alice");
 		const events: Array<Record<string, unknown>> = [];
 		subscribe((event) => events.push(event as Record<string, unknown>));
 
@@ -169,8 +169,8 @@ describe("notification store", () => {
 	});
 
 	test("list and read operations respect user scope, ordering and filters", () => {
-		seedUser("u1", 42, "alice");
-		seedUser("u2", 43, "bob");
+		seedUser("u1", "42", "alice");
+		seedUser("u2", "43", "bob");
 		const ids = createNotifications([
 			{
 				userId: "u1",
@@ -222,22 +222,22 @@ describe("notification store", () => {
 	});
 
 	test("resolves recipients by GitHub id, login and admin role", () => {
-		seedUser("u1", 42, "alice", "admin", "https://avatars/alice.png");
-		seedUser("u2", 43, "bob", "read");
+		seedUser("u1", "42", "alice", "admin", "https://avatars/alice.png");
+		seedUser("u2", "43", "bob", "read");
 
-		expect(getRecipientByGithubId(42)).toEqual({
+		expect(getRecipientByExternalId("42")).toEqual({
 			userId: "u1",
-			githubId: 42,
+			externalId: "42",
 			login: "alice",
 			avatarUrl: "https://avatars/alice.png",
 		});
 		expect(getRecipientByLogin("bob")?.userId).toBe("u2");
-		expect(getRecipientByGithubId(999)).toBeNull();
+		expect(getRecipientByExternalId("999")).toBeNull();
 		expect(getRecipientByLogin("nobody")).toBeNull();
 		expect(listAdminRecipients()).toEqual([
 			{
 				userId: "u1",
-				githubId: 42,
+				externalId: "42",
 				login: "alice",
 				avatarUrl: "https://avatars/alice.png",
 			},
@@ -245,8 +245,8 @@ describe("notification store", () => {
 	});
 
 	test("lists and removes watchers with mirrored identities", () => {
-		seedUser("u1", 42, "alice", "read", "https://avatars/alice.png");
-		seedUser("u2", 43, "bob");
+		seedUser("u1", "42", "alice", "read", "https://avatars/alice.png");
+		seedUser("u2", "43", "bob");
 		watchIssue("u1", "orgA", "core", 7);
 		watchIssue("u2", "orgA", "core", 7);
 		watchIssue("u2", "orgA", "core", 8);
@@ -254,11 +254,11 @@ describe("notification store", () => {
 		expect(listWatchers("orgA", "core", 7)).toEqual([
 			{
 				userId: "u1",
-				githubId: 42,
+				externalId: "42",
 				login: "alice",
 				avatarUrl: "https://avatars/alice.png",
 			},
-			{ userId: "u2", githubId: 43, login: "bob", avatarUrl: "" },
+			{ userId: "u2", externalId: "43", login: "bob", avatarUrl: "" },
 		]);
 
 		unwatchIssue("u1", "orgA", "core", 7);
@@ -267,9 +267,9 @@ describe("notification store", () => {
 	});
 
 	test("notifyNewIntake reaches admins only and de-duplicates the submission", () => {
-		seedUser("u1", 42, "alice", "admin");
-		seedUser("u2", 43, "bob", "admin");
-		seedUser("u3", 44, "carol", "read");
+		seedUser("u1", "42", "alice", "admin");
+		seedUser("u2", "43", "bob", "admin");
+		seedUser("u3", "44", "carol", "read");
 		const events: Array<Record<string, unknown>> = [];
 		subscribe((event) => events.push(event as Record<string, unknown>));
 

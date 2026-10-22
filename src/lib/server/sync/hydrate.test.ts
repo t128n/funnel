@@ -1,10 +1,10 @@
-import { beforeEach, describe, expect, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, spyOn, test } from "bun:test";
 import { getConfig, resetConfigCache } from "#lib/server/config";
 import { db } from "#lib/server/db/index";
 import {
   authAccount,
   authUser,
-  mirrorGithubUser,
+  mirrorUser,
   stateIssueWatch,
   stateNotification,
 } from "#lib/server/db/schema";
@@ -15,6 +15,7 @@ import {
   type SettingsInput,
 } from "#lib/server/settings/store";
 import { clearMirror } from "#tests/mirror-helpers";
+import { forge } from "#/lib/server/forge/providers.server";
 import { deriveMetadata } from "./conflicts";
 import type {
   NotificationDraft,
@@ -49,6 +50,8 @@ const BASE_SETTINGS: SettingsInput = {
   notifications: { enabled: true, native: true, new_intake: true },
 };
 
+let repoId = 0;
+
 beforeEach(() => {
   clearMirror();
   clearSettings();
@@ -57,12 +60,20 @@ beforeEach(() => {
   db.delete(stateIssueWatch).run();
   db.delete(authAccount).run();
   db.delete(authUser).run();
-  mirror.upsertRepo({ githubId: 1, org: "orgA", name: "core", archived: false });
+  repoId = mirror.upsertRepo({
+    externalId: "1",
+    forge: "github",
+    instance: "github.com",
+    org: "orgA",
+    name: "core",
+    url: "https://github.com/orgA/core",
+    archived: false,
+  }).id;
 });
 
 function seedUser(
   id: string,
-  githubId: number,
+  externalId: string,
   login: string,
 ): void {
   const now = new Date();
@@ -79,25 +90,33 @@ function seedUser(
   db.insert(authAccount)
     .values({
       id: `account-${id}`,
-      accountId: String(githubId),
+      accountId: externalId,
       providerId: "github",
       userId: id,
       createdAt: now,
       updatedAt: now,
     })
     .run();
-  db.insert(mirrorGithubUser)
-    .values({ githubId, login, avatarUrl: "" })
+  db.insert(mirrorUser)
+    .values({
+      externalId,
+      forge: "github",
+      instance: "github.com",
+      login,
+      avatarUrl: "",
+      url: "",
+    })
     .run();
 }
 
 function seedWatcher(): void {
-  seedUser("w1", 42, "wanda");
+  seedUser("w1", "42", "wanda");
 }
 
 const ISSUE_NODE = {
   databaseId: 101,
   number: 1,
+  url: "https://github.com/orgA/core/issues/1",
   title: "Fix the thing",
   body: "Body text",
   state: "OPEN",
@@ -124,24 +143,42 @@ const ISSUE_NODE = {
 
 describe("normalizeNode", () => {
   test("maps a GraphQL issue node to a mirror record", () => {
-    const record = normalizeNode(ISSUE_NODE, 1);
+    const record = normalizeNode(ISSUE_NODE, repoId);
     expect(record).toMatchObject({
-      githubId: 101,
-      repoId: 1,
+      externalId: "101",
+      repoId,
       number: 1,
+      kind: "issue",
+      url: "https://github.com/orgA/core/issues/1",
       title: "Fix the thing",
       state: "open",
       milestoneNumber: 3,
       labels: ["todo", "bug"],
-      author: { githubId: 7, login: "octocat" },
+      author: { externalId: "7", login: "octocat" },
     });
     expect(record?.assignees).toEqual([
-      { githubId: 8, login: "dev", avatarUrl: "https://a/8" },
+      {
+        id: 0,
+        externalId: "8",
+        forge: "github",
+        instance: "github.com",
+        login: "dev",
+        avatarUrl: "https://a/8",
+        url: "",
+      },
     ]);
     expect(record?.comments).toEqual([
       {
-        githubId: 500,
-        author: { githubId: 7, login: "octocat", avatarUrl: "https://a/7" },
+        externalId: "500",
+        author: {
+          id: 0,
+          externalId: "7",
+          forge: "github",
+          instance: "github.com",
+          login: "octocat",
+          avatarUrl: "https://a/7",
+          url: "",
+        },
         body: "a comment",
         createdAt: Date.parse("2026-01-02T00:00:00Z"),
         updatedAt: Date.parse("2026-01-02T01:00:00Z"),
@@ -203,7 +240,7 @@ describe("hydrateNodes", () => {
       ...Array.from({ length: BATCH_SIZE }, (_, i) => String(i + 1)),
       "pr",
     ];
-    const records = await hydrateNodes(graphql, 1, ids);
+    const records = await hydrateNodes(graphql, repoId, ids);
 
     expect(calls).toHaveLength(2);
     expect((calls[0].ids as string[]).length).toBe(BATCH_SIZE);
@@ -213,6 +250,8 @@ describe("hydrateNodes", () => {
 
 const METADATA = {
   status: null,
+  impact: null,
+  urgency: null,
   priority: null,
   size: null,
   blocked: false,
@@ -221,14 +260,16 @@ const METADATA = {
 
 function issueRecord(overrides: Partial<mirror.IssueRecord> = {}): mirror.IssueRecord {
   return {
-    githubId: 101,
-    repoId: 1,
+    externalId: "101",
+    kind: "issue",
+    url: "",
+    repoId,
     number: 1,
     title: "Fix the thing",
     body: "",
     state: "open",
     stateReason: null,
-    author: { githubId: 7, login: "octocat", avatarUrl: "" },
+    author: { id: 0, externalId: "7", forge: "github", instance: "github.com", login: "octocat", avatarUrl: "", url: "" },
     milestoneNumber: null,
     createdAt: 1,
     updatedAt: 2,
@@ -242,13 +283,13 @@ function issueRecord(overrides: Partial<mirror.IssueRecord> = {}): mirror.IssueR
 
 const WATCHER: Recipient = {
   userId: "w1",
-  githubId: 42,
+  externalId: "42",
   login: "wanda",
   avatarUrl: "",
 };
 const ACTOR: Recipient = {
   userId: "a1",
-  githubId: 7,
+  externalId: "7",
   login: "amy",
   avatarUrl: "",
 };
@@ -258,29 +299,29 @@ describe("snapshotIssue", () => {
     mirror.upsertIssue(
       issueRecord({
         updatedAt: 1000,
-        assignees: [{ githubId: 42, login: "wanda", avatarUrl: "" }],
+        assignees: [{ id: 0, externalId: "42", forge: "github", instance: "github.com", login: "wanda", avatarUrl: "", url: "" }],
         comments: [
           {
-            githubId: 500,
-            author: { githubId: 7, login: "octocat", avatarUrl: "https://a/7" },
+            externalId: "500",
+            author: { id: 0, externalId: "7", forge: "github", instance: "github.com", login: "octocat", avatarUrl: "https://a/7", url: "" },
             body: "hello",
             createdAt: 10,
             updatedAt: 10,
           },
         ],
       }),
-      { ...METADATA, status: "in-progress", priority: "p2" },
+      { ...METADATA, status: "in-progress", priority: "P2" },
     );
 
-    expect(snapshotIssue(1, 1)).toEqual({
+    expect(snapshotIssue(repoId, 1)).toEqual({
       status: "in-progress",
-      priority: "p2",
+      priority: "P2",
       state: "open",
       updatedAt: 1000,
-      assigneeIds: [42],
+      assigneeIds: ["42"],
       comments: [
         {
-          githubId: 500,
+          externalId: "500",
           body: "hello",
           authorLogin: "octocat",
           authorAvatarUrl: "https://a/7",
@@ -299,18 +340,18 @@ describe("snapshotIssue", () => {
 describe("notifyIssueChanges", () => {
   const previous = {
     status: "todo",
-    priority: "p2",
+    priority: "P2",
     state: "open",
     updatedAt: 1000,
-    assigneeIds: [] as number[],
+    assigneeIds: [] as string[],
     comments: [] as [],
   };
   const next = {
     status: "in-progress",
-    priority: "p2",
+    priority: "P2",
     state: "open",
     updatedAt: 2000,
-    assigneeIds: [42],
+    assigneeIds: ["42"],
     comments: [] as [],
   };
 
@@ -391,7 +432,7 @@ describe("notifyIssueChanges", () => {
     ];
     const stored: NotificationDraft[] = [];
     const created = notifyIssueChanges(
-      input({ actorUserId: ACTOR.userId, next: { ...next, assigneeIds: [7] } }),
+      input({ actorUserId: ACTOR.userId, next: { ...next, assigneeIds: ["7"] } }),
       {
         actor: ACTOR,
         recipients: [ACTOR, WATCHER],
@@ -412,14 +453,59 @@ describe("notifyIssueChanges", () => {
 describe("hydrateAndStore", () => {
   test("persists records with derived metadata", async () => {
     const graphql: GraphqlFn = async () => ({ nodes: [ISSUE_NODE] });
-    const records = await hydrateAndStore(1, 1, ["n1"], graphql);
+    const records = await hydrateAndStore(1, repoId, ["n1"], graphql);
 
     expect(records).toHaveLength(1);
-    const stored = mirror.getIssue(1, 1);
+    const stored = mirror.getIssue(repoId, 1);
     expect(stored?.title).toBe("Fix the thing");
+    expect(stored?.externalId).toBe("101");
+    expect(stored?.kind).toBe("issue");
+    expect(stored?.url).toBe("https://github.com/orgA/core/issues/1");
     expect(stored?.status).toBe("todo");
     expect(stored?.labelConflict).toBe(0);
-    expect(mirror.getIssueLabels(1, 1).sort()).toEqual(["bug", "todo"]);
+    expect(mirror.getIssueLabels(repoId, 1).sort()).toEqual(["bug", "todo"]);
+  });
+
+  test("caches impact/urgency labels and derives priority", async () => {
+    const graphql: GraphqlFn = async () => ({
+      nodes: [
+        {
+          ...ISSUE_NODE,
+          labels: {
+            nodes: [{ name: "todo" }, { name: "sev" }, { name: "high" }],
+          },
+        },
+      ],
+    });
+    await hydrateAndStore(1, repoId, ["n1"], graphql);
+
+    const stored = mirror.getIssue(repoId, 1);
+    expect(stored?.impact).toBe(1);
+    expect(stored?.urgency).toBe(1);
+    expect(stored?.priority).toBe("P1");
+    expect(stored?.labelConflict).toBe(0);
+  });
+
+  test("flags a retired p-label that disagrees with the axes", async () => {
+    const graphql: GraphqlFn = async () => ({
+      nodes: [
+        {
+          ...ISSUE_NODE,
+          labels: {
+            nodes: [
+              { name: "todo" },
+              { name: "min" },
+              { name: "low" },
+              { name: "p1" },
+            ],
+          },
+        },
+      ],
+    });
+    await hydrateAndStore(1, repoId, ["n1"], graphql);
+
+    expect(mirror.getIssue(repoId, 1)?.priority).toBe("P3");
+    expect(mirror.getIssue(repoId, 1)?.labelConflict).toBe(1);
   });
 
   test("flags a conflicted label set for later resolution", async () => {
@@ -431,8 +517,8 @@ describe("hydrateAndStore", () => {
         },
       ],
     });
-    await hydrateAndStore(1, 1, ["n1"], graphql);
-    expect(mirror.getIssue(1, 1)?.labelConflict).toBe(1);
+    await hydrateAndStore(1, repoId, ["n1"], graphql);
+    expect(mirror.getIssue(repoId, 1)?.labelConflict).toBe(1);
     expect(deriveMetadata(["todo", "in-progress"]).conflicts).toEqual(["status"]);
   });
 
@@ -483,7 +569,7 @@ describe("hydrateAndStore", () => {
   });
 
   test("new assignment notifies the linked assignee once", async () => {
-    seedUser("u1", 42, "alice");
+    seedUser("u1", "42", "alice");
     const unassigned: GraphqlFn = async () => ({
       nodes: [{ ...ISSUE_NODE, assignees: { nodes: [] } }],
     });
@@ -515,7 +601,7 @@ describe("hydrateAndStore", () => {
   });
 
   test("new mention notifies a linked user without a watch", async () => {
-    seedUser("u1", 42, "alice");
+    seedUser("u1", "42", "alice");
     const before: GraphqlFn = async () => ({ nodes: [ISSUE_NODE] });
     const after: GraphqlFn = async () => ({
       nodes: [
@@ -601,7 +687,7 @@ describe("hydrateAndStore", () => {
 
   test("test_self_write_is_silent", async () => {
     seedWatcher();
-    seedUser("a1", 7, "amy");
+    seedUser("a1", "7", "amy");
     watchIssue("w1", "orgA", "core", 1);
     watchIssue("a1", "orgA", "core", 1);
 
@@ -746,5 +832,54 @@ describe("hydrateAndStore", () => {
     );
 
     expect(db.select().from(stateNotification).all()).toEqual([]);
+  });
+});
+
+const fakeGraphql = async () => ({
+  nodes: [{ databaseId: 101, number: 1, url: "https://github.com/orgA/core/issues/1", title: "live", state: "OPEN", createdAt: "2026-01-01T00:00:00Z", updatedAt: "2026-01-01T00:00:00Z", labels: { nodes: [] }, assignees: { nodes: [] }, comments: { nodes: [] } }],
+});
+
+describe("hydrateAndStore injection", () => {
+  test("stores normalized nodes from the injected graphql", async () => {
+    const records = await hydrateAndStore(7, repoId, ["n1"], fakeGraphql as never);
+    expect(records).toHaveLength(1);
+    expect(records[0]).toMatchObject({
+      externalId: "101",
+      number: 1,
+      title: "live",
+    });
+  });
+  test("does nothing for an empty batch", async () => {
+    expect(await hydrateAndStore(7, repoId, [], fakeGraphql as never)).toEqual([]);
+  });
+});
+
+describe("hydrateAndStore provider", () => {
+  const provider = {
+    marker: "provider",
+    async graphql(_query: string, _variables?: Record<string, unknown>) {
+      // An unbound method call would lose `this`.
+      expect(this.marker).toBe("provider");
+      return { nodes: [ISSUE_NODE] };
+    },
+  };
+  let providerSpy: ReturnType<typeof spyOn>;
+
+  beforeEach(() => {
+    providerSpy = spyOn(forge, "installationProvider").mockResolvedValue(
+      provider as never,
+    );
+  });
+
+  afterEach(() => {
+    providerSpy.mockRestore();
+  });
+
+  test("calls the provider graphql through a bound function", async () => {
+    const records = await hydrateAndStore(7, repoId, ["n1"]);
+
+    expect(providerSpy).toHaveBeenCalledWith(7);
+    expect(records).toHaveLength(1);
+    expect(records[0]).toMatchObject({ externalId: "101", number: 1 });
   });
 });

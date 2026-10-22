@@ -6,7 +6,15 @@
  * `src/lib/server/**` and client components. `src/lib/server/github/labels.ts`
  * re-exports these so the server keeps a single source of truth.
  */
-export type LabelGroup = "status" | "priority" | "size" | "flags";
+import { isRetiredPriorityLabel } from "./priority";
+
+export type LabelGroup =
+  | "status"
+  | "priority"
+  | "impact"
+  | "urgency"
+  | "size"
+  | "flags";
 
 export interface CanonicalLabel {
   name: string;
@@ -45,24 +53,43 @@ export const CANONICAL_LABELS: readonly CanonicalLabel[] = [
     description: "Flag: Blocked",
     group: "flags",
   },
-  // Priority. Absence means "no priority".
+  // Triage inputs. One label per group; absence means "not assessed".
+  // Priority is derived from their pair and carries no GitHub label.
   {
-    name: "p1",
+    name: "sev",
     color: "fa6675",
-    description: "Priority: 1 (critical)",
-    group: "priority",
+    description: "Impact: Severe",
+    group: "impact",
   },
   {
-    name: "p2",
+    name: "mod",
     color: "cf8e6d",
-    description: "Priority: 2 (high)",
-    group: "priority",
+    description: "Impact: Moderate",
+    group: "impact",
   },
   {
-    name: "p3",
+    name: "min",
     color: "6aab73",
-    description: "Priority: 3 (normal)",
-    group: "priority",
+    description: "Impact: Minor",
+    group: "impact",
+  },
+  {
+    name: "high",
+    color: "f87171",
+    description: "Urgency: High",
+    group: "urgency",
+  },
+  {
+    name: "mid",
+    color: "facc15",
+    description: "Urgency: Mid",
+    group: "urgency",
+  },
+  {
+    name: "low",
+    color: "94a3b8",
+    description: "Urgency: Low",
+    group: "urgency",
   },
   // Size. Absence means "unestimated".
   { name: "sm", color: "6aab73", description: "Size: Small", group: "size" },
@@ -122,25 +149,28 @@ const STATUS_DISPLAY: Record<string, string> = {
 
 const FLAG_DISPLAY: Record<string, string> = { blocked: "Blocked" };
 
-const PRIORITY_DISPLAY: Record<string, string> = {
-  p1: "P1",
-  p2: "P2",
-  p3: "P3",
-};
+const IMPACT_DISPLAY: Record<string, string> = { sev: "Sev", mod: "Mod", min: "Min" };
+const URGENCY_DISPLAY: Record<string, string> = { high: "High", mid: "Mid", low: "Low" };
 
 const SIZE_DISPLAY: Record<string, string> = { sm: "S", md: "M", lg: "L" };
 
 /** The four open workflow stages, in order; `done` is appended by the board. */
 export const STATUS_OPTIONS = options("status", STATUS_DISPLAY);
-/**
- * Displayed low → high so priority and size read the same way. The canonical
- * list keeps the p1 → p3 order the GitHub provisioning uses; `options()`
- * returns a fresh array, so reversing here does not mutate it.
- */
-export const PRIORITY_OPTIONS = options("priority", PRIORITY_DISPLAY).reverse();
+export const IMPACT_OPTIONS = options("impact", IMPACT_DISPLAY);
+export const URGENCY_OPTIONS = options("urgency", URGENCY_DISPLAY);
 export const SIZE_OPTIONS = options("size", SIZE_DISPLAY);
 /** Orthogonal flags carried alongside a status (SPEC §5.1). */
 export const FLAG_OPTIONS = options("flags", FLAG_DISPLAY);
+
+/**
+ * Whether a label belongs to a Funnel-managed dimension, including the
+ * retired priority labels. The cockpit hides these from the generic label
+ * tracks and pickers; legacy `p1`–`p3` labels are surfaced through the
+ * priority conflict flag instead.
+ */
+export function isHiddenLabel(name: string): boolean {
+  return canonicalLabel(name) !== undefined || isRetiredPriorityLabel(name);
+}
 
 /** The canonical reserved-label name for the "blocked" flag. */
 export const BLOCKED_LABEL = "blocked";

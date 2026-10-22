@@ -11,10 +11,10 @@ import {
 //
 // Table naming: `state_*` is Funnel-owned durable state (backup, never
 // truncated), `auth_*` is Better Auth-owned durable state (camelCase
-// columns imposed by the library), `mirror_github_*` is disposable GitHub
+// columns imposed by the library), `mirror_*` is a disposable forge-neutral
 // cache (rebuilt by re-sync). Full-text search (FTS5)
 // is deferred: text search runs on LIKE queries until the FTS5 index
-// (`mirror_github_issue_fts`) comes back.
+// (`mirror_thread_fts`) comes back.
 
 // ---------------------------------------------------------------------------
 // State: public intake submissions (SPEC 7, 10.1).
@@ -74,12 +74,12 @@ export const stateGithubApp = sqliteTable("state_github_app", {
 
 // ---------------------------------------------------------------------------
 // State: internal work notes (ITSM-style journal).
-// Funnel-owned and *never* posted to GitHub unless a note is explicitly
+// Funnel-owned and *never* posted to a forge unless a note is explicitly
 // published — and publishing *deletes* the note, turning it into a comment.
-// Keyed by `org/name` + issue number rather than a FK to the disposable
-// `mirror_github_issue`, so a note survives mirror pruning
-// (`sync.history_days`) and a re-sync. The author is snapshotted (id, login,
-// avatar) so the note still renders after the mirror user is rebuilt.
+// Keyed by `org/name` + thread number rather than a FK to the disposable
+// `mirror_thread`, so a note survives mirror pruning
+// (`sync.history_days`) and a re-sync. The author is snapshotted (external id,
+// login, avatar) so the note still renders after the mirror user is rebuilt.
 // ---------------------------------------------------------------------------
 export const stateWorkNote = sqliteTable(
   "state_work_note",
@@ -88,7 +88,10 @@ export const stateWorkNote = sqliteTable(
     org: text("org").notNull(),
     name: text("name").notNull(),
     issueNumber: integer("issue_number").notNull(),
-    authorGithubId: integer("author_github_id"),
+    /** Forge-native author id; text because it is opaque across forges. */
+    authorExternalId: text("author_external_id"),
+    authorForge: text("author_forge").notNull(),
+    authorInstance: text("author_instance").notNull(),
     authorLogin: text("author_login").notNull().default(""),
     authorAvatarUrl: text("author_avatar_url").notNull().default(""),
     body: text("body").notNull().default(""),
@@ -126,7 +129,9 @@ export const stateAttachment = sqliteTable(
     mimeType: text("mime_type").notNull().default("application/octet-stream"),
     sizeBytes: integer("size_bytes").notNull(),
     sha256: text("sha256").notNull().default(""),
-    uploadedByGithubId: integer("uploaded_by_github_id"),
+    uploadedByExternalId: text("uploaded_by_external_id"),
+    uploadedByForge: text("uploaded_by_forge").notNull(),
+    uploadedByInstance: text("uploaded_by_instance").notNull(),
     uploadedByLogin: text("uploaded_by_login").notNull().default(""),
     createdAt: integer("created_at").notNull(),
   },
@@ -283,48 +288,78 @@ export const authVerification = sqliteTable("auth_verification", {
 });
 
 // ---------------------------------------------------------------------------
-// Mirror: repos (SPEC 5.1, 6.2). Numeric GitHub id survives renames.
-// `etag` persists REST change detection across restarts (304s are free).
+// Mirror: repositories (SPEC 5.1, 6.2). The forge-native numeric id lives in
+// `external_id` (text: opaque across forges); `(forge, instance, external_id)`
+// is the identity and the internal `id` is the only FK target. `etag` persists
+// REST change detection across restarts (304s are free).
 // ---------------------------------------------------------------------------
-export const mirrorGithubRepo = sqliteTable(
-  "mirror_github_repo",
+export const mirrorRepo = sqliteTable(
+  "mirror_repo",
   {
-    githubId: integer("github_id").primaryKey(),
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    forge: text("forge").notNull(),
+    instance: text("instance").notNull(),
+    externalId: text("external_id").notNull(),
     org: text("org").notNull(),
     name: text("name").notNull(),
+    url: text("url").notNull().default(""),
     etag: text("etag"),
     archived: integer("archived").notNull().default(0),
     degraded: integer("degraded").notNull().default(0),
     lastPolledAt: integer("last_polled_at"),
     lastReconciledAt: integer("last_reconciled_at"),
   },
-  (t) => [uniqueIndex("uq_mirror_github_repo_org_name").on(t.org, t.name)],
+  (t) => [
+    uniqueIndex("uq_mirror_repo_external").on(
+      t.forge,
+      t.instance,
+      t.externalId,
+    ),
+    uniqueIndex("uq_mirror_repo_slug").on(t.forge, t.instance, t.org, t.name),
+  ],
 );
 
-// Mirror: GitHub people (SPEC 6.1). Authors and assignees reference this.
-export const mirrorGithubUser = sqliteTable("mirror_github_user", {
-  githubId: integer("github_id").primaryKey(),
-  login: text("login").notNull().unique(),
-  avatarUrl: text("avatar_url").notNull().default(""),
-});
+// Mirror: forge people (SPEC 6.1). Authors and assignees reference this by the
+// internal `id`; `(forge, instance, external_id)` is the forge-native identity.
+export const mirrorUser = sqliteTable(
+  "mirror_user",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    forge: text("forge").notNull(),
+    instance: text("instance").notNull(),
+    externalId: text("external_id").notNull(),
+    login: text("login").notNull(),
+    avatarUrl: text("avatar_url").notNull().default(""),
+    url: text("url").notNull().default(""),
+  },
+  (t) => [
+    uniqueIndex("uq_mirror_user_external").on(
+      t.forge,
+      t.instance,
+      t.externalId,
+    ),
+    uniqueIndex("uq_mirror_user_login").on(t.forge, t.instance, t.login),
+  ],
+);
 
 // ---------------------------------------------------------------------------
-// Mirror: per-repo milestones. GitHub scopes a milestone to exactly one
-// repository, so identity is `(repoId, number)`; `githubId` is the global node
-// id. Rebuilt by re-sync like the rest of the disposable mirror. Issues point
-// at a milestone with `mirror_github_issue.milestone_number` (no FK: the
-// milestone set is replaced wholesale on each poll, and an issue may briefly
-// reference a number that has not been seen yet).
+// Mirror: per-repo milestones. A milestone is scoped to exactly one
+// repository, so identity is `(repoId, number)`; `externalId` is the forge's
+// global id (GraphQL `databaseId`). Rebuilt by re-sync like the rest of the
+// disposable mirror. Threads point at a milestone with
+// `mirror_thread.milestone_number` (no FK: the milestone set is replaced
+// wholesale on each poll, and a thread may briefly reference a number that has
+// not been seen yet).
 // ---------------------------------------------------------------------------
-export const mirrorGithubMilestone = sqliteTable(
-  "mirror_github_milestone",
+export const mirrorMilestone = sqliteTable(
+  "mirror_milestone",
   {
     repoId: integer("repo_id")
       .notNull()
-      .references(() => mirrorGithubRepo.githubId, { onDelete: "cascade" }),
+      .references(() => mirrorRepo.id, { onDelete: "cascade" }),
     number: integer("number").notNull(),
-    /** Global node id (GraphQL `databaseId`); 0 when only REST has been seen. */
-    githubId: integer("github_id").notNull().default(0),
+    /** Forge-native global id; empty when only the REST number has been seen. */
+    externalId: text("external_id").notNull().default(""),
     title: text("title").notNull().default(""),
     description: text("description").notNull().default(""),
     /** `open` | `closed`. */
@@ -332,46 +367,57 @@ export const mirrorGithubMilestone = sqliteTable(
     dueOn: integer("due_on"),
     openIssues: integer("open_issues").notNull().default(0),
     closedIssues: integer("closed_issues").notNull().default(0),
-    creatorId: integer("creator_id").references(() => mirrorGithubUser.githubId, {
+    creatorId: integer("creator_id").references(() => mirrorUser.id, {
       onDelete: "set null",
     }),
     createdAt: integer("created_at").notNull(),
     updatedAt: integer("updated_at").notNull(),
     closedAt: integer("closed_at"),
-    htmlUrl: text("html_url").notNull().default(""),
+    url: text("url").notNull().default(""),
   },
   (t) => [primaryKey({ columns: [t.repoId, t.number] })],
 );
 
 // ---------------------------------------------------------------------------
-// Mirror: issues (SPEC 6.1). Identity is (repoId, number); githubId is the
-// global node id for GraphQL hydration. `status`/`priority`/`size` are
-// derived caches of the reserved-label groups (SPEC 5.2) computed at sync
-// time. Done/Canceled derive from (state, stateReason).
+// Mirror: threads (SPEC 6.1). A "thread" is a federated issue/PR; this slice
+// only syncs `kind = 'issue'` but the column keeps the door open. Identity is
+// `(repoId, number)`; `externalId` is the forge's global id for GraphQL
+// hydration. `status`/`impact`/`urgency`/`size` are derived caches of the
+// reserved label groups (SPEC 5.2) computed at sync time; `priority` is the
+// derived P1–P3 cache. Done/Canceled derive from (state, stateReason).
 // Composite FKs from junction tables are enforced in code (delete children
 // first); single-column references below use FK cascades.
 // ---------------------------------------------------------------------------
-export const mirrorGithubIssue = sqliteTable(
-  "mirror_github_issue",
+export const mirrorThread = sqliteTable(
+  "mirror_thread",
   {
     repoId: integer("repo_id")
       .notNull()
-      .references(() => mirrorGithubRepo.githubId, { onDelete: "cascade" }),
+      .references(() => mirrorRepo.id, { onDelete: "cascade" }),
     number: integer("number").notNull(),
-    githubId: integer("github_id").notNull().unique(),
+    /** Forge-native global id (`databaseId` as text). */
+    externalId: text("external_id").notNull(),
+    /** `issue` (a pull request would be `pull_request`). */
+    kind: text("kind").notNull().default("issue"),
     title: text("title").notNull(),
     body: text("body").notNull().default(""),
     state: text("state").notNull(),
     stateReason: text("state_reason"),
-    authorId: integer("author_id").references(() => mirrorGithubUser.githubId, {
+    authorId: integer("author_id").references(() => mirrorUser.id, {
       onDelete: "set null",
     }),
-    /** The issue's milestone number in its own repo (see `mirrorGithubMilestone`). */
+    /** The thread's milestone number in its own repo (see `mirrorMilestone`). */
     milestoneNumber: integer("milestone_number"),
+    url: text("url").notNull().default(""),
     createdAt: integer("created_at").notNull(),
     updatedAt: integer("updated_at").notNull(),
     closedAt: integer("closed_at"),
     status: text("status"),
+    /** Triage inputs mirrored from the `sev`/`mod`/`min` impact labels. */
+    impact: integer("impact"),
+    /** Triage inputs mirrored from the `high`/`mid`/`low` urgency labels. */
+    urgency: integer("urgency"),
+    /** Derived `P1`–`P3` cache (never a GitHub label). */
     priority: text("priority"),
     size: text("size"),
     blocked: integer("blocked").notNull().default(0),
@@ -379,24 +425,22 @@ export const mirrorGithubIssue = sqliteTable(
   },
   (t) => [
     primaryKey({ columns: [t.repoId, t.number] }),
-    index("idx_mirror_github_issue_status_updated").on(t.status, t.updatedAt),
-    index("idx_mirror_github_issue_priority_updated").on(
-      t.priority,
-      t.updatedAt,
-    ),
-    index("idx_mirror_github_issue_state").on(t.state, t.stateReason),
-    index("idx_mirror_github_issue_repo_updated").on(t.repoId, t.updatedAt),
-    index("idx_mirror_github_issue_milestone").on(t.repoId, t.milestoneNumber),
+    uniqueIndex("uq_mirror_thread_external").on(t.repoId, t.externalId),
+    index("idx_mirror_thread_status_updated").on(t.status, t.updatedAt),
+    index("idx_mirror_thread_priority_updated").on(t.priority, t.updatedAt),
+    index("idx_mirror_thread_state").on(t.state, t.stateReason),
+    index("idx_mirror_thread_repo_updated").on(t.repoId, t.updatedAt),
+    index("idx_mirror_thread_milestone").on(t.repoId, t.milestoneNumber),
   ],
 );
 
-// Mirror: per-repo label set (SPEC 6.1) + issue label assignments.
-export const mirrorGithubRepoLabel = sqliteTable(
-  "mirror_github_repo_label",
+// Mirror: per-repo label set (SPEC 6.1) + thread label assignments.
+export const mirrorRepoLabel = sqliteTable(
+  "mirror_repo_label",
   {
     repoId: integer("repo_id")
       .notNull()
-      .references(() => mirrorGithubRepo.githubId, { onDelete: "cascade" }),
+      .references(() => mirrorRepo.id, { onDelete: "cascade" }),
     name: text("name").notNull(),
     color: text("color").notNull().default(""),
     description: text("description").notNull().default(""),
@@ -404,64 +448,75 @@ export const mirrorGithubRepoLabel = sqliteTable(
   (t) => [primaryKey({ columns: [t.repoId, t.name] })],
 );
 
-export const mirrorGithubIssueLabel = sqliteTable(
-  "mirror_github_issue_label",
-  {
-    repoId: integer("repo_id").notNull(),
-    issueNumber: integer("issue_number").notNull(),
-    labelName: text("label_name").notNull(),
-  },
-  (t) => [
-    primaryKey({ columns: [t.repoId, t.issueNumber, t.labelName] }),
-    index("idx_mirror_github_issue_label_name").on(t.labelName),
-  ],
-);
-
-// Mirror: assignees (SPEC 5.4). "Assigned to me" = row exists.
-export const mirrorGithubIssueAssignee = sqliteTable(
-  "mirror_github_issue_assignee",
-  {
-    repoId: integer("repo_id").notNull(),
-    issueNumber: integer("issue_number").notNull(),
-    userId: integer("user_id")
-      .notNull()
-      .references(() => mirrorGithubUser.githubId, { onDelete: "cascade" }),
-  },
-  (t) => [
-    primaryKey({ columns: [t.repoId, t.issueNumber, t.userId] }),
-    index("idx_mirror_github_issue_assignee_user").on(t.userId),
-  ],
-);
-
-// Mirror: per-repo assignable users (GitHub `GET /repos/{o}/{r}/assignees`).
-// Distinct from `mirror_github_issue_assignee` (who is currently assigned):
-// this is the collaborator set the assignee picker offers (SPEC §9.2).
-export const mirrorGithubRepoAssignee = sqliteTable(
-  "mirror_github_repo_assignee",
+export const mirrorThreadLabel = sqliteTable(
+  "mirror_thread_label",
   {
     repoId: integer("repo_id")
       .notNull()
-      .references(() => mirrorGithubRepo.githubId, { onDelete: "cascade" }),
+      .references(() => mirrorRepo.id, { onDelete: "cascade" }),
+    threadNumber: integer("thread_number").notNull(),
+    labelName: text("label_name").notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.repoId, t.threadNumber, t.labelName] }),
+    index("idx_mirror_thread_label_name").on(t.labelName),
+  ],
+);
+
+// Mirror: thread assignees (SPEC 5.4). "Assigned to me" = row exists.
+export const mirrorThreadAssignee = sqliteTable(
+  "mirror_thread_assignee",
+  {
+    repoId: integer("repo_id")
+      .notNull()
+      .references(() => mirrorRepo.id, { onDelete: "cascade" }),
+    threadNumber: integer("thread_number").notNull(),
     userId: integer("user_id")
       .notNull()
-      .references(() => mirrorGithubUser.githubId, { onDelete: "cascade" }),
+      .references(() => mirrorUser.id, { onDelete: "cascade" }),
+  },
+  (t) => [
+    primaryKey({ columns: [t.repoId, t.threadNumber, t.userId] }),
+    index("idx_mirror_thread_assignee_user").on(t.userId),
+  ],
+);
+
+// Mirror: per-repo assignable users (forge `GET /repos/{o}/{r}/assignees`).
+// Distinct from `mirror_thread_assignee` (who is currently assigned): this is
+// the collaborator set the assignee picker offers (SPEC §9.2).
+export const mirrorRepoAssignee = sqliteTable(
+  "mirror_repo_assignee",
+  {
+    repoId: integer("repo_id")
+      .notNull()
+      .references(() => mirrorRepo.id, { onDelete: "cascade" }),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => mirrorUser.id, { onDelete: "cascade" }),
   },
   (t) => [primaryKey({ columns: [t.repoId, t.userId] })],
 );
 
-// Mirror: issue comments (SPEC 6.1).
-export const mirrorGithubComment = sqliteTable(
-  "mirror_github_comment",
+// Mirror: thread comments (SPEC 6.1). `(repoId, externalId)` is the forge
+// identity; the internal `id` is what the UI links to.
+export const mirrorComment = sqliteTable(
+  "mirror_comment",
   {
-    githubId: integer("github_id").primaryKey(),
-    repoId: integer("repo_id").notNull(),
-    issueNumber: integer("issue_number").notNull(),
-    authorId: integer("author_id").references(() => mirrorGithubUser.githubId, {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    repoId: integer("repo_id")
+      .notNull()
+      .references(() => mirrorRepo.id, { onDelete: "cascade" }),
+    threadNumber: integer("thread_number").notNull(),
+    externalId: text("external_id").notNull(),
+    authorId: integer("author_id").references(() => mirrorUser.id, {
       onDelete: "set null",
     }),
     body: text("body").notNull().default(""),
     createdAt: integer("created_at").notNull(),
     updatedAt: integer("updated_at").notNull(),
   },
-  (t) => [index("idx_mirror_github_comment_issue").on(t.repoId, t.issueNumber)],
+  (t) => [
+    uniqueIndex("uq_mirror_comment_external").on(t.repoId, t.externalId),
+    index("idx_mirror_comment_thread").on(t.repoId, t.threadNumber),
+  ],
 );

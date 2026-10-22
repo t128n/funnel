@@ -25,15 +25,15 @@ import {
 import { getConfig } from "#lib/server/config";
 import { db } from "#lib/server/db/index";
 import {
-  mirrorGithubComment,
-  mirrorGithubIssue,
-  mirrorGithubIssueAssignee,
-  mirrorGithubIssueLabel,
-  mirrorGithubMilestone,
-  mirrorGithubRepo,
-  mirrorGithubRepoAssignee,
-  mirrorGithubRepoLabel,
-  mirrorGithubUser,
+  mirrorComment,
+  mirrorMilestone,
+  mirrorRepo,
+  mirrorRepoAssignee,
+  mirrorRepoLabel,
+  mirrorThread,
+  mirrorThreadAssignee,
+  mirrorThreadLabel,
+  mirrorUser,
 } from "#lib/server/db/schema";
 import { listAttachments } from "#lib/server/attachments/store";
 import { listSubmissions } from "#lib/server/intake/staging";
@@ -41,11 +41,16 @@ import { listRepos } from "#lib/server/sync/mirror";
 import { listWorkNotes } from "#lib/server/work-notes";
 import { readBlocked } from "#lib/funnel-metadata";
 import {
+  isRetiredPriorityLabel,
+  parseImpact,
+  parseUrgency,
+} from "#lib/priority";
+import {
   assigneeExists,
   buildIssueWhere,
   RESERVED_GROUP,
-  type FilterContext,
   type IssueFilter,
+  type IssueFilterContext,
   STATUS_VALUES,
 } from "./filters";
 import type {
@@ -74,32 +79,36 @@ const BOARD_LABELS: Record<StatusKey, string> = {
   done: "Done",
 };
 
-/** Default sort: priority (p1 first, unprioritized last) then updated. */
-const PRIORITY_RANK = sql`case ${mirrorGithubIssue.priority} when 'p1' then 0 when 'p2' then 1 when 'p3' then 2 else 3 end`;
+/** Default sort: derived priority (P1 first, unprioritized last) then updated. */
+const PRIORITY_RANK = sql`case ${mirrorThread.priority} when 'P1' then 0 when 'P2' then 1 when 'P3' then 2 else 3 end`;
 
 const issueColumns = {
-  repoId: mirrorGithubIssue.repoId,
-  number: mirrorGithubIssue.number,
-  title: mirrorGithubIssue.title,
-  state: mirrorGithubIssue.state,
-  stateReason: mirrorGithubIssue.stateReason,
-  status: mirrorGithubIssue.status,
-  priority: mirrorGithubIssue.priority,
-  size: mirrorGithubIssue.size,
-  blocked: mirrorGithubIssue.blocked,
-  labelConflict: mirrorGithubIssue.labelConflict,
-  createdAt: mirrorGithubIssue.createdAt,
-  updatedAt: mirrorGithubIssue.updatedAt,
-  closedAt: mirrorGithubIssue.closedAt,
-  org: mirrorGithubRepo.org,
-  name: mirrorGithubRepo.name,
-  authorId: mirrorGithubUser.githubId,
-  authorLogin: mirrorGithubUser.login,
-  authorAvatar: mirrorGithubUser.avatarUrl,
-  milestoneNumber: mirrorGithubIssue.milestoneNumber,
-  milestoneTitle: mirrorGithubMilestone.title,
-  milestoneState: mirrorGithubMilestone.state,
-  milestoneDueOn: mirrorGithubMilestone.dueOn,
+  repoId: mirrorThread.repoId,
+  number: mirrorThread.number,
+  title: mirrorThread.title,
+  state: mirrorThread.state,
+  stateReason: mirrorThread.stateReason,
+  status: mirrorThread.status,
+  priority: mirrorThread.priority,
+  impact: mirrorThread.impact,
+  urgency: mirrorThread.urgency,
+  size: mirrorThread.size,
+  blocked: mirrorThread.blocked,
+  labelConflict: mirrorThread.labelConflict,
+  createdAt: mirrorThread.createdAt,
+  updatedAt: mirrorThread.updatedAt,
+  closedAt: mirrorThread.closedAt,
+  org: mirrorRepo.org,
+  name: mirrorRepo.name,
+  authorExternalId: mirrorUser.externalId,
+  authorForge: mirrorUser.forge,
+  authorInstance: mirrorUser.instance,
+  authorLogin: mirrorUser.login,
+  authorAvatar: mirrorUser.avatarUrl,
+  milestoneNumber: mirrorThread.milestoneNumber,
+  milestoneTitle: mirrorMilestone.title,
+  milestoneState: mirrorMilestone.state,
+  milestoneDueOn: mirrorMilestone.dueOn,
 };
 
 interface RawRow {
@@ -110,6 +119,8 @@ interface RawRow {
   stateReason: string | null;
   status: string | null;
   priority: string | null;
+  impact: number | null;
+  urgency: number | null;
   size: string | null;
   blocked: number;
   labelConflict: number;
@@ -118,7 +129,9 @@ interface RawRow {
   closedAt: number | null;
   org: string;
   name: string;
-  authorId: number | null;
+  authorExternalId: string | null;
+  authorForge: string | null;
+  authorInstance: string | null;
   authorLogin: string | null;
   authorAvatar: string | null;
   milestoneNumber: number | null;
@@ -127,25 +140,69 @@ interface RawRow {
   milestoneDueOn: number | null;
 }
 
+/** Build a {@link UserRef} from inner-joined mirror user columns. */
+function userRef(row: {
+  externalId: string;
+  forge: string;
+  instance: string;
+  login: string;
+  avatarUrl: string;
+}): UserRef {
+  return {
+    externalId: row.externalId,
+    forge: row.forge,
+    instance: row.instance,
+    login: row.login,
+    avatarUrl: row.avatarUrl,
+  };
+}
+
+/** Build a {@link UserRef} from left-joined user columns (`null` when absent). */
+function nullableUserRef(
+  externalId: string | null,
+  forge: string | null,
+  instance: string | null,
+  login: string | null,
+  avatarUrl: string | null,
+): UserRef | null {
+  if (externalId === null || login === null) return null;
+  return {
+    externalId,
+    forge: forge ?? "",
+    instance: instance ?? "",
+    login,
+    avatarUrl: avatarUrl ?? "",
+  };
+}
+
+/** Stable dedupe key for a forge person. */
+function userKey(user: UserRef): string {
+  return `${user.forge}\u0000${user.instance}\u0000${user.externalId}`;
+}
+
 export interface ListOptions {
   /** Cap the number of rows returned (streams may page in the UI). */
   limit?: number;
 }
 
-/** Build the {@link FilterContext} for parsing URL params. */
+/** Build the {@link IssueFilterContext} for parsing URL params. */
 export function filterContext(
-  viewerGithubId?: number | null,
-): FilterContext {
+  viewerExternalId?: string | null,
+): IssueFilterContext {
   return {
-    repos: listRepos(),
-    viewerGithubId: viewerGithubId ?? null,
+    repos: listRepos().map((repo) => ({
+      id: repo.id,
+      org: repo.org,
+      name: repo.name,
+    })),
+    viewerExternalId: viewerExternalId ?? null,
     resolveLogin: (login) => {
       const row = db
-        .select({ id: mirrorGithubUser.githubId })
-        .from(mirrorGithubUser)
-        .where(sql`lower(${mirrorGithubUser.login}) = lower(${login})`)
+        .select({ externalId: mirrorUser.externalId })
+        .from(mirrorUser)
+        .where(sql`lower(${mirrorUser.login}) = lower(${login})`)
         .get();
-      return row?.id;
+      return row?.externalId;
     },
   };
 }
@@ -153,24 +210,18 @@ export function filterContext(
 function rawQuery(where: SQL | undefined, opts: ListOptions): RawRow[] {
   const query = db
     .select(issueColumns)
-    .from(mirrorGithubIssue)
-    .innerJoin(
-      mirrorGithubRepo,
-      eq(mirrorGithubIssue.repoId, mirrorGithubRepo.githubId),
-    )
+    .from(mirrorThread)
+    .innerJoin(mirrorRepo, eq(mirrorThread.repoId, mirrorRepo.id))
+    .leftJoin(mirrorUser, eq(mirrorThread.authorId, mirrorUser.id))
     .leftJoin(
-      mirrorGithubUser,
-      eq(mirrorGithubIssue.authorId, mirrorGithubUser.githubId),
-    )
-    .leftJoin(
-      mirrorGithubMilestone,
+      mirrorMilestone,
       and(
-        eq(mirrorGithubMilestone.repoId, mirrorGithubIssue.repoId),
-        eq(mirrorGithubMilestone.number, mirrorGithubIssue.milestoneNumber),
+        eq(mirrorMilestone.repoId, mirrorThread.repoId),
+        eq(mirrorMilestone.number, mirrorThread.milestoneNumber),
       ),
     )
     .where(where)
-    .orderBy(PRIORITY_RANK, desc(mirrorGithubIssue.updatedAt));
+    .orderBy(PRIORITY_RANK, desc(mirrorThread.updatedAt));
 
   const rows = opts.limit ? query.limit(opts.limit).all() : query.all();
   return rows as RawRow[];
@@ -192,31 +243,30 @@ function hydrate(rows: RawRow[]): IssueListItem[] {
 
   const labelRows = db
     .select({
-      repoId: mirrorGithubIssueLabel.repoId,
-      number: mirrorGithubIssueLabel.issueNumber,
-      name: mirrorGithubIssueLabel.labelName,
+      repoId: mirrorThreadLabel.repoId,
+      number: mirrorThreadLabel.threadNumber,
+      name: mirrorThreadLabel.labelName,
     })
-    .from(mirrorGithubIssueLabel)
+    .from(mirrorThreadLabel)
     .where(
-      sql`(${mirrorGithubIssueLabel.repoId}, ${mirrorGithubIssueLabel.issueNumber}) IN (${tuple})`,
+      sql`(${mirrorThreadLabel.repoId}, ${mirrorThreadLabel.threadNumber}) IN (${tuple})`,
     )
     .all();
 
   const assigneeRows = db
     .select({
-      repoId: mirrorGithubIssueAssignee.repoId,
-      number: mirrorGithubIssueAssignee.issueNumber,
-      githubId: mirrorGithubUser.githubId,
-      login: mirrorGithubUser.login,
-      avatarUrl: mirrorGithubUser.avatarUrl,
+      repoId: mirrorThreadAssignee.repoId,
+      number: mirrorThreadAssignee.threadNumber,
+      externalId: mirrorUser.externalId,
+      forge: mirrorUser.forge,
+      instance: mirrorUser.instance,
+      login: mirrorUser.login,
+      avatarUrl: mirrorUser.avatarUrl,
     })
-    .from(mirrorGithubIssueAssignee)
-    .innerJoin(
-      mirrorGithubUser,
-      eq(mirrorGithubIssueAssignee.userId, mirrorGithubUser.githubId),
-    )
+    .from(mirrorThreadAssignee)
+    .innerJoin(mirrorUser, eq(mirrorThreadAssignee.userId, mirrorUser.id))
     .where(
-      sql`(${mirrorGithubIssueAssignee.repoId}, ${mirrorGithubIssueAssignee.issueNumber}) IN (${tuple})`,
+      sql`(${mirrorThreadAssignee.repoId}, ${mirrorThreadAssignee.threadNumber}) IN (${tuple})`,
     )
     .all();
 
@@ -232,11 +282,7 @@ function hydrate(rows: RawRow[]): IssueListItem[] {
   for (const row of assigneeRows) {
     const key = rowKey(row.repoId, row.number);
     const list = assignees.get(key) ?? [];
-    list.push({
-      githubId: row.githubId,
-      login: row.login,
-      avatarUrl: row.avatarUrl,
-    });
+    list.push(userRef(row));
     assignees.set(key, list);
   }
 
@@ -252,20 +298,21 @@ function hydrate(rows: RawRow[]): IssueListItem[] {
       stateReason: row.stateReason,
       status: row.status,
       priority: row.priority,
+      impact: parseImpact(row.impact),
+      urgency: parseUrgency(row.urgency),
       size: row.size,
       blocked: row.blocked === 1,
       labelConflict: row.labelConflict === 1,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
       closedAt: row.closedAt,
-      author:
-        row.authorId !== null && row.authorLogin !== null
-          ? {
-              githubId: row.authorId,
-              login: row.authorLogin,
-              avatarUrl: row.authorAvatar ?? "",
-            }
-          : null,
+      author: nullableUserRef(
+        row.authorExternalId,
+        row.authorForge,
+        row.authorInstance,
+        row.authorLogin,
+        row.authorAvatar,
+      ),
       assignees: assignees.get(key) ?? [],
       milestone:
         row.milestoneNumber !== null && row.milestoneTitle !== null
@@ -292,19 +339,28 @@ export function allIssues(
   opts: ListOptions = {},
 ): IssueListItem[] {
   const base = buildIssueWhere(filter);
-  const triaged = isNotNull(mirrorGithubIssue.status);
+  const triaged = isNotNull(mirrorThread.status);
   return hydrate(rawQuery(base ? and(base, triaged) : triaged, opts));
 }
 
-/** My Issues: All Issues restricted to issues assigned to `viewerGithubId`. */
+/**
+ * My Issues: All Issues restricted to issues assigned to
+ * `viewerExternalId` (the signed-in user's forge-native id).
+ */
 export function myIssues(
   filter: IssueFilter,
-  viewerGithubId: number | null | undefined,
+  viewerExternalId: string | null | undefined,
   opts: ListOptions = {},
 ): IssueListItem[] {
-  if (viewerGithubId === null || viewerGithubId === undefined) return [];
+  if (
+    viewerExternalId === null ||
+    viewerExternalId === undefined ||
+    viewerExternalId.length === 0
+  ) {
+    return [];
+  }
   const base = buildIssueWhere({ ...filter, assignees: [] });
-  const viewer = assigneeExists([viewerGithubId]);
+  const viewer = assigneeExists([viewerExternalId]);
   const where = base ? and(base, viewer) : viewer;
   return hydrate(rawQuery(where, opts));
 }
@@ -315,8 +371,8 @@ export function getIssueListItem(
   number: number,
 ): IssueListItem | undefined {
   const where = and(
-    eq(mirrorGithubIssue.repoId, repoId),
-    eq(mirrorGithubIssue.number, number),
+    eq(mirrorThread.repoId, repoId),
+    eq(mirrorThread.number, number),
   );
   return hydrate(rawQuery(where, {}))[0];
 }
@@ -333,8 +389,8 @@ export function milestoneIssues(
   return hydrate(
     rawQuery(
       and(
-        eq(mirrorGithubIssue.repoId, repoId),
-        eq(mirrorGithubIssue.milestoneNumber, milestoneNumber),
+        eq(mirrorThread.repoId, repoId),
+        eq(mirrorThread.milestoneNumber, milestoneNumber),
       ),
       opts,
     ),
@@ -371,8 +427,8 @@ export function inbox(
   // SQL form of `isUntriaged` (#lib/labels), which the client projects the
   // queue with. Keep the two in step.
   const untriaged = and(
-    eq(mirrorGithubIssue.state, "open"),
-    isNull(mirrorGithubIssue.status),
+    eq(mirrorThread.state, "open"),
+    isNull(mirrorThread.status),
   );
   const base = buildIssueWhere(filter);
   const where = base ? and(untriaged, base) : untriaged;
@@ -404,8 +460,8 @@ export async function statusBoard(
 
   const columns: BoardColumn[] = STATUS_VALUES.map((status) => {
     const clause = and(
-      eq(mirrorGithubIssue.state, "open"),
-      eq(mirrorGithubIssue.status, status),
+      eq(mirrorThread.state, "open"),
+      eq(mirrorThread.status, status),
     );
     const where = base ? and(base, clause) : clause;
     return {
@@ -416,9 +472,9 @@ export async function statusBoard(
   });
 
   const doneClause = and(
-    eq(mirrorGithubIssue.state, "closed"),
-    eq(mirrorGithubIssue.stateReason, "completed"),
-    gte(mirrorGithubIssue.closedAt, cutoff),
+    eq(mirrorThread.state, "closed"),
+    eq(mirrorThread.stateReason, "completed"),
+    gte(mirrorThread.closedAt, cutoff),
   );
   const doneWhere = base ? and(base, doneClause) : doneClause;
   columns.push({
@@ -438,27 +494,19 @@ export async function statusBoard(
  */
 export function attentionIssues(): AttentionItem[] {
   const rows = db
-    .select({ ...issueColumns, body: mirrorGithubIssue.body })
-    .from(mirrorGithubIssue)
-    .innerJoin(
-      mirrorGithubRepo,
-      eq(mirrorGithubIssue.repoId, mirrorGithubRepo.githubId),
-    )
+    .select({ ...issueColumns, body: mirrorThread.body })
+    .from(mirrorThread)
+    .innerJoin(mirrorRepo, eq(mirrorThread.repoId, mirrorRepo.id))
+    .leftJoin(mirrorUser, eq(mirrorThread.authorId, mirrorUser.id))
     .leftJoin(
-      mirrorGithubUser,
-      eq(mirrorGithubIssue.authorId, mirrorGithubUser.githubId),
-    )
-    .leftJoin(
-      mirrorGithubMilestone,
+      mirrorMilestone,
       and(
-        eq(mirrorGithubMilestone.repoId, mirrorGithubIssue.repoId),
-        eq(mirrorGithubMilestone.number, mirrorGithubIssue.milestoneNumber),
+        eq(mirrorMilestone.repoId, mirrorThread.repoId),
+        eq(mirrorMilestone.number, mirrorThread.milestoneNumber),
       ),
     )
-    .where(
-      and(eq(mirrorGithubIssue.state, "open"), eq(mirrorGithubIssue.blocked, 1)),
-    )
-    .orderBy(asc(mirrorGithubIssue.updatedAt))
+    .where(and(eq(mirrorThread.state, "open"), eq(mirrorThread.blocked, 1)))
+    .orderBy(asc(mirrorThread.updatedAt))
     .all();
 
   const bodies = new Map<string, string>();
@@ -489,67 +537,63 @@ export function attentionIssues(): AttentionItem[] {
  */
 export function filterOptions(): FilterOptions {
   const repos = listRepos()
-    .map((repo) => ({ id: repo.githubId, slug: `${repo.org}/${repo.name}` }))
+    .map((repo) => ({ id: repo.id, slug: `${repo.org}/${repo.name}` }))
     .sort((a, b) => a.slug.localeCompare(b.slug));
 
+  const userColumns = {
+    externalId: mirrorUser.externalId,
+    forge: mirrorUser.forge,
+    instance: mirrorUser.instance,
+    login: mirrorUser.login,
+    avatarUrl: mirrorUser.avatarUrl,
+  };
+
   const assignableRows = db
-    .select({
-      githubId: mirrorGithubUser.githubId,
-      login: mirrorGithubUser.login,
-      avatarUrl: mirrorGithubUser.avatarUrl,
-    })
-    .from(mirrorGithubRepoAssignee)
-    .innerJoin(
-      mirrorGithubUser,
-      eq(mirrorGithubRepoAssignee.userId, mirrorGithubUser.githubId),
-    )
+    .select(userColumns)
+    .from(mirrorRepoAssignee)
+    .innerJoin(mirrorUser, eq(mirrorRepoAssignee.userId, mirrorUser.id))
     .all();
 
   const assignedRows = db
-    .select({
-      githubId: mirrorGithubUser.githubId,
-      login: mirrorGithubUser.login,
-      avatarUrl: mirrorGithubUser.avatarUrl,
-    })
-    .from(mirrorGithubIssueAssignee)
-    .innerJoin(
-      mirrorGithubUser,
-      eq(mirrorGithubIssueAssignee.userId, mirrorGithubUser.githubId),
-    )
+    .select(userColumns)
+    .from(mirrorThreadAssignee)
+    .innerJoin(mirrorUser, eq(mirrorThreadAssignee.userId, mirrorUser.id))
     .all();
 
-  const byId = new Map<number, UserRef>();
+  const byIdentity = new Map<string, UserRef>();
   for (const row of [...assignableRows, ...assignedRows]) {
-    if (!byId.has(row.githubId)) byId.set(row.githubId, row);
+    const key = userKey(row);
+    if (!byIdentity.has(key)) byIdentity.set(key, row);
   }
-  const assignees = [...byId.values()].sort((a, b) =>
+  const assignees = [...byIdentity.values()].sort((a, b) =>
     a.login.localeCompare(b.login),
   );
 
   const labelRows = db
-    .select({ name: mirrorGithubIssueLabel.labelName })
-    .from(mirrorGithubIssueLabel)
+    .select({ name: mirrorThreadLabel.labelName })
+    .from(mirrorThreadLabel)
     .all();
   const labels = [
     ...new Set(
       labelRows
         .map((row) => row.name)
-        .filter((name) => !RESERVED_GROUP.has(name.toLowerCase())),
+        .filter(
+          (name) =>
+            !RESERVED_GROUP.has(name.toLowerCase()) &&
+            !isRetiredPriorityLabel(name),
+        ),
     ),
   ].sort((a, b) => a.localeCompare(b));
 
   const milestoneRows = db
     .select({
-      org: mirrorGithubRepo.org,
-      name: mirrorGithubRepo.name,
-      number: mirrorGithubMilestone.number,
-      title: mirrorGithubMilestone.title,
+      org: mirrorRepo.org,
+      name: mirrorRepo.name,
+      number: mirrorMilestone.number,
+      title: mirrorMilestone.title,
     })
-    .from(mirrorGithubMilestone)
-    .innerJoin(
-      mirrorGithubRepo,
-      eq(mirrorGithubMilestone.repoId, mirrorGithubRepo.githubId),
-    )
+    .from(mirrorMilestone)
+    .innerJoin(mirrorRepo, eq(mirrorMilestone.repoId, mirrorRepo.id))
     .all();
   const milestones = milestoneRows
     .map((row) => ({
@@ -575,13 +619,13 @@ export function repoIssueOptions(
 ): IssueOption[] {
   const query = db
     .select({
-      number: mirrorGithubIssue.number,
-      title: mirrorGithubIssue.title,
-      state: mirrorGithubIssue.state,
+      number: mirrorThread.number,
+      title: mirrorThread.title,
+      state: mirrorThread.state,
     })
-    .from(mirrorGithubIssue)
-    .where(eq(mirrorGithubIssue.repoId, repoId))
-    .orderBy(desc(mirrorGithubIssue.updatedAt), desc(mirrorGithubIssue.number));
+    .from(mirrorThread)
+    .where(eq(mirrorThread.repoId, repoId))
+    .orderBy(desc(mirrorThread.updatedAt), desc(mirrorThread.number));
 
   const rows = opts.limit ? query.limit(opts.limit).all() : query.all();
   return rows as IssueOption[];
@@ -591,17 +635,16 @@ export function repoIssueOptions(
 export function repoAssigneeOptions(repoId: number): UserRef[] {
   return db
     .select({
-      githubId: mirrorGithubUser.githubId,
-      login: mirrorGithubUser.login,
-      avatarUrl: mirrorGithubUser.avatarUrl,
+      externalId: mirrorUser.externalId,
+      forge: mirrorUser.forge,
+      instance: mirrorUser.instance,
+      login: mirrorUser.login,
+      avatarUrl: mirrorUser.avatarUrl,
     })
-    .from(mirrorGithubRepoAssignee)
-    .innerJoin(
-      mirrorGithubUser,
-      eq(mirrorGithubRepoAssignee.userId, mirrorGithubUser.githubId),
-    )
-    .where(eq(mirrorGithubRepoAssignee.repoId, repoId))
-    .orderBy(asc(mirrorGithubUser.login))
+    .from(mirrorRepoAssignee)
+    .innerJoin(mirrorUser, eq(mirrorRepoAssignee.userId, mirrorUser.id))
+    .where(eq(mirrorRepoAssignee.repoId, repoId))
+    .orderBy(asc(mirrorUser.login))
     .all();
 }
 
@@ -612,34 +655,30 @@ export function repoAssigneeOptions(repoId: number): UserRef[] {
 export function listMilestones(repoId?: number): MilestoneItem[] {
   const rows = db
     .select({
-      repoId: mirrorGithubMilestone.repoId,
-      org: mirrorGithubRepo.org,
-      name: mirrorGithubRepo.name,
-      number: mirrorGithubMilestone.number,
-      title: mirrorGithubMilestone.title,
-      description: mirrorGithubMilestone.description,
-      state: mirrorGithubMilestone.state,
-      dueOn: mirrorGithubMilestone.dueOn,
-      openIssues: mirrorGithubMilestone.openIssues,
-      closedIssues: mirrorGithubMilestone.closedIssues,
-      creatorId: mirrorGithubUser.githubId,
-      creatorLogin: mirrorGithubUser.login,
-      creatorAvatar: mirrorGithubUser.avatarUrl,
-      htmlUrl: mirrorGithubMilestone.htmlUrl,
-      createdAt: mirrorGithubMilestone.createdAt,
-      updatedAt: mirrorGithubMilestone.updatedAt,
-      closedAt: mirrorGithubMilestone.closedAt,
+      repoId: mirrorMilestone.repoId,
+      org: mirrorRepo.org,
+      name: mirrorRepo.name,
+      number: mirrorMilestone.number,
+      title: mirrorMilestone.title,
+      description: mirrorMilestone.description,
+      state: mirrorMilestone.state,
+      dueOn: mirrorMilestone.dueOn,
+      openIssues: mirrorMilestone.openIssues,
+      closedIssues: mirrorMilestone.closedIssues,
+      creatorExternalId: mirrorUser.externalId,
+      creatorForge: mirrorUser.forge,
+      creatorInstance: mirrorUser.instance,
+      creatorLogin: mirrorUser.login,
+      creatorAvatar: mirrorUser.avatarUrl,
+      url: mirrorMilestone.url,
+      createdAt: mirrorMilestone.createdAt,
+      updatedAt: mirrorMilestone.updatedAt,
+      closedAt: mirrorMilestone.closedAt,
     })
-    .from(mirrorGithubMilestone)
-    .innerJoin(
-      mirrorGithubRepo,
-      eq(mirrorGithubMilestone.repoId, mirrorGithubRepo.githubId),
-    )
-    .leftJoin(
-      mirrorGithubUser,
-      eq(mirrorGithubMilestone.creatorId, mirrorGithubUser.githubId),
-    )
-    .where(repoId === undefined ? undefined : eq(mirrorGithubMilestone.repoId, repoId))
+    .from(mirrorMilestone)
+    .innerJoin(mirrorRepo, eq(mirrorMilestone.repoId, mirrorRepo.id))
+    .leftJoin(mirrorUser, eq(mirrorMilestone.creatorId, mirrorUser.id))
+    .where(repoId === undefined ? undefined : eq(mirrorMilestone.repoId, repoId))
     .all();
 
   return rows
@@ -667,10 +706,12 @@ function toMilestoneItem(row: {
   dueOn: number | null;
   openIssues: number;
   closedIssues: number;
-  creatorId: number | null;
+  creatorExternalId: string | null;
+  creatorForge: string | null;
+  creatorInstance: string | null;
   creatorLogin: string | null;
   creatorAvatar: string | null;
-  htmlUrl: string;
+  url: string;
   createdAt: number;
   updatedAt: number;
   closedAt: number | null;
@@ -687,15 +728,14 @@ function toMilestoneItem(row: {
     openIssues: row.openIssues,
     closedIssues: row.closedIssues,
     progress: total === 0 ? 0 : row.closedIssues / total,
-    creator:
-      row.creatorId !== null && row.creatorLogin !== null
-        ? {
-            githubId: row.creatorId,
-            login: row.creatorLogin,
-            avatarUrl: row.creatorAvatar ?? "",
-          }
-        : null,
-    htmlUrl: row.htmlUrl,
+    creator: nullableUserRef(
+      row.creatorExternalId,
+      row.creatorForge,
+      row.creatorInstance,
+      row.creatorLogin,
+      row.creatorAvatar,
+    ),
+    url: row.url,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
     closedAt: row.closedAt,
@@ -716,68 +756,62 @@ export function getIssueDetail(
   if (!issue) return undefined;
 
   const bodyRow = db
-    .select({ body: mirrorGithubIssue.body })
-    .from(mirrorGithubIssue)
-    .where(
-      and(
-        eq(mirrorGithubIssue.repoId, repoId),
-        eq(mirrorGithubIssue.number, number),
-      ),
-    )
+    .select({ body: mirrorThread.body })
+    .from(mirrorThread)
+    .where(and(eq(mirrorThread.repoId, repoId), eq(mirrorThread.number, number)))
     .get();
 
   const commentRows = db
     .select({
-      githubId: mirrorGithubComment.githubId,
-      body: mirrorGithubComment.body,
-      createdAt: mirrorGithubComment.createdAt,
-      authorId: mirrorGithubUser.githubId,
-      authorLogin: mirrorGithubUser.login,
-      authorAvatar: mirrorGithubUser.avatarUrl,
+      externalId: mirrorComment.externalId,
+      body: mirrorComment.body,
+      createdAt: mirrorComment.createdAt,
+      authorExternalId: mirrorUser.externalId,
+      authorForge: mirrorUser.forge,
+      authorInstance: mirrorUser.instance,
+      authorLogin: mirrorUser.login,
+      authorAvatar: mirrorUser.avatarUrl,
     })
-    .from(mirrorGithubComment)
-    .leftJoin(
-      mirrorGithubUser,
-      eq(mirrorGithubComment.authorId, mirrorGithubUser.githubId),
-    )
+    .from(mirrorComment)
+    .leftJoin(mirrorUser, eq(mirrorComment.authorId, mirrorUser.id))
     .where(
       and(
-        eq(mirrorGithubComment.repoId, repoId),
-        eq(mirrorGithubComment.issueNumber, number),
+        eq(mirrorComment.repoId, repoId),
+        eq(mirrorComment.threadNumber, number),
       ),
     )
-    .orderBy(asc(mirrorGithubComment.createdAt))
+    .orderBy(asc(mirrorComment.createdAt))
     .all();
 
   const comments: CommentItem[] = commentRows.map((row) => ({
-    githubId: row.githubId,
+    externalId: row.externalId,
     body: row.body,
     createdAt: row.createdAt,
-    author:
-      row.authorId !== null && row.authorLogin !== null
-        ? {
-            githubId: row.authorId,
-            login: row.authorLogin,
-            avatarUrl: row.authorAvatar ?? "",
-          }
-        : null,
+    author: nullableUserRef(
+      row.authorExternalId,
+      row.authorForge,
+      row.authorInstance,
+      row.authorLogin,
+      row.authorAvatar,
+    ),
   }));
 
   const repoLabels = db
     .select({
-      name: mirrorGithubRepoLabel.name,
-      color: mirrorGithubRepoLabel.color,
+      name: mirrorRepoLabel.name,
+      color: mirrorRepoLabel.color,
     })
-    .from(mirrorGithubRepoLabel)
-    .where(eq(mirrorGithubRepoLabel.repoId, repoId))
-    .orderBy(asc(mirrorGithubRepoLabel.name))
+    .from(mirrorRepoLabel)
+    .where(eq(mirrorRepoLabel.repoId, repoId))
+    .orderBy(asc(mirrorRepoLabel.name))
     .all();
 
   // Assignable users for the picker, plus the issue's current assignees so
   // checked items always render even if they are no longer collaborators.
-  const optionById = new Map<number, UserRef>();
+  const optionById = new Map<string, UserRef>();
   for (const user of [...repoAssigneeOptions(repoId), ...issue.assignees]) {
-    if (!optionById.has(user.githubId)) optionById.set(user.githubId, user);
+    const key = userKey(user);
+    if (!optionById.has(key)) optionById.set(key, user);
   }
   const assigneeOptions = [...optionById.values()].sort((a, b) =>
     a.login.localeCompare(b.login),

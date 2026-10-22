@@ -5,7 +5,7 @@ import { ROLES } from "#lib/roles";
 import { getAuth } from "#lib/server/auth/index";
 import { requireAdmin } from "#lib/server/auth/guard";
 import { db } from "#lib/server/db/index";
-import { authAccount, authUser, mirrorGithubUser } from "#lib/server/db/schema";
+import { authAccount, authUser, mirrorUser } from "#lib/server/db/schema";
 import type { Actions, PageServerLoad } from "./$types";
 
 /**
@@ -25,37 +25,31 @@ export const load: PageServerLoad = async ({ locals, url }) => {
   const accountByUser = new Map(accounts.map((a) => [a.userId, a.accountId]));
 
   // The mirror may not know a person who has never appeared on an issue, so the
-  // GitHub login is best-effort; `name`/`email` always render.
-  const githubIds = [
-    ...new Set(
-      accounts.map((a) => Number(a.accountId)).filter(Number.isFinite),
-    ),
-  ];
-  const mirrored = githubIds.length
+  // forge login is best-effort; `name`/`email` always render.
+  const externalIds = [...new Set(accounts.map((a) => a.accountId))];
+  const mirrored = externalIds.length
     ? await db
         .select({
-          githubId: mirrorGithubUser.githubId,
-          login: mirrorGithubUser.login,
+          externalId: mirrorUser.externalId,
+          login: mirrorUser.login,
         })
-        .from(mirrorGithubUser)
+        .from(mirrorUser)
     : [];
-  const loginByGithubId = new Map(mirrored.map((m) => [m.githubId, m.login]));
+  const loginByExternalId = new Map(
+    mirrored.map((m) => [m.externalId, m.login]),
+  );
 
   return {
     currentUserId: viewer.id,
     users: users.map((user) => {
       const accountId = accountByUser.get(user.id);
-      const githubId = accountId ? Number(accountId) : Number.NaN;
       return {
         id: user.id,
         name: user.name,
         email: user.email,
         image: user.image ?? null,
         role: user.role ?? "read",
-        login:
-          Number.isFinite(githubId) && loginByGithubId.has(githubId)
-            ? (loginByGithubId.get(githubId) ?? null)
-            : null,
+        login: accountId ? (loginByExternalId.get(accountId) ?? null) : null,
         createdAt: user.createdAt.getTime(),
       };
     }),

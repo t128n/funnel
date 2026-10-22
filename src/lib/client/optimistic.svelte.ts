@@ -40,7 +40,10 @@ export interface IssuePatch {
   state?: string;
   stateReason?: string | null;
   status?: string | null;
+  /** Derived `P1`–`P3`; optimistic writes set it alongside an axis change. */
   priority?: string | null;
+  impact?: number | null;
+  urgency?: number | null;
   size?: string | null;
   blocked?: boolean;
   assignees?: IssueListItem["assignees"];
@@ -141,6 +144,10 @@ function satisfied(issue: IssueListItem, patch: IssuePatch): boolean {
   }
   if (patch.status !== undefined && issue.status !== patch.status) return false;
   if (patch.priority !== undefined && issue.priority !== patch.priority) {
+    return false;
+  }
+  if (patch.impact !== undefined && issue.impact !== patch.impact) return false;
+  if (patch.urgency !== undefined && issue.urgency !== patch.urgency) {
     return false;
   }
   if (patch.size !== undefined && issue.size !== patch.size) return false;

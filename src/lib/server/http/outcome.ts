@@ -13,7 +13,7 @@ export type Outcome<T> =
   | { ok: true; value: T }
   | { ok: false; status: number; message: string };
 
-/** Extract an HTTP status from an Octokit/`fetch` error, defaulting to 502. */
+/** Extract an HTTP status from a forge/`fetch` error, defaulting to 502. */
 export function errorStatus(error: unknown): number {
   if (typeof error === "object" && error !== null && "status" in error) {
     const status = (error as { status?: unknown }).status;

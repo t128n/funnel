@@ -2,7 +2,7 @@
 
 This page records the mise tasks and `package.json` scripts that build, check, test, package, and install Funnel.
 
-`mise.toml` is the single source of truth for the build, and pins Bun `1.4.3`. CI is expected to call the same tasks as local builds. `mise run` with no task name runs the `default` task, which lists the available tasks.
+`mise.toml` is the single source of truth for the build, and pins Bun `1.4.3` and Go `1.27`. CI is expected to call the same tasks as local builds. `mise run` with no task name runs the `default` task, which lists the available tasks.
 
 ## Mise tasks
 
@@ -14,9 +14,13 @@ This page records the mise tasks and `package.json` scripts that build, check, t
 | `test` | `bun run test` | Test results and coverage | Serial execution with `tests/setup.ts` preloaded. |
 | `build` | `bun run build` | Adapter-node server in `build/` | Declares `src/**`, `static/**`, `drizzle/**`, `package.json`, `bun.lock`, `tsconfig.json`, and `vite.config.ts` as sources, and `build` as the output. |
 | `release` | `bun run release` | Migration report on standard output | Applies pending migrations to the configured database. No server is started. |
-| `exe` | `bun scripts/build-standalone.ts [--target=<target>]` | `dist/funnel`, or `dist/funnel.exe` for a Windows target | Depends on `build`. Declares `build/**`, `drizzle/**`, `src/standalone.ts`, `scripts/build-standalone.ts`, `scripts/standalone/**`, `package.json`, and `bun.lock` as sources. The declared output is target-aware. |
+| `exe` | `bun scripts/build-standalone.ts [--target=<target>]` | `dist/funnel`, or `dist/funnel.exe` for a Windows target | Depends on `build` and `intake:exe`. Declares `build/**`, `drizzle/**`, `src/standalone.ts`, `scripts/build-standalone.ts`, `scripts/standalone/**`, `package.json`, and `bun.lock` as sources. The declared output is target-aware. |
 | `docker` | `docker build -t funnel:<version> .` | Local container image | `--version` defaults to `dev`. The image wraps the Linux executable. |
-| `verify` | `check`, then `test`, then `build`, then `exe` | Diagnostics, test results, `build/`, and the executable | The sequence the release pipeline relies on. |
+| `verify` | `check`, then `test`, then `intake:check`, then `build`, then `exe` | Diagnostics, test results, `build/`, and the executables | The sequence the release pipeline relies on. |
+| `intake:exe` | `bun scripts/build-intake.ts` | `dist/funnel-intake.exe` | Native Windows intake hotkey helper: pure Go, no cgo, GUI subsystem. Declares `tools/funnel-intake/**`, `scripts/build-intake.ts`, `package.json`, and `bun.lock` as sources. |
+| `intake:check` | `go -C tools/funnel-intake vet -unsafeptr=false ./...`, then `go -C tools/funnel-intake test ./...` | Go vet and test output | Requires the pinned Go toolchain. `-unsafeptr=false` suppresses the known false positive on the Win32 clipboard pointers. |
+| `intake:install` | `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/install-intake.ps1` | Installed per-user helper | Windows only; no elevation required. |
+| `intake:uninstall` | `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/install-intake.ps1 -Uninstall` | Removed helper | Windows only. |
 | `service:install` | `powershell -NoProfile -ExecutionPolicy Bypass -File packaging/windows/install-service.ps1` | Installed Windows service | Requires an elevated prompt on Windows. |
 | `service:uninstall` | `powershell -NoProfile -ExecutionPolicy Bypass -File packaging/windows/uninstall-service.ps1` | Removed Windows service | Requires an elevated prompt on Windows. |
 
@@ -37,6 +41,12 @@ The target selects both the compiled platform and the output name. Targets conta
 mise run docker --version=1.2.3
 VERSION=1.2.3 mise run docker
 ```
+
+## Intake helper build
+
+`intake:exe` runs `scripts/build-intake.ts`, which cross-compiles the Go module in `tools/funnel-intake` with `CGO_ENABLED=0`, `GOOS=windows`, and `GOARCH=amd64` by default, and injects the `package.json` version through `-X main.version`. The result is a GUI-subsystem executable, so no console window flashes when the hotkey fires. The script accepts `--target=windows/<arch>` and `--outdir`/`--outfile`; the mise task always writes `dist/funnel-intake.exe`.
+
+The helper is also the source of the `intake:check` task. Its pure logic is platform-independent and tested on every OS; the Windows-only files carry `//go:build windows` constraints.
 
 ## Satteri native-addon caveat
 

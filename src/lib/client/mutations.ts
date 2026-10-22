@@ -99,7 +99,10 @@ export interface UpdateIssuePatch {
   state?: "open" | "closed";
   state_reason?: "completed" | "not_planned" | null;
   status?: string | null;
-  priority?: string | null;
+  /** Canonical `sev`/`mod`/`min` label; `null` clears the group. */
+  impact?: string | null;
+  /** Canonical `high`/`mid`/`low` label; `null` clears the group. */
+  urgency?: string | null;
   size?: string | null;
   /** Toggles the orthogonal `blocked` flag (SPEC §5.1). */
   blocked?: boolean;
@@ -252,7 +255,8 @@ export interface CreateIssueInput {
   labels?: string[];
   assignees?: string[];
   status?: string;
-  priority?: string;
+  impact?: string;
+  urgency?: string;
   size?: string;
 }
 

@@ -7,14 +7,14 @@
  * are skipped implicitly: only an `... on Issue` inline fragment is requested,
  * so a PR node comes back without the issue fields and is dropped.
  *
- * The installation GraphQL client is host-aware (`github.graphql`), so the same
- * code targets github.com or a GHES instance. `hydrateNodes` is pure over an
- * injected `graphql` function for testability.
+ * The installation provider's GraphQL client is host-aware (`provider.graphql`),
+ * so the same code targets github.com or a GHES instance. `hydrateNodes` is
+ * pure over an injected `graphql` function for testability.
  */
 import { and, eq } from "drizzle-orm";
 import { db } from "#lib/server/db/index";
 import { authAccount } from "#lib/server/db/schema";
-import { github } from "#lib/server/github/app.server";
+import { forge } from "#lib/server/forge/providers.server";
 import { createLogger } from "#lib/server/log";
 import { readSettings } from "#lib/server/settings/store";
 import {
@@ -23,7 +23,7 @@ import {
 } from "#lib/server/notifications/plan";
 import {
   createNotifications,
-  getRecipientByGithubId,
+  getRecipientByExternalId,
   getRecipientByLogin,
   listWatchers,
 } from "#lib/server/notifications/service";
@@ -46,6 +46,7 @@ export const HYDRATE_QUERY = `query FunnelHydrate($ids: [ID!]!) {
     ... on Issue {
       databaseId
       number
+      url
       title
       body
       state
@@ -93,6 +94,7 @@ interface GqlComment {
 interface GqlNode {
   databaseId?: number | null;
   number?: number | null;
+  url?: string | null;
   title?: string | null;
   body?: string | null;
   state?: string | null;
@@ -113,7 +115,11 @@ function ms(value: string | null | undefined): number | null {
   return Number.isNaN(parsed) ? null : parsed;
 }
 
-function toUser(actor: GqlActor | null | undefined): mirror.UserRecord | null {
+function toUser(
+  actor: GqlActor | null | undefined,
+  forge: string,
+  instance: string,
+): mirror.UserRecord | null {
   if (
     !actor ||
     typeof actor.databaseId !== "number" ||
@@ -122,19 +128,27 @@ function toUser(actor: GqlActor | null | undefined): mirror.UserRecord | null {
     return null;
   }
   return {
-    githubId: actor.databaseId,
+    id: 0,
+    externalId: String(actor.databaseId),
+    forge,
+    instance,
     login: actor.login,
     avatarUrl: actor.avatarUrl ?? "",
+    url: "",
   };
 }
 
 /**
  * Convert one GraphQL node to a mirror record. Returns `null` for PRs (the
  * `... on Issue` fragment leaves them empty) and anything missing identity.
+ * The node carries no forge identity, so callers that know the repository
+ * pass its `forge`/`instance`; the defaults target github.com.
  */
 export function normalizeNode(
   node: GqlNode | null | undefined,
   repoId: number,
+  forge = "github",
+  instance = "github.com",
 ): mirror.IssueRecord | null {
   if (
     !node ||
@@ -152,7 +166,7 @@ export function normalizeNode(
     .filter((name): name is string => typeof name === "string");
 
   const assignees = (node.assignees?.nodes ?? [])
-    .map(toUser)
+    .map((actor) => toUser(actor, forge, instance))
     .filter((u): u is mirror.UserRecord => u !== null);
 
   const comments = (node.comments?.nodes ?? [])
@@ -161,24 +175,26 @@ export function normalizeNode(
         typeof c.databaseId === "number",
     )
     .map((c) => ({
-      githubId: c.databaseId,
-      author: toUser(c.author),
+      externalId: String(c.databaseId),
+      author: toUser(c.author, forge, instance),
       body: c.body ?? "",
       createdAt: ms(c.createdAt) ?? 0,
       updatedAt: ms(c.updatedAt) ?? 0,
     }));
 
   return {
-    githubId: node.databaseId,
+    externalId: String(node.databaseId),
     repoId,
     number: node.number,
+    kind: "issue",
     title: node.title ?? "",
     body: node.body ?? "",
     state: (node.state ?? "open").toLowerCase(),
     stateReason: node.stateReason?.toLowerCase() ?? null,
-    author: toUser(node.author),
+    author: toUser(node.author, forge, instance),
     milestoneNumber:
       typeof node.milestone?.number === "number" ? node.milestone.number : null,
+    url: node.url ?? "",
     createdAt,
     updatedAt,
     closedAt: ms(node.closedAt),
@@ -248,10 +264,8 @@ function recipientByUserId(userId: string): Recipient | null {
       ),
     )
     .get();
-  const githubId = Number(account?.accountId);
-  return Number.isInteger(githubId)
-    ? getRecipientByGithubId(githubId)
-    : null;
+  const externalId = account?.accountId;
+  return externalId ? getRecipientByExternalId(externalId) : null;
 }
 
 /**
@@ -265,18 +279,18 @@ function collectRecipients(input: IssueChangeInput): Recipient[] {
     if (recipient) found.set(recipient.userId, recipient);
   };
 
-  for (const githubId of input.next.assigneeIds) {
-    add(getRecipientByGithubId(githubId));
+  for (const externalId of input.next.assigneeIds) {
+    add(getRecipientByExternalId(externalId));
   }
   for (const user of mirror.getRepoAssignees(input.repoId)) {
-    add(getRecipientByGithubId(user.githubId));
+    add(getRecipientByExternalId(user.externalId));
   }
 
   const knownComments = new Set(
-    (input.previous?.comments ?? []).map((comment) => comment.githubId),
+    (input.previous?.comments ?? []).map((comment) => comment.externalId),
   );
   for (const comment of input.next.comments) {
-    if (knownComments.has(comment.githubId)) continue;
+    if (knownComments.has(comment.externalId)) continue;
     if (comment.authorLogin) add(getRecipientByLogin(comment.authorLogin));
     for (const login of parseMentions(comment.body)) {
       add(getRecipientByLogin(login));
@@ -338,6 +352,8 @@ export async function hydrateNodes(
   graphqlFn: GraphqlFn,
   repoId: number,
   nodeIds: readonly string[],
+  forge = "github",
+  instance = "github.com",
 ): Promise<mirror.IssueRecord[]> {
   const records: mirror.IssueRecord[] = [];
   for (const ids of chunk(nodeIds, BATCH_SIZE)) {
@@ -345,7 +361,7 @@ export async function hydrateNodes(
       nodes?: Array<GqlNode | null>;
     };
     for (const node of result?.nodes ?? []) {
-      const record = normalizeNode(node, repoId);
+      const record = normalizeNode(node, repoId, forge, instance);
       if (record) records.push(record);
     }
   }
@@ -393,20 +409,32 @@ export async function hydrateAndStore(
   graphqlFn?: GraphqlFn,
   options: HydrateOptions = {},
 ): Promise<mirror.IssueRecord[]> {
-  const gql = graphqlFn ?? (await github.graphql(installationId));
-  const records = await hydrateNodes(gql, repoId, nodeIds);
+  const provider = graphqlFn
+    ? undefined
+    : await forge.installationProvider(installationId);
+  const gql: GraphqlFn =
+    graphqlFn ?? ((query, variables) => provider!.graphql(query, variables));
+  // The node has no forge identity of its own; use the mirrored repo's.
   const repo = mirror.getRepo(repoId);
+  const records = await hydrateNodes(
+    gql,
+    repoId,
+    nodeIds,
+    repo?.forge ?? "github",
+    repo?.instance ?? "github.com",
+  );
   const enabled = options.notificationsEnabled
     ? await options.notificationsEnabled()
     : await notificationsEnabled();
   const notify = options.notify ?? notifyIssueChanges;
-
   for (const record of records) {
     const previous =
       enabled && repo ? snapshotIssue(repoId, record.number) : null;
     const derived = deriveMetadata(record.labels);
     mirror.upsertIssue(record, {
       status: derived.status,
+      impact: derived.impact,
+      urgency: derived.urgency,
       priority: derived.priority,
       size: derived.size,
       blocked: derived.blocked,

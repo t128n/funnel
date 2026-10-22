@@ -18,14 +18,14 @@ export type NotificationKind =
 /** A recipient resolved from the GitHub mirror and the linked Funnel user. */
 export interface Recipient {
 	userId: string;
-	githubId: number;
+	externalId: string;
 	login: string;
 	avatarUrl: string;
 }
 
 /** A comment as captured in an issue snapshot. */
 export interface IssueCommentSnapshot {
-	githubId: number;
+	externalId: string;
 	body: string;
 	authorLogin?: string;
 	authorAvatarUrl?: string;
@@ -37,7 +37,7 @@ export interface IssueSnapshot {
 	priority: string;
 	state: string;
 	updatedAt: number;
-	assigneeIds: number[];
+	assigneeIds: string[];
 	comments: IssueCommentSnapshot[];
 	title?: string;
 	number?: number;

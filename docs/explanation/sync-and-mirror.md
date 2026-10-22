@@ -4,11 +4,11 @@ Funnel's mirror is a rebuildable SQLite copy of GitHub issues, kept current by c
 
 ## The mirror is disposable
 
-Everything under `mirror_github_*` is a cache. Repositories, users, issues, labels, assignees and comments can all be recreated from GitHub. The sync worker upserts hydrated records, the conflict resolver rewrites label assignments, and reconciliation removes rows that no longer exist upstream. No user-authored content depends on those rows.
+Everything under `mirror_*` is a cache. Repositories, users, issues, labels, assignees and comments can all be recreated from GitHub. The sync worker upserts hydrated records, the conflict resolver rewrites label assignments, and reconciliation removes rows that no longer exist upstream. No user-authored content depends on those rows.
 
-Durable state lives elsewhere and is keyed by `owner/name` plus issue number, not by a foreign key to `mirror_github_issue`. Work notes and attachment metadata survive mirror pruning and a full re-sync; attachment bytes live under the upload directory. That separation is what makes aggressive pruning safe. It also means a repaired or partially rebuilt mirror does not take anyone's internal notes with it.
+Durable state lives elsewhere and is keyed by `owner/name` plus issue number, not by a foreign key to `mirror_thread`. Work notes and attachment metadata survive mirror pruning and a full re-sync; attachment bytes live under the upload directory. That separation is what makes aggressive pruning safe. It also means a repaired or partially rebuilt mirror does not take anyone's internal notes with it.
 
-The cursor is derived rather than stored, which gives the mirror a useful self-healing property: drop the `mirror_github_*` tables and the next poll sees no newest `updated_at`, falls back to an unconditional listing, and repopulates. There is no separate cursor row to drift out of sync with the data it describes.
+The cursor is derived rather than stored, which gives the mirror a useful self-healing property: drop the `mirror_*` tables and the next poll sees no newest `updated_at`, falls back to an unconditional listing, and repopulates. There is no separate cursor row to drift out of sync with the data it describes.
 
 ## ETag polling and a derived cursor
 
@@ -45,17 +45,17 @@ This creates a deliberate limit: Funnel is not a complete historical archive. Cl
 
 REST polling is cheap change detection; GraphQL is the fetch. The worker collects the `node_id` of each in-window issue and hydrates them in `nodes(ids:)` batches of 100, GitHub's per-query ceiling. One query returns title, body, state and state reason, timestamps, author, milestone, labels, assignees and the first 100 comments. A batch therefore replaces many individual issue requests.
 
-Hydration writes users first because they are foreign-key targets, then upserts the issue and replaces its label and assignee junction rows inside a transaction. The cached status, priority, size, blocked flag and label-conflict marker are derived from the reserved labels at the same time. Replacing rather than merging the junction rows is what makes label removal on GitHub propagate correctly.
+Hydration writes users first because they are foreign-key targets, then upserts the issue and replaces its label and assignee junction rows inside a transaction. The cached status, impact, urgency, derived priority, size, blocked flag and label-conflict marker are computed from the reserved labels at the same time. Priority itself is never a mirrored label. Replacing rather than merging the junction rows is what makes label removal on GitHub propagate correctly.
 
 Two bounds are intentional. Only the first 100 comments, labels and assignees are requested per issue. A very long comment thread is not fully mirrored; the cockpit is a working view, not an archival export. And a batch can return fewer records than ids because PR nodes and nodes missing identity are discarded. Neither case is treated as an error.
 
 ## Reserved-label conflicts
 
-Funnel's workflow vocabulary allows at most one label per group: status, priority and size. A `flags` group carries orthogonal markers such as `blocked`. When GitHub ends up with two labels from the same group — because someone edited labels outside Funnel, or two clients raced — the sync worker resolves it with the App installation token.
+Funnel's workflow vocabulary allows at most one label per active group: status, impact, urgency and size. A `flags` group carries orthogonal markers such as `blocked`. Retired priority labels are ignored; their conflicts are handled by the conflict flag, not timeline resolution. When GitHub ends up with two labels from the same group — because someone edited labels outside Funnel, or two clients raced — the sync worker resolves it with the App installation token.
 
 The decision rule is **latest added label wins**, read from the issue timeline's `labeled` events. The timeline is paginated and reduced to label names and timestamps. If the timeline has no `labeled` events for the contenders, or two candidates share the newest timestamp, the result is ambiguous.
 
-Ambiguity is not guessed at. `resolveIssueConflict` leaves the labels untouched, stores the deterministic projection for display, and sets `mirror_github_issue.label_conflict`. The UI can then warn that GitHub holds conflicting reserved labels. When the timeline is decisive, every obsolete label is deleted through the installation token and the metadata is recomputed from the survivors.
+Ambiguity is not guessed at. `resolveIssueConflict` leaves the labels untouched, stores the deterministic projection for display, and sets `mirror_thread.label_conflict`. The UI can then warn that GitHub holds conflicting reserved labels. When the timeline is decisive, every obsolete label is deleted through the installation token and the metadata is recomputed from the survivors.
 
 The deterministic projection matters: `deriveMetadata` must return something even when the label set is contradictory. It picks the first label in canonical order, but also reports the conflicting groups so callers know not to treat that choice as a resolution. Writes made through Funnel are group-aware (`withReserved` swaps the sibling rather than adding to it), so conflicts should be rare; the resolver exists for the cases where GitHub was edited elsewhere.
 
@@ -115,7 +115,7 @@ Funnel does not receive GitHub webhooks. This removes an inbound endpoint, a pub
 
 ### Rate limits
 
-Conditional 304s are cheap, but polling is not free. Every cycle also refreshes the repo's labels, assignable users and milestone set, and conflict resolution fetches issue timelines. Hydration uses GraphQL batches of 100, which is efficient per issue but still consumes quota. Active mode multiplies all of this by ten compared with idle mode, and the nightly full sweep is the single largest request burst. Label provisioning is expected to be throttled by the shared installation client to roughly one write per second, so a repo missing all canonical labels takes about ten seconds to converge.
+Conditional 304s are cheap, but polling is not free. Every cycle also refreshes the repo's labels, assignable users and milestone set, and conflict resolution fetches issue timelines. Hydration uses GraphQL batches of 100, which is efficient per issue but still consumes quota. Active mode multiplies all of this by ten compared with idle mode, and the nightly full sweep is the single largest request burst. Label provisioning is expected to be throttled by the shared installation client to roughly one write per second, so a repo missing all canonical labels takes about fourteen seconds to converge.
 
 Shortening the intervals is therefore a real cost decision, not a harmless responsiveness tweak. The defaults assume a small team with a tab open during working hours and no interest in polling overnight at the same rate.
 

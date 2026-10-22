@@ -13,7 +13,7 @@ import { db } from "#lib/server/db/index";
 import {
 	authAccount,
 	authUser,
-	mirrorGithubUser,
+	mirrorUser,
 	stateIssueWatch,
 	stateNotification,
 } from "#lib/server/db/schema";
@@ -29,14 +29,14 @@ import type {
 
 const DEFAULT_LIMIT = 50;
 
-const githubAccountMatch = sql`cast(${authAccount.accountId} as integer) = ${mirrorGithubUser.githubId}`;
+const githubAccountMatch = sql`cast(${authAccount.accountId} as integer) = ${mirrorUser.externalId}`;
 
 function recipientColumns() {
 	return {
 		userId: authAccount.userId,
-		githubId: mirrorGithubUser.githubId,
-		login: mirrorGithubUser.login,
-		avatarUrl: mirrorGithubUser.avatarUrl,
+		externalId: mirrorUser.externalId,
+		login: mirrorUser.login,
+		avatarUrl: mirrorUser.avatarUrl,
 	};
 }
 
@@ -220,7 +220,7 @@ export function listWatchers(
 		.from(stateIssueWatch)
 		.innerJoin(authAccount, eq(authAccount.userId, stateIssueWatch.userId))
 		.innerJoin(
-			mirrorGithubUser,
+			mirrorUser,
 			and(eq(authAccount.providerId, "github"), githubAccountMatch),
 		)
 		.where(
@@ -235,16 +235,16 @@ export function listWatchers(
 }
 
 /** Resolve one mirrored GitHub person to a linked Funnel user. */
-export function getRecipientByGithubId(githubId: number): Recipient | null {
+export function getRecipientByExternalId(externalId: string): Recipient | null {
 	return (
 		db
 			.select(recipientColumns())
-			.from(mirrorGithubUser)
+			.from(mirrorUser)
 			.innerJoin(
 				authAccount,
 				and(eq(authAccount.providerId, "github"), githubAccountMatch),
 			)
-			.where(eq(mirrorGithubUser.githubId, githubId))
+			.where(eq(mirrorUser.externalId, externalId))
 			.limit(1)
 			.all()[0] ?? null
 	);
@@ -255,12 +255,12 @@ export function getRecipientByLogin(login: string): Recipient | null {
 	return (
 		db
 			.select(recipientColumns())
-			.from(mirrorGithubUser)
+			.from(mirrorUser)
 			.innerJoin(
 				authAccount,
 				and(eq(authAccount.providerId, "github"), githubAccountMatch),
 			)
-			.where(sql`lower(${mirrorGithubUser.login}) = ${login.toLowerCase()}`)
+			.where(sql`lower(${mirrorUser.login}) = ${login.toLowerCase()}`)
 			.limit(1)
 			.all()[0] ?? null
 	);
@@ -273,7 +273,7 @@ export function listAdminRecipients(): Recipient[] {
 		.from(authUser)
 		.innerJoin(authAccount, eq(authAccount.userId, authUser.id))
 		.innerJoin(
-			mirrorGithubUser,
+			mirrorUser,
 			and(eq(authAccount.providerId, "github"), githubAccountMatch),
 		)
 		.where(eq(authUser.role, "admin"))

@@ -5,7 +5,7 @@ import {
   clearGithubCredentials,
   getGithubCredentials,
 } from "#lib/server/github/credentials";
-import { resetAppCache } from "#lib/server/github/app.server";
+import { forge } from "#lib/server/forge/providers.server";
 import { resetAuthCache } from "#lib/server/auth/index";
 import { installationUrl } from "#lib/server/github/manifest-flow.server";
 import { createLogger } from "#lib/server/log";
@@ -49,7 +49,7 @@ export const actions: Actions = {
     }
     log.warn("github app credentials cleared from settings");
     clearGithubCredentials();
-    resetAppCache();
+    forge.resetCaches();
     resetAuthCache();
     throw redirect(303, "/onboarding");
   },

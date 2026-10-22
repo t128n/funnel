@@ -75,7 +75,7 @@ export function planIssueNotifications(input: PlanIssueInput): NotificationDraft
 	const seen = new Set<string>();
 
 	function isActor(recipient: Recipient): boolean {
-		return actor !== null && actor.githubId === recipient.githubId;
+		return actor !== null && actor.externalId === recipient.externalId;
 	}
 
 	function add(
@@ -116,17 +116,17 @@ export function planIssueNotifications(input: PlanIssueInput): NotificationDraft
 	const previousAssignees = new Set(previous.assigneeIds);
 	for (const recipient of uniqueRecipients(recipients)) {
 		if (
-			next.assigneeIds.includes(recipient.githubId) &&
-			!previousAssignees.has(recipient.githubId)
+			next.assigneeIds.includes(recipient.externalId) &&
+			!previousAssignees.has(recipient.externalId)
 		) {
 			add(recipient, 'assigned', String(now));
 		}
 	}
 
 	// Comments are new when their GitHub id was not in the previous snapshot.
-	const previousComments = new Set(previous.comments.map((comment) => comment.githubId));
+	const previousComments = new Set(previous.comments.map((comment) => comment.externalId));
 	const newComments = next.comments.filter(
-		(comment) => !previousComments.has(comment.githubId)
+		(comment) => !previousComments.has(comment.externalId)
 	);
 	if (newComments.length > 0) {
 		const candidates = uniqueRecipients(recipients, watchers);
@@ -146,7 +146,7 @@ export function planIssueNotifications(input: PlanIssueInput): NotificationDraft
 				if (!mentions.has(recipient.login.toLowerCase())) continue;
 				if (sameLogin(recipient, comment.authorLogin)) continue;
 				if (
-					add(recipient, 'mentioned', String(comment.githubId), body, commentActor)
+					add(recipient, 'mentioned', comment.externalId, body, commentActor)
 				) {
 					mentioned.add(recipient.userId);
 				}
@@ -156,7 +156,7 @@ export function planIssueNotifications(input: PlanIssueInput): NotificationDraft
 				if (mentioned.has(watcher.userId)) continue;
 				// Never tell someone about the comment they wrote themselves.
 				if (sameLogin(watcher, comment.authorLogin)) continue;
-				add(watcher, 'comment', String(comment.githubId), body, commentActor);
+				add(watcher, 'comment', String(comment.externalId), body, commentActor);
 			}
 		}
 	}

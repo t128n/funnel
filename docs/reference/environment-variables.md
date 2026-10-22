@@ -26,6 +26,10 @@ Application variables are declared and validated in `src/env.ts` using valibot. 
 | `TZ` | Optional | System time zone | Process local time zone. | Runtime; nightly reconciliation schedule | IANA time-zone name, for example `UTC`. Not validated by the application. Controls the local hour used for the 03:00 nightly reconciliation. |
 | `FUNNEL_MIGRATIONS_DIR` | Optional | Discovered automatically | Directory containing the committed Drizzle migrations. | `src/lib/server/db/release.ts`, `/readyz` | Absolute path, or a path relative to the working directory, containing `<timestamp>_*/migration.sql`. When unset, the runner probes `import.meta.dir/drizzle`, `<cwd>/drizzle`, and `../../../../drizzle`. |
 
+## Intake helper variables
+
+The optional Windows intake helper (`tools/funnel-intake`) reads the same `FUNNEL_URL` as the server, plus `FUNNEL_HOTKEY` and `FUNNEL_SOURCE`. These override its JSON config file; command-line flags override both. See [Windows intake hotkey](../how-to/integrate/windows-intake-hotkey.md).
+
 ## Loading and precedence
 
 Bun loads a `.env` file from the working directory automatically. Variables already present in the process environment take precedence over values in that file.

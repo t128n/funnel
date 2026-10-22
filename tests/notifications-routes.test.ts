@@ -31,7 +31,7 @@ import { TEST_CONFIG } from "#tests/test-config";
 // repeated runs of this file).
 const OWNER = "routesqa";
 const REPO = "sandbox";
-const REPO_ID = 900_501;
+let repoId = 0;
 
 function uniqueId(prefix: string): string {
 	return `${prefix}_${crypto.randomUUID()}`;
@@ -52,8 +52,16 @@ function layoutUser(id: string, role = "read") {
 	};
 }
 
-function user(githubId: number, login: string): UserRecord {
-	return { githubId, login, avatarUrl: `https://avatars/${login}.png` };
+function user(externalId: string, login: string): UserRecord {
+	return {
+		id: 0,
+		externalId,
+		forge: "github",
+		instance: "github.com",
+		login,
+		avatarUrl: `https://avatars/${login}.png`,
+		url: "",
+	};
 }
 
 function notificationRequest(query = ""): URL {
@@ -93,7 +101,7 @@ function seedDraft(userId: string, key: string, createdAt = 1000) {
 
 beforeEach(() => {
 	setConfig(TEST_CONFIG);
-	upsertRepo({ githubId: REPO_ID, org: OWNER, name: REPO, archived: false });
+	repoId = upsertRepo({ externalId: "900501", forge: "github", instance: "github.com", org: OWNER, name: REPO, url: "https://github.com/" + OWNER + "/" + REPO, archived: false }).id;
 });
 
 describe("notification routes", () => {
@@ -320,14 +328,16 @@ describe("notification routes", () => {
 	test("detail carries the viewer's watching state", async () => {
 		upsertIssue(
 			{
-				githubId: 900_502,
-				repoId: REPO_ID,
+				externalId: "900502",
+				kind: "issue",
+				url: "",
+				repoId,
 				number: 1,
 				title: "Watched issue",
 				body: "",
 				state: "open",
 				stateReason: null,
-				author: user(900_503, "octocat"),
+				author: user("900503", "octocat"),
 				milestoneNumber: null,
 				createdAt: 1,
 				updatedAt: 2,
@@ -336,7 +346,7 @@ describe("notification routes", () => {
 				assignees: [],
 				comments: [],
 			},
-			{ status: null, priority: null, size: null, blocked: false, labelConflict: false },
+			{ status: null, impact: null, urgency: null, priority: null, size: null, blocked: false, labelConflict: false },
 		);
 		const auth = viewer(uniqueId("routes_detail"));
 		watchIssue(auth.user.id, OWNER, REPO, 1);

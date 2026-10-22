@@ -8,6 +8,7 @@
 	import { timeAgo } from '#lib/client/clock.svelte';
 	import { issueRef } from '#lib/issue-ref';
 	import { canonicalLabel } from '#lib/labels';
+	import { isRetiredPriorityLabel } from '#lib/priority';
 	import type { IssueListItem } from '#lib/server/issues/types';
 	import { cn } from '#lib/utils';
 	import BanIcon from '@lucide/svelte/icons/ban';
@@ -36,7 +37,11 @@
 	const untitled = $derived(issue.title.trim().length === 0);
 
 	/** Non-reserved labels only; reserved groups render as dedicated affordances. */
-	const labels = $derived(issue.labels.filter((label) => !canonicalLabel(label)));
+	const labels = $derived(
+		issue.labels.filter(
+			(label) => !canonicalLabel(label) && !isRetiredPriorityLabel(label)
+		)
+	);
 	const visibleLabels = $derived(labels.slice(0, 2));
 	const extraLabels = $derived(Math.max(0, labels.length - visibleLabels.length));
 
@@ -107,7 +112,7 @@
 		{#if issue.labelConflict}
 			<TriangleAlertIcon
 				class="text-warning size-3.5 shrink-0"
-				title="Conflicting reserved labels on GitHub"
+				title="Conflicting reserved label or retired priority label on GitHub"
 			/>
 		{/if}
 	</span>
@@ -149,7 +154,7 @@
 	<span class="flex items-center justify-end">
 		{#if issue.assignees.length > 0}
 			<div class="flex items-center -space-x-1.5">
-				{#each issue.assignees.slice(0, 2) as person (person.githubId)}
+				{#each issue.assignees.slice(0, 2) as person (person.externalId)}
 					<Avatar login={person.login} avatarUrl={person.avatarUrl} size={16} />
 				{/each}
 			</div>

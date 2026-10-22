@@ -12,12 +12,12 @@
 		requestClose,
 		requestUnblock,
 		rescheduleBlock,
-		setPriority,
 		unassignFromMe
 	} from '#lib/client/issue-actions.svelte';
 	import { issuePath } from '#lib/issue-url';
 	import { issueRef } from '#lib/issue-ref';
-	import { canonicalLabel, PRIORITY_OPTIONS } from '#lib/labels';
+	import { canonicalLabel } from '#lib/labels';
+	import { isRetiredPriorityLabel } from '#lib/priority';
 	import type { AttentionItem, UserRef } from '#lib/server/issues/types';
 	import { cn } from '#lib/utils';
 	import BanIcon from '@lucide/svelte/icons/ban';
@@ -26,7 +26,6 @@
 	import ClockAlertIcon from '@lucide/svelte/icons/clock-alert';
 	import EllipsisIcon from '@lucide/svelte/icons/ellipsis';
 	import ExternalLinkIcon from '@lucide/svelte/icons/external-link';
-	import SignalZeroIcon from '@lucide/svelte/icons/signal-zero';
 	import UserMinusIcon from '@lucide/svelte/icons/user-minus';
 	import UserPlusIcon from '@lucide/svelte/icons/user-plus';
 
@@ -35,7 +34,7 @@
 	 * line: the re-check pill leads (urgency stripe + tinted pill), then
 	 * priority, the short `FIT-13` reference, and the dominant title, with a
 	 * quiet metadata tray (labels, Blocked, estimate, assignees) and a hover
-	 * action tray that triages in place — reschedule the re-check, set priority
+	 * action tray that triages in place — reschedule the re-check, assign
 	 * or assignee, or mark it done — without leaving the view.
 	 */
 	interface Props {
@@ -77,7 +76,9 @@
 	const tone = $derived(TONE[urgency]);
 
 	/** Non-reserved labels only; reserved groups render as dedicated affordances. */
-	const labels = $derived(issue.labels.filter((label) => !canonicalLabel(label)).slice(0, 2));
+	const labels = $derived(issue.labels.filter(
+		(label) => !canonicalLabel(label) && !isRetiredPriorityLabel(label)
+	).slice(0, 2));
 	const sizeText = $derived(
 		issue.size === 'sm' ? 'S' : issue.size === 'md' ? 'M' : issue.size === 'lg' ? 'L' : null
 	);
@@ -87,14 +88,10 @@
 		item.needs ? `${item.blocker} — needs: ${item.needs}` : item.blocker || 'Blocked'
 	);
 	const assignedToViewer = $derived(
-		viewer != null && issue.assignees.some((person) => person.githubId === viewer.githubId)
+		viewer != null && issue.assignees.some((person) => person.externalId === viewer.externalId)
 	);
 
 	const quickDates = $derived(quickRecheckDates(today));
-	const priorityOptions = $derived([
-		{ value: 'none', label: 'No priority', color: null },
-		...PRIORITY_OPTIONS
-	]);
 
 	const actionBtn =
 		'text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:ring-ring/50 inline-flex size-6 items-center justify-center rounded outline-none transition-colors focus-visible:ring-1';
@@ -173,7 +170,7 @@
 
 		{#if issue.assignees.length > 0}
 			<div class="hidden shrink-0 items-center -space-x-1.5 sm:flex">
-				{#each issue.assignees.slice(0, 3) as person (person.githubId)}
+				{#each issue.assignees.slice(0, 3) as person (person.externalId)}
 					<Avatar login={person.login} avatarUrl={person.avatarUrl} size={16} />
 				{/each}
 			</div>
@@ -202,34 +199,6 @@
 					<BanIcon class="text-destructive size-3.5" />
 					Custom date…
 				</DropdownMenu.Item>
-			</DropdownMenu.Content>
-		</DropdownMenu.Root>
-
-		<DropdownMenu.Root>
-			<DropdownMenu.Trigger class={actionBtn} title="Priority" aria-label="Priority">
-				{#if issue.priority}
-					<PriorityIcon priority={issue.priority} />
-				{:else}
-					<SignalZeroIcon class="text-muted-foreground/60 size-3.5" />
-				{/if}
-			</DropdownMenu.Trigger>
-			<DropdownMenu.Content align="end" class="w-44">
-				<DropdownMenu.Label>Priority</DropdownMenu.Label>
-				<DropdownMenu.RadioGroup
-					value={issue.priority ?? 'none'}
-					onValueChange={(value) => void setPriority(issue, value === 'none' ? null : value)}
-				>
-					{#each priorityOptions as option (option.value)}
-						<DropdownMenu.RadioItem value={option.value} class="gap-2">
-							{#if option.value === 'none'}
-								<SignalZeroIcon class="text-muted-foreground/60 size-3.5" />
-							{:else}
-								<PriorityIcon priority={option.value} />
-							{/if}
-							<span class="flex-1 truncate">{option.label}</span>
-						</DropdownMenu.RadioItem>
-					{/each}
-				</DropdownMenu.RadioGroup>
 			</DropdownMenu.Content>
 		</DropdownMenu.Root>
 

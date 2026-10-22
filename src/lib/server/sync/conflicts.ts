@@ -1,23 +1,41 @@
 /**
  * Reserved-label conflict resolution (SPEC §5.2).
  *
- * An issue may carry at most one label per group (status, priority, size). When
+ * An issue may carry at most one label per active group (status, impact,
+ * urgency, size). When
  * it accumulates several, `funnel[bot]` inspects the issue timeline and the
  * **latest added label wins**; the superseded labels are removed on GitHub with
  * the App installation token. An ambiguous timeline (no `labeled` events, or a
  * tie on the newest timestamp) leaves the labels untouched and flags the item
- * (`mirror_github_issue.label_conflict`) for the UI instead of guessing.
+ * (`mirror_thread.label_conflict`) for the UI instead of guessing.
  *
  * `deriveMetadata` is the pure single-label projection shared by hydration and
  * the UI; `resolveIssueConflict` performs the network round-trips.
  */
+import type { ForgeEvent } from "forges";
 import { CANONICAL_LABELS, type LabelGroup } from "#lib/server/github/labels";
-import type { InstallationOctokit } from "#lib/server/github/app.server";
+import {
+  IMPACT_LABELS,
+  URGENCY_LABELS,
+  derivePriorityOrNull,
+  type Impact,
+  type Priority,
+  type Urgency,
+} from "#lib/priority";
+import {
+  forge,
+  type GitHubProvider,
+  type RepoRef,
+  type ThreadRef,
+} from "#/lib/server/forge/providers.server";
 
 /** Reserved-label projection cached on the issue row. */
 export interface DerivedMetadata {
   status: string | null;
-  priority: string | null;
+  impact: Impact | null;
+  urgency: Urgency | null;
+  /** Derived `P1`–`P3`, or `null` when neither axis is assessed. */
+  priority: Priority | null;
   size: string | null;
   /** Whether the orthogonal `blocked` flag is present (SPEC §5.1). */
   blocked: boolean;
@@ -27,7 +45,8 @@ export interface DerivedMetadata {
 
 export const GROUP_ORDER: readonly LabelGroup[] = [
   "status",
-  "priority",
+  "impact",
+  "urgency",
   "size",
   "flags",
 ];
@@ -73,6 +92,8 @@ export function deriveMetadata(labelNames: readonly string[]): DerivedMetadata {
   const grouped = groupLabels(labelNames);
   const metadata: DerivedMetadata = {
     status: null,
+    impact: null,
+    urgency: null,
     priority: null,
     size: null,
     blocked: false,
@@ -83,11 +104,13 @@ export function deriveMetadata(labelNames: readonly string[]): DerivedMetadata {
     if (!names || names.length === 0) continue;
     const winner = names.length === 1 ? names[0] : firstCanonical(names);
     if (group === "status") metadata.status = winner;
-    else if (group === "priority") metadata.priority = winner;
+    else if (group === "impact") metadata.impact = IMPACT_LABELS[winner] ?? null;
+    else if (group === "urgency") metadata.urgency = URGENCY_LABELS[winner] ?? null;
     else if (group === "size") metadata.size = winner;
-    else metadata.blocked = true;
+    else if (group === "flags") metadata.blocked = true;
     if (names.length > 1) metadata.conflicts.push(group);
   }
+  metadata.priority = derivePriorityOrNull(metadata.impact, metadata.urgency);
   return metadata;
 }
 
@@ -165,32 +188,31 @@ export function resolveWinners(
   return { winners, obsolete, ambiguous };
 }
 
-const TIMELINE_PER_PAGE = 100;
-
-/** Paginate `GET .../issues/{n}/timeline`, returning only `labeled` events. */
-export async function fetchTimeline(
-  octokit: Pick<InstallationOctokit, "request">,
-  owner: string,
-  repo: string,
-  issueNumber: number,
-): Promise<LabeledEvent[]> {
-  const events: unknown[] = [];
-  for (let page = 1; ; page += 1) {
-    const { data } = await octokit.request(
-      "GET /repos/{owner}/{repo}/issues/{issue_number}/timeline",
-      {
-        owner,
-        repo,
-        issue_number: issueNumber,
-        per_page: TIMELINE_PER_PAGE,
-        page,
-      },
-    );
-    const items = data as unknown[];
-    events.push(...items);
-    if (items.length < TIMELINE_PER_PAGE) break;
+/**
+ * Extract `labeled` events (name + timestamp) from normalized provider events.
+ * Comment, state and other events are ignored.
+ */
+export function normalizeTimeline(
+  events: readonly ForgeEvent[],
+): LabeledEvent[] {
+  const out: LabeledEvent[] = [];
+  for (const event of events) {
+    if (event.kind !== "label") continue;
+    const detail = event.detail;
+    if (detail?.type !== "label") continue;
+    out.push({ label: detail.label, createdAt: event.occurredAt.getTime() });
   }
-  return parseTimeline(events);
+  return out;
+}
+
+/** Walk a thread's provider timeline, returning only `labeled` events. */
+export async function fetchTimeline(
+  provider: GitHubProvider,
+  ref: ThreadRef,
+): Promise<LabeledEvent[]> {
+  const events: ForgeEvent[] = [];
+  for await (const event of provider.threads.events(ref)) events.push(event);
+  return normalizeTimeline(events);
 }
 
 export interface ResolvedConflict {
@@ -202,13 +224,12 @@ export interface ResolvedConflict {
 
 /**
  * Resolve a single issue's reserved-label conflicts. Ambiguous timelines are
- * left untouched and flagged. Otherwise the obsolete labels are deleted via the
- * installation token and the metadata recomputed from the surviving set.
+ * left untouched and flagged. Otherwise the obsolete labels are deleted through
+ * the installation provider and the metadata recomputed from the surviving set.
  */
 export async function resolveIssueConflict(
-  octokit: Pick<InstallationOctokit, "request">,
-  owner: string,
-  repo: string,
+  provider: GitHubProvider,
+  repo: RepoRef,
   issueNumber: number,
   labelNames: readonly string[],
 ): Promise<ResolvedConflict> {
@@ -217,7 +238,8 @@ export async function resolveIssueConflict(
     return { metadata: derived, removed: [], ambiguous: false };
   }
 
-  const events = await fetchTimeline(octokit, owner, repo, issueNumber);
+  const ref = forge.threadRef(repo, "issue", issueNumber);
+  const events = await fetchTimeline(provider, ref);
   const resolution = resolveWinners(labelNames, events);
 
   if (resolution.ambiguous) {
@@ -225,10 +247,7 @@ export async function resolveIssueConflict(
   }
 
   for (const name of resolution.obsolete) {
-    await octokit.request(
-      "DELETE /repos/{owner}/{repo}/issues/{issue_number}/labels/{name}",
-      { owner, repo, issue_number: issueNumber, name },
-    );
+    await provider.threads.removeLabels(ref, [name]);
   }
 
   const removed = new Set(resolution.obsolete.map((n) => n.toLowerCase()));

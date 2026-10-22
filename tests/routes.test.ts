@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+import { readFileSync } from "node:fs";
 import { setConfig } from "#/lib/server/config";
-import { resetAppCache } from "#/lib/server/github/app.server";
+import { forge } from "#/lib/server/forge/providers.server";
 import { clearPassthroughCache } from "#/lib/server/github/api-passthrough.server";
 import { GET as getIssues } from "#/routes/api/repos/[owner]/[repo]/issues/+server";
 import { GET as getIssue } from "#/routes/api/repos/[owner]/[repo]/issues/[number]/+server";
@@ -60,7 +61,7 @@ beforeEach(() => {
   FETCHED.length = 0;
   clearPassthroughCache();
   setConfig(TEST_CONFIG);
-  resetAppCache();
+  forge.resetCaches();
   canned = { status: 200, data: [], headers: {} };
   failInstall = false;
   globalThis.fetch = stubFetch as typeof fetch;
@@ -272,6 +273,46 @@ describe("GET user", () => {
       message: "Not synced, open on GitHub",
       html_url: "https://github.com/ghost",
     });
+  });
+});
+
+describe("write route wiring", () => {
+  test("passes the provider to every mutation, never an Octokit client", () => {
+    const files = [
+      "src/routes/api/repos/[owner]/[repo]/issues/+server.ts",
+      "src/routes/api/repos/[owner]/[repo]/issues/[number]/+server.ts",
+      "src/routes/api/repos/[owner]/[repo]/issues/[number]/labels/+server.ts",
+      "src/routes/api/repos/[owner]/[repo]/issues/[number]/labels/[name]/+server.ts",
+      "src/routes/api/repos/[owner]/[repo]/issues/[number]/comments/+server.ts",
+      "src/routes/api/repos/[owner]/[repo]/milestones/+server.ts",
+      "src/routes/api/repos/[owner]/[repo]/issues/[number]/work-notes/[id]/publish/+server.ts",
+    ];
+    for (const file of files) {
+      const source = readFileSync(file, "utf8");
+      expect(source).not.toContain("auth.octokit");
+      expect(source).not.toContain("octokit:");
+    }
+  });
+});
+
+describe("read route wiring", () => {
+  test("read routes use the forge provider", () => {
+    for (const file of [
+      "src/routes/api/repos/[owner]/[repo]/issues/+server.ts",
+      "src/routes/api/users/[username]/+server.ts",
+    ]) {
+      const text = readFileSync(file, "utf8");
+      // `installationErrorResponse` still lives on `app.server.ts`; every
+      // client and installation lookup must come from the forge module.
+      for (const line of text.split("\n")) {
+        if (line.includes("github/app.server")) {
+          expect(line).toContain("installationErrorResponse");
+        }
+      }
+      expect(text).not.toContain("github.asInstallation");
+      expect(text).not.toContain("github.asApp");
+      expect(text).toContain("forge.");
+    }
   });
 });
 

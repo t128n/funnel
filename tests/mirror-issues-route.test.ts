@@ -17,23 +17,44 @@ const READ = { user: { id: "reader", role: "read" }, session: null };
 // The Inspector's read path: the mirror route renders untrusted Markdown to
 // sanitized HTML at the delivery boundary (SPEC §2.2) while preserving the raw
 // body for inline editing.
-function user(githubId: number, login: string): UserRecord {
-	return { githubId, login, avatarUrl: `https://avatars/${login}.png` };
+function user(externalId: string, login: string): UserRecord {
+	return {
+		id: 0,
+		externalId,
+		forge: "github",
+		instance: "github.com",
+		login,
+		avatarUrl: `https://avatars/${login}.png`,
+		url: `https://github.com/${login}`,
+	};
 }
 
-function seed(): void {
-	upsertRepo({ githubId: 1, org: "orgA", name: "core", archived: false });
+let repoId = 0;
+
+function seed(): number {
+	const repo = upsertRepo({
+		externalId: "1",
+		forge: "github",
+		instance: "github.com",
+		org: "orgA",
+		name: "core",
+		url: "https://github.com/orgA/core",
+		archived: false,
+	});
+	repoId = repo.id;
 	upsertIssue(
 		{
-			githubId: 101,
-			repoId: 1,
+			externalId: "101",
+			repoId: repo.id,
 			number: 1,
+			kind: "issue",
 			title: "Alpha crash",
 			body: "# Hi\n\n<img src=x onerror=alert(1)>\n\n[js](javascript:alert(1))",
 			state: "open",
 			stateReason: null,
-			author: user(7, "octocat"),
+			author: user("7", "octocat"),
 			milestoneNumber: null,
+			url: "https://github.com/orgA/core/issues/1",
 			createdAt: 1,
 			updatedAt: 100,
 			closedAt: null,
@@ -41,16 +62,17 @@ function seed(): void {
 			assignees: [],
 			comments: [
 				{
-					githubId: 1001,
-					author: user(7, "octocat"),
+					externalId: "1001",
+					author: user("7", "octocat"),
 					body: "**bold** comment",
 					createdAt: 11,
 					updatedAt: 11,
 				},
 			],
 		},
-		{ status: "todo", priority: null, size: null, blocked: false, labelConflict: false },
+		{ status: "todo", impact: null, urgency: null, priority: null, size: null, blocked: false, labelConflict: false },
 	);
+	return repo.id;
 }
 
 function req(owner = "orgA", repo = "core", number = "1"): Request {
@@ -122,15 +144,17 @@ describe("GET /api/mirror/issues/{owner}/{repo}", () => {
 	test("lists mirrored issues, most recently updated first", async () => {
 		upsertIssue(
 			{
-				githubId: 102,
-				repoId: 1,
+				externalId: "102",
+				repoId,
 				number: 2,
+				kind: "issue",
 				title: "Beta regression",
 				body: "",
 				state: "closed",
 				stateReason: "completed",
-				author: user(7, "octocat"),
+				author: user("7", "octocat"),
 				milestoneNumber: null,
+				url: "https://github.com/orgA/core/issues/2",
 				createdAt: 2,
 				updatedAt: 200,
 				closedAt: 200,
@@ -138,7 +162,7 @@ describe("GET /api/mirror/issues/{owner}/{repo}", () => {
 				assignees: [],
 				comments: [],
 			},
-			{ status: null, priority: null, size: null, blocked: false, labelConflict: false },
+			{ status: null, impact: null, urgency: null, priority: null, size: null, blocked: false, labelConflict: false },
 		);
 
 		const res = await getList({
