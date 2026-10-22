@@ -1,6 +1,5 @@
 import { afterEach, beforeEach, describe, expect, spyOn, test } from "bun:test";
 import { forge } from "#/lib/server/forge/providers.server";
-import type { InstallationOctokit } from "./app.server";
 import {
   createRepoMilestone,
   listRepoMilestones,
@@ -55,13 +54,6 @@ describe("toRepoMilestone", () => {
     });
   });
 });
-
-function fake(handler: (route: string, params: Record<string, unknown>) => unknown) {
-  return {
-    request: async (route: string, params: Record<string, unknown> = {}) =>
-      handler(route, params),
-  } as unknown as InstallationOctokit;
-}
 
 const calls: Array<{
   method: string;
@@ -168,20 +160,57 @@ describe("listRepoMilestones", () => {
 
 describe("createRepoMilestone", () => {
   test("posts the title and returns the normalized record", async () => {
-    let body: Record<string, unknown> | null = null;
-    const octokit = fake((route, params) => {
-      expect(route).toBe("POST /repos/{owner}/{repo}/milestones");
-      body = params;
-      return { data: { id: 9, number: 2, title: "v2", state: "open" } };
-    });
+    const posted: Array<{ method: string; path: string; body?: unknown }> = [];
+    const provider = {
+      request: async (
+        method: string,
+        path: string,
+        options?: { body?: unknown },
+      ) => {
+        posted.push({ method, path, body: options?.body });
+        return {
+          status: 201,
+          data: { id: 9, number: 2, title: "v2", state: "open" },
+          headers: new Headers(),
+        };
+      },
+    };
 
-    const milestone = await createRepoMilestone(octokit, "orgA", "core", {
+    const milestone = await createRepoMilestone(provider as never, "orgA", "core", {
       title: "v2",
       dueOn: "2026-05-01",
     });
 
-    expect(body).toMatchObject({ owner: "orgA", repo: "core", title: "v2", due_on: "2026-05-01" });
+    expect(posted).toEqual([
+      {
+        method: "POST",
+        path: "/repos/orgA/core/milestones",
+        body: { title: "v2", due_on: "2026-05-01" },
+      },
+    ]);
     expect(milestone.number).toBe(2);
     expect(milestone.title).toBe("v2");
+  });
+
+  test("omits an absent description and due date", async () => {
+    const posted: Array<{ body?: unknown }> = [];
+    const provider = {
+      request: async (
+        _method: string,
+        _path: string,
+        options?: { body?: unknown },
+      ) => {
+        posted.push({ body: options?.body });
+        return {
+          status: 201,
+          data: { id: 9, number: 2, title: "v2", state: "open" },
+          headers: new Headers(),
+        };
+      },
+    };
+
+    await createRepoMilestone(provider as never, "orgA", "core", { title: "v2" });
+
+    expect(posted[0].body).toEqual({ title: "v2" });
   });
 });

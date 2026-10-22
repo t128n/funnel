@@ -10,7 +10,6 @@
  * runs with the signed-in user's token so GitHub enforces repository
  * permissions natively (SPEC §8).
  */
-import type { InstallationOctokit } from "./app.server";
 import type { GitHubProvider } from "#/lib/server/forge/providers.server";
 
 const PER_PAGE = 100;
@@ -134,22 +133,23 @@ export interface CreateMilestoneInput {
  * normalized record so the caller can refresh the mirror without a re-read.
  */
 export async function createRepoMilestone(
-  octokit: { request: InstallationOctokit["request"] },
+  provider: GitHubProvider,
   owner: string,
   repo: string,
   input: CreateMilestoneInput,
 ): Promise<RepoMilestone> {
-  const { data } = await octokit.request(
-    "POST /repos/{owner}/{repo}/milestones",
+  const { data } = await provider.request<RestMilestone>(
+    "POST",
+    `/repos/${owner}/${repo}/milestones`,
     {
-      owner,
-      repo,
-      title: input.title,
-      ...(input.description !== undefined
-        ? { description: input.description }
-        : {}),
-      ...(input.dueOn ? { due_on: input.dueOn } : {}),
+      body: {
+        title: input.title,
+        ...(input.description !== undefined
+          ? { description: input.description }
+          : {}),
+        ...(input.dueOn ? { due_on: input.dueOn } : {}),
+      },
     },
   );
-  return toRepoMilestone(data as RestMilestone);
+  return toRepoMilestone(data);
 }
