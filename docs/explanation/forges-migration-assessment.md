@@ -248,7 +248,14 @@ As of 2026-10-22, **Phase A (transport swap) is implemented** on `superlite/forg
 - `app.server.ts` is reduced to `installationErrorResponse`; GraphQL hydration still uses GitHub's `provider.graphql()`.
 - Verification: 501 tests pass, `svelte-check` reports 0 errors/0 warnings, and the adapter-node build succeeds with the usual environment variables.
 
-Phase A deliberately kept the GitHub-shaped product model. Phase B now uses forge-neutral `mirror_*` tables with `forge`/`instance`/`external_id` and `url`, and the domain and UI carry `externalId`/`url`. GitHub App manifest onboarding, GitHub OAuth sign-in and `/api/repos/...` mirroring GitHub REST remain; Phases C–D in the plan above are still open. The final review of the transport slice raised two issues that were fixed (rate-limit reset metadata on passthrough errors; partial-write reporting) and three accepted as known gaps: `forges` error objects carry no response headers beyond `RateLimit`, `updateIssue` can partially apply across several requests, and the sync fakes are not yet backed by recorded real-forge fixtures.
+**Phase B (schema and domain) is also implemented:**
+
+- The mirror is `mirror_repo` / `mirror_user` / `mirror_milestone` / `mirror_thread` / `mirror_comment` plus the label and assignee junctions. Repos and users have internal integer ids plus `forge` / `instance` / `external_id`; threads carry `kind`, `external_id` and `url`.
+- `state_work_note` and `state_attachment` store `author_external_id` / `uploaded_by_external_id` plus forge and instance. The migration drops the disposable GitHub mirror and rebuilds these durable tables with copied ids.
+- DTOs use `UserRef.externalId` (string), `CommentItem.externalId` and `MilestoneItem.url`; the viewer is a string external id; UI keys and comparisons use `externalId`.
+- Verification: 511 tests pass, `svelte-check` reports 0 errors/0 warnings, and the adapter-node build succeeds. No `githubId` or `mirrorGithub` remains in `src/` or `tests/`.
+
+GitHub App manifest onboarding, GitHub OAuth sign-in and `/api/repos/...` mirroring GitHub REST remain; Phases C–D are still open. The write responses still call their link `htmlUrl`, and `resolveViewerRef` hardcodes `github.com` when looking up the mirrored profile, so a GHES viewer falls back to the Better Auth profile. The final review of the transport slice raised two issues that were fixed (rate-limit reset metadata on passthrough errors; partial-write reporting) and three accepted as known gaps: `forges` error objects carry no response headers beyond `RateLimit`, `updateIssue` can partially apply across several requests, and the sync fakes are not yet backed by recorded real-forge fixtures.
 
 ## Sources
 
