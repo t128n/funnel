@@ -109,7 +109,7 @@ test("durable author records carry an external identity", () => {
 **Notes:** `state_work_note`/`state_attachment` columns are already renamed in B1. `locals.viewerGithubId` becomes `locals.viewerExternalId`; update the `App.Locals` declaration if it is separate. Keep `created.value.htmlUrl` in intake; only the mirror lookup changes to `repo.id`.
 
 ### T19 UI, client and verification · Complexity 4 (O-1) · Est. context 36k
-**Owns:** src/lib/components/**/*.svelte, src/lib/client/issue-actions.svelte.ts, src/lib/client/mutations.ts, src/routes/*/attention/+page.svelte, src/routes/*/board/+layout.svelte, src/routes/*/+layout.server.ts, src/routes/*/milestones/[owner]/[repo]/[number]/+page.server.ts, docs/explanation/*.md, docs/reference/*.md
+**Owns:** src/lib/components/**/*.svelte, src/lib/client/issue-actions.svelte.ts, src/lib/client/mutations.ts, src/lib/server/github/assignees.ts, src/lib/server/github/assignees.test.ts, src/routes/*/inbox/submission/[id]/+page.svelte, src/routes/*/attention/+page.svelte, src/routes/*/board/+layout.svelte, src/routes/*/+layout.server.ts, src/routes/*/milestones/[owner]/[repo]/[number]/+page.server.ts, docs/explanation/*.md, docs/reference/*.md
 **Components:** 2
 **LOC owned:** 220
 **Tests:** fast
