@@ -138,7 +138,7 @@ describe("providers", () => {
 **Notes:** Import runtime `github` from `forges/github`; import `RepoRef`, `ThreadRef`, `ThreadKind`, `GitHubProvider`, `ForgeApiError` as types from `forges`/`forges/github`. `getInstallationId` uses `appProvider().request("GET", "/repos/{owner}/{repo}/installation")` with the literal owner/repo interpolated, and throws if `data.id` is missing. Add the dependency with `bun add forges@0.2.0`.
 
 ### T2 label provisioning · Complexity 4 (O-1) · Est. context 36k
-**Owns:** src/lib/server/github/labels.ts, src/lib/server/github/labels.test.ts, src/lib/server/sync/worker.ts
+**Owns:** src/lib/server/github/labels.ts, src/lib/server/github/labels.test.ts, src/lib/server/sync/worker.ts, src/lib/server/sync/worker.test.ts, src/lib/server/sync/reconcile.test.ts
 **Components:** 2
 **LOC owned:** 230
 **Tests:** fast
