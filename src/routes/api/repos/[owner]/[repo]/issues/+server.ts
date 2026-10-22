@@ -105,7 +105,7 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
   }
 
   const result = await createIssue({
-    octokit: auth.octokit,
+    provider: auth.provider,
     repo: `${params.owner}/${params.repo}`,
     ...parsed.output,
   });

@@ -105,7 +105,7 @@ export const PATCH: RequestHandler = async ({
   }
 
   const result = await updateIssue({
-    octokit: auth.octokit,
+    provider: auth.provider,
     repo: `${params.owner}/${params.repo}`,
     number,
     title: parsed.output.title,

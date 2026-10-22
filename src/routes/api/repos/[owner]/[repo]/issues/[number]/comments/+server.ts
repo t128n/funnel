@@ -84,7 +84,7 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
   }
 
   const result = await addIssueComment({
-    octokit: auth.octokit,
+    provider: auth.provider,
     repo: `${params.owner}/${params.repo}`,
     number,
     body: parsed.output.body,
