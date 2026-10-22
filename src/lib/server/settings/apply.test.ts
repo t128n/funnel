@@ -19,6 +19,7 @@ const BASE: SettingsInput = {
   },
   board: { done_days: 7, wip_limits: {} },
   session: { idle_days: 21 },
+  notifications: { enabled: true, native: true, new_intake: true },
 };
 
 afterEach(() => {

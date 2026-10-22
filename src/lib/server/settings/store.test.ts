@@ -21,6 +21,7 @@ const BASE: SettingsInput = {
   },
   board: { done_days: 7, wip_limits: { "in-progress": 2 } },
   session: { idle_days: 21 },
+  notifications: { enabled: true, native: true, new_intake: true },
 };
 
 afterEach(() => {
@@ -41,6 +42,33 @@ describe("settings store", () => {
     });
     expect(settings.board).toEqual({ done_days: 14, wip_limits: {} });
     expect(settings.session).toEqual({ idle_days: 30 });
+    expect(settings.notifications).toEqual({ enabled: true, native: true, new_intake: true });
+  });
+
+  test("test_notifications_default_true", () => {
+    expect(readSettings().notifications).toEqual({ enabled: true, native: true, new_intake: true });
+  });
+
+  test("test_notifications_round_trip", () => {
+    writeSettings({
+      ...BASE,
+      notifications: { enabled: false, native: true, new_intake: false },
+    });
+
+    expect(readSettings().notifications).toEqual({
+      enabled: false,
+      native: true,
+      new_intake: false,
+    });
+  });
+
+  test("test_invalid_notification_value_rejected", () => {
+    expect(() =>
+      writeSettings({
+        ...BASE,
+        notifications: { ...BASE.notifications, native: "yes" as unknown as boolean },
+      })
+    ).toThrow(SettingsError);
   });
 
   test("round-trips a full payload", () => {

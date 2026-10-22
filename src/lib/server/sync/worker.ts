@@ -401,6 +401,7 @@ export async function refreshIssue(
   owner: string,
   repo: string,
   number: number,
+  actorUserId?: string,
 ): Promise<void> {
   const installationId = await forge.getInstallationId(owner, repo);
   const repoRow = await ensureRepoMirror(owner, repo, installationId);
@@ -410,9 +411,13 @@ export async function refreshIssue(
     forge.threadRef(repoRef, "issue", number),
   );
   if (typeof thread.ref.externalId !== "string") return;
-  const records = await hydrateAndStore(installationId, repoRow.id, [
-    thread.ref.externalId,
-  ]);
+  const records = await hydrateAndStore(
+    installationId,
+    repoRow.id,
+    [thread.ref.externalId],
+    undefined,
+    { actorUserId },
+  );
   await resolveConflicts(provider, repoRow, records);
   publish({ type: "issues", repo: `${owner}/${repo}`, numbers: [number] });
 }

@@ -8,6 +8,8 @@ import { db } from "#lib/server/db/index";
  * `db/schema.ts`).
  */
 export function clearMirror(): void {
+  // Keep internal ids deterministic for tests that seed fixed repo ids.
+  db.$client.query("DELETE FROM sqlite_sequence WHERE name LIKE 'mirror_%'").run();
   for (const table of [
     "mirror_thread_label",
     "mirror_thread_assignee",

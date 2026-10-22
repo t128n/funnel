@@ -290,6 +290,7 @@ describe("provisionCanonicalLabels", () => {
       sync: TEST_CONFIG.sync,
       board: TEST_CONFIG.board,
       session: TEST_CONFIG.session,
+      notifications: TEST_CONFIG.notifications,
     });
     resetConfigCache();
     try {

@@ -11,9 +11,32 @@
  * so the same code targets github.com or a GHES instance. `hydrateNodes` is
  * pure over an injected `graphql` function for testability.
  */
+import { and, eq } from "drizzle-orm";
+import { db } from "#lib/server/db/index";
+import { authAccount } from "#lib/server/db/schema";
 import { forge } from "#lib/server/forge/providers.server";
+import { createLogger } from "#lib/server/log";
+import { readSettings } from "#lib/server/settings/store";
+import {
+  parseMentions,
+  planIssueNotifications,
+} from "#lib/server/notifications/plan";
+import {
+  createNotifications,
+  getRecipientByExternalId,
+  getRecipientByLogin,
+  listWatchers,
+} from "#lib/server/notifications/service";
+import type {
+  IssueSnapshot,
+  NotificationDraft,
+  PlanIssueInput,
+  Recipient,
+} from "#lib/server/notifications/types";
 import { deriveMetadata } from "./conflicts";
 import * as mirror from "./mirror";
+
+const log = createLogger({ component: "sync" });
 
 export const BATCH_SIZE = 100;
 
@@ -181,6 +204,140 @@ export function normalizeNode(
   };
 }
 
+// ---------------------------------------------------------------------------
+// Notification hook
+// ---------------------------------------------------------------------------
+
+/** Read the current mirror state of an issue in planner shape. */
+export function snapshotIssue(
+  repoId: number,
+  number: number,
+): IssueSnapshot | null {
+  const issue = mirror.getIssue(repoId, number);
+  if (!issue) return null;
+  return {
+    status: issue.status ?? "",
+    priority: issue.priority ?? "",
+    state: issue.state,
+    updatedAt: issue.updatedAt,
+    assigneeIds: mirror.getIssueAssigneeIds(repoId, number),
+    comments: mirror.getIssueComments(repoId, number),
+    title: issue.title,
+    number: issue.number,
+  };
+}
+
+/** One hydrated issue diff, handed to the rule planner. */
+export interface IssueChangeInput {
+  repoId: number;
+  org: string;
+  name: string;
+  number: number;
+  previous: IssueSnapshot | null;
+  next: IssueSnapshot;
+  /** The signed-in Funnel user whose write triggered this refresh, if any. */
+  actorUserId?: string;
+}
+
+/**
+ * Swappable seam for tests. Production callers pass nothing and get the real
+ * store, watcher query and pure planner.
+ */
+export interface NotifyIssueDeps {
+  listWatchers?: (org: string, name: string, issueNumber: number) => Recipient[];
+  planIssueNotifications?: (input: PlanIssueInput) => NotificationDraft[];
+  createNotifications?: (drafts: readonly NotificationDraft[]) => number;
+  recipients?: Recipient[];
+  actor?: Recipient | null;
+  now?: number;
+}
+
+/** Resolve the signed-in Funnel user to their GitHub identity. */
+function recipientByUserId(userId: string): Recipient | null {
+  const account = db
+    .select({ accountId: authAccount.accountId })
+    .from(authAccount)
+    .where(
+      and(
+        eq(authAccount.userId, userId),
+        eq(authAccount.providerId, "github"),
+      ),
+    )
+    .get();
+  const externalId = account?.accountId;
+  return externalId ? getRecipientByExternalId(externalId) : null;
+}
+
+/**
+ * The Funnel users who could receive one of this diff's notifications: current
+ * assignees, repo collaborators, and the authors/mentioned people in new
+ * comments. The planner decides which of them actually qualify.
+ */
+function collectRecipients(input: IssueChangeInput): Recipient[] {
+  const found = new Map<string, Recipient>();
+  const add = (recipient: Recipient | null): void => {
+    if (recipient) found.set(recipient.userId, recipient);
+  };
+
+  for (const externalId of input.next.assigneeIds) {
+    add(getRecipientByExternalId(externalId));
+  }
+  for (const user of mirror.getRepoAssignees(input.repoId)) {
+    add(getRecipientByExternalId(user.externalId));
+  }
+
+  const knownComments = new Set(
+    (input.previous?.comments ?? []).map((comment) => comment.externalId),
+  );
+  for (const comment of input.next.comments) {
+    if (knownComments.has(comment.externalId)) continue;
+    if (comment.authorLogin) add(getRecipientByLogin(comment.authorLogin));
+    for (const login of parseMentions(comment.body)) {
+      add(getRecipientByLogin(login));
+    }
+  }
+
+  return [...found.values()];
+}
+
+/**
+ * Turn a stored issue diff into notifications. A first sighting is silent, and
+ * the actor's own drafts are dropped even if the planner could not resolve them.
+ */
+export function notifyIssueChanges(
+  input: IssueChangeInput,
+  deps: NotifyIssueDeps = {},
+): number {
+  if (!input.previous) return 0;
+
+  const plan = deps.planIssueNotifications ?? planIssueNotifications;
+  const store = deps.createNotifications ?? createNotifications;
+  const watchers = deps.listWatchers
+    ? deps.listWatchers(input.org, input.name, input.number)
+    : listWatchers(input.org, input.name, input.number);
+  const actor =
+    deps.actor !== undefined
+      ? deps.actor
+      : input.actorUserId
+        ? recipientByUserId(input.actorUserId)
+        : null;
+  const recipients = deps.recipients ?? collectRecipients(input);
+
+  const drafts = plan({
+    previous: input.previous,
+    next: input.next,
+    repo: `${input.org}/${input.name}`,
+    watchers,
+    recipients,
+    actor,
+    now: deps.now ?? Date.now(),
+  });
+  const filtered = input.actorUserId
+    ? drafts.filter((draft) => draft.userId !== input.actorUserId)
+    : drafts;
+  return store(filtered);
+}
+
 /** Split items into fixed-size chunks (final chunk may be short). */
 export function chunk<T>(items: readonly T[], size: number): T[][] {
   const out: T[][] = [];
@@ -211,19 +368,52 @@ export async function hydrateNodes(
   return records;
 }
 
+export interface HydrateOptions {
+  /** The signed-in Funnel user whose write triggered this refresh. */
+  actorUserId?: string;
+  /** Test seam: replace the whole change hook. */
+  notify?: (input: IssueChangeInput) => number;
+  /** Test seam: override the instance's enabled switch. */
+  notificationsEnabled?: () => boolean | Promise<boolean>;
+}
+
+/**
+ * Whether the instance-wide notification master switch is on (default true).
+ *
+ * Read the setting directly instead of the validated instance config: an
+ * unrelated invalid setting must not turn a disabled master switch into an
+ * enabled one and start creating notification rows.
+ */
+async function notificationsEnabled(): Promise<boolean> {
+  try {
+    return readSettings().notifications.enabled;
+  } catch {
+    // Settings failures must not block mirror hydration.
+    return true;
+  }
+}
+
 /**
  * Hydrate and persist node ids, computing the cached reserved-label metadata.
  * Conflict resolution is the caller's job (it needs the REST client and may
  * issue writes); `hydrateAndStore` only stores the deterministic projection.
+ *
+ * Before each upsert the issue's previous mirror state is snapshotted; after
+ * the upsert the hook plans and stores notifications. A first sighting has no
+ * previous state, so it stays silent (the historical-flood guard).
  */
 export async function hydrateAndStore(
   installationId: number,
   repoId: number,
   nodeIds: readonly string[],
   graphqlFn?: GraphqlFn,
+  options: HydrateOptions = {},
 ): Promise<mirror.IssueRecord[]> {
-  const provider = graphqlFn ? undefined : await forge.installationProvider(installationId);
-  const gql: GraphqlFn = graphqlFn ?? ((query, variables) => provider!.graphql(query, variables));
+  const provider = graphqlFn
+    ? undefined
+    : await forge.installationProvider(installationId);
+  const gql: GraphqlFn =
+    graphqlFn ?? ((query, variables) => provider!.graphql(query, variables));
   // The node has no forge identity of its own; use the mirrored repo's.
   const repo = mirror.getRepo(repoId);
   const records = await hydrateNodes(
@@ -233,7 +423,13 @@ export async function hydrateAndStore(
     repo?.forge ?? "github",
     repo?.instance ?? "github.com",
   );
+  const enabled = options.notificationsEnabled
+    ? await options.notificationsEnabled()
+    : await notificationsEnabled();
+  const notify = options.notify ?? notifyIssueChanges;
   for (const record of records) {
+    const previous =
+      enabled && repo ? snapshotIssue(repoId, record.number) : null;
     const derived = deriveMetadata(record.labels);
     mirror.upsertIssue(record, {
       status: derived.status,
@@ -244,6 +440,27 @@ export async function hydrateAndStore(
       blocked: derived.blocked,
       labelConflict: derived.conflicts.length > 0,
     });
+
+    if (!enabled || !repo || !previous) continue;
+    const next = snapshotIssue(repoId, record.number);
+    if (!next) continue;
+    try {
+      notify({
+        repoId,
+        org: repo.org,
+        name: repo.name,
+        number: record.number,
+        previous,
+        next,
+        actorUserId: options.actorUserId,
+      });
+    } catch (error) {
+      // A notification failure is logged, never allowed to fail the mirror.
+      log.warn(
+        { repo: `${repo.org}/${repo.name}`, number: record.number, err: error },
+        "notification hook failed",
+      );
+    }
   }
   return records;
 }

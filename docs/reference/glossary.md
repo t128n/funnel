@@ -34,11 +34,19 @@ Definitions of the terms used across Funnel's reference documentation.
 
 **Work note** — An internal ITSM-style journal entry stored in `state_work_note`. A work note is local to Funnel and is not posted to GitHub unless explicitly published; publishing posts it as a comment and deletes the local note. Work notes are keyed by `org/name` plus issue number, so they survive mirror pruning. See [HTTP API](./http-api.md#work-notes).
 
+**Notification** — A durable per-user record of an assignment, mention, watched-issue comment, status/priority/open-closed change, or new intake submission, stored in `state_notification`. Each row snapshots its title, body, actor and link so the notification center never reads the disposable mirror; rows are unread until marked read and have no automatic expiry. See [Use notifications](../how-to/use/notifications.md).
+
+**Watch** — A per-user subscription to one issue, stored in `state_issue_watch` and keyed by `org/name` plus issue number. Watching delivers comment and status/priority/open-closed notifications for that issue; it is personal and survives mirror rebuilds. See [Use notifications](../how-to/use/notifications.md#watch-an-issue).
+
+**Native notification** — A browser notification shown while a Funnel tab is open. It is opt-in per browser after the browser grants permission, is controlled instance-wide by `notifications.native`, and never runs in the background or through a service worker. See [Use notifications](../how-to/use/notifications.md#browser-notifications).
+
 **Dropbox / attachment** — The Inspector's file-upload surface. Metadata lives in `state_attachment`; bytes live under `FUNNEL_UPLOAD_DIR`. The on-disk path is server-generated (`<yyyy>/<mm>/<uuid>`), the original filename is sanitised, and a SHA-256 hash is stored. See [HTTP API](./http-api.md#attachments).
 
 **Inspector** — The docked detail pane used by the Issues, Board and Inbox views. It shows the issue, its rendered body and comments, work notes, attachments, labels and assignees, and fetches its payload from `/api/mirror/issues/{owner}/{repo}/{number}`. See [Routes and pages](./routes-and-pages.md#detail-routes).
 
 **Attention** — The view of open issues flagged `blocked` that carry a re-check date in their body metadata. Items are bucketed as overdue, today or upcoming within seven days; the sidebar badge counts overdue plus today. See [`attention.ts`](../../src/lib/attention.ts).
+
+**Notification center** — The personal `/notifications` page. It lists unread rows before read rows, newest first, shows the actor, destination and relative time, and offers per-row and mark-all read controls. The sidebar badge shows the same unread count. See [Use notifications](../how-to/use/notifications.md).
 
 **WIP limit** — A per-stage Work-in-Progress cap configured in `board.wip_limits` for the open statuses (`backlog`, `todo`, `in-progress`, `in-review`). The board shows the count against the limit and highlights a column that exceeds it; the limit is advisory and does not block moves. `done` is never capped. See [`store.ts`](../../src/lib/server/settings/store.ts).
 
@@ -48,7 +56,7 @@ Definitions of the terms used across Funnel's reference documentation.
 
 **Manifest flow** — GitHub's App Manifest Flow used during onboarding. Funnel posts a generated manifest to GitHub, receives a temporary conversion code at `/onboarding/callback`, exchanges it for App credentials, then installs the App and records the selected repositories. Credentials are stored encrypted in `state_github_app`. See [Routes and pages](./routes-and-pages.md#public-and-first-run-routes).
 
-**SSE** — Server-Sent Events. `GET /api/events` keeps a long-lived stream open for signed-in `read` users, sends a heartbeat comment every 12 seconds, and forwards named `sync`, `issues`, `intake` and `settings` events so open cockpits can refresh. See [HTTP API](./http-api.md#event-stream).
+**SSE** — Server-Sent Events. `GET /api/events` keeps a long-lived stream open for signed-in `read` users, sends a heartbeat comment every 12 seconds, and forwards named `sync`, `issues`, `intake`, `settings` and `notifications` events so open cockpits can refresh. See [HTTP API](./http-api.md#event-stream).
 
 **Readiness** — The `/readyz` probe: it requires the database to be reachable and, when the migrations folder can be located, every committed migration to be applied before the instance reports `ready`. It returns `503` with a `starting` status until then, keeping traffic off a half-migrated instance. See [HTTP API](./http-api.md#health-and-readiness).
 

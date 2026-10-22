@@ -5,6 +5,7 @@ import { getConfig, repoShortcodeMap } from "#lib/server/config";
 import { COMMENT_BUBBLES_FLAG, resolveFeatures } from "#lib/server/flags";
 import { EMPTY_FILTER } from "#lib/server/issues/filters";
 import { attentionIssues, filterOptions, inbox } from "#lib/server/issues/queries";
+import { unreadNotificationCount } from "#lib/server/notifications/service";
 import { getUser } from "#lib/server/sync/mirror";
 import type { LayoutServerLoad } from "./$types";
 
@@ -35,6 +36,12 @@ export const load: LayoutServerLoad = async ({ locals, url, cookies }) => {
   // (SPEC §2.1), the queue a maintainer actually has to triage.
   const inboxCount = inbox(EMPTY_FILTER).entries.length;
 
+  // The badge counts this viewer's unread rows only; reading them is always
+  // scoped by `auth_user.id`, never by a client-supplied id.
+  const unreadNotifications = unreadNotificationCount(user.id);
+  // T3 persists `notifications.native`; false only disables the browser channel.
+  const nativeNotifications = config.notifications.native;
+
   return {
     user,
     viewerExternalId,
@@ -42,6 +49,8 @@ export const load: LayoutServerLoad = async ({ locals, url, cookies }) => {
     options,
     attention: attentionIssues(),
     inboxCount,
+    unreadNotifications,
+    nativeNotifications,
     githubUrl: config.github.url,
     defaultRepo: config.intake.default_repo ?? config.repos[0]?.repo ?? "",
     repoShortcodes: repoShortcodeMap(config),

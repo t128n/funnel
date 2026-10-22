@@ -702,6 +702,66 @@ export function getIssueLabels(repoId: number, number: number): string[] {
     .map((r) => r.name);
 }
 
+/** External ids of the people currently assigned to an issue. */
+export function getIssueAssigneeIds(repoId: number, number: number): string[] {
+  return db
+    .select({ externalId: mirrorUser.externalId })
+    .from(mirrorThreadAssignee)
+    .innerJoin(
+      mirrorUser,
+      eq(mirrorThreadAssignee.userId, mirrorUser.id),
+    )
+    .where(
+      and(
+        eq(mirrorThreadAssignee.repoId, repoId),
+        eq(mirrorThreadAssignee.threadNumber, number),
+      ),
+    )
+    .all()
+    .map((row) => row.externalId);
+}
+
+export interface IssueCommentRow {
+  externalId: string;
+  body: string;
+  authorLogin?: string;
+  authorAvatarUrl?: string;
+}
+
+/** Comments for an issue in chronological order, with their author identity. */
+export function getIssueComments(
+  repoId: number,
+  number: number,
+): IssueCommentRow[] {
+  return db
+    .select({
+      externalId: mirrorComment.externalId,
+      body: mirrorComment.body,
+      authorLogin: mirrorUser.login,
+      authorAvatarUrl: mirrorUser.avatarUrl,
+    })
+    .from(mirrorComment)
+    .leftJoin(mirrorUser, eq(mirrorComment.authorId, mirrorUser.id))
+    .where(
+      and(
+        eq(mirrorComment.repoId, repoId),
+        eq(mirrorComment.threadNumber, number),
+      ),
+    )
+    .orderBy(asc(mirrorComment.createdAt), asc(mirrorComment.externalId))
+    .all()
+    .map((row) => ({
+      externalId: row.externalId,
+      body: row.body,
+      ...(row.authorLogin !== null
+        ? {
+            authorLogin: row.authorLogin,
+            authorAvatarUrl: row.authorAvatarUrl ?? "",
+          }
+        : {}),
+    }));
+}
+
 export function getIssue(
   repoId: number,
   number: number,
