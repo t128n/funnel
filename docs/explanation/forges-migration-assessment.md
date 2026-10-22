@@ -238,6 +238,18 @@ Total: ~4–8 weeks for B+C+D, with A folded in. Adding a second forge (GitLab i
 2. **If a second forge is the goal:** run Phase 0 now, then commit to A + B + C. Use `forges` as the client, but budget the majority of the work for schema, onboarding and auth — not for the API calls.
 3. **Do not** present `forges` as the thing that removes the GitHub dependency. It removes the Octokit dependency; the GitHub-shaped product decisions are the actual lock-in.
 
+## Progress
+
+As of 2026-10-22, **Phase A (transport swap) is implemented** on `superlite/forge-migration`:
+
+- `octokit` is removed from `package.json` and from every source/test import.
+- `src/lib/server/forge/providers.server.ts` is the only provider factory (app, installation and user providers, GHES-aware instance, installation-id cache, refs, web URLs).
+- Labels, assignees, milestones, issue writes, intake, sync polling, hydration, conflicts and the raw passthrough run on `forges`.
+- `app.server.ts` is reduced to `installationErrorResponse`; GraphQL hydration still uses GitHub's `provider.graphql()`.
+- Verification: 501 tests pass, `svelte-check` reports 0 errors/0 warnings, and the adapter-node build succeeds with the usual environment variables.
+
+Phase A deliberately keeps the GitHub-shaped product model: `mirror_github_*` tables with numeric `github_id` columns, GitHub App manifest onboarding, GitHub OAuth sign-in, and `/api/repos/...` mirroring GitHub REST. Phases B–D in the plan above are still open. The final review of the transport slice raised two issues that were fixed (rate-limit reset metadata on passthrough errors; partial-write reporting) and three accepted as known gaps: `forges` error objects carry no response headers beyond `RateLimit`, `updateIssue` can partially apply across several requests, and the sync fakes are not yet backed by recorded real-forge fixtures.
+
 ## Sources
 
 - [`forges` documentation index](https://forges.link/llms.txt) and [full text](https://forges.link/llms-full.txt)
