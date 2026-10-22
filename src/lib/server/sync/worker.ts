@@ -273,13 +273,9 @@ export async function refreshRepoLabels(
   );
 }
 
-/**
- * The actor directory still reports GitHub-shaped users; keep the legacy
- * `githubId` readable while preferring the forge-neutral fields.
- */
+/** A forge-neutral actor as reported by the assignee and milestone reads. */
 type DirectoryUser = {
-  externalId?: string;
-  githubId?: number;
+  externalId: string;
   login: string;
   avatarUrl?: string;
   url?: string;
@@ -289,11 +285,10 @@ function directoryUser(
   user: DirectoryUser,
   repo: mirror.RepoRow,
 ): mirror.UserRecord | null {
-  const externalId = user.externalId ?? String(user.githubId ?? "");
-  if (externalId.length === 0) return null;
+  if (user.externalId.length === 0) return null;
   return {
     id: 0,
-    externalId,
+    externalId: user.externalId,
     forge: repo.forge,
     instance: repo.instance,
     login: user.login,
@@ -310,7 +305,7 @@ export async function refreshRepoAssignees(
   const provider = await forge.installationProvider(installationId);
   const users = await listRepoAssignees(provider, repo.org, repo.name);
   const records = users
-    .map((user) => directoryUser(user as unknown as DirectoryUser, repo))
+    .map((user) => directoryUser(user, repo))
     .filter((user): user is mirror.UserRecord => user !== null);
   mirror.replaceRepoAssignees(repo.id, records);
 }
@@ -328,20 +323,12 @@ export async function refreshRepoMilestones(
   mirror.replaceRepoMilestones(
     repo.id,
     milestones.map((milestone) => {
-      // The milestone reader still exposes the GitHub-shaped identity/URL.
-      const legacy = milestone as unknown as {
-        externalId?: string;
-        githubId?: number;
-        url?: string;
-        htmlUrl?: string;
-        creator?: DirectoryUser | null;
-      };
-      const creator = legacy.creator
-        ? directoryUser(legacy.creator, repo)
+      const creator = milestone.creator
+        ? directoryUser(milestone.creator, repo)
         : null;
       return {
         number: milestone.number,
-        externalId: legacy.externalId ?? String(legacy.githubId ?? ""),
+        externalId: milestone.externalId,
         title: milestone.title,
         description: milestone.description,
         state: milestone.state,
@@ -352,7 +339,7 @@ export async function refreshRepoMilestones(
         createdAt: milestone.createdAt,
         updatedAt: milestone.updatedAt,
         closedAt: milestone.closedAt,
-        url: legacy.url ?? legacy.htmlUrl ?? "",
+        url: milestone.htmlUrl,
       };
     }),
   );

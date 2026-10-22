@@ -7,6 +7,16 @@ import {
 } from "./milestones";
 
 describe("toRepoMilestone", () => {
+  test("milestones carry a text external id", () => {
+    const m = toRepoMilestone({
+      id: 11,
+      number: 1,
+      title: "v1",
+      state: "open",
+    } as never);
+    expect(m.externalId).toBe("11");
+  });
+
   test("normalizes a REST milestone, resolving dates and the creator", () => {
     const milestone = toRepoMilestone({
       id: 42,
@@ -26,14 +36,14 @@ describe("toRepoMilestone", () => {
 
     expect(milestone).toEqual({
       number: 3,
-      githubId: 42,
+      externalId: "42",
       title: "v1.0",
       description: "First release",
       state: "open",
       dueOn: Date.parse("2026-03-01T00:00:00Z"),
       openIssues: 4,
       closedIssues: 8,
-      creator: { githubId: 7, login: "octocat", avatarUrl: "https://a/7" },
+      creator: { externalId: "7", login: "octocat", avatarUrl: "https://a/7" },
       createdAt: Date.parse("2026-01-01T00:00:00Z"),
       updatedAt: Date.parse("2026-01-02T00:00:00Z"),
       closedAt: null,
@@ -45,7 +55,7 @@ describe("toRepoMilestone", () => {
     const milestone = toRepoMilestone({});
     expect(milestone).toMatchObject({
       number: 0,
-      githubId: 0,
+      externalId: "0",
       title: "",
       state: "open",
       dueOn: null,
@@ -115,12 +125,12 @@ describe("listRepoMilestones", () => {
     expect(out).toHaveLength(1);
     expect(out[0]).toMatchObject({
       number: 1,
-      githubId: 11,
+      externalId: "11",
       title: "v1",
       openIssues: 2,
       closedIssues: 3,
       dueOn: Date.parse("2026-01-01T00:00:00Z"),
-      creator: { githubId: 7, login: "octocat", avatarUrl: "https://a/7" },
+      creator: { externalId: "7", login: "octocat", avatarUrl: "https://a/7" },
     });
     expect(calls[0]).toEqual({
       method: "GET",

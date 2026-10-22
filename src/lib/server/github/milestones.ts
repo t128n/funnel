@@ -17,7 +17,7 @@ const PER_PAGE = 100;
 /** A milestone as mirrored from GitHub (repo-scoped, resolved dates). */
 export interface RepoMilestone {
   number: number;
-  githubId: number;
+  externalId: string;
   title: string;
   description: string;
   /** `open` | `closed`. */
@@ -25,7 +25,7 @@ export interface RepoMilestone {
   dueOn: number | null;
   openIssues: number;
   closedIssues: number;
-  creator: { githubId: number; login: string; avatarUrl: string } | null;
+  creator: { externalId: string; login: string; avatarUrl: string } | null;
   createdAt: number;
   updatedAt: number;
   closedAt: number | null;
@@ -64,7 +64,7 @@ export function toRepoMilestone(raw: RestMilestone): RepoMilestone {
   const creator = raw.creator;
   return {
     number: typeof raw.number === "number" ? raw.number : 0,
-    githubId: typeof raw.id === "number" ? raw.id : 0,
+    externalId: String(raw.id ?? 0),
     title: raw.title ?? "",
     description: raw.description ?? "",
     state: raw.state ?? "open",
@@ -76,7 +76,7 @@ export function toRepoMilestone(raw: RestMilestone): RepoMilestone {
       typeof creator.id === "number" &&
       typeof creator.login === "string"
         ? {
-            githubId: creator.id,
+            externalId: String(creator.id),
             login: creator.login,
             avatarUrl: creator.avatar_url ?? "",
           }
