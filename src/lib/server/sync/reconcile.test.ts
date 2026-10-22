@@ -1,10 +1,8 @@
 import { afterEach, beforeEach, describe, expect, spyOn, test } from "bun:test";
+import type { ForgeEvent, Thread } from "forges";
 import { setConfig } from "#/lib/server/config";
-import {
-  github,
-  resetAppCache,
-  type InstallationOctokit,
-} from "#/lib/server/github/app.server";
+import { resetAppCache } from "#/lib/server/github/app.server";
+import { forge } from "#/lib/server/forge/providers.server";
 import { TEST_CONFIG } from "#tests/test-config";
 import { clearMirror } from "#tests/mirror-helpers";
 import * as mirror from "./mirror";
@@ -12,54 +10,86 @@ import { msUntilNextRun, reconcileRepo, runReconciliation } from "./reconcile";
 
 const realFetch = globalThis.fetch;
 
-// The fake installation client only answers the routes reconcileRepo touches.
-const fake = {
-  request: async (route: string, params: Record<string, unknown> = {}) => {
-    if (route === "GET /repos/{owner}/{repo}") {
-      return { data: { id: 1, name: "core", owner: { login: "recon" } } };
-    }
-    if (route === "GET /repos/{owner}/{repo}/issues") {
-      // Full sweep: one live issue. Anything else mirrored is obsolete.
-      return {
-        data: [
-          {
-            number: 1,
-            node_id: "n1",
-            state: "open",
-            updated_at: "2026-01-01T00:00:00Z",
-          },
-        ],
-        headers: { etag: '"e"' },
-      };
-    }
-    if (route === "GET /repos/{owner}/{repo}/labels") {
-      return { data: [] };
-    }
-    if (route === "GET /repos/{owner}/{repo}/milestones") {
-      return { data: [] };
-    }
-    if (route === "GET /repos/{owner}/{repo}/issues/{issue_number}/timeline") {
-      return { data: [] };
-    }
-    return { data: params };
+function iterable<T>(items: readonly T[]): AsyncIterable<T> {
+  return {
+    async *[Symbol.asyncIterator]() {
+      yield* items;
+    },
+  };
+}
+
+const liveThread = {
+  ref: {
+    forge: "github",
+    instance: "github.com",
+    repo: {
+      forge: "github",
+      instance: "github.com",
+      owner: "recon",
+      name: "core",
+    },
+    kind: "issue",
+    number: "1",
+    externalId: "n1",
   },
-  graphql: async () => ({
-    nodes: [
-      {
-        databaseId: 101,
-        number: 1,
-        title: "live",
-        body: "",
-        state: "OPEN",
-        createdAt: "2026-01-01T00:00:00Z",
-        updatedAt: "2026-01-01T00:00:00Z",
-        labels: { nodes: [] },
-        assignees: { nodes: [] },
-        comments: { nodes: [] },
+  kind: "issue",
+  title: "live",
+  state: "open",
+  isDraft: false,
+  assignees: [],
+  reviewers: [],
+  labels: [],
+  updatedAt: new Date("2026-01-01T00:00:00Z"),
+} as unknown as Thread;
+
+const liveNode = {
+  databaseId: 101,
+  number: 1,
+  title: "live",
+  body: "",
+  state: "OPEN",
+  createdAt: "2026-01-01T00:00:00Z",
+  updatedAt: "2026-01-01T00:00:00Z",
+  labels: { nodes: [] },
+  assignees: { nodes: [] },
+  comments: { nodes: [] },
+};
+
+// The fake installation provider only answers the calls reconcileRepo makes.
+const fakeProvider = {
+  request: async (_method: string, path: string) => {
+    if (path.endsWith("/milestones")) return { data: [] };
+    return { data: {} };
+  },
+  graphql: async () => ({ nodes: [liveNode] }),
+  repos: {
+    get: async () => ({
+      ref: {
+        forge: "github",
+        instance: "github.com",
+        owner: "recon",
+        name: "core",
+        externalId: "1",
       },
-    ],
-  }),
-} as unknown as InstallationOctokit;
+      isArchived: false,
+    }),
+    labels: () => iterable([]),
+    createLabel: async (
+      _ref: unknown,
+      input: { name: string; colour?: string; description?: string },
+    ) => ({
+      name: input.name,
+      color: input.colour ?? "",
+      description: input.description ?? "",
+    }),
+  },
+  threads: {
+    list: () => ({
+      page: async () => ({ items: [liveThread], etag: '"e"' }),
+    }),
+    events: () => iterable([] as ForgeEvent[]),
+  },
+};
 
 let spy: { mockRestore(): void };
 
@@ -78,12 +108,6 @@ beforeEach(() => {
       }
       return Response.json({ id: 7 });
     }
-    if (url.pathname.endsWith("/access_tokens")) {
-      return Response.json({
-        token: "ghs_test",
-        expires_at: new Date(Date.now() + 3_600_000).toISOString(),
-      });
-    }
     // Label provisioning now runs through a `forges` provider: list and
     // create both hit the same route.
     if (url.pathname.endsWith("/labels")) {
@@ -97,7 +121,9 @@ beforeEach(() => {
     }
     return new Response("{}", { status: 404 });
   }) as typeof fetch;
-  spy = spyOn(github, "asInstallation").mockResolvedValue(fake);
+  spy = spyOn(forge, "installationProvider").mockResolvedValue(
+    fakeProvider as never,
+  );
 });
 
 afterEach(() => {
