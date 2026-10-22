@@ -1,61 +1,28 @@
-import { describe, expect, test } from "bun:test";
-import type { InstallationOctokit } from "./app.server";
+import { afterEach, beforeEach, describe, expect, spyOn, test } from "bun:test";
 import { listRepoAssignees } from "./assignees";
+import { forge } from "#/lib/server/forge/providers.server";
 
-/** A fake installation client serving paged `GET /assignees` responses. */
-function fake(pages: unknown[][]): InstallationOctokit {
-  return {
-    request: async (
-      route: string,
-      params: Record<string, unknown> = {},
-    ) => {
-      expect(route).toBe("GET /repos/{owner}/{repo}/assignees");
-      expect(params.per_page).toBe(100);
-      const page = Number(params.page ?? 1);
-      return { data: pages[page - 1] ?? [] };
-    },
-  } as unknown as InstallationOctokit;
+let actors: Array<{ id: string; login: string; avatarUrl?: string }> = [];
+let spy: ReturnType<typeof spyOn>;
+function fakeProvider() {
+  return { repos: { assignableUsers: () => ({ async *[Symbol.asyncIterator]() { for (const a of actors) yield a; } }) } };
 }
-
-function restUser(id: number, login: string) {
-  return { id, login, avatar_url: `https://avatars/${login}.png` };
-}
-
-/** A full page (100) forces a second request. */
-function fullPage(startId: number): ReturnType<typeof restUser>[] {
-  return Array.from({ length: 100 }, (_, i) =>
-    restUser(startId + i, `user${startId + i}`),
-  );
-}
+beforeEach(() => {
+  actors = [];
+  spy = spyOn(forge, "repoRef").mockReturnValue({ forge: "github", instance: "github.com", owner: "acme", name: "widgets" });
+});
+afterEach(() => spy.mockRestore());
 
 describe("listRepoAssignees", () => {
-  test("returns mapped users from a single short page", async () => {
-    const users = await listRepoAssignees(fake([[restUser(1, "octocat")]]), "o", "r");
-    expect(users).toEqual([
-      { githubId: 1, login: "octocat", avatarUrl: "https://avatars/octocat.png" },
+  test("maps actors to mirror users", async () => {
+    actors = [{ id: "1", login: "octocat", avatarUrl: "https://a/1" }, { id: "2", login: "hubot" }];
+    expect(await listRepoAssignees(fakeProvider() as never, "acme", "widgets")).toEqual([
+      { githubId: 1, login: "octocat", avatarUrl: "https://a/1" },
+      { githubId: 2, login: "hubot", avatarUrl: "" },
     ]);
   });
-
-  test("paginates until a short page", async () => {
-    const users = await listRepoAssignees(
-      fake([fullPage(1), [restUser(101, "last")]]),
-      "o",
-      "r",
-    );
-    expect(users).toHaveLength(101);
-    expect(users.at(-1)).toEqual({
-      githubId: 101,
-      login: "last",
-      avatarUrl: "https://avatars/last.png",
-    });
-  });
-
-  test("drops entries missing an id or login", async () => {
-    const users = await listRepoAssignees(
-      fake([[restUser(1, "ok"), { login: "noid" }, { id: 2 }, restUser(3, "yes")]]),
-      "o",
-      "r",
-    );
-    expect(users.map((u) => u.login)).toEqual(["ok", "yes"]);
+  test("skips an actor without a numeric id", async () => {
+    actors = [{ id: "not-a-number", login: "ghost" }];
+    expect(await listRepoAssignees(fakeProvider() as never, "acme", "widgets")).toEqual([]);
   });
 });

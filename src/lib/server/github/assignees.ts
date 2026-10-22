@@ -5,41 +5,33 @@
  * assigned to an issue in the repo. Funnel mirrors this per repo so the
  * Inspector Pane can offer assignees without a network call on the read path
  * (the write itself still runs against GitHub with the user token).
+ *
+ * The read goes through a `forges` installation provider, which paginates the
+ * endpoint for us; each `Actor` maps onto the mirror's {@link UserRecord}.
  */
-import type { InstallationOctokit } from "./app.server";
 import type { UserRecord } from "#lib/server/sync/mirror";
+import {
+  forge,
+  type GitHubProvider,
+} from "#/lib/server/forge/providers.server";
 
-const PER_PAGE = 100;
-
-interface RestAssignee {
-  id?: number;
-  login?: string;
-  avatar_url?: string;
-}
-
-/** Walk paginated `GET /repos/{owner}/{repo}/assignees` until a short page. */
+/** Walk the repo's assignable users and map them to mirror users. */
 export async function listRepoAssignees(
-  octokit: InstallationOctokit,
+  provider: GitHubProvider,
   owner: string,
   repo: string,
 ): Promise<UserRecord[]> {
   const all: UserRecord[] = [];
-  for (let page = 1; ; page++) {
-    const { data } = await octokit.request(
-      "GET /repos/{owner}/{repo}/assignees",
-      { owner, repo, per_page: PER_PAGE, page },
-    );
-    const items = data as unknown as RestAssignee[];
-    for (const item of items) {
-      if (typeof item.id === "number" && typeof item.login === "string") {
-        all.push({
-          githubId: item.id,
-          login: item.login,
-          avatarUrl: item.avatar_url ?? "",
-        });
-      }
-    }
-    if (items.length < PER_PAGE) break;
+  for await (const actor of provider.repos.assignableUsers(
+    forge.repoRef(owner, repo),
+  )) {
+    const githubId = Number(actor.id);
+    if (!Number.isInteger(githubId)) continue;
+    all.push({
+      githubId,
+      login: actor.login,
+      avatarUrl: actor.avatarUrl ?? "",
+    });
   }
   return all;
 }

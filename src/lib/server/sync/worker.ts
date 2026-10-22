@@ -326,8 +326,8 @@ export async function refreshRepoAssignees(
   installationId: number,
   repo: mirror.RepoRow,
 ): Promise<void> {
-  const octokit = await github.asInstallation(installationId);
-  const users = await listRepoAssignees(octokit, repo.org, repo.name);
+  const provider = await forge.installationProvider(installationId);
+  const users = await listRepoAssignees(provider, repo.org, repo.name);
   mirror.replaceRepoAssignees(repo.githubId, users);
 }
 

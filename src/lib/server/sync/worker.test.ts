@@ -31,11 +31,11 @@ let nodes: unknown[] = [];
 let graphqlCalls: Array<Record<string, unknown>> = [];
 let failIssues = false;
 
-/** Returned by the fake `GET /repos/{owner}/{repo}/assignees` (refreshRepoAssignees). */
+/** Returned by the `forges` assignable-users listing (refreshRepoAssignees). */
 interface FakeAssignee {
-  id: number;
+  id: string;
   login: string;
-  avatar_url: string;
+  avatarUrl: string;
 }
 let repoAssignees: FakeAssignee[] = [];
 
@@ -50,9 +50,6 @@ const fake = {
     }
     if (route === "GET /repos/{owner}/{repo}/milestones") {
       return { data: [] };
-    }
-    if (route === "GET /repos/{owner}/{repo}/assignees") {
-      return { data: repoAssignees };
     }
     if (route === "GET /repos/{owner}/{repo}/issues") {
       if (failIssues) throw new Error("boom");
@@ -146,6 +143,10 @@ beforeEach(() => {
     }
     if (url.pathname.endsWith("/labels")) {
       return Response.json([]);
+    }
+    if (url.pathname.endsWith("/assignees")) {
+      const page = Number(url.searchParams.get("page") ?? 1);
+      return Response.json(page === 1 ? repoAssignees : []);
     }
     return new Response("{}", { status: 404 });
   }) as typeof fetch;
@@ -356,8 +357,8 @@ describe("runRepoCycle", () => {
 
   test("mirrors the repo's assignable users", async () => {
     repoAssignees = [
-      { id: 42, login: "amy", avatar_url: "https://avatars/amy.png" },
-      { id: 43, login: "zoe", avatar_url: "https://avatars/zoe.png" },
+      { id: "42", login: "amy", avatarUrl: "https://avatars/amy.png" },
+      { id: "43", login: "zoe", avatarUrl: "https://avatars/zoe.png" },
     ];
 
     await runRepoCycle("orgA", "core");
