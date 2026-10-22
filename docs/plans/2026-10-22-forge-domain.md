@@ -84,7 +84,7 @@ test("UserRef carries an external identity", () => {
 **Notes:** Keep the query function names (`issueList`, `issueDetail`, `milestoneIssues`, etc.) and their parameter order; only field names/types change. `repoId` in DTOs stays the internal integer. `CommentItem.externalId` is the comment's external id. Port every existing query/filter/detail test to the new fields.
 
 ### T18 viewer, durable state and API routes · Complexity 4 (O-1) · Est. context 38k
-**Owns:** src/lib/server/auth/index.ts, src/lib/server/viewer.ts, src/lib/server/work-notes.ts, src/lib/server/work-notes.test.ts, src/lib/server/attachments/store.ts, src/lib/server/attachments/store.test.ts, src/lib/server/intake/actions.ts, src/lib/server/intake/actions.test.ts, src/routes/api/mirror/issues/[owner]/[repo]/+server.ts, src/routes/api/mirror/issues/[owner]/[repo]/[number]/+server.ts
+**Owns:** src/lib/server/auth/index.ts, src/lib/server/viewer.ts, src/lib/server/work-notes.ts, src/lib/server/work-notes.test.ts, src/lib/server/attachments/store.ts, src/lib/server/attachments/store.test.ts, src/lib/server/intake/actions.ts, src/lib/server/intake/actions.test.ts, src/routes/api/mirror/issues/[owner]/[repo]/+server.ts, src/routes/api/mirror/issues/[owner]/[repo]/[number]/+server.ts, src/routes/*/settings/people/+page.server.ts, tests/mirror-issues-route.test.ts
 **Components:** 2
 **LOC owned:** 260
 **Tests:** fast
