@@ -558,7 +558,7 @@ export async function createMilestone(
     publish({ type: "issues", repo: input.repo, numbers: [] });
     return {
       ok: true,
-      value: { number: milestone.number, htmlUrl: milestone.htmlUrl },
+      value: { number: milestone.number, htmlUrl: milestone.url },
     };
   } catch (error) {
     log.warn(

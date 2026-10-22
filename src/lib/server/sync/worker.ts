@@ -339,7 +339,7 @@ export async function refreshRepoMilestones(
         createdAt: milestone.createdAt,
         updatedAt: milestone.updatedAt,
         closedAt: milestone.closedAt,
-        url: milestone.htmlUrl,
+        url: milestone.url,
       };
     }),
   );

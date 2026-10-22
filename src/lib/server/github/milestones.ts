@@ -29,7 +29,7 @@ export interface RepoMilestone {
   createdAt: number;
   updatedAt: number;
   closedAt: number | null;
-  htmlUrl: string;
+  url: string;
 }
 
 /** The subset of the REST milestone payload this module reads. */
@@ -84,7 +84,7 @@ export function toRepoMilestone(raw: RestMilestone): RepoMilestone {
     createdAt: ms(raw.created_at) ?? 0,
     updatedAt: ms(raw.updated_at) ?? 0,
     closedAt: ms(raw.closed_at),
-    htmlUrl: raw.html_url ?? "",
+    url: raw.html_url ?? "",
   };
 }
 

@@ -47,8 +47,14 @@ describe("toRepoMilestone", () => {
       createdAt: Date.parse("2026-01-01T00:00:00Z"),
       updatedAt: Date.parse("2026-01-02T00:00:00Z"),
       closedAt: null,
-      htmlUrl: "https://github.com/orgA/core/milestone/3",
+      url: "https://github.com/orgA/core/milestone/3",
     });
+  });
+
+  test("milestones use url", () => {
+    expect(toRepoMilestone({ id: 11, number: 1, html_url: "x" } as never).url).toBe(
+      "x",
+    );
   });
 
   test("tolerates missing fields", () => {
@@ -130,6 +136,7 @@ describe("listRepoMilestones", () => {
       openIssues: 2,
       closedIssues: 3,
       dueOn: Date.parse("2026-01-01T00:00:00Z"),
+      url: "https://github.com/acme/widgets/milestone/1",
       creator: { externalId: "7", login: "octocat", avatarUrl: "https://a/7" },
     });
     expect(calls[0]).toEqual({
