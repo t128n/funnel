@@ -154,7 +154,7 @@ test("issue routes no longer pass an Octokit client", () => {
 **Notes:** This is a rename-only task: `auth.octokit` → `auth.provider`. Adapt route tests' fake auth result and provider fake; keep their HTTP assertions.
 
 ### T7 intake actions · Complexity 4 (O-1) · Est. context 36k
-**Owns:** src/lib/server/intake/actions.ts, src/lib/server/intake/actions.test.ts, src/routes/(app)/inbox/submission/[id]/+page.server.ts
+**Owns:** src/lib/server/intake/actions.ts, src/lib/server/intake/actions.test.ts, src/routes/*/inbox/submission/[id]/+page.server.ts
 **Components:** 2
 **LOC owned:** 180
 **Tests:** fast
