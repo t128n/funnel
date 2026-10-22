@@ -92,6 +92,9 @@ beforeEach(() => {
       }
       return Response.json(JSON.parse(String(init?.body ?? "{}")));
     }
+    if (url.pathname.endsWith("/milestones")) {
+      return Response.json([]);
+    }
     return new Response("{}", { status: 404 });
   }) as typeof fetch;
   spy = spyOn(github, "asInstallation").mockResolvedValue(fake);
