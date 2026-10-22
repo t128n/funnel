@@ -133,3 +133,27 @@ test("the UI has no GitHub-shaped identity field", () => {
 ```
 **Steps:** 1 failing test, 2 run: FAIL, 3 implement, 4 run: PASS
 **Notes:** `mutations.ts` keeps its `htmlUrl` return types (write contract unchanged). Update the docs that name `mirror_github_*` or `github_id`. Finish with `bun run check` and the full suite.
+
+### T20 milestone external ids · Complexity 2 (O-1) · Est. context 24k
+**Owns:** src/lib/server/github/milestones.ts, src/lib/server/github/milestones.test.ts, src/lib/server/sync/worker.ts, src/lib/server/sync/worker.test.ts
+**Components:** 1
+**LOC owned:** 80
+**Tests:** fast
+**Model:** haiku
+**Kind:** mechanical
+**Est. time:** 2 min
+**Produces:** `RepoMilestone { number: number; externalId: string; title: string; description: string; state: string; dueOn: number | null; openIssues: number; closedIssues: number; creator: { externalId: string; login: string; avatarUrl: string } | null; createdAt: number; updatedAt: number; closedAt: number | null; url: string }`
+- e.g. toRepoMilestone({ id: 11, number: 1, creator: { id: 7, login: "octocat" } }) -> { externalId: "11", number: 1, creator: { externalId: "7", login: "octocat", avatarUrl: "" }, ... }
+- e.g. worker mapping a milestone -> `externalId: milestone.externalId`
+**Review Focus:** encoding: `externalId` is `String(raw.id)` and `String(creator.id)`; protocol: `worker.ts` uses `milestone.externalId` directly and the legacy `githubId?` shim is removed; state: every existing milestone test still passes with the renamed fields.
+**Test code (verbatim):**
+```ts
+import { expect, test } from "bun:test";
+import { toRepoMilestone } from "./milestones";
+test("milestones carry a text external id", () => {
+  const m = toRepoMilestone({ id: 11, number: 1, title: "v1", state: "open" } as never);
+  expect(m.externalId).toBe("11");
+});
+```
+**Steps:** 1 failing test, 2 run: FAIL, 3 implement, 4 run: PASS
+**Notes:** `Kind: mechanical` because this is a rename plus a shim deletion. Remove the `LegacyUser` interface and the `githubId ??` fallback in `worker.ts`.
