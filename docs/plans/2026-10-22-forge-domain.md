@@ -41,6 +41,7 @@ flowchart LR
   %% taskgraph
   T17 --> T18
   T19
+  T20 --> T21
 ```
 
 ```mermaid
@@ -157,3 +158,26 @@ test("milestones carry a text external id", () => {
 ```
 **Steps:** 1 failing test, 2 run: FAIL, 3 implement, 4 run: PASS
 **Notes:** `Kind: mechanical` because this is a rename plus a shim deletion. Remove the `LegacyUser` interface and the `githubId ??` fallback in `worker.ts`.
+
+### T21 milestone url field · Complexity 2 (O-1) · Est. context 22k
+**Owns:** src/lib/server/github/milestones.ts, src/lib/server/github/milestones.test.ts, src/lib/server/issues/mutations.ts, src/lib/server/issues/mutations.test.ts, src/lib/server/sync/worker.ts
+**Components:** 1
+**LOC owned:** 60
+**Tests:** fast
+**Model:** haiku
+**Kind:** mechanical
+**Est. time:** 2 min
+**Produces:** `RepoMilestone.url: string`
+- e.g. toRepoMilestone({ id: 11, number: 1, html_url: "https://github.com/acme/widgets/milestone/1" }) -> { url: "https://github.com/acme/widgets/milestone/1", externalId: "11", ... }
+- e.g. createMilestone(...) -> { ok: true, value: { number: 3, htmlUrl: "https://github.com/acme/widgets/milestone/3" } }
+**Review Focus:** protocol: `RepoMilestone.url` replaces `htmlUrl`; `mutations.createMilestone` maps `milestone.url` into the unchanged write-response `htmlUrl`; state: every existing milestone/mutation test passes.
+**Test code (verbatim):**
+```ts
+import { expect, test } from "bun:test";
+import { toRepoMilestone } from "./milestones";
+test("milestones use url", () => {
+  expect(toRepoMilestone({ id: 11, number: 1, html_url: "x" } as never).url).toBe("x");
+});
+```
+**Steps:** 1 failing test, 2 run: FAIL, 3 implement, 4 run: PASS
+**Notes:** Keep the write-response `htmlUrl`; only the read DTO renames.
