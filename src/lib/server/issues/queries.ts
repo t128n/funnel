@@ -53,9 +53,20 @@ import {
   type IssueFilterContext,
   STATUS_VALUES,
 } from "./filters";
+import {
+  BOARD_PAGE_SIZE,
+  decodeCursor,
+  encodeCursor,
+  filterSignature,
+  ISSUE_PAGE_SIZE,
+  pageLimit,
+  type BoardColumnPage,
+  type ListPage,
+  type PageOptions,
+  type PagedStatusBoard,
+} from "./pagination";
 import type {
   AttentionItem,
-  BoardColumn,
   CommentItem,
   FilterOptions,
   InboxEntry,
@@ -64,7 +75,6 @@ import type {
   IssueOption,
   MilestoneItem,
   RepoMilestoneRef,
-  StatusBoard,
   StatusKey,
   UserRef,
 } from "./types";
@@ -221,10 +231,96 @@ function rawQuery(where: SQL | undefined, opts: ListOptions): RawRow[] {
       ),
     )
     .where(where)
-    .orderBy(PRIORITY_RANK, desc(mirrorThread.updatedAt));
+    .orderBy(
+      PRIORITY_RANK,
+      desc(mirrorThread.updatedAt),
+      desc(mirrorThread.repoId),
+      desc(mirrorThread.number),
+    );
 
   const rows = opts.limit ? query.limit(opts.limit).all() : query.all();
   return rows as RawRow[];
+}
+
+/** Priority rank mirroring {@link PRIORITY_RANK}: `p1`..`p3`, else last. */
+function priorityRank(priority: string | null): number {
+  switch (priority) {
+    case "P1":
+      return 0;
+    case "P2":
+      return 1;
+    case "P3":
+      return 2;
+    default:
+      return 3;
+  }
+}
+
+/**
+ * Keyset predicate resuming strictly after `key` in the fixed sort order
+ * (rank ASC, updatedAt DESC, repoId DESC, number DESC). Uses the same
+ * {@link PRIORITY_RANK} expression as the `ORDER BY`, so the two cannot drift.
+ */
+function cursorWhere(key: [number, number, number, number]): SQL {
+  const [rank, updatedAt, repoId, number] = key;
+  return sql`(
+    ${PRIORITY_RANK} > ${rank}
+    OR (${PRIORITY_RANK} = ${rank} AND (
+      ${mirrorThread.updatedAt} < ${updatedAt}
+      OR (${mirrorThread.updatedAt} = ${updatedAt} AND (
+        ${mirrorThread.repoId} < ${repoId}
+        OR (${mirrorThread.repoId} = ${repoId}
+          AND ${mirrorThread.number} < ${number})
+      ))
+    ))
+  )`;
+}
+
+/** Count rows matching a `WHERE` without hydrating children (plan T1). */
+function countRows(where: SQL | undefined): number {
+  const row = db
+    .select({ value: sql<number>`count(*)` })
+    .from(mirrorThread)
+    .where(where)
+    .get();
+  return Number(row?.value ?? 0);
+}
+
+/**
+ * Fetch one page of issues plus the unpaged total. Fetches `limit + 1` rows to
+ * learn whether a further page exists, then hydrates only `limit`. A cursor
+ * that fails to decode (malformed or from another filter) falls back to the
+ * first page.
+ */
+function pageIssues(
+  where: SQL | undefined,
+  opts: PageOptions,
+  signature: string,
+  defaultSize: number,
+): ListPage<IssueListItem> {
+  const limit = pageLimit(opts.limit, defaultSize);
+  const key = opts.cursor ? decodeCursor(opts.cursor, signature) : null;
+  const after = key ? cursorWhere(key) : undefined;
+  const pageWhere = after ? (where ? and(where, after) : after) : where;
+
+  const rows = rawQuery(pageWhere, { limit: limit + 1 });
+  const hasMore = rows.length > limit;
+  const items = hydrate(hasMore ? rows.slice(0, limit) : rows);
+  const last = items[items.length - 1];
+
+  return {
+    items,
+    total: countRows(where),
+    nextCursor:
+      hasMore && last
+        ? encodeCursor(signature, [
+            priorityRank(last.priority),
+            last.updatedAt,
+            last.repoId,
+            last.number,
+          ])
+        : null,
+  };
 }
 
 /** Row key shared by the batched label/assignee lookups. */
@@ -336,11 +432,12 @@ function hydrate(rows: RawRow[]): IssueListItem[] {
  */
 export function allIssues(
   filter: IssueFilter,
-  opts: ListOptions = {},
-): IssueListItem[] {
+  opts: PageOptions = {},
+): ListPage<IssueListItem> {
   const base = buildIssueWhere(filter);
   const triaged = isNotNull(mirrorThread.status);
-  return hydrate(rawQuery(base ? and(base, triaged) : triaged, opts));
+  const where = base ? and(base, triaged) : triaged;
+  return pageIssues(where, opts, filterSignature(filter), ISSUE_PAGE_SIZE);
 }
 
 /**
@@ -350,19 +447,24 @@ export function allIssues(
 export function myIssues(
   filter: IssueFilter,
   viewerExternalId: string | null | undefined,
-  opts: ListOptions = {},
-): IssueListItem[] {
+  opts: PageOptions = {},
+): ListPage<IssueListItem> {
   if (
     viewerExternalId === null ||
     viewerExternalId === undefined ||
     viewerExternalId.length === 0
   ) {
-    return [];
+    return { items: [], total: 0, nextCursor: null };
   }
   const base = buildIssueWhere({ ...filter, assignees: [] });
   const viewer = assigneeExists([viewerExternalId]);
   const where = base ? and(base, viewer) : viewer;
-  return hydrate(rawQuery(where, opts));
+  return pageIssues(
+    where,
+    opts,
+    filterSignature({ ...filter, assignees: [] }, `viewer:${viewerExternalId}`),
+    ISSUE_PAGE_SIZE,
+  );
 }
 
 /** A single issue row by mirror identity (Inspector Pane, Milestone 6). */
@@ -406,41 +508,109 @@ function matchesSearch(
   return fields.some((field) => field?.toLowerCase().includes(needle));
 }
 
-export interface InboxResult {
+export interface InboxResult extends ListPage<InboxEntry> {
+  /** Backwards-compatible alias for {@link ListPage.items}. */
   entries: InboxEntry[];
 }
 
-/**
- * Inbox (SPEC §2.1): pending intake submissions followed by untriaged issues
- * (open, no status label). Filters apply to the GitHub issues; the search term
- * also matches submission title/body. Submissions are always shown because they
- * carry no repo/status/assignee metadata to filter on.
- */
-export function inbox(
-  filter: IssueFilter,
-  opts: ListOptions = {},
-): InboxResult {
-  const submissions = listSubmissions().filter((submission) =>
+/** Pending submissions matching the search term (submissions carry no metadata). */
+function pendingSubmissions(filter: IssueFilter) {
+  return listSubmissions().filter((submission) =>
     matchesSearch(filter.search, submission.title, submission.body),
   );
+}
 
-  // SQL form of `isUntriaged` (#lib/labels), which the client projects the
-  // queue with. Keep the two in step.
+/** The `WHERE` for untriaged open issues (SQL mirror of `isUntriaged`). */
+function untriagedWhere(filter: IssueFilter): SQL {
+  // Keep in step with `isUntriaged` (#lib/labels), which the client projects the
+  // queue with.
   const untriaged = and(
     eq(mirrorThread.state, "open"),
     isNull(mirrorThread.status),
   );
   const base = buildIssueWhere(filter);
-  const where = base ? and(untriaged, base) : untriaged;
-  const issues = hydrate(rawQuery(where, opts));
+  return (base ? and(untriaged, base) : untriaged) as SQL;
+}
 
-  const entries: InboxEntry[] = [
+/**
+ * Inbox (SPEC §2.1): pending intake submissions followed by untriaged issues
+ * (open, no status label). Filters apply to the GitHub issues; the search term
+ * also matches submission title/body. Submissions are always returned because
+ * they carry no repo/status/assignee metadata to filter on, so they are
+ * included on every page and the client de-duplicates them by id.
+ */
+export function inbox(
+  filter: IssueFilter,
+  opts: PageOptions = {},
+): InboxResult {
+  const submissions = pendingSubmissions(filter);
+  const page = pageIssues(
+    untriagedWhere(filter),
+    opts,
+    // The `inbox` discriminator keeps this cursor from being replayed against
+    // the disjoint All Issues feed, whose filter signature is otherwise equal.
+    filterSignature(filter, "inbox"),
+    ISSUE_PAGE_SIZE,
+  );
+
+  const items: InboxEntry[] = [
     ...submissions.map(
       (submission): InboxEntry => ({ kind: "submission", submission }),
     ),
-    ...issues.map((issue): InboxEntry => ({ kind: "issue", issue })),
+    ...page.items.map((issue): InboxEntry => ({ kind: "issue", issue })),
   ];
-  return { entries };
+  return {
+    items,
+    entries: items,
+    total: submissions.length + page.total,
+    nextCursor: page.nextCursor,
+  };
+}
+
+/**
+ * Inbox badge count: pending submissions plus untriaged open issues, without
+ * materialising (or hydrating) the queue.
+ */
+export function inboxCount(filter: IssueFilter): number {
+  return pendingSubmissions(filter).length + countRows(untriagedWhere(filter));
+}
+
+/** Build the `WHERE` for one board lane (status columns or the Done window). */
+function boardColumnWhere(
+  filter: IssueFilter,
+  column: StatusKey,
+  cutoff: number,
+): SQL {
+  const base = buildIssueWhere({ ...filter, statuses: [] });
+  const clause =
+    column === "done"
+      ? and(
+          eq(mirrorThread.state, "closed"),
+          eq(mirrorThread.stateReason, "completed"),
+          gte(mirrorThread.closedAt, cutoff),
+        )
+      : and(
+          eq(mirrorThread.state, "open"),
+          eq(mirrorThread.status, column),
+        );
+  return (base ? and(base, clause) : clause) as SQL;
+}
+
+/** One page of a single board lane, with the lane's server-side total. */
+export async function boardColumnPage(
+  filter: IssueFilter,
+  column: StatusKey,
+  opts: PageOptions = {},
+): Promise<ListPage<IssueListItem>> {
+  if (!(column in BOARD_LABELS)) throw new Error(`Unknown column: ${column}`);
+  const { board } = await getConfig();
+  const cutoff = Date.now() - board.done_days * DAY_MS;
+  return pageIssues(
+    boardColumnWhere(filter, column, cutoff),
+    opts,
+    filterSignature({ ...filter, statuses: [] }, `board:${column}`),
+    BOARD_PAGE_SIZE,
+  );
 }
 
 /**
@@ -449,41 +619,37 @@ export function inbox(
  * orthogonal flag on the card, not a lane, so it never appears here. Canceled
  * issues are omitted. The status filter dimension is ignored here — the columns
  * already partition by status — while every other dimension applies.
+ *
+ * Each column carries its own server-computed `total` and first-page
+ * `nextCursor`; further pages come from {@link boardColumnPage}.
  */
 export async function statusBoard(
   filter: IssueFilter,
-  opts: ListOptions = {},
-): Promise<StatusBoard> {
+  opts: PageOptions = {},
+): Promise<PagedStatusBoard> {
   const { board } = await getConfig();
   const cutoff = Date.now() - board.done_days * DAY_MS;
-  const base = buildIssueWhere({ ...filter, statuses: [] });
+  const signatureBase = { ...filter, statuses: [] };
 
-  const columns: BoardColumn[] = STATUS_VALUES.map((status) => {
-    const clause = and(
-      eq(mirrorThread.state, "open"),
-      eq(mirrorThread.status, status),
+  const columnPage = (column: StatusKey): BoardColumnPage => {
+    const page = pageIssues(
+      boardColumnWhere(filter, column, cutoff),
+      { limit: opts.limit },
+      filterSignature(signatureBase, `board:${column}`),
+      BOARD_PAGE_SIZE,
     );
-    const where = base ? and(base, clause) : clause;
     return {
-      key: status,
-      label: BOARD_LABELS[status],
-      issues: hydrate(rawQuery(where, opts)),
+      key: column,
+      label: BOARD_LABELS[column],
+      issues: page.items,
+      total: page.total,
+      nextCursor: page.nextCursor,
     };
-  });
+  };
 
-  const doneClause = and(
-    eq(mirrorThread.state, "closed"),
-    eq(mirrorThread.stateReason, "completed"),
-    gte(mirrorThread.closedAt, cutoff),
-  );
-  const doneWhere = base ? and(base, doneClause) : doneClause;
-  columns.push({
-    key: "done",
-    label: BOARD_LABELS.done,
-    issues: hydrate(rawQuery(doneWhere, opts)),
-  });
-
-  return { columns };
+  return {
+    columns: [...STATUS_VALUES.map(columnPage), columnPage("done")],
+  };
 }
 
 /**

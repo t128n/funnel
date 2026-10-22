@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { fade } from 'svelte/transition';
-	import { flip } from 'svelte/animate';
+	import { untrack } from 'svelte';
+	import { Virtualizer, type VirtualizerHandle } from 'virtua/svelte';
 	import { page } from '$app/state';
 	import FeedSearch from '#lib/components/filter/FeedSearch.svelte';
 	import FilterPopover from '#lib/components/filter/FilterPopover.svelte';
@@ -11,8 +11,8 @@
 	import SplitView from '#lib/components/shell/SplitView.svelte';
 	import SubmissionRow from '#lib/components/inbox/SubmissionRow.svelte';
 	import IssueRow from '#lib/components/issue/IssueRow.svelte';
-	import { buildGroups } from '#lib/components/issue/grouping';
 	import * as Alert from '#lib/components/ui/alert';
+	import { createFeed } from '#lib/client/feed.svelte';
 	import {
 		isGroupCollapsed,
 		toggleGroup,
@@ -23,26 +23,56 @@
 		reconcileIssues,
 		reconcileSubmissions
 	} from '#lib/client/optimistic.svelte';
+	import { FEED_ENDPOINTS, flattenInboxRows } from '#lib/feeds';
 	import { parseIssueParams, type IssueParams } from '#lib/issue-url';
-	import type { IssueListItem } from '#lib/server/issues/types';
+	import type { IssueListItem, RenderedInboxEntry } from '#lib/server/issues/types';
 	import type { LayoutProps } from './$types';
 
 	let { data, children }: LayoutProps = $props();
 
-	const entries = $derived(projectInboxEntries(data.inbox.entries));
-	// The queue mixes staged submissions with untriaged issues; split them so
-	// sections stay stable and the issue half can be grouped like other feeds.
-	const submissions = $derived(
-		entries.filter((entry) => entry.kind === 'submission')
-	);
-	const issueEntries = $derived(entries.filter((entry) => entry.kind === 'issue'));
-	const issues = $derived(issueEntries.map((entry) => entry.issue));
+	/** How close to the end (px) the scroller must be to fetch the next page. */
+	const END_THRESHOLD = 300;
+
+	// The queue is one keyset feed: submissions always ride along on the first
+	// page, issues walk forward with the cursor. `projectInboxEntries` layers
+	// optimistic hides/triage on top of the loaded window.
+	const inboxFeed = createFeed<RenderedInboxEntry>({
+		endpoint: FEED_ENDPOINTS.inbox,
+		initial: untrack(() => data.inbox),
+		key: () => page.url.search,
+		itemKey: (entry) =>
+			entry.kind === 'submission'
+				? `submission:${entry.submission.id}`
+				: `issue:${entry.issue.repoId}:${entry.issue.number}`,
+		query: () => new URLSearchParams(page.url.search)
+	});
+
+	// A fresh server page (initial load, filter change, SSE refresh) is merged
+	// into the loaded window; a new filter key replaces it.
+	$effect(() => {
+		inboxFeed.sync(data.inbox);
+	});
+
+	const entries = $derived(projectInboxEntries(inboxFeed.items));
 	const requested = $derived(getGroupBy());
 	// A stored `project` preference with no configured projects renders flat.
 	const groupBy = $derived(
 		requested === 'project' && data.projects.length === 0 ? 'none' : requested
 	);
-	const groups = $derived(buildGroups(issues, groupBy, data.repoShortcodes, data.projects));
+	const rows = $derived(
+		flattenInboxRows(
+			entries,
+			groupBy,
+			data.repoShortcodes,
+			data.projects,
+			(key) => isGroupCollapsed(key)
+		)
+	);
+	// The server total covers the whole queue; the optimistic projection may
+	// hide loaded rows, so subtract exactly those from the head count.
+	const hidden = $derived(Math.max(0, inboxFeed.items.length - entries.length));
+	const total = $derived(Math.max(0, inboxFeed.total - hidden));
+
 	// The open issue and staged submission are route params.
 	const selectedIssue = $derived(parseIssueParams(page.params as IssueParams));
 	const selectedSubmissionId = $derived(
@@ -54,13 +84,35 @@
 	$effect(() => {
 		const issues: IssueListItem[] = [];
 		const submissionIds: string[] = [];
-		for (const entry of data.inbox.entries) {
+		for (const entry of data.inbox.items) {
 			if (entry.kind === 'issue') issues.push(entry.issue);
 			else submissionIds.push(entry.submission.id);
 		}
 		reconcileIssues(issues);
 		reconcileSubmissions(submissionIds);
 	});
+
+	let scroller: HTMLDivElement | undefined = $state();
+	let handle: VirtualizerHandle | undefined = $state();
+
+	// A filter change swaps the loaded window; return the reader to the top.
+	let lastReset = untrack(() => page.url.search);
+	$effect(() => {
+		const key = page.url.search;
+		if (key === lastReset) return;
+		lastReset = key;
+		if (scroller) scroller.scrollTop = 0;
+		handle?.scrollTo(0);
+	});
+
+	/** Fetch the next page once the window is within {@link END_THRESHOLD}. */
+	function maybeLoadMore(): void {
+		if (inboxFeed.loading || inboxFeed.error !== null || inboxFeed.nextCursor === null) return;
+		if (!handle) return;
+		const remaining =
+			handle.getScrollSize() - handle.getViewportSize() - handle.getScrollOffset();
+		if (remaining <= END_THRESHOLD) void inboxFeed.loadMore();
+	}
 
 	const formError = $derived(
 		page.form && 'message' in (page.form.data ?? {})
@@ -89,7 +141,7 @@
 				class="border-[color:var(--surface-divider)] flex min-h-11 shrink-0 flex-wrap items-center gap-2 border-b px-3 py-1.5 sm:py-0"
 			>
 				<h1 class="text-base font-semibold tracking-tight">Inbox</h1>
-				<span class="mono text-muted-foreground text-xs">{entries.length}</span>
+				<span class="mono text-muted-foreground text-xs">{total}</span>
 				<div
 					class="order-last w-full min-w-0 sm:order-none sm:mx-auto sm:w-auto sm:max-w-md sm:flex-1 sm:px-2"
 				>
@@ -116,67 +168,55 @@
 					Inbox zero. Nothing staged or untriaged.
 				</div>
 			{:else}
-				<div class="issue-list flex min-h-0 flex-1 flex-col overflow-y-auto">
+				<div class="issue-list flex min-h-0 flex-1 flex-col">
 					<IssueListHeader />
-					<div class="flex flex-col pb-2">
-						{#if submissions.length > 0}
-							{@const submissionSection = 'inbox:submissions'}
-							{@const submissionsCollapsed = isGroupCollapsed(submissionSection)}
-							<section class="flex flex-col">
-								<IssueGroupHeader
-									label="Staged"
-									count={submissions.length}
-									collapsed={submissionsCollapsed}
-									ontoggle={() => toggleGroup(submissionSection)}
-								/>
-								{#if !submissionsCollapsed}
-									{#each submissions as entry (entry.submission.id)}
-										<div animate:flip={{ duration: 150 }} out:fade={{ duration: 150 }}>
-											<SubmissionRow
-												submission={entry.submission}
-												selected={selectedSubmissionId === entry.submission.id}
-											/>
-										</div>
-									{/each}
-								{/if}
-							</section>
-						{/if}
-
-						{#if groupBy === 'none'}
-							{#each issueEntries as entry (`${entry.issue.repoId}:${entry.issue.number}`)}
-								<div animate:flip={{ duration: 150 }} out:fade={{ duration: 150 }}>
-									<IssueRow
-										issue={entry.issue}
-										selected={isSelectedIssue(entry.issue.repo, entry.issue.number)}
-										repoShortcodes={data.repoShortcodes}
-									/>
-								</div>
-							{/each}
-						{:else}
-							{#each groups as group (group.key)}
-								{@const sectionKey = `${groupBy}:${group.key}`}
-								{@const collapsed = isGroupCollapsed(sectionKey)}
-								<section class="flex flex-col">
+					<div class="issue-feed-scroller min-h-0 flex-1 overflow-y-auto" bind:this={scroller}>
+						<Virtualizer
+							data={rows}
+							getKey={(row) => row.key}
+							bind:this={handle}
+							onscroll={maybeLoadMore}
+							onresize={maybeLoadMore}
+						>
+							{#snippet children(row)}
+								{#if row.kind === 'group'}
 									<IssueGroupHeader
-										label={group.label}
-										count={group.issues.length}
-										{collapsed}
-										ontoggle={() => toggleGroup(sectionKey)}
+										label={row.label}
+										count={row.count}
+										collapsed={isGroupCollapsed(row.key)}
+										ontoggle={() => toggleGroup(row.key)}
 									/>
-									{#if !collapsed}
-										{#each group.issues as issue (`${issue.repoId}:${issue.number}`)}
-											<div animate:flip={{ duration: 150 }} out:fade={{ duration: 150 }}>
-												<IssueRow
-													{issue}
-													selected={isSelectedIssue(issue.repo, issue.number)}
-													repoShortcodes={data.repoShortcodes}
-													groupedBy={groupBy}
-												/>
-											</div>
-										{/each}
-									{/if}
-								</section>
-							{/each}
+								{:else if row.item.kind === 'submission'}
+									<SubmissionRow
+										submission={row.item.submission}
+										selected={selectedSubmissionId === row.item.submission.id}
+									/>
+								{:else}
+									<IssueRow
+										issue={row.item.issue}
+										selected={isSelectedIssue(row.item.issue.repo, row.item.issue.number)}
+										repoShortcodes={data.repoShortcodes}
+										groupedBy={groupBy}
+									/>
+								{/if}
+							{/snippet}
+						</Virtualizer>
+
+						{#if inboxFeed.loading}
+							<div class="text-muted-foreground px-3 py-2 text-xs" role="status">
+								Loading more…
+							</div>
+						{:else if inboxFeed.error !== null}
+							<div class="flex items-center gap-2 px-3 py-2 text-xs">
+								<span class="text-destructive">{inboxFeed.error}</span>
+								<button
+									type="button"
+									class="text-foreground underline underline-offset-2"
+									onclick={() => void inboxFeed.loadMore()}
+								>
+									Retry
+								</button>
+							</div>
 						{/if}
 					</div>
 				</div>
@@ -188,3 +228,12 @@
 		{@render children()}
 	{/snippet}
 </SplitView>
+
+<style>
+	/* Virtua wraps every row in its own element, so a row is always the
+	   `:last-child`; restore the divider that the row's `last:border-b-0`
+	   would otherwise remove. */
+	.issue-feed-scroller :global(.issue-grid:last-child) {
+		border-bottom-width: 1px;
+	}
+</style>
