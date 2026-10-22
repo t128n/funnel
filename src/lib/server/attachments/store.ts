@@ -51,7 +51,13 @@ export function sanitizeFilename(name: string): string {
 
 function toItem(row: AttachmentRow): AttachmentItem {
   const uploadedBy: UserRef | null = row.uploadedByLogin
-    ? { githubId: row.uploadedByGithubId ?? 0, login: row.uploadedByLogin, avatarUrl: "" }
+    ? {
+        externalId: row.uploadedByExternalId ?? "",
+        forge: row.uploadedByForge,
+        instance: row.uploadedByInstance,
+        login: row.uploadedByLogin,
+        avatarUrl: "",
+      }
     : null;
   return {
     id: row.id,
@@ -101,7 +107,9 @@ export async function saveAttachment(
       mimeType: input.mimeType || "application/octet-stream",
       sizeBytes: input.bytes.byteLength,
       sha256,
-      uploadedByGithubId: input.uploadedBy?.githubId ?? null,
+      uploadedByExternalId: input.uploadedBy?.externalId ?? null,
+      uploadedByForge: input.uploadedBy?.forge ?? "",
+      uploadedByInstance: input.uploadedBy?.instance ?? "",
       uploadedByLogin: input.uploadedBy?.login ?? "",
       createdAt,
     })

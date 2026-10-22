@@ -66,18 +66,28 @@ function stubProvider(
 }
 
 function seedIssue(): void {
-  upsertRepo({ githubId: 1, org: "orgA", name: "core", archived: false });
+  const repo = upsertRepo({
+    externalId: "1",
+    forge: "github",
+    instance: "github.com",
+    org: "orgA",
+    name: "core",
+    url: "https://github.com/orgA/core",
+    archived: false,
+  });
   upsertIssue(
     {
-      githubId: 100,
-      repoId: 1,
+      externalId: "100",
+      repoId: repo.id,
       number: 5,
+      kind: "issue",
       title: "Existing issue",
       body: "",
       state: "open",
       stateReason: null,
       author: null,
       milestoneNumber: null,
+      url: "https://github.com/orgA/core/issues/5",
       createdAt: 1,
       updatedAt: 1,
       closedAt: null,

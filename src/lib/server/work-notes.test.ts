@@ -12,10 +12,23 @@ import {
 } from "./work-notes";
 
 const AUTHOR: UserRef = {
-  githubId: 7,
+  externalId: "7",
+  forge: "github",
+  instance: "github.com",
   login: "octocat",
   avatarUrl: "https://avatars/octocat.png",
 };
+
+test("durable author records carry an external identity", () => {
+  const author: UserRef = {
+    externalId: "101",
+    forge: "github",
+    instance: "github.com",
+    login: "octocat",
+    avatarUrl: "",
+  };
+  expect(author.externalId).toBe("101");
+});
 
 function create(body: string, issueNumber = 1): string {
   return createWorkNote({

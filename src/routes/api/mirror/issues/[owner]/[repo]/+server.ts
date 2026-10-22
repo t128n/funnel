@@ -29,5 +29,5 @@ export const GET: RequestHandler = ({ params, url, locals }) => {
     ? Math.min(Math.max(Math.trunc(requested), 1), MAX_LIMIT)
     : DEFAULT_LIMIT;
 
-  return Response.json(repoIssueOptions(repo.githubId, { limit }));
+  return Response.json(repoIssueOptions(repo.id, { limit }));
 };

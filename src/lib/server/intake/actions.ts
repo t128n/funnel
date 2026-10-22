@@ -188,7 +188,7 @@ export async function duplicateSubmission(
       message: `Repository ${input.repo} is not mirrored`,
     };
   }
-  if (!getIssue(mirroredRepo.githubId, input.number)) {
+  if (!getIssue(mirroredRepo.id, input.number)) {
     return {
       ok: false,
       status: 404,
