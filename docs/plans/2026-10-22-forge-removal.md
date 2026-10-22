@@ -133,7 +133,7 @@ test("read routes use the forge provider", () => {
 **Notes:** `installationErrorResponse` can stay in `app.server.ts` until T13, but T12 should import it from a new helper in `forge/providers.server.ts` to avoid touching `app.server.ts` twice. Keep the route tests' fetch stubs; they already speak the GitHub HTTP boundary.
 
 ### T13 remove Octokit · Complexity 4 (O-1) · Est. context 38k
-**Owns:** src/lib/server/github/app.server.ts, src/lib/server/github/app.test.ts, src/lib/server/github/manifest-flow.server.ts, src/lib/server/github/manifest-flow.server.test.ts, src/lib/server/sync/reconcile.ts, src/lib/server/sync/worker.ts, src/routes/onboarding/installed/+page.server.ts, src/routes/onboarding/callback/+server.ts, src/routes/(app)/settings/github-app/+page.server.ts, tests/github-app.ts, tests/issues-routes.test.ts, tests/routes.test.ts, tests/work-notes-routes.test.ts, package.json, bun.lock
+**Owns:** src/lib/server/github/app.server.ts, src/lib/server/github/app.test.ts, src/lib/server/github/manifest-flow.server.ts, src/lib/server/github/manifest-flow.server.test.ts, src/lib/server/sync/reconcile.ts, src/lib/server/sync/worker.ts, src/routes/onboarding/installed/+page.server.ts, src/routes/onboarding/callback/+server.ts, src/routes/*/settings/github-app/+page.server.ts, src/lib/server/auth/index.ts, src/lib/server/github/credentials.ts, src/lib/server/http/outcome.ts, src/lib/server/log.ts, src/lib/server/sync/reconcile.test.ts, src/lib/server/sync/worker.test.ts, tests/github-app.ts, tests/issues-routes.test.ts, tests/routes.test.ts, tests/work-notes-routes.test.ts, package.json, bun.lock
 **Components:** 2
 **LOC owned:** 180
 **Tests:** fast
