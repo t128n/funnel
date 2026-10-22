@@ -9,8 +9,8 @@ import type { LayoutServerLoad } from "./$types";
  * `/board/<owner>/<repo>/<n>` detail route.
  */
 export const load: LayoutServerLoad = async ({ url, parent }) => {
-  const { viewerGithubId, viewerGithub, repoShortcodes } = await parent();
-  const filter = parseIssueFilter(url.searchParams, filterContext(viewerGithubId));
+  const { viewerExternalId, viewerGithub, repoShortcodes } = await parent();
+  const filter = parseIssueFilter(url.searchParams, filterContext(viewerExternalId));
   const board = await statusBoard(filter);
   return { board, repoShortcodes, viewerGithub };
 };

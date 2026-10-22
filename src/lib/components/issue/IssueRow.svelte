@@ -154,7 +154,7 @@
 	<span class="flex items-center justify-end">
 		{#if issue.assignees.length > 0}
 			<div class="flex items-center -space-x-1.5">
-				{#each issue.assignees.slice(0, 2) as person (person.githubId)}
+				{#each issue.assignees.slice(0, 2) as person (person.externalId)}
 					<Avatar login={person.login} avatarUrl={person.avatarUrl} size={16} />
 				{/each}
 			</div>

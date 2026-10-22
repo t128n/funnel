@@ -25,7 +25,7 @@ function issue(overrides: Partial<IssueListItem> = {}): IssueListItem {
     createdAt: Date.parse("2026-10-19T09:00:00Z"),
     updatedAt: Date.parse("2026-10-19T09:00:00Z"),
     closedAt: null,
-    author: { githubId: 1, login: "t128n", avatarUrl: "" },
+    author: { externalId: "1", forge: "github", instance: "github.com", login: "t128n", avatarUrl: "" },
     assignees: [],
     milestone: null,
     labels: [],
@@ -35,8 +35,8 @@ function issue(overrides: Partial<IssueListItem> = {}): IssueListItem {
 
 function comment(overrides: Partial<CommentItem> = {}): CommentItem {
   return {
-    githubId: 7,
-    author: { githubId: 2, login: "octocat", avatarUrl: "" },
+    externalId: "7",
+    author: { externalId: "2", forge: "github", instance: "github.com", login: "octocat", avatarUrl: "" },
     body: "Looks good.",
     createdAt: Date.parse("2026-10-19T10:00:00Z"),
     ...overrides,
@@ -112,7 +112,7 @@ describe("issueThreadMarkdown", () => {
       url: URL,
       issue: issue(),
       body: "Body",
-      comments: [comment({ body: "\n" }), comment({ githubId: 8, body: "Kept." })],
+      comments: [comment({ body: "\n" }), comment({ externalId: "8", body: "Kept." })],
     });
     expect(text).toContain("Kept.");
     expect(text.match(/commented on/g)).toHaveLength(1);
@@ -124,8 +124,8 @@ describe("issueThreadMarkdown", () => {
       issue: issue(),
       body: "Body",
       comments: [
-        comment({ githubId: 2, body: "Second.", createdAt: Date.parse("2026-10-20T10:00:00Z") }),
-        comment({ githubId: 1, body: "First.", createdAt: Date.parse("2026-10-18T10:00:00Z") }),
+        comment({ externalId: "2", body: "Second.", createdAt: Date.parse("2026-10-20T10:00:00Z") }),
+        comment({ externalId: "1", body: "First.", createdAt: Date.parse("2026-10-18T10:00:00Z") }),
       ],
     });
     expect(text.indexOf("First.")).toBeLessThan(text.indexOf("Second."));

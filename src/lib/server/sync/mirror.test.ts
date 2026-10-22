@@ -1,6 +1,10 @@
 import { beforeEach, describe, expect, test } from "bun:test";
 import { clearMirror } from "#tests/mirror-helpers";
+import { db } from "#lib/server/db/index";
+import { mirrorComment, mirrorThreadAssignee } from "#lib/server/db/schema";
 import * as mirror from "./mirror";
+
+const GITHUB = { forge: "github", instance: "github.com" } as const;
 
 beforeEach(() => {
   clearMirror();
@@ -8,25 +12,40 @@ beforeEach(() => {
 
 function seedRepo() {
   return mirror.upsertRepo({
-    githubId: 1,
+    externalId: "1",
+    ...GITHUB,
     org: "orgA",
     name: "core",
+    url: "https://github.com/orgA/core",
     archived: false,
   });
 }
 
-function seedIssue(number: number, updatedAt: number) {
+function user(externalId: string, login: string): mirror.UserRecord {
+  return {
+    id: 0,
+    externalId,
+    ...GITHUB,
+    login,
+    avatarUrl: `a-${login}`,
+    url: `https://github.com/${login}`,
+  };
+}
+
+function seedIssue(repoId: number, number: number, updatedAt: number) {
   mirror.upsertIssue(
     {
-      githubId: 1000 + number,
-      repoId: 1,
+      externalId: String(1000 + number),
+      repoId,
       number,
+      kind: "issue",
       title: `issue ${number}`,
       body: "",
       state: "open",
       stateReason: null,
       author: null,
       milestoneNumber: null,
+      url: `https://github.com/orgA/core/issues/${number}`,
       createdAt: updatedAt,
       updatedAt,
       closedAt: null,
@@ -38,18 +57,77 @@ function seedIssue(number: number, updatedAt: number) {
   );
 }
 
+describe("forge-neutral mirror", () => {
+  test("upsertRepo returns an internal id and is idempotent", () => {
+    const a = mirror.upsertRepo({
+      externalId: "7",
+      ...GITHUB,
+      org: "acme",
+      name: "widgets",
+      url: "https://github.com/acme/widgets",
+      archived: false,
+    });
+    const b = mirror.upsertRepo({
+      externalId: "7",
+      ...GITHUB,
+      org: "acme",
+      name: "widgets",
+      url: "https://github.com/acme/widgets",
+      archived: true,
+    });
+    expect(b.id).toBe(a.id);
+    expect(b.archived).toBe(1);
+    expect(mirror.getRepoBySlug("github", "github.com", "acme", "widgets")?.id).toBe(
+      a.id,
+    );
+    expect(mirror.getRepo(a.id)?.externalId).toBe("7");
+    expect(mirror.getRepoByOrgName("acme", "widgets")?.id).toBe(a.id);
+  });
+
+  test("upsertUser is keyed by external id", () => {
+    const a = mirror.upsertUser({
+      id: 0,
+      externalId: "101",
+      ...GITHUB,
+      login: "octocat",
+      avatarUrl: "",
+      url: "",
+    });
+    const b = mirror.upsertUser({
+      id: 0,
+      externalId: "101",
+      ...GITHUB,
+      login: "octocat2",
+      avatarUrl: "x",
+      url: "",
+    });
+    expect(b.id).toBe(a.id);
+    expect(mirror.getUser("101", "github", "github.com")?.login).toBe("octocat2");
+  });
+});
+
 describe("repo upsert", () => {
   test("creates then updates in place", () => {
     const created = seedRepo();
-    expect(created).toMatchObject({ githubId: 1, org: "orgA", name: "core" });
+    expect(created).toMatchObject({
+      externalId: "1",
+      forge: "github",
+      instance: "github.com",
+      org: "orgA",
+      name: "core",
+      url: "https://github.com/orgA/core",
+    });
 
     const updated = mirror.upsertRepo({
-      githubId: 1,
+      externalId: "1",
+      ...GITHUB,
       org: "orgA",
       name: "renamed",
+      url: "https://github.com/orgA/renamed",
       archived: true,
     });
     expect(updated.name).toBe("renamed");
+    expect(updated.url).toBe("https://github.com/orgA/renamed");
     expect(updated.archived).toBe(1);
     expect(mirror.listRepos()).toHaveLength(1);
   });
@@ -57,32 +135,34 @@ describe("repo upsert", () => {
 
 describe("cursor", () => {
   test("is null before backfill and the newest updated_at after", () => {
-    seedRepo();
-    expect(mirror.getRepoCursor(1)).toBeNull();
-    seedIssue(1, 1000);
-    seedIssue(2, 3000);
-    seedIssue(3, 2000);
-    expect(mirror.getRepoCursor(1)).toBe(3000);
+    const repo = seedRepo();
+    expect(mirror.getRepoCursor(repo.id)).toBeNull();
+    seedIssue(repo.id, 1, 1000);
+    seedIssue(repo.id, 2, 3000);
+    seedIssue(repo.id, 3, 2000);
+    expect(mirror.getRepoCursor(repo.id)).toBe(3000);
   });
 });
 
 describe("issue upsert", () => {
   test("replaces labels and assignees on re-hydration", () => {
-    seedRepo();
-    seedIssue(1, 1000);
-    expect(mirror.getIssueLabels(1, 1)).toEqual(["todo"]);
+    const repo = seedRepo();
+    seedIssue(repo.id, 1, 1000);
+    expect(mirror.getIssueLabels(repo.id, 1)).toEqual(["todo"]);
 
     mirror.upsertIssue(
       {
-        githubId: 1001,
-        repoId: 1,
+        externalId: "1001",
+        repoId: repo.id,
         number: 1,
+        kind: "issue",
         title: "issue 1",
         body: "edited",
         state: "open",
         stateReason: null,
         author: null,
         milestoneNumber: null,
+        url: "https://github.com/orgA/core/issues/1",
         createdAt: 1000,
         updatedAt: 2000,
         closedAt: null,
@@ -93,42 +173,111 @@ describe("issue upsert", () => {
       { status: "in-progress", impact: null, urgency: null, priority: null, size: null, blocked: false, labelConflict: false },
     );
 
-    expect(mirror.getIssue(1, 1)?.body).toBe("edited");
-    expect(mirror.getIssue(1, 1)?.status).toBe("in-progress");
-    expect(mirror.getIssueLabels(1, 1)).toEqual(["in-progress"]);
+    const issue = mirror.getIssue(repo.id, 1);
+    expect(issue?.body).toBe("edited");
+    expect(issue?.status).toBe("in-progress");
+    expect(issue?.kind).toBe("issue");
+    expect(issue?.externalId).toBe("1001");
+    expect(issue?.url).toBe("https://github.com/orgA/core/issues/1");
+    expect(mirror.getIssueLabels(repo.id, 1)).toEqual(["in-progress"]);
+  });
+
+  test("resolves author, assignee and comment authors to internal user ids", () => {
+    const repo = seedRepo();
+    const author = user("101", "octocat");
+    const assignee = user("202", "dev");
+    mirror.upsertIssue(
+      {
+        externalId: "9001",
+        repoId: repo.id,
+        number: 1,
+        kind: "issue",
+        title: "owned",
+        body: "",
+        state: "open",
+        stateReason: null,
+        author,
+        milestoneNumber: null,
+        url: "https://github.com/orgA/core/issues/1",
+        createdAt: 1,
+        updatedAt: 2,
+        closedAt: null,
+        labels: [],
+        assignees: [assignee],
+        comments: [
+          {
+            externalId: "500",
+            author,
+            body: "hi",
+            createdAt: 3,
+            updatedAt: 3,
+          },
+        ],
+      },
+      {
+        status: null,
+        impact: null,
+        urgency: null,
+        priority: null,
+        size: null,
+        blocked: false,
+        labelConflict: false,
+      },
+    );
+
+    const storedAuthor = mirror.getUser("101", "github", "github.com");
+    const storedAssignee = mirror.getUser("202", "github", "github.com");
+    expect(storedAuthor).toBeDefined();
+    expect(storedAssignee).toBeDefined();
+
+    expect(mirror.getIssue(repo.id, 1)?.authorId).toBe(storedAuthor!.id);
+    expect(
+      db
+        .select()
+        .from(mirrorThreadAssignee)
+        .all()
+        .map((row) => row.userId),
+    ).toEqual([storedAssignee!.id]);
+    expect(db.select().from(mirrorComment).get()).toMatchObject({
+      repoId: repo.id,
+      threadNumber: 1,
+      externalId: "500",
+      authorId: storedAuthor!.id,
+      body: "hi",
+    });
   });
 });
 
 describe("pruning", () => {
   test("deleteIssuesNotIn removes only absent rows", () => {
-    seedRepo();
-    seedIssue(1, 1000);
-    seedIssue(2, 2000);
-    seedIssue(3, 3000);
+    const repo = seedRepo();
+    seedIssue(repo.id, 1, 1000);
+    seedIssue(repo.id, 2, 2000);
+    seedIssue(repo.id, 3, 3000);
 
-    const removed = mirror.deleteIssuesNotIn(1, [1, 3]);
+    const removed = mirror.deleteIssuesNotIn(repo.id, [1, 3]);
 
     expect(removed).toBe(1);
-    expect(mirror.getIssue(1, 2)).toBeUndefined();
-    expect(mirror.getIssue(1, 1)).toBeDefined();
-    expect(mirror.getIssue(1, 3)).toBeDefined();
+    expect(mirror.getIssue(repo.id, 2)).toBeUndefined();
+    expect(mirror.getIssue(repo.id, 1)).toBeDefined();
+    expect(mirror.getIssue(repo.id, 3)).toBeDefined();
   });
 });
 
 describe("repo labels", () => {
   test("replaces the full set", () => {
-    seedRepo();
-    mirror.replaceRepoLabels(1, [
+    const repo = seedRepo();
+    mirror.replaceRepoLabels(repo.id, [
       { name: "bug", color: "ff0000", description: "" },
     ]);
-    expect(mirror.getRepoLabels(1)).toEqual([
+    expect(mirror.getRepoLabels(repo.id)).toEqual([
       { name: "bug", color: "ff0000", description: "" },
     ]);
 
-    mirror.replaceRepoLabels(1, [
+    mirror.replaceRepoLabels(repo.id, [
       { name: "todo", color: "78a9ff", description: "Status: Todo" },
     ]);
-    expect(mirror.getRepoLabels(1)).toEqual([
+    expect(mirror.getRepoLabels(repo.id)).toEqual([
       { name: "todo", color: "78a9ff", description: "Status: Todo" },
     ]);
   });
@@ -136,56 +285,66 @@ describe("repo labels", () => {
 
 describe("repo assignees", () => {
   test("upserts users and replaces the full set, sorted by login", () => {
-    seedRepo();
-    mirror.replaceRepoAssignees(1, [
-      { githubId: 42, login: "zoe", avatarUrl: "z" },
-      { githubId: 41, login: "amy", avatarUrl: "a" },
+    const repo = seedRepo();
+    mirror.replaceRepoAssignees(repo.id, [
+      user("42", "zoe"),
+      user("41", "amy"),
     ]);
-    expect(mirror.getRepoAssignees(1)).toEqual([
-      { githubId: 41, login: "amy", avatarUrl: "a" },
-      { githubId: 42, login: "zoe", avatarUrl: "z" },
+    expect(
+      mirror.getRepoAssignees(repo.id).map((u) => [u.externalId, u.login]),
+    ).toEqual([
+      ["41", "amy"],
+      ["42", "zoe"],
     ]);
 
-    mirror.replaceRepoAssignees(1, [
-      { githubId: 43, login: "bob", avatarUrl: "b" },
-    ]);
-    expect(mirror.getRepoAssignees(1)).toEqual([
-      { githubId: 43, login: "bob", avatarUrl: "b" },
-    ]);
+    mirror.replaceRepoAssignees(repo.id, [user("43", "bob")]);
+    expect(
+      mirror.getRepoAssignees(repo.id).map((u) => [u.externalId, u.login]),
+    ).toEqual([["43", "bob"]]);
   });
 });
 
 describe("repo milestones", () => {
   test("upserts the creator and replaces the full set", () => {
-    seedRepo();
-    mirror.replaceRepoMilestones(1, [
+    const repo = seedRepo();
+    mirror.replaceRepoMilestones(repo.id, [
       {
         number: 1,
-        githubId: 10,
+        externalId: "10",
         title: "v1",
         description: "",
         state: "open",
         dueOn: 1000,
         openIssues: 2,
         closedIssues: 1,
-        creator: { githubId: 7, login: "octocat", avatarUrl: "https://a/7" },
+        creator: user("7", "octocat"),
         createdAt: 1,
         updatedAt: 2,
         closedAt: null,
-        htmlUrl: "https://x/1",
+        url: "https://github.com/orgA/core/milestone/1",
       },
     ]);
 
-    const [milestone] = mirror.getRepoMilestones(1);
+    const storedCreator = mirror.getUser("7", "github", "github.com");
+    const [milestone] = mirror.getRepoMilestones(repo.id);
     expect(milestone).toMatchObject({
       number: 1,
+      externalId: "10",
       title: "v1",
       openIssues: 2,
       closedIssues: 1,
-      creator: { githubId: 7, login: "octocat", avatarUrl: "https://a/7" },
+      url: "https://github.com/orgA/core/milestone/1",
+      creator: {
+        externalId: "7",
+        forge: "github",
+        instance: "github.com",
+        login: "octocat",
+        avatarUrl: "a-octocat",
+      },
     });
+    expect(milestone?.creator?.id).toBe(storedCreator!.id);
 
-    mirror.replaceRepoMilestones(1, []);
-    expect(mirror.getRepoMilestones(1)).toEqual([]);
+    mirror.replaceRepoMilestones(repo.id, []);
+    expect(mirror.getRepoMilestones(repo.id)).toEqual([]);
   });
 });

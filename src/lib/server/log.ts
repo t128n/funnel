@@ -19,7 +19,7 @@
  *
  * Errors belong under the `err` key (pino's serializer expands them) or as a
  * stringified field when a serialized `Error` would lose context (e.g. an
- * Octokit status code).
+ * upstream status code).
  */
 import { dev } from "$app/env";
 import { LOG_LEVEL } from "$app/env/private";

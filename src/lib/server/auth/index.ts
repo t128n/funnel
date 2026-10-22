@@ -168,8 +168,8 @@ export async function getSession(request: Request) {
  * before returning it, persisting the rotated access/refresh tokens (still
  * encrypted) back to `auth_account`. This is the automatic refresh path for
  * write operations — call it instead of reading `auth_account.accessToken`
- * directly, which now holds ciphertext. Compose it with the GitHub client:
- * `await github.asUser(await getUserAccessToken(userId))`.
+ * directly, which now holds ciphertext. Compose it with the GitHub provider:
+ * `forge.userProvider(await getUserAccessToken(userId))`.
  */
 export async function getUserAccessToken(userId: string): Promise<string> {
   const auth = await getAuth();
@@ -191,18 +191,17 @@ export async function getUserAccessToken(userId: string): Promise<string> {
 }
 
 /**
- * Resolve the signed-in user's numeric GitHub id.
+ * Resolve the signed-in user's forge-native external id.
  *
  * Better Auth stores the provider subject in `auth_account.accountId`; for the
  * GitHub provider that subject is `profile.id` (the numeric account id, as a
- * string). Mirror rows key people by that same numeric id
- * (`mirror_github_user.github_id`), so this is what "My Issues" and the
- * `assignee=me` filter compare against. Returns `null` when no GitHub account
- * is linked or the subject is not numeric.
+ * string). Mirror rows key people by `mirror_user.external_id`, so this is what
+ * "My Issues" and the `assignee=me` filter compare against. Returns `null` when
+ * no GitHub account is linked.
  */
-export async function getViewerGithubId(
+export async function getViewerExternalId(
   userId: string,
-): Promise<number | null> {
+): Promise<string | null> {
   const [account] = await db
     .select({ accountId: authAccount.accountId })
     .from(authAccount)
@@ -210,7 +209,5 @@ export async function getViewerGithubId(
       and(eq(authAccount.userId, userId), eq(authAccount.providerId, "github")),
     )
     .limit(1);
-  if (!account) return null;
-  const id = Number(account.accountId);
-  return Number.isFinite(id) ? id : null;
+  return account?.accountId ?? null;
 }

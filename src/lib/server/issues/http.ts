@@ -6,9 +6,11 @@
  * an immediate single-issue refresh so the local mirror (and every SSE client)
  * catches up without the response waiting on it.
  */
-import type { Octokit } from "octokit";
 import { getUserAccessToken } from "#lib/server/auth/index";
-import { github } from "#lib/server/github/app.server";
+import {
+  forge,
+  type GitHubProvider,
+} from "#lib/server/forge/providers.server";
 import { errorMessage } from "#lib/server/http/outcome";
 import { createLogger } from "#lib/server/log";
 import { refreshIssue } from "#lib/server/sync/worker";
@@ -16,7 +18,7 @@ import { refreshIssue } from "#lib/server/sync/worker";
 const log = createLogger({ component: "issues-api" });
 
 export type AuthResult =
-  | { ok: true; octokit: Octokit }
+  | { ok: true; provider: GitHubProvider }
   | { ok: false; response: Response };
 
 function jsonError(message: string, status: number): Response {
@@ -24,7 +26,7 @@ function jsonError(message: string, status: number): Response {
 }
 
 /**
- * Resolve a user-token Octokit from the session's user id. Returns a ready
+ * Resolve a user-token provider from the session's user id. Returns a ready
  * error `Response` (401/502) when the request is unauthenticated or the token
  * cannot be resolved.
  */
@@ -36,8 +38,7 @@ export async function authenticate(
   }
   try {
     const token = await getUserAccessToken(userId);
-    const octokit = await github.asUser(token);
-    return { ok: true, octokit };
+    return { ok: true, provider: forge.userProvider(token) };
   } catch (error) {
     log.warn({ err: errorMessage(error) }, "user token unavailable");
     return { ok: false, response: jsonError(errorMessage(error), 502) };

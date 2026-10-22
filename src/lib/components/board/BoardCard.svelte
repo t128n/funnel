@@ -105,7 +105,7 @@
 	]);
 
 	const canAssign = $derived(
-		viewer != null && !issue.assignees.some((person) => person.githubId === viewer.githubId)
+		viewer != null && !issue.assignees.some((person) => person.externalId === viewer.externalId)
 	);
 
 	/** The `S` shortcut raises this card's menu via the shared focus store. */
@@ -296,7 +296,7 @@
 		<span class="flex items-center justify-end">
 			{#if issue.assignees.length > 0}
 				<div class="flex items-center -space-x-1.5">
-					{#each issue.assignees.slice(0, 3) as person (person.githubId)}
+					{#each issue.assignees.slice(0, 3) as person (person.externalId)}
 						<Avatar login={person.login} avatarUrl={person.avatarUrl} size={16} />
 					{/each}
 				</div>

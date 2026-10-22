@@ -1,8 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import type { InstallationOctokit } from "#lib/server/github/app.server";
+import type { GitHubProvider, RepoRef } from "#lib/server/forge/providers.server";
 import {
   deriveMetadata,
   fetchTimeline,
+  normalizeTimeline,
   parseTimeline,
   resolveIssueConflict,
   resolveWinners,
@@ -99,6 +100,30 @@ describe("parseTimeline", () => {
   });
 });
 
+describe("normalizeTimeline", () => {
+  test("keeps normalized label events and converts timestamps", () => {
+    expect(
+      normalizeTimeline([
+        {
+          kind: "label",
+          occurredAt: new Date(1000),
+          detail: { type: "label", label: "todo" },
+        },
+        {
+          kind: "comment",
+          occurredAt: new Date(1500),
+          detail: { type: "comment" },
+        },
+        {
+          kind: "label",
+          occurredAt: new Date(2000),
+          detail: { type: "state_change", state: "open" },
+        },
+      ] as never),
+    ).toEqual([{ label: "todo", createdAt: 1000 }]);
+  });
+});
+
 describe("resolveWinners", () => {
   test("latest added label wins; the other is obsolete", () => {
     const resolution = resolveWinners(["todo", "in-progress"], [
@@ -129,81 +154,105 @@ describe("resolveWinners", () => {
   });
 });
 
-/** A fake installation client that records timeline calls and label deletes. */
-function fakeOctokit(timeline: unknown[]) {
-  const deleted: string[] = [];
-  const octokit = {
-    request: async (route: string, params: Record<string, unknown> = {}) => {
-      if (route === "GET /repos/{owner}/{repo}/issues/{issue_number}/timeline") {
-        return { data: timeline };
-      }
-      if (
-        route ===
-        "DELETE /repos/{owner}/{repo}/issues/{issue_number}/labels/{name}"
-      ) {
-        deleted.push(String(params.name));
-        return { data: {} };
-      }
-      return { data: [] };
+const repo: RepoRef = {
+  forge: "github",
+  instance: "github.com",
+  owner: "acme",
+  name: "widgets",
+};
+
+function labelEvent(label: string, at: number) {
+  return {
+    kind: "label",
+    action: "labelled",
+    occurredAt: new Date(at),
+    detail: { type: "label", label },
+  };
+}
+
+/** A fake provider that streams label events and records label removals. */
+function fakeProvider(events: unknown[]) {
+  const removed: string[][] = [];
+  const seenRefs: unknown[] = [];
+  const provider = {
+    threads: {
+      events: (ref: unknown) => ({
+        async *[Symbol.asyncIterator]() {
+          seenRefs.push(ref);
+          for (const event of events) yield event;
+        },
+      }),
+      removeLabels: async (_ref: unknown, labels: string[]) => {
+        removed.push(labels);
+        return [];
+      },
     },
-  } as unknown as InstallationOctokit;
-  return { octokit, deleted };
+  } as unknown as GitHubProvider;
+  return { provider, removed, seenRefs };
 }
 
 describe("resolveIssueConflict", () => {
   test("removes the superseded label and recomputes metadata", async () => {
-    const { octokit, deleted } = fakeOctokit([
-      { event: "labeled", label: { name: "todo" }, created_at: "2026-01-01T00:00:00Z" },
-      {
-        event: "labeled",
-        label: { name: "in-progress" },
-        created_at: "2026-01-02T00:00:00Z",
-      },
+    const { provider, removed, seenRefs } = fakeProvider([
+      labelEvent("todo", 1000),
+      labelEvent("in-progress", 2000),
     ]);
 
-    const resolved = await resolveIssueConflict(
-      octokit,
-      "orgA",
-      "core",
-      1,
-      ["todo", "in-progress"],
-    );
+    const resolved = await resolveIssueConflict(provider, repo, 1, [
+      "todo",
+      "in-progress",
+    ]);
 
     expect(resolved.ambiguous).toBe(false);
     expect(resolved.removed).toEqual(["todo"]);
     expect(resolved.metadata.status).toBe("in-progress");
     expect(resolved.metadata.conflicts).toEqual([]);
-    expect(deleted).toEqual(["todo"]);
+    expect(removed).toEqual([["todo"]]);
+    expect(seenRefs[0]).toMatchObject({
+      kind: "issue",
+      number: "1",
+      repo,
+    });
+  });
+
+  test("removes each obsolete label with its own call", async () => {
+    const { provider, removed } = fakeProvider([
+      labelEvent("todo", 1000),
+      labelEvent("in-progress", 2000),
+      labelEvent("sev", 3000),
+      labelEvent("mod", 4000),
+    ]);
+
+    const resolved = await resolveIssueConflict(provider, repo, 1, [
+      "todo",
+      "in-progress",
+      "sev",
+      "mod",
+    ]);
+
+    expect(resolved.removed).toEqual(["todo", "sev"]);
+    expect(removed).toEqual([["todo"], ["sev"]]);
   });
 
   test("leaves labels untouched when the timeline is ambiguous", async () => {
-    const { octokit, deleted } = fakeOctokit([
-      { event: "labeled", label: { name: "todo" }, created_at: "2026-01-01T00:00:00Z" },
-      {
-        event: "labeled",
-        label: { name: "in-progress" },
-        created_at: "2026-01-01T00:00:00Z",
-      },
+    const { provider, removed } = fakeProvider([
+      labelEvent("todo", 1000),
+      labelEvent("in-progress", 1000),
     ]);
 
-    const resolved = await resolveIssueConflict(
-      octokit,
-      "orgA",
-      "core",
-      1,
-      ["todo", "in-progress"],
-    );
+    const resolved = await resolveIssueConflict(provider, repo, 1, [
+      "todo",
+      "in-progress",
+    ]);
 
     expect(resolved.ambiguous).toBe(true);
     expect(resolved.removed).toEqual([]);
-    expect(deleted).toEqual([]);
+    expect(removed).toEqual([]);
   });
 
   test("is a no-op when there is no conflict", async () => {
-    const { octokit, deleted } = fakeOctokit([]);
-    const resolved = await resolveIssueConflict(octokit, "orgA", "core", 1, [
-      "todo",
-    ]);
+    const { provider, removed } = fakeProvider([]);
+    const resolved = await resolveIssueConflict(provider, repo, 1, ["todo"]);
     expect(resolved).toEqual({
       metadata: {
         status: "todo",
@@ -217,40 +266,20 @@ describe("resolveIssueConflict", () => {
       removed: [],
       ambiguous: false,
     });
-    expect(deleted).toEqual([]);
+    expect(removed).toEqual([]);
   });
 });
 
 describe("fetchTimeline", () => {
-  test("paginates until a short page", async () => {
-    const pages: unknown[][] = [
-      Array.from({ length: 100 }, () => ({
-        event: "labeled",
-        label: { name: "todo" },
-        created_at: "2026-01-01T00:00:00Z",
-      })),
-      [
-        {
-          event: "labeled",
-          label: { name: "p1" },
-          created_at: "2026-01-02T00:00:00Z",
-        },
-      ],
-    ];
-    const seenPages: number[] = [];
-    const octokit = {
-      request: async (
-        _route: string,
-        params: Record<string, unknown> = {},
-      ) => {
-        const page = Number(params.page ?? 1);
-        seenPages.push(page);
-        return { data: pages[page - 1] ?? [] };
-      },
-    } as unknown as InstallationOctokit;
-
-    const events = await fetchTimeline(octokit, "orgA", "core", 1);
-    expect(events).toHaveLength(101);
-    expect(seenPages).toEqual([1, 2]);
+  test("keeps normalized label events in order", async () => {
+    const provider = { threads: { events: () => ({ async *[Symbol.asyncIterator]() {
+      yield { kind: "label", action: "labelled", occurredAt: new Date(1000), detail: { type: "label", label: "backlog" } };
+      yield { kind: "comment", action: "created", occurredAt: new Date(2000), detail: { type: "comment" } };
+      yield { kind: "label", action: "labelled", occurredAt: new Date(3000), detail: { type: "label", label: "in-progress" } };
+    } }) } };
+    const ref = { forge: "github", instance: "github.com", repo, kind: "issue", number: "7" } as const;
+    const events = await fetchTimeline(provider as never, ref as never);
+    expect(events).toEqual([{ label: "backlog", createdAt: 1000 }, { label: "in-progress", createdAt: 3000 }]);
+    expect(resolveWinners(["backlog", "in-progress"], events).winners.get("status")).toBe("in-progress");
   });
 });

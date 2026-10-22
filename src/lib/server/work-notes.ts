@@ -20,7 +20,9 @@ type WorkNoteRow = typeof stateWorkNote.$inferSelect;
 function toItem(row: WorkNoteRow): WorkNoteItem {
   const author: UserRef | null = row.authorLogin
     ? {
-        githubId: row.authorGithubId ?? 0,
+        externalId: row.authorExternalId ?? "",
+        forge: row.authorForge,
+        instance: row.authorInstance,
         login: row.authorLogin,
         avatarUrl: row.authorAvatarUrl,
       }
@@ -53,7 +55,9 @@ export function createWorkNote(input: CreateWorkNoteInput): WorkNoteItem {
       org: input.org,
       name: input.name,
       issueNumber: input.issueNumber,
-      authorGithubId: input.author?.githubId ?? null,
+      authorExternalId: input.author?.externalId ?? null,
+      authorForge: input.author?.forge ?? "",
+      authorInstance: input.author?.instance ?? "",
       authorLogin: input.author?.login ?? "",
       authorAvatarUrl: input.author?.avatarUrl ?? "",
       body: input.body,

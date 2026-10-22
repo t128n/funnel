@@ -14,11 +14,11 @@ export const load: PageServerLoad = async ({ params }) => {
   const number = Number(params.number);
   if (!Number.isInteger(number) || number <= 0) error(404, "Invalid milestone");
 
-  const milestone = getMilestone(repo.githubId, number);
+  const milestone = getMilestone(repo.id, number);
   if (!milestone) error(404, "Milestone is not mirrored");
 
   return {
     milestone,
-    issues: milestoneIssues(repo.githubId, number),
+    issues: milestoneIssues(repo.id, number),
   };
 };

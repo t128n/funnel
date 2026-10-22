@@ -1,4 +1,4 @@
-import { getViewerGithubId } from "#lib/server/auth/index";
+import { getViewerExternalId } from "#lib/server/auth/index";
 import { requireUser } from "#lib/server/auth/guard";
 import { FEATURES_COOKIE, parseFeatureOverrides } from "#lib/features";
 import { getConfig, repoShortcodeMap } from "#lib/server/config";
@@ -18,15 +18,18 @@ import type { LayoutServerLoad } from "./$types";
 export const load: LayoutServerLoad = async ({ locals, url, cookies }) => {
   const user = requireUser(locals, url);
   const overrides = parseFeatureOverrides(cookies.get(FEATURES_COOKIE));
-  const [options, config, viewerGithubId, features] = await Promise.all([
+  const [options, config, viewerExternalId, features] = await Promise.all([
     Promise.resolve(filterOptions()),
     getConfig(),
-    getViewerGithubId(user.id),
+    getViewerExternalId(user.id),
     resolveFeatures(overrides),
   ]);
 
   const viewerGithub =
-    viewerGithubId === null ? null : (getUser(viewerGithubId) ?? null);
+    viewerExternalId === null
+      ? null
+      : (getUser(viewerExternalId, "github", new URL(config.github.url).host) ??
+        null);
 
   // Sidebar badge for Inbox: pending submissions + untriaged open issues
   // (SPEC §2.1), the queue a maintainer actually has to triage.
@@ -34,7 +37,7 @@ export const load: LayoutServerLoad = async ({ locals, url, cookies }) => {
 
   return {
     user,
-    viewerGithubId,
+    viewerExternalId,
     viewerGithub,
     options,
     attention: attentionIssues(),

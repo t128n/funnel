@@ -10,14 +10,14 @@
  * runs with the signed-in user's token so GitHub enforces repository
  * permissions natively (SPEC §8).
  */
-import type { InstallationOctokit } from "./app.server";
+import type { GitHubProvider } from "#/lib/server/forge/providers.server";
 
 const PER_PAGE = 100;
 
 /** A milestone as mirrored from GitHub (repo-scoped, resolved dates). */
 export interface RepoMilestone {
   number: number;
-  githubId: number;
+  externalId: string;
   title: string;
   description: string;
   /** `open` | `closed`. */
@@ -25,11 +25,11 @@ export interface RepoMilestone {
   dueOn: number | null;
   openIssues: number;
   closedIssues: number;
-  creator: { githubId: number; login: string; avatarUrl: string } | null;
+  creator: { externalId: string; login: string; avatarUrl: string } | null;
   createdAt: number;
   updatedAt: number;
   closedAt: number | null;
-  htmlUrl: string;
+  url: string;
 }
 
 /** The subset of the REST milestone payload this module reads. */
@@ -64,7 +64,7 @@ export function toRepoMilestone(raw: RestMilestone): RepoMilestone {
   const creator = raw.creator;
   return {
     number: typeof raw.number === "number" ? raw.number : 0,
-    githubId: typeof raw.id === "number" ? raw.id : 0,
+    externalId: String(raw.id ?? 0),
     title: raw.title ?? "",
     description: raw.description ?? "",
     state: raw.state ?? "open",
@@ -76,7 +76,7 @@ export function toRepoMilestone(raw: RestMilestone): RepoMilestone {
       typeof creator.id === "number" &&
       typeof creator.login === "string"
         ? {
-            githubId: creator.id,
+            externalId: String(creator.id),
             login: creator.login,
             avatarUrl: creator.avatar_url ?? "",
           }
@@ -84,34 +84,37 @@ export function toRepoMilestone(raw: RestMilestone): RepoMilestone {
     createdAt: ms(raw.created_at) ?? 0,
     updatedAt: ms(raw.updated_at) ?? 0,
     closedAt: ms(raw.closed_at),
-    htmlUrl: raw.html_url ?? "",
+    url: raw.html_url ?? "",
   };
 }
 
 /**
- * Walk paginated `GET /repos/{owner}/{repo}/milestones` until a short page.
- * `state=all` returns both open and closed milestones, newest due first.
+ * Walk paginated `GET /repos/{owner}/{repo}/milestones` through the provider's
+ * raw request, because `forges`' `Milestone` drops the counts, creator and
+ * timestamps the cockpit needs. `state=all` returns both open and closed
+ * milestones, newest due first.
  */
 export async function listRepoMilestones(
-  octokit: InstallationOctokit,
+  provider: GitHubProvider,
   owner: string,
   repo: string,
 ): Promise<RepoMilestone[]> {
   const all: RepoMilestone[] = [];
   for (let page = 1; ; page++) {
-    const { data } = await octokit.request(
-      "GET /repos/{owner}/{repo}/milestones",
+    const { data } = await provider.request<RestMilestone[]>(
+      "GET",
+      `/repos/${owner}/${repo}/milestones`,
       {
-        owner,
-        repo,
-        state: "all",
-        sort: "due_on",
-        direction: "desc",
-        per_page: PER_PAGE,
-        page,
+        query: {
+          state: "all",
+          sort: "due_on",
+          direction: "desc",
+          per_page: PER_PAGE,
+          page,
+        },
       },
     );
-    const items = data as unknown as RestMilestone[];
+    const items = Array.isArray(data) ? data : [];
     all.push(...items.map(toRepoMilestone));
     if (items.length < PER_PAGE) break;
   }
@@ -130,22 +133,23 @@ export interface CreateMilestoneInput {
  * normalized record so the caller can refresh the mirror without a re-read.
  */
 export async function createRepoMilestone(
-  octokit: { request: InstallationOctokit["request"] },
+  provider: GitHubProvider,
   owner: string,
   repo: string,
   input: CreateMilestoneInput,
 ): Promise<RepoMilestone> {
-  const { data } = await octokit.request(
-    "POST /repos/{owner}/{repo}/milestones",
+  const { data } = await provider.request<RestMilestone>(
+    "POST",
+    `/repos/${owner}/${repo}/milestones`,
     {
-      owner,
-      repo,
-      title: input.title,
-      ...(input.description !== undefined
-        ? { description: input.description }
-        : {}),
-      ...(input.dueOn ? { due_on: input.dueOn } : {}),
+      body: {
+        title: input.title,
+        ...(input.description !== undefined
+          ? { description: input.description }
+          : {}),
+        ...(input.dueOn ? { due_on: input.dueOn } : {}),
+      },
     },
   );
-  return toRepoMilestone(data as RestMilestone);
+  return toRepoMilestone(data);
 }

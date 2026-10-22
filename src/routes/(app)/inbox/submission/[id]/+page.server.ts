@@ -51,7 +51,7 @@ export const actions: Actions = {
 
     const result = await acceptSubmission({
       id,
-      octokit: auth.octokit,
+      provider: auth.provider,
       repo: repo || undefined,
       labels,
     });
@@ -100,7 +100,7 @@ export const actions: Actions = {
 
     const result = await duplicateSubmission({
       id,
-      octokit: auth.octokit,
+      provider: auth.provider,
       repo,
       number,
     });

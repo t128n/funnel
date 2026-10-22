@@ -1,16 +1,12 @@
 import * as v from "valibot";
 import type { RequestHandler } from "./$types";
-import {
-  getInstallationId,
-  github,
-  installationErrorResponse,
-  webUrl,
-} from "#lib/server/github/app.server";
+import { installationErrorResponse } from "#lib/server/github/app.server";
 import {
   passthrough,
   toResponse,
 } from "#lib/server/github/api-passthrough.server";
 import { SIZE_VALUES, STATUS_VALUES } from "#lib/server/issues/filters";
+import { forge } from "#lib/server/forge/providers.server";
 import {
   IMPACT_LABEL_VALUES,
   URGENCY_LABEL_VALUES,
@@ -27,18 +23,18 @@ export const GET: RequestHandler = async ({ params, request, locals }) => {
 
   let installationId: number;
   try {
-    installationId = await getInstallationId(params.owner, params.repo);
+    installationId = await forge.getInstallationId(params.owner, params.repo);
   } catch (e) {
     return installationErrorResponse(params.owner, params.repo, e);
   }
   const result = await passthrough(
-    await github.asInstallation(installationId),
+    await forge.installationProvider(installationId),
     installationId,
     `/repos/${params.owner}/${params.repo}/issues/${params.number}`,
     new URLSearchParams(),
     request.headers.get("if-none-match"),
     {
-      htmlUrlFallback: await webUrl(
+      htmlUrlFallback: await forge.webUrl(
         `${params.owner}/${params.repo}/issues/${params.number}`,
       ),
     },
@@ -107,7 +103,7 @@ export const PATCH: RequestHandler = async ({
   }
 
   const result = await updateIssue({
-    octokit: auth.octokit,
+    provider: auth.provider,
     repo: `${params.owner}/${params.repo}`,
     number,
     title: parsed.output.title,

@@ -1,7 +1,7 @@
 import { redirect } from "@sveltejs/kit";
 import { createLogger } from "#lib/server/log";
 import { getGithubCredentials, setInstallationId } from "#lib/server/github/credentials";
-import { resetAppCache } from "#lib/server/github/app.server";
+import { forge } from "#lib/server/forge/providers.server";
 import {
   installationUrl,
   listInstallationRepos,
@@ -54,7 +54,7 @@ export const load: PageServerLoad = async (event) => {
 
   if (credentials.installationId !== installationId) {
     setInstallationId(installationId);
-    resetAppCache();
+    forge.resetCaches();
   }
 
   let repos: InstallationRepo[] = [];

@@ -1,29 +1,32 @@
 /**
- * Drizzle read/write helpers for the disposable `mirror_github_*` cache
- * (SPEC §7.1). Everything here is rebuildable from GitHub: the sync worker
+ * Drizzle read/write helpers for the disposable forge-neutral `mirror_*` cache
+ * (SPEC §7.1). Everything here is rebuildable from the forge: the sync worker
  * upserts hydrated records, the conflict resolver rewrites label assignments,
  * and reconciliation prunes rows that no longer exist upstream.
  *
- * The junction tables (`mirror_github_issue_label`, `mirror_github_issue_assignee`)
- * and `mirror_github_comment` carry no FK to the issue row (see `db/schema.ts`),
- * so deletes remove children explicitly before the parent.
+ * Internal integer ids are the only FK targets. Repositories and users are
+ * identified externally by `(forge, instance, external_id)`; threads by
+ * `(repo_id, number)` and comments by `(repo_id, external_id)`. The junction
+ * tables (`mirror_thread_label`, `mirror_thread_assignee`) carry no FK to the
+ * thread row (see `db/schema.ts`), so deletes remove children explicitly
+ * before the parent.
  *
  * The per-repo polling cursor is *derived*, not stored: it is the newest
- * `updated_at` mirrored for the repo (SPEC §7.2). GitHub's `since` is
- * inclusive, so re-sending that boundary issue is an idempotent upsert.
+ * `updated_at` mirrored for the repo (SPEC §7.2). Forge `since` is inclusive,
+ * so re-sending that boundary thread is an idempotent upsert.
  */
 import { and, asc, eq, max } from "drizzle-orm";
 import { db } from "#lib/server/db/index";
 import {
-  mirrorGithubComment,
-  mirrorGithubIssue,
-  mirrorGithubIssueAssignee,
-  mirrorGithubIssueLabel,
-  mirrorGithubMilestone,
-  mirrorGithubRepo,
-  mirrorGithubRepoAssignee,
-  mirrorGithubRepoLabel,
-  mirrorGithubUser,
+  mirrorComment,
+  mirrorMilestone,
+  mirrorRepo,
+  mirrorRepoAssignee,
+  mirrorRepoLabel,
+  mirrorThread,
+  mirrorThreadAssignee,
+  mirrorThreadLabel,
+  mirrorUser,
 } from "#lib/server/db/schema";
 import {
   retiredPriorityConflict,
@@ -32,25 +35,21 @@ import {
   type Urgency,
 } from "#lib/priority";
 
-export interface RepoRow {
-  githubId: number;
-  org: string;
-  name: string;
-  etag: string | null;
-  archived: number;
-  degraded: number;
-  lastPolledAt: number | null;
-  lastReconciledAt: number | null;
-}
+export type RepoRow = typeof mirrorRepo.$inferSelect;
 
 export interface UserRecord {
-  githubId: number;
+  /** Internal id; ignored on upsert (SQLite assigns it). */
+  id: number;
+  externalId: string;
+  forge: string;
+  instance: string;
   login: string;
   avatarUrl: string;
+  url: string;
 }
 
 export interface CommentRecord {
-  githubId: number;
+  externalId: string;
   author: UserRecord | null;
   body: string;
   createdAt: number;
@@ -58,9 +57,11 @@ export interface CommentRecord {
 }
 
 export interface IssueRecord {
-  githubId: number;
+  externalId: string;
+  /** Internal repository id, not a forge id. */
   repoId: number;
   number: number;
+  kind: "issue";
   title: string;
   body: string;
   state: string;
@@ -68,6 +69,7 @@ export interface IssueRecord {
   author: UserRecord | null;
   /** The issue's milestone number in its repo, or `null` when unmilestoned. */
   milestoneNumber: number | null;
+  url: string;
   createdAt: number;
   updatedAt: number;
   closedAt: number | null;
@@ -76,7 +78,7 @@ export interface IssueRecord {
   comments: CommentRecord[];
 }
 
-/** Cached reserved-label derivation stored on the issue row (SPEC §5.2). */
+/** Cached reserved-label derivation stored on the thread row (SPEC §5.2). */
 export interface StoredMetadata {
   status: string | null;
   impact: Impact | null;
@@ -94,83 +96,141 @@ export interface StoredMetadata {
 // ---------------------------------------------------------------------------
 
 export function upsertRepo(input: {
-  githubId: number;
+  externalId: string;
+  forge: string;
+  instance: string;
   org: string;
   name: string;
+  url: string;
   archived: boolean;
 }): RepoRow {
   const archived = input.archived ? 1 : 0;
-  db.insert(mirrorGithubRepo)
+  db.insert(mirrorRepo)
     .values({
-      githubId: input.githubId,
+      forge: input.forge,
+      instance: input.instance,
+      externalId: input.externalId,
       org: input.org,
       name: input.name,
+      url: input.url,
       archived,
     })
     .onConflictDoUpdate({
-      target: mirrorGithubRepo.githubId,
-      set: { org: input.org, name: input.name, archived },
+      target: [mirrorRepo.forge, mirrorRepo.instance, mirrorRepo.externalId],
+      set: {
+        org: input.org,
+        name: input.name,
+        url: input.url,
+        archived,
+      },
     })
     .run();
-  const row = getRepo(input.githubId);
-  if (!row) throw new Error(`repo ${input.githubId} missing after upsert`);
+  const row = getRepoByIdentity(input.forge, input.instance, input.externalId);
+  if (!row) {
+    throw new Error(
+      `repo ${input.forge}/${input.instance}/${input.externalId} missing after upsert`,
+    );
+  }
   return row;
 }
 
-export function getRepo(githubId: number): RepoRow | undefined {
+function getRepoByIdentity(
+  forge: string,
+  instance: string,
+  externalId: string,
+): RepoRow | undefined {
   return db
     .select()
-    .from(mirrorGithubRepo)
-    .where(eq(mirrorGithubRepo.githubId, githubId))
+    .from(mirrorRepo)
+    .where(
+      and(
+        eq(mirrorRepo.forge, forge),
+        eq(mirrorRepo.instance, instance),
+        eq(mirrorRepo.externalId, externalId),
+      ),
+    )
     .get();
 }
 
-export function getRepoByOrgName(org: string, name: string): RepoRow | undefined {
+/** One mirrored repo by its internal id (`RepoRow.id`). */
+export function getRepo(id: number): RepoRow | undefined {
+  return db.select().from(mirrorRepo).where(eq(mirrorRepo.id, id)).get();
+}
+
+export function getRepoBySlug(
+  forge: string,
+  instance: string,
+  org: string,
+  name: string,
+): RepoRow | undefined {
   return db
     .select()
-    .from(mirrorGithubRepo)
-    .where(and(eq(mirrorGithubRepo.org, org), eq(mirrorGithubRepo.name, name)))
+    .from(mirrorRepo)
+    .where(
+      and(
+        eq(mirrorRepo.forge, forge),
+        eq(mirrorRepo.instance, instance),
+        eq(mirrorRepo.org, org),
+        eq(mirrorRepo.name, name),
+      ),
+    )
+    .get();
+}
+
+/**
+ * Slug-only lookup kept for callers that predate forge-aware repos (HTTP
+ * routes). New code should use {@link getRepoBySlug} with an explicit forge
+ * identity; this returns the first match across instances.
+ */
+export function getRepoByOrgName(
+  org: string,
+  name: string,
+): RepoRow | undefined {
+  return db
+    .select()
+    .from(mirrorRepo)
+    .where(and(eq(mirrorRepo.org, org), eq(mirrorRepo.name, name)))
     .get();
 }
 
 export function listRepos(): RepoRow[] {
-  return db.select().from(mirrorGithubRepo).all();
+  return db.select().from(mirrorRepo).all();
 }
 
-export function setRepoEtag(githubId: number, etag: string | null): void {
-  db.update(mirrorGithubRepo)
+export function setRepoEtag(repoId: number, etag: string | null): void {
+  db.update(mirrorRepo)
     .set({ etag })
-    .where(eq(mirrorGithubRepo.githubId, githubId))
+    .where(eq(mirrorRepo.id, repoId))
     .run();
 }
 
-export function setRepoPolledAt(githubId: number, at: number): void {
-  db.update(mirrorGithubRepo)
+export function setRepoPolledAt(repoId: number, at: number): void {
+  db.update(mirrorRepo)
     .set({ lastPolledAt: at })
-    .where(eq(mirrorGithubRepo.githubId, githubId))
+    .where(eq(mirrorRepo.id, repoId))
     .run();
 }
 
-export function setRepoReconciledAt(githubId: number, at: number): void {
-  db.update(mirrorGithubRepo)
+export function setRepoReconciledAt(repoId: number, at: number): void {
+  db.update(mirrorRepo)
     .set({ lastReconciledAt: at })
-    .where(eq(mirrorGithubRepo.githubId, githubId))
+    .where(eq(mirrorRepo.id, repoId))
     .run();
 }
 
-export function setRepoDegraded(githubId: number, degraded: boolean): void {
-  db.update(mirrorGithubRepo)
+export function setRepoDegraded(repoId: number, degraded: boolean): void {
+  db.update(mirrorRepo)
     .set({ degraded: degraded ? 1 : 0 })
-    .where(eq(mirrorGithubRepo.githubId, githubId))
+    .where(eq(mirrorRepo.id, repoId))
     .run();
 }
 
 /** Newest `updated_at` mirrored for a repo; `null` before the first backfill. */
 export function getRepoCursor(repoId: number): number | null {
   const row = db
-    .select({ value: max(mirrorGithubIssue.updatedAt) })
-    .from(mirrorGithubIssue)
-    .where(eq(mirrorGithubIssue.repoId, repoId))
+    .select({ value: max(mirrorThread.updatedAt) })
+    .from(mirrorThread)
+    .where(eq(mirrorThread.repoId, repoId))
     .get();
   return row?.value ?? null;
 }
@@ -179,23 +239,63 @@ export function getRepoCursor(repoId: number): number | null {
 // Users & repo labels
 // ---------------------------------------------------------------------------
 
-/** One mirrored person by GitHub id, or `undefined` before they are seen. */
-export function getUser(githubId: number): UserRecord | undefined {
+/** One mirrored person by forge-native identity, or `undefined` before seen. */
+export function getUser(
+  externalId: string,
+  forge: string,
+  instance: string,
+): UserRecord | undefined {
   return db
     .select()
-    .from(mirrorGithubUser)
-    .where(eq(mirrorGithubUser.githubId, githubId))
+    .from(mirrorUser)
+    .where(
+      and(
+        eq(mirrorUser.forge, forge),
+        eq(mirrorUser.instance, instance),
+        eq(mirrorUser.externalId, externalId),
+      ),
+    )
     .get();
 }
 
-export function upsertUser(user: UserRecord): void {
-  db.insert(mirrorGithubUser)
-    .values(user)
+/**
+ * Upsert a person on `(forge, instance, external_id)` and return the internal
+ * row. The input `id` is ignored: only SQLite assigns internal ids.
+ */
+export function upsertUser(user: UserRecord): UserRecord {
+  db.insert(mirrorUser)
+    .values({
+      forge: user.forge,
+      instance: user.instance,
+      externalId: user.externalId,
+      login: user.login,
+      avatarUrl: user.avatarUrl,
+      url: user.url,
+    })
     .onConflictDoUpdate({
-      target: mirrorGithubUser.githubId,
-      set: { login: user.login, avatarUrl: user.avatarUrl },
+      target: [mirrorUser.forge, mirrorUser.instance, mirrorUser.externalId],
+      set: {
+        login: user.login,
+        avatarUrl: user.avatarUrl,
+        url: user.url,
+      },
     })
     .run();
+  const row = getUser(user.externalId, user.forge, user.instance);
+  if (!row) {
+    throw new Error(
+      `user ${user.forge}/${user.instance}/${user.externalId} missing after upsert`,
+    );
+  }
+  return row;
+}
+
+function userKey(user: {
+  forge: string;
+  instance: string;
+  externalId: string;
+}): string {
+  return `${user.forge}\u0000${user.instance}\u0000${user.externalId}`;
 }
 
 export interface RepoLabelRecord {
@@ -210,11 +310,9 @@ export function replaceRepoLabels(
   labels: readonly RepoLabelRecord[],
 ): void {
   db.transaction((tx) => {
-    tx.delete(mirrorGithubRepoLabel)
-      .where(eq(mirrorGithubRepoLabel.repoId, repoId))
-      .run();
+    tx.delete(mirrorRepoLabel).where(eq(mirrorRepoLabel.repoId, repoId)).run();
     if (labels.length > 0) {
-      tx.insert(mirrorGithubRepoLabel)
+      tx.insert(mirrorRepoLabel)
         .values(
           labels.map((l) => ({
             repoId,
@@ -231,12 +329,12 @@ export function replaceRepoLabels(
 export function getRepoLabels(repoId: number): RepoLabelRecord[] {
   return db
     .select({
-      name: mirrorGithubRepoLabel.name,
-      color: mirrorGithubRepoLabel.color,
-      description: mirrorGithubRepoLabel.description,
+      name: mirrorRepoLabel.name,
+      color: mirrorRepoLabel.color,
+      description: mirrorRepoLabel.description,
     })
-    .from(mirrorGithubRepoLabel)
-    .where(eq(mirrorGithubRepoLabel.repoId, repoId))
+    .from(mirrorRepoLabel)
+    .where(eq(mirrorRepoLabel.repoId, repoId))
     .all();
 }
 
@@ -248,14 +346,15 @@ export function replaceRepoAssignees(
   repoId: number,
   users: readonly UserRecord[],
 ): void {
-  for (const user of users) upsertUser(user);
+  const ids = new Map<string, number>();
+  for (const user of users) ids.set(userKey(user), upsertUser(user).id);
   db.transaction((tx) => {
-    tx.delete(mirrorGithubRepoAssignee)
-      .where(eq(mirrorGithubRepoAssignee.repoId, repoId))
+    tx.delete(mirrorRepoAssignee)
+      .where(eq(mirrorRepoAssignee.repoId, repoId))
       .run();
-    if (users.length > 0) {
-      tx.insert(mirrorGithubRepoAssignee)
-        .values(users.map((u) => ({ repoId, userId: u.githubId })))
+    if (ids.size > 0) {
+      tx.insert(mirrorRepoAssignee)
+        .values([...ids.values()].map((userId) => ({ repoId, userId })))
         .run();
     }
   });
@@ -264,17 +363,18 @@ export function replaceRepoAssignees(
 export function getRepoAssignees(repoId: number): UserRecord[] {
   return db
     .select({
-      githubId: mirrorGithubUser.githubId,
-      login: mirrorGithubUser.login,
-      avatarUrl: mirrorGithubUser.avatarUrl,
+      id: mirrorUser.id,
+      externalId: mirrorUser.externalId,
+      forge: mirrorUser.forge,
+      instance: mirrorUser.instance,
+      login: mirrorUser.login,
+      avatarUrl: mirrorUser.avatarUrl,
+      url: mirrorUser.url,
     })
-    .from(mirrorGithubRepoAssignee)
-    .innerJoin(
-      mirrorGithubUser,
-      eq(mirrorGithubRepoAssignee.userId, mirrorGithubUser.githubId),
-    )
-    .where(eq(mirrorGithubRepoAssignee.repoId, repoId))
-    .orderBy(asc(mirrorGithubUser.login))
+    .from(mirrorRepoAssignee)
+    .innerJoin(mirrorUser, eq(mirrorRepoAssignee.userId, mirrorUser.id))
+    .where(eq(mirrorRepoAssignee.repoId, repoId))
+    .orderBy(asc(mirrorUser.login))
     .all();
 }
 
@@ -284,7 +384,7 @@ export function getRepoAssignees(repoId: number): UserRecord[] {
 
 export interface MilestoneRecord {
   number: number;
-  githubId: number;
+  externalId: string;
   title: string;
   description: string;
   state: string;
@@ -295,7 +395,7 @@ export interface MilestoneRecord {
   createdAt: number;
   updatedAt: number;
   closedAt: number | null;
-  htmlUrl: string;
+  url: string;
 }
 
 /**
@@ -307,31 +407,31 @@ export function replaceRepoMilestones(
   repoId: number,
   milestones: readonly MilestoneRecord[],
 ): void {
-  for (const milestone of milestones) {
-    if (milestone.creator) upsertUser(milestone.creator);
-  }
+  const creators = milestones.map((milestone) =>
+    milestone.creator ? upsertUser(milestone.creator).id : null,
+  );
   db.transaction((tx) => {
-    tx.delete(mirrorGithubMilestone)
-      .where(eq(mirrorGithubMilestone.repoId, repoId))
+    tx.delete(mirrorMilestone)
+      .where(eq(mirrorMilestone.repoId, repoId))
       .run();
     if (milestones.length > 0) {
-      tx.insert(mirrorGithubMilestone)
+      tx.insert(mirrorMilestone)
         .values(
-          milestones.map((m) => ({
+          milestones.map((m, index) => ({
             repoId,
             number: m.number,
-            githubId: m.githubId,
+            externalId: m.externalId,
             title: m.title,
             description: m.description,
             state: m.state,
             dueOn: m.dueOn,
             openIssues: m.openIssues,
             closedIssues: m.closedIssues,
-            creatorId: m.creator?.githubId ?? null,
+            creatorId: creators[index] ?? null,
             createdAt: m.createdAt,
             updatedAt: m.updatedAt,
             closedAt: m.closedAt,
-            htmlUrl: m.htmlUrl,
+            url: m.url,
           })),
         )
         .run();
@@ -343,33 +443,34 @@ export function replaceRepoMilestones(
 export function getRepoMilestones(repoId: number): MilestoneRecord[] {
   return db
     .select({
-      number: mirrorGithubMilestone.number,
-      githubId: mirrorGithubMilestone.githubId,
-      title: mirrorGithubMilestone.title,
-      description: mirrorGithubMilestone.description,
-      state: mirrorGithubMilestone.state,
-      dueOn: mirrorGithubMilestone.dueOn,
-      openIssues: mirrorGithubMilestone.openIssues,
-      closedIssues: mirrorGithubMilestone.closedIssues,
-      creatorId: mirrorGithubUser.githubId,
-      creatorLogin: mirrorGithubUser.login,
-      creatorAvatar: mirrorGithubUser.avatarUrl,
-      createdAt: mirrorGithubMilestone.createdAt,
-      updatedAt: mirrorGithubMilestone.updatedAt,
-      closedAt: mirrorGithubMilestone.closedAt,
-      htmlUrl: mirrorGithubMilestone.htmlUrl,
+      number: mirrorMilestone.number,
+      externalId: mirrorMilestone.externalId,
+      title: mirrorMilestone.title,
+      description: mirrorMilestone.description,
+      state: mirrorMilestone.state,
+      dueOn: mirrorMilestone.dueOn,
+      openIssues: mirrorMilestone.openIssues,
+      closedIssues: mirrorMilestone.closedIssues,
+      creatorId: mirrorUser.id,
+      creatorExternalId: mirrorUser.externalId,
+      creatorForge: mirrorUser.forge,
+      creatorInstance: mirrorUser.instance,
+      creatorLogin: mirrorUser.login,
+      creatorAvatar: mirrorUser.avatarUrl,
+      creatorUrl: mirrorUser.url,
+      createdAt: mirrorMilestone.createdAt,
+      updatedAt: mirrorMilestone.updatedAt,
+      closedAt: mirrorMilestone.closedAt,
+      url: mirrorMilestone.url,
     })
-    .from(mirrorGithubMilestone)
-    .leftJoin(
-      mirrorGithubUser,
-      eq(mirrorGithubMilestone.creatorId, mirrorGithubUser.githubId),
-    )
-    .where(eq(mirrorGithubMilestone.repoId, repoId))
-    .orderBy(asc(mirrorGithubMilestone.dueOn))
+    .from(mirrorMilestone)
+    .leftJoin(mirrorUser, eq(mirrorMilestone.creatorId, mirrorUser.id))
+    .where(eq(mirrorMilestone.repoId, repoId))
+    .orderBy(asc(mirrorMilestone.dueOn))
     .all()
     .map((row) => ({
       number: row.number,
-      githubId: row.githubId,
+      externalId: row.externalId,
       title: row.title,
       description: row.description,
       state: row.state,
@@ -379,31 +480,41 @@ export function getRepoMilestones(repoId: number): MilestoneRecord[] {
       creator:
         row.creatorId !== null && row.creatorLogin !== null
           ? {
-              githubId: row.creatorId,
+              id: row.creatorId,
+              externalId: row.creatorExternalId ?? "",
+              forge: row.creatorForge ?? "",
+              instance: row.creatorInstance ?? "",
               login: row.creatorLogin,
               avatarUrl: row.creatorAvatar ?? "",
+              url: row.creatorUrl ?? "",
             }
           : null,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
       closedAt: row.closedAt,
-      htmlUrl: row.htmlUrl,
+      url: row.url,
     }));
 }
 
 // ---------------------------------------------------------------------------
-// Issues
+// Threads (issues)
 // ---------------------------------------------------------------------------
 
-function upsertUsers(issue: IssueRecord): void {
-  if (issue.author) upsertUser(issue.author);
-  for (const a of issue.assignees) upsertUser(a);
-  for (const c of issue.comments) if (c.author) upsertUser(c.author);
-}
-
 export function upsertIssue(issue: IssueRecord, metadata: StoredMetadata): void {
-  // Users are FK targets for author/assignee/comment rows, so they land first.
-  upsertUsers(issue);
+  // Users are FK targets for author/assignee/comment rows, so they land first
+  // and their internal ids are what the thread rows point at.
+  const authorId = issue.author ? upsertUser(issue.author).id : null;
+  const assigneeIds = new Map<string, number>();
+  for (const assignee of issue.assignees) {
+    assigneeIds.set(userKey(assignee), upsertUser(assignee).id);
+  }
+  const comments = issue.comments.map((comment) => ({
+    externalId: comment.externalId,
+    authorId: comment.author ? upsertUser(comment.author).id : null,
+    body: comment.body,
+    createdAt: comment.createdAt,
+    updatedAt: comment.updatedAt,
+  }));
 
   // A matching retired p-label is just stale; a mismatching one is a conflict
   // the UI should surface, exactly like an ambiguous reserved-label timeline.
@@ -412,17 +523,19 @@ export function upsertIssue(issue: IssueRecord, metadata: StoredMetadata): void 
     retiredPriorityConflict(metadata.priority, issue.labels);
 
   db.transaction((tx) => {
-    tx.insert(mirrorGithubIssue)
+    tx.insert(mirrorThread)
       .values({
         repoId: issue.repoId,
         number: issue.number,
-        githubId: issue.githubId,
+        externalId: issue.externalId,
+        kind: issue.kind,
         title: issue.title,
         body: issue.body,
         state: issue.state,
         stateReason: issue.stateReason,
-        authorId: issue.author?.githubId ?? null,
+        authorId,
         milestoneNumber: issue.milestoneNumber,
+        url: issue.url,
         createdAt: issue.createdAt,
         updatedAt: issue.updatedAt,
         closedAt: issue.closedAt,
@@ -435,15 +548,17 @@ export function upsertIssue(issue: IssueRecord, metadata: StoredMetadata): void 
         labelConflict: labelConflict ? 1 : 0,
       })
       .onConflictDoUpdate({
-        target: [mirrorGithubIssue.repoId, mirrorGithubIssue.number],
+        target: [mirrorThread.repoId, mirrorThread.number],
         set: {
-          githubId: issue.githubId,
+          externalId: issue.externalId,
+          kind: issue.kind,
           title: issue.title,
           body: issue.body,
           state: issue.state,
           stateReason: issue.stateReason,
-          authorId: issue.author?.githubId ?? null,
+          authorId,
           milestoneNumber: issue.milestoneNumber,
+          url: issue.url,
           createdAt: issue.createdAt,
           updatedAt: issue.updatedAt,
           closedAt: issue.closedAt,
@@ -458,64 +573,65 @@ export function upsertIssue(issue: IssueRecord, metadata: StoredMetadata): void 
       })
       .run();
 
-    tx.delete(mirrorGithubIssueLabel)
+    tx.delete(mirrorThreadLabel)
       .where(
         and(
-          eq(mirrorGithubIssueLabel.repoId, issue.repoId),
-          eq(mirrorGithubIssueLabel.issueNumber, issue.number),
+          eq(mirrorThreadLabel.repoId, issue.repoId),
+          eq(mirrorThreadLabel.threadNumber, issue.number),
         ),
       )
       .run();
     if (issue.labels.length > 0) {
-      tx.insert(mirrorGithubIssueLabel)
+      tx.insert(mirrorThreadLabel)
         .values(
           issue.labels.map((labelName) => ({
             repoId: issue.repoId,
-            issueNumber: issue.number,
+            threadNumber: issue.number,
             labelName,
           })),
         )
         .run();
     }
 
-    tx.delete(mirrorGithubIssueAssignee)
+    tx.delete(mirrorThreadAssignee)
       .where(
         and(
-          eq(mirrorGithubIssueAssignee.repoId, issue.repoId),
-          eq(mirrorGithubIssueAssignee.issueNumber, issue.number),
+          eq(mirrorThreadAssignee.repoId, issue.repoId),
+          eq(mirrorThreadAssignee.threadNumber, issue.number),
         ),
       )
       .run();
-    if (issue.assignees.length > 0) {
-      tx.insert(mirrorGithubIssueAssignee)
+    if (assigneeIds.size > 0) {
+      tx.insert(mirrorThreadAssignee)
         .values(
-          issue.assignees.map((a) => ({
+          [...assigneeIds.values()].map((userId) => ({
             repoId: issue.repoId,
-            issueNumber: issue.number,
-            userId: a.githubId,
+            threadNumber: issue.number,
+            userId,
           })),
         )
         .run();
     }
 
-    for (const c of issue.comments) {
-      tx.insert(mirrorGithubComment)
+    for (const comment of comments) {
+      tx.insert(mirrorComment)
         .values({
-          githubId: c.githubId,
           repoId: issue.repoId,
-          issueNumber: issue.number,
-          authorId: c.author?.githubId ?? null,
-          body: c.body,
-          createdAt: c.createdAt,
-          updatedAt: c.updatedAt,
+          threadNumber: issue.number,
+          externalId: comment.externalId,
+          authorId: comment.authorId,
+          body: comment.body,
+          createdAt: comment.createdAt,
+          updatedAt: comment.updatedAt,
         })
         .onConflictDoUpdate({
-          target: mirrorGithubComment.githubId,
+          target: [mirrorComment.repoId, mirrorComment.externalId],
           set: {
-            authorId: c.author?.githubId ?? null,
-            body: c.body,
-            createdAt: c.createdAt,
-            updatedAt: c.updatedAt,
+            threadNumber: issue.number,
+            authorId: comment.authorId,
+            body: comment.body,
+            createdAt: comment.createdAt,
+            updatedAt: comment.updatedAt,
           },
         })
         .run();
@@ -528,7 +644,7 @@ export function setIssueMetadata(
   number: number,
   metadata: StoredMetadata,
 ): void {
-  db.update(mirrorGithubIssue)
+  db.update(mirrorThread)
     .set({
       status: metadata.status,
       impact: metadata.impact,
@@ -539,10 +655,7 @@ export function setIssueMetadata(
       labelConflict: metadata.labelConflict ? 1 : 0,
     })
     .where(
-      and(
-        eq(mirrorGithubIssue.repoId, repoId),
-        eq(mirrorGithubIssue.number, number),
-      ),
+      and(eq(mirrorThread.repoId, repoId), eq(mirrorThread.number, number)),
     )
     .run();
 }
@@ -553,18 +666,22 @@ export function replaceIssueLabels(
   labels: readonly string[],
 ): void {
   db.transaction((tx) => {
-    tx.delete(mirrorGithubIssueLabel)
+    tx.delete(mirrorThreadLabel)
       .where(
         and(
-          eq(mirrorGithubIssueLabel.repoId, repoId),
-          eq(mirrorGithubIssueLabel.issueNumber, number),
+          eq(mirrorThreadLabel.repoId, repoId),
+          eq(mirrorThreadLabel.threadNumber, number),
         ),
       )
       .run();
     if (labels.length > 0) {
-      tx.insert(mirrorGithubIssueLabel)
+      tx.insert(mirrorThreadLabel)
         .values(
-          labels.map((labelName) => ({ repoId, issueNumber: number, labelName })),
+          labels.map((labelName) => ({
+            repoId,
+            threadNumber: number,
+            labelName,
+          })),
         )
         .run();
     }
@@ -573,12 +690,12 @@ export function replaceIssueLabels(
 
 export function getIssueLabels(repoId: number, number: number): string[] {
   return db
-    .select({ name: mirrorGithubIssueLabel.labelName })
-    .from(mirrorGithubIssueLabel)
+    .select({ name: mirrorThreadLabel.labelName })
+    .from(mirrorThreadLabel)
     .where(
       and(
-        eq(mirrorGithubIssueLabel.repoId, repoId),
-        eq(mirrorGithubIssueLabel.issueNumber, number),
+        eq(mirrorThreadLabel.repoId, repoId),
+        eq(mirrorThreadLabel.threadNumber, number),
       ),
     )
     .all()
@@ -588,52 +705,44 @@ export function getIssueLabels(repoId: number, number: number): string[] {
 export function getIssue(
   repoId: number,
   number: number,
-): typeof mirrorGithubIssue.$inferSelect | undefined {
+): typeof mirrorThread.$inferSelect | undefined {
   return db
     .select()
-    .from(mirrorGithubIssue)
-    .where(
-      and(
-        eq(mirrorGithubIssue.repoId, repoId),
-        eq(mirrorGithubIssue.number, number),
-      ),
-    )
+    .from(mirrorThread)
+    .where(and(eq(mirrorThread.repoId, repoId), eq(mirrorThread.number, number)))
     .get();
 }
 
-/** Delete an issue and its child rows (no FK cascade on the junctions). */
+/** Delete a thread and its child rows (no FK cascade on the junctions). */
 export function deleteIssue(repoId: number, number: number): void {
   db.transaction((tx) => {
-    tx.delete(mirrorGithubIssueLabel)
+    tx.delete(mirrorThreadLabel)
       .where(
         and(
-          eq(mirrorGithubIssueLabel.repoId, repoId),
-          eq(mirrorGithubIssueLabel.issueNumber, number),
+          eq(mirrorThreadLabel.repoId, repoId),
+          eq(mirrorThreadLabel.threadNumber, number),
         ),
       )
       .run();
-    tx.delete(mirrorGithubIssueAssignee)
+    tx.delete(mirrorThreadAssignee)
       .where(
         and(
-          eq(mirrorGithubIssueAssignee.repoId, repoId),
-          eq(mirrorGithubIssueAssignee.issueNumber, number),
+          eq(mirrorThreadAssignee.repoId, repoId),
+          eq(mirrorThreadAssignee.threadNumber, number),
         ),
       )
       .run();
-    tx.delete(mirrorGithubComment)
+    tx.delete(mirrorComment)
       .where(
         and(
-          eq(mirrorGithubComment.repoId, repoId),
-          eq(mirrorGithubComment.issueNumber, number),
+          eq(mirrorComment.repoId, repoId),
+          eq(mirrorComment.threadNumber, number),
         ),
       )
       .run();
-    tx.delete(mirrorGithubIssue)
+    tx.delete(mirrorThread)
       .where(
-        and(
-          eq(mirrorGithubIssue.repoId, repoId),
-          eq(mirrorGithubIssue.number, number),
-        ),
+        and(eq(mirrorThread.repoId, repoId), eq(mirrorThread.number, number)),
       )
       .run();
   });
@@ -646,9 +755,9 @@ export function deleteIssuesNotIn(
 ): number {
   const keep = new Set(numbers);
   const existing = db
-    .select({ number: mirrorGithubIssue.number })
-    .from(mirrorGithubIssue)
-    .where(eq(mirrorGithubIssue.repoId, repoId))
+    .select({ number: mirrorThread.number })
+    .from(mirrorThread)
+    .where(eq(mirrorThread.repoId, repoId))
     .all();
   let removed = 0;
   for (const row of existing) {

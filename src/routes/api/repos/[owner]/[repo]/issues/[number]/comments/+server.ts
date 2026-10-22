@@ -1,15 +1,11 @@
 import * as v from "valibot";
 import type { RequestHandler } from "./$types";
-import {
-  getInstallationId,
-  github,
-  installationErrorResponse,
-  webUrl,
-} from "#lib/server/github/app.server";
+import { installationErrorResponse } from "#lib/server/github/app.server";
 import {
   passthrough,
   toResponse,
 } from "#lib/server/github/api-passthrough.server";
+import { forge } from "#lib/server/forge/providers.server";
 import { authenticate, readJson, scheduleRefresh } from "#lib/server/issues/http";
 import { addIssueComment } from "#lib/server/issues/mutations";
 import { apiRole } from "#lib/server/http/session";
@@ -24,7 +20,7 @@ export const GET: RequestHandler = async ({ params, url, request, locals }) => {
 
   let installationId: number;
   try {
-    installationId = await getInstallationId(params.owner, params.repo);
+    installationId = await forge.getInstallationId(params.owner, params.repo);
   } catch (e) {
     return installationErrorResponse(params.owner, params.repo, e);
   }
@@ -33,13 +29,13 @@ export const GET: RequestHandler = async ({ params, url, request, locals }) => {
     if (ALLOWED.has(k)) query.append(k, v);
   }
   const result = await passthrough(
-    await github.asInstallation(installationId),
+    await forge.installationProvider(installationId),
     installationId,
     `/repos/${params.owner}/${params.repo}/issues/${params.number}/comments`,
     query,
     request.headers.get("if-none-match"),
     {
-      htmlUrlFallback: await webUrl(
+      htmlUrlFallback: await forge.webUrl(
         `${params.owner}/${params.repo}/issues/${params.number}`,
       ),
     },
@@ -84,7 +80,7 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
   }
 
   const result = await addIssueComment({
-    octokit: auth.octokit,
+    provider: auth.provider,
     repo: `${params.owner}/${params.repo}`,
     number,
     body: parsed.output.body,

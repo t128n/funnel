@@ -6,104 +6,88 @@ import {
   spyOn,
   test,
 } from "bun:test";
-import { resetConfigCache, setConfig, type FunnelConfig } from "#/lib/server/config";
+import { ForgeApiError } from "forges";
+import {
+  resetConfigCache,
+  setConfig,
+  type FunnelConfig,
+} from "#/lib/server/config";
 import { clearSettings, writeSettings } from "#/lib/server/settings/store";
+import { forge } from "#/lib/server/forge/providers.server";
 import { TEST_CONFIG } from "#tests/test-config";
-import { github, resetAppCache, type InstallationOctokit } from "./app.server";
 import {
   CANONICAL_LABELS,
   provisionCanonicalLabels,
   provisionRepoLabels,
 } from "./labels";
 
-const realFetch = globalThis.fetch;
-
-interface SeenRequest {
-  route: string;
-  page: string | null;
-  body: Record<string, unknown> | null;
-}
-
-let seen: SeenRequest[] = [];
-/** Pages of `GET /labels` responses; index 0 is page 1. */
-let labelPages: unknown[][] = [[]];
-let asInstallation: {
-  mockResolvedValue(value: InstallationOctokit): void;
-  mockRestore(): void;
-};
-
-/** Canonical labels as GitHub would echo them (uppercase hex, some nulls). */
-function canonicalJson(): Array<{
+interface FakeLabel {
   name: string;
-  color: string;
-  description: string;
-}> {
-  return CANONICAL_LABELS.map((l) => ({
-    name: l.name,
-    color: l.color.toUpperCase(),
-    description: l.description,
-  }));
+  colour?: string;
+  description?: string;
 }
 
-/**
- * A fake installation-scoped client, mirroring `api-passthrough.test.ts`.
- * Injecting it (via {@link asInstallation}) bypasses the real App token mint
- * and, crucially, octokit's throttling plugin, which rate-limits *writes* to
- * one per second and would otherwise make these tests crawl.
- */
-function fakeInstallation(): InstallationOctokit {
+interface SeenCall {
+  method: string;
+  path: string;
+  body?: unknown;
+}
+
+const calls: SeenCall[] = [];
+let existing: FakeLabel[] = [];
+
+/** A fake `GitHubProvider` covering only the label operations labels.ts uses. */
+function fakeProvider() {
   return {
-    request: async (route: string, params: Record<string, unknown> = {}) => {
-      seen.push({
-        route,
-        page: params.page != null ? String(params.page) : null,
-        body: params,
-      });
-      if (route === "GET /repos/{owner}/{repo}/labels") {
-        const page = Number(params.page ?? 1);
-        return { data: labelPages[page - 1] ?? [] };
-      }
-      return { data: params };
+    repos: {
+      labels: (_ref: unknown) => ({
+        async *[Symbol.asyncIterator]() {
+          for (const label of existing) yield label;
+        },
+      }),
+      createLabel: async (
+        _ref: unknown,
+        input: { name: string; colour?: string; description?: string },
+      ) => {
+        calls.push({
+          method: "POST",
+          path: "labels",
+          body: {
+            name: input.name,
+            colour: input.colour,
+            description: input.description,
+          },
+        });
+        return input;
+      },
     },
-  } as unknown as InstallationOctokit;
+    request: async (
+      method: string,
+      path: string,
+      options?: { body?: unknown },
+    ) => {
+      calls.push({ method, path, body: options?.body });
+      return { status: 200, data: {}, headers: new Headers() };
+    },
+  };
 }
 
-/** Only the App-JWT installation lookup reaches the network. */
-function installInstallationFetch(): void {
-  globalThis.fetch = (async (input: unknown) => {
-    const url = new URL(String(input));
-    if (url.pathname.endsWith("/installation")) {
-      if (url.pathname.startsWith("/repos/bad/")) {
-        return new Response("{}", { status: 404 });
-      }
-      return Response.json({ id: 777 });
-    }
-    return new Response("{}", { status: 404 });
-  }) as typeof fetch;
-}
-
-const writes = () =>
-  seen.filter(
-    (s) =>
-      s.route === "POST /repos/{owner}/{repo}/labels" ||
-      s.route === "PATCH /repos/{owner}/{repo}/labels/{name}",
-  );
+let providerSpy: ReturnType<typeof spyOn>;
+let idSpy: ReturnType<typeof spyOn>;
 
 beforeEach(() => {
-  seen = [];
-  labelPages = [[]];
+  calls.length = 0;
+  existing = [];
   setConfig(TEST_CONFIG);
-  resetAppCache();
-  installInstallationFetch();
-  asInstallation = spyOn(github, "asInstallation").mockResolvedValue(
-    fakeInstallation(),
+  providerSpy = spyOn(forge, "installationProvider").mockResolvedValue(
+    fakeProvider() as never,
   );
+  idSpy = spyOn(forge, "getInstallationId").mockResolvedValue(777);
 });
 
 afterEach(() => {
-  asInstallation.mockRestore();
-  globalThis.fetch = realFetch;
-  resetAppCache();
+  providerSpy.mockRestore();
+  idSpy.mockRestore();
 });
 
 describe("CANONICAL_LABELS", () => {
@@ -132,130 +116,125 @@ describe("CANONICAL_LABELS", () => {
 });
 
 describe("provisionRepoLabels", () => {
-  test("creates every canonical label when the repo has none", async () => {
-    const summary = await provisionRepoLabels("orgA", "core");
+  test("creates every missing canonical label", async () => {
+    const summary = await provisionRepoLabels("acme", "widgets");
 
     expect(summary.created).toEqual(CANONICAL_LABELS.map((l) => l.name));
     expect(summary.updated).toEqual([]);
     expect(summary.unchanged).toEqual([]);
-
-    const posts = writes();
-    expect(posts.length).toBe(CANONICAL_LABELS.length);
-    const progress = posts.find((s) => s.body?.name === "in-progress");
-    expect(progress?.body).toMatchObject({
-      owner: "orgA",
-      repo: "core",
-      name: "in-progress",
-      color: "3574f0",
-      description: "Status: In Progress",
+    expect(calls.filter((c) => c.method === "POST").length).toBe(
+      CANONICAL_LABELS.length,
+    );
+    expect(calls[0]?.body).toEqual({
+      name: "backlog",
+      colour: CANONICAL_LABELS[0].color,
+      description: CANONICAL_LABELS[0].description,
     });
   });
 
-  test("is a no-op when everything already matches (case-insensitive)", async () => {
-    labelPages = [
-      [...canonicalJson(), { name: "bug", color: "000000", description: "" }],
+  test("patches drift under the existing spelling", async () => {
+    existing = [{ name: "Backlog", colour: "000000", description: "old" }];
+
+    const summary = await provisionRepoLabels("acme", "widgets");
+
+    expect(summary.updated).toEqual(["backlog"]);
+    expect(calls).toContainEqual({
+      method: "PATCH",
+      path: "/repos/acme/widgets/labels/Backlog",
+      body: {
+        color: CANONICAL_LABELS[0].color,
+        description: CANONICAL_LABELS[0].description,
+      },
+    });
+  });
+
+  test("a converged label issues no write", async () => {
+    existing = [
+      {
+        name: "backlog",
+        colour: CANONICAL_LABELS[0].color.toUpperCase(),
+        description: CANONICAL_LABELS[0].description,
+      },
     ];
 
-    const summary = await provisionRepoLabels("orgA", "core");
-
-    expect(summary.created).toEqual([]);
-    expect(summary.updated).toEqual([]);
-    expect(summary.unchanged).toEqual(CANONICAL_LABELS.map((l) => l.name));
-    expect(writes()).toEqual([]);
-  });
-
-  test("patches drifted color and description, leaving others alone", async () => {
-    const labels = canonicalJson().map((l) => {
-      if (l.name === "md") return { ...l, color: "000000" };
-      if (l.name === "sm") return { ...l, description: "stale" };
-      return l;
-    });
-    labels.push({ name: "bug", color: "123456", description: "keep me" });
-    labelPages = [labels];
-
-    const summary = await provisionRepoLabels("orgA", "core");
-
-    expect(summary.created).toEqual([]);
-    expect(summary.updated).toEqual(["sm", "md"]);
-    expect(summary.unchanged).toHaveLength(12);
-
-    const patches = seen.filter(
-      (s) => s.route === "PATCH /repos/{owner}/{repo}/labels/{name}",
-    );
-    expect(patches.map((p) => p.body?.name)).toEqual(["sm", "md"]);
-    // The non-reserved `bug` label is never touched.
-    expect(writes().some((w) => w.body?.name === "bug")).toBe(false);
-  });
-
-  test("treats a null description as drift", async () => {
-    labelPages = [
-      canonicalJson().map((l) =>
-        l.name === "md" ? { ...l, description: null } : l,
-      ),
-    ];
-
-    const summary = await provisionRepoLabels("orgA", "core");
-
-    expect(summary.updated).toEqual(["md"]);
-  });
-
-  test("paginates until a short page and finds labels on later pages", async () => {
-    const junk = Array.from({ length: 100 }, (_, i) => ({
-      name: `junk-${i}`,
-      color: "000000",
-      description: "",
-    }));
-    labelPages = [junk, canonicalJson()];
-
-    const summary = await provisionRepoLabels("orgA", "core");
-
-    expect(summary.created).toEqual([]);
-    expect(summary.unchanged).toHaveLength(CANONICAL_LABELS.length);
-    const listCalls = seen.filter(
-      (s) => s.route === "GET /repos/{owner}/{repo}/labels",
-    );
-    expect(listCalls.map((c) => c.page)).toEqual(["1", "2"]);
-  });
-
-  test("rejects when the App is not installed on the repo", async () => {
-    await expect(provisionRepoLabels("bad", "core")).rejects.toMatchObject({
-      status: 404,
-    });
-  });
-
-  test("uses the real installation client (App token) end to end", async () => {
-    asInstallation.mockRestore();
-    const requests: string[] = [];
-    globalThis.fetch = (async (
-      input: unknown,
-      init?: { method?: string },
-    ) => {
-      const url = new URL(String(input));
-      requests.push(`${init?.method ?? "GET"} ${url.pathname}`);
-      if (url.pathname.endsWith("/installation")) {
-        return Response.json({ id: 777 });
-      }
-      if (url.pathname.endsWith("/access_tokens")) {
-        return Response.json({
-          token: "ghs_test",
-          expires_at: new Date(Date.now() + 3_600_000).toISOString(),
-        });
-      }
-      if ((init?.method ?? "GET").toUpperCase() === "GET") {
-        return Response.json([]);
-      }
-      return Response.json({});
-    }) as typeof fetch;
-
-    // A one-label subset keeps the run under octokit's 1s/write throttle.
-    const summary = await provisionRepoLabels("orgA", "core", [
+    const summary = await provisionRepoLabels("acme", "widgets", [
       CANONICAL_LABELS[0],
     ]);
 
-    expect(summary.created).toEqual(["backlog"]);
-    expect(requests).toContain(
-      "POST /app/installations/777/access_tokens",
+    expect(summary.created).toEqual([]);
+    expect(summary.updated).toEqual([]);
+    expect(summary.unchanged).toEqual(["backlog"]);
+    expect(calls).toEqual([]);
+  });
+
+  test("matches names case-insensitively without creating a duplicate", async () => {
+    existing = [
+      {
+        name: "BACKLOG",
+        colour: CANONICAL_LABELS[0].color,
+        description: CANONICAL_LABELS[0].description,
+      },
+    ];
+
+    const summary = await provisionRepoLabels("acme", "widgets", [
+      CANONICAL_LABELS[0],
+    ]);
+
+    expect(summary.unchanged).toEqual(["backlog"]);
+    expect(calls).toEqual([]);
+  });
+
+  test("treats a null description as drift", async () => {
+    existing = [
+      {
+        name: "md",
+        colour: CANONICAL_LABELS.find((l) => l.name === "md")!.color,
+        description: undefined,
+      },
+    ];
+
+    const summary = await provisionRepoLabels("acme", "widgets", [
+      CANONICAL_LABELS.find((l) => l.name === "md")!,
+    ]);
+
+    expect(summary.updated).toEqual(["md"]);
+    expect(calls).toEqual([
+      {
+        method: "PATCH",
+        path: "/repos/acme/widgets/labels/md",
+        body: {
+          color: CANONICAL_LABELS.find((l) => l.name === "md")!.color,
+          description: CANONICAL_LABELS.find((l) => l.name === "md")!
+            .description,
+        },
+      },
+    ]);
+  });
+
+  test("leaves non-canonical labels alone", async () => {
+    existing = [{ name: "bug", colour: "123456", description: "keep me" }];
+
+    const summary = await provisionRepoLabels("acme", "widgets");
+
+    expect(summary.created).toHaveLength(CANONICAL_LABELS.length);
+    expect(calls.some((c) => (c.body as { name?: string })?.name === "bug")).toBe(
+      false,
     );
+  });
+
+  test("resolves the installation and lists through its provider", async () => {
+    await provisionRepoLabels("acme", "widgets", []);
+
+    expect(idSpy).toHaveBeenCalledWith("acme", "widgets");
+    expect(providerSpy).toHaveBeenCalledWith(777);
+  });
+
+  test("rejects when the App is not installed on the repo", async () => {
+    idSpy.mockRejectedValue(new ForgeApiError("Not Found", 404, ""));
+
+    await expect(provisionRepoLabels("bad", "core")).rejects.toMatchObject({
+      status: 404,
+    });
   });
 });
 
@@ -286,6 +265,10 @@ describe("provisionCanonicalLabels", () => {
       ],
     };
     setConfig(config);
+    idSpy.mockImplementation((async (owner: string) => {
+      if (owner === "bad") throw new ForgeApiError("Not Found", 404, "");
+      return 777;
+    }) as never);
 
     const report = await provisionCanonicalLabels();
 

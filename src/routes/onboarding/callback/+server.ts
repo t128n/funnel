@@ -5,7 +5,7 @@ import {
   toCredentialsInput,
 } from "#lib/server/github/manifest-flow.server";
 import { saveManifestCredentials } from "#lib/server/github/credentials";
-import { resetAppCache } from "#lib/server/github/app.server";
+import { forge } from "#lib/server/forge/providers.server";
 import { resetAuthCache } from "#lib/server/auth/index";
 import {
   requireOnboardingAccess,
@@ -51,7 +51,7 @@ export const GET: RequestHandler = async (event) => {
 
   // The App and its OAuth client changed: drop the derived singletons so the
   // install step and subsequent requests use the new credentials.
-  resetAppCache();
+  forge.resetCaches();
   resetAuthCache();
 
   throw redirect(303, "/onboarding/install");

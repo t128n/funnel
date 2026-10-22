@@ -9,8 +9,8 @@
  *
  * Reads are synchronous (bun:sqlite) and memoized for the process; a write
  * clears the cache so the very next request sees the new credentials. Callers
- * that own a derived cache (the Octokit App, Better Auth) must also reset it —
- * see {@link applyGithubCredentialsChanged}.
+ * that own a derived cache (the forge App provider, Better Auth) must also
+ * reset it — see {@link applyGithubCredentialsChanged}.
  */
 import { eq } from "drizzle-orm";
 import { db } from "#lib/server/db/index";

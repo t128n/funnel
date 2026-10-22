@@ -54,18 +54,10 @@ describe("priority label migration", () => {
            VALUES (1, 7, 700, 'issue', '', 'open', 1, 1)`,
         )
         .run();
-      sqlite
-        .query(
-          `INSERT INTO state_issue_priority
-             (org, name, issue_number, impact, urgency, priority, created_at, updated_at)
-           VALUES ('orgA', 'core', 7, 1, 1, 'P1', 1, 1)`,
-        )
-        .run();
-
       migrate(drizzle({ client: sqlite }), { migrationsFolder: DRIZZLE });
 
       const columns = sqlite
-        .query("PRAGMA table_info(mirror_github_issue)")
+        .query("PRAGMA table_info(mirror_thread)")
         .all()
         .map((column) => (column as { name: string }).name);
       expect(columns).toEqual(
@@ -77,14 +69,10 @@ describe("priority label migration", () => {
         .all()
         .map((table) => (table as { name: string }).name);
       expect(tables).not.toContain("state_issue_priority");
+      expect(tables).not.toContain("mirror_github_issue");
 
-      const issue = sqlite
-        .query(
-          `SELECT impact, urgency, priority
-             FROM mirror_github_issue WHERE repo_id = 1 AND number = 7`,
-        )
-        .get();
-      expect(issue).toEqual({ impact: null, urgency: null, priority: null });
+      const threads = sqlite.query("SELECT count(*) AS n FROM mirror_thread").get() as { n: number };
+      expect(threads.n).toBe(0);
     } finally {
       sqlite.close();
     }

@@ -3,8 +3,8 @@
  *
  * With the App credentials living in the database (there are no credential
  * environment variables), tests need a real, seeded App. The RSA key is
- * generated with a real 2048-bit keypair so `@octokit/auth-app` JWT signing
- * works offline (tests stub `fetch` for the network itself).
+ * generated with a real 2048-bit keypair so App JWT signing works offline
+ * (tests stub `fetch` for the network itself).
  *
  * `tests/setup.ts` seeds this once for the whole run; a test that clears the
  * credentials must re-seed in its `afterEach` so later files keep working.
