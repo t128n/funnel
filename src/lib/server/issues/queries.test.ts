@@ -13,6 +13,7 @@ import { writeBlocked } from "#lib/funnel-metadata";
 import { clearMirror } from "#tests/mirror-helpers";
 import { TEST_CONFIG } from "#tests/test-config";
 import { parseIssueFilter } from "./filters";
+import type { UserRef } from "./types";
 import {
   allIssues,
   attentionIssues,
@@ -27,17 +28,48 @@ import {
 } from "./queries";
 
 const DAY_MS = 86_400_000;
-const VIEWER = 42;
+const VIEWER = "42";
+const FORGE = "github";
+const INSTANCE = "github.com";
 
-function user(githubId: number, login: string): UserRecord {
-  return { githubId, login, avatarUrl: `https://avatars/${login}.png` };
+/** The internal repo ids assigned by the mirror on seed. */
+let coreId = 0;
+let webId = 0;
+
+function user(externalId: string, login: string): UserRecord {
+  return {
+    id: 0,
+    externalId,
+    forge: FORGE,
+    instance: INSTANCE,
+    login,
+    avatarUrl: `https://avatars/${login}.png`,
+    url: `https://github.com/${login}`,
+  };
+}
+
+function repo(externalId: string, org: string, name: string): number {
+  return upsertRepo({
+    externalId,
+    forge: FORGE,
+    instance: INSTANCE,
+    org,
+    name,
+    url: `https://github.com/${org}/${name}`,
+    archived: false,
+  }).id;
+}
+
+function issueUrl(slug: string, number: number): string {
+  return `https://github.com/${slug}/issues/${number}`;
 }
 
 function seed(): void {
-  upsertRepo({ githubId: 1, org: "orgA", name: "core", archived: false });
-  upsertRepo({ githubId: 2, org: "orgA", name: "web", archived: false });
+  coreId = repo("1", "orgA", "core");
+  webId = repo("2", "orgA", "web");
 
   const base = {
+    kind: "issue" as const,
     state: "open" as const,
     stateReason: null,
     milestoneNumber: null,
@@ -50,18 +82,25 @@ function seed(): void {
   upsertIssue(
     {
       ...base,
-      githubId: 101,
-      repoId: 1,
+      externalId: "101",
+      repoId: coreId,
       number: 1,
       title: "Alpha crash",
       body: "stack trace",
-      author: user(7, "octocat"),
+      author: user("7", "octocat"),
+      url: issueUrl("orgA/core", 1),
       updatedAt: 100,
       closedAt: null,
       labels: ["todo", "p1", "sm", "bug"],
       assignees: [user(VIEWER, "me")],
       comments: [
-        { githubId: 1001, author: user(7, "octocat"), body: "repro steps", createdAt: 11, updatedAt: 11 },
+        {
+          externalId: "1001",
+          author: user("7", "octocat"),
+          body: "repro steps",
+          createdAt: 11,
+          updatedAt: 11,
+        },
       ],
     },
     { status: "todo", priority: "p1", size: "sm", blocked: false, labelConflict: false },
@@ -70,11 +109,12 @@ function seed(): void {
   upsertIssue(
     {
       ...base,
-      githubId: 102,
-      repoId: 1,
+      externalId: "102",
+      repoId: coreId,
       number: 2,
       title: "Beta feature",
       author: null,
+      url: issueUrl("orgA/core", 2),
       updatedAt: 200,
       closedAt: null,
       labels: [],
@@ -85,15 +125,16 @@ function seed(): void {
   upsertIssue(
     {
       ...base,
-      githubId: 103,
-      repoId: 2,
+      externalId: "103",
+      repoId: webId,
       number: 3,
       title: "Gamma regression",
-      author: user(8, "alice"),
+      author: user("8", "alice"),
+      url: issueUrl("orgA/web", 3),
       updatedAt: 300,
       closedAt: null,
       labels: ["in-progress", "p2", "frontend"],
-      assignees: [user(7, "octocat")],
+      assignees: [user("7", "octocat")],
     },
     { status: "in-progress", priority: "p2", size: null, blocked: false, labelConflict: false },
   );
@@ -101,13 +142,14 @@ function seed(): void {
   upsertIssue(
     {
       ...base,
-      githubId: 104,
-      repoId: 2,
+      externalId: "104",
+      repoId: webId,
       number: 4,
       title: "Delta done",
       state: "closed",
       stateReason: "completed",
       author: null,
+      url: issueUrl("orgA/web", 4),
       updatedAt: 400,
       closedAt: Date.now() - DAY_MS,
       labels: ["lg"],
@@ -118,13 +160,14 @@ function seed(): void {
   upsertIssue(
     {
       ...base,
-      githubId: 105,
-      repoId: 1,
+      externalId: "105",
+      repoId: coreId,
       number: 5,
       title: "Epsilon canceled",
       state: "closed",
       stateReason: "not_planned",
       author: null,
+      url: issueUrl("orgA/core", 5),
       updatedAt: 500,
       closedAt: Date.now() - 2 * DAY_MS,
       labels: [],
@@ -135,15 +178,16 @@ function seed(): void {
   upsertIssue(
     {
       ...base,
-      githubId: 106,
-      repoId: 1,
+      externalId: "106",
+      repoId: coreId,
       number: 6,
       title: "Zeta polish",
       author: null,
+      url: issueUrl("orgA/core", 6),
       updatedAt: 50,
       closedAt: null,
       labels: ["backlog", "p3", "lg", "bug"],
-      assignees: [user(7, "octocat"), user(8, "alice")],
+      assignees: [user("7", "octocat"), user("8", "alice")],
     },
     { status: "backlog", priority: "p3", size: "lg", blocked: false, labelConflict: false },
   );
@@ -152,6 +196,18 @@ function seed(): void {
 function parse(query: string) {
   return parseIssueFilter(new URLSearchParams(query), filterContext(VIEWER));
 }
+
+test("UserRef carries an external identity", () => {
+  const user: UserRef = {
+    externalId: "101",
+    forge: "github",
+    instance: "github.com",
+    login: "octocat",
+    avatarUrl: "",
+  };
+  expect(user.externalId).toBe("101");
+  expect(user.forge).toBe("github");
+});
 
 const numbers = (items: { number: number }[]) => items.map((item) => item.number);
 
@@ -178,7 +234,15 @@ describe("allIssues", () => {
     expect(first.number).toBe(1);
     expect(first.labels.sort()).toEqual(["bug", "p1", "sm", "todo"]);
     expect(first.assignees.map((a) => a.login)).toEqual(["me"]);
+    expect(first.assignees[0]).toMatchObject({
+      externalId: "42",
+      forge: "github",
+      instance: "github.com",
+    });
     expect(first.author?.login).toBe("octocat");
+    expect(first.author?.externalId).toBe("7");
+    expect(first.author?.forge).toBe("github");
+    expect(first.author?.instance).toBe("github.com");
     expect(first.author?.avatarUrl).toBe("https://avatars/octocat.png");
   });
 
@@ -309,16 +373,18 @@ describe("statusBoard", () => {
 describe("attentionIssues", () => {
   function seedBlockedIssue(
     number: number,
-    githubId: number,
+    externalId: string,
     body: string,
     blocked: boolean,
   ): void {
     upsertIssue(
       {
-        githubId,
-        repoId: 1,
+        externalId,
+        kind: "issue",
+        repoId: coreId,
         number,
         title: `Blocked ${number}`,
+        url: issueUrl("orgA/core", number),
         body,
         state: "open",
         stateReason: null,
@@ -339,11 +405,11 @@ describe("attentionIssues", () => {
     writeBlocked("desc", { blocker: "Upstream API key", needs: "Token", trying: "", recheck });
 
   test("returns only blocked issues that carry a re-check date", () => {
-    seedBlockedIssue(7, 107, withRecheck("2026-10-25"), true);
+    seedBlockedIssue(7, "107", withRecheck("2026-10-25"), true);
     // Blocked but no metadata date.
-    seedBlockedIssue(8, 108, "plain body", true);
+    seedBlockedIssue(8, "108", "plain body", true);
     // Has a date in the body but is not flagged blocked.
-    seedBlockedIssue(9, 109, withRecheck("2026-10-20"), false);
+    seedBlockedIssue(9, "109", withRecheck("2026-10-20"), false);
 
     const items = attentionIssues();
     expect(items.map((item) => item.issue.number)).toEqual([7]);
@@ -352,8 +418,8 @@ describe("attentionIssues", () => {
   });
 
   test("sorts by re-check date", () => {
-    seedBlockedIssue(7, 107, withRecheck("2026-11-01"), true);
-    seedBlockedIssue(8, 108, withRecheck("2026-10-19"), true);
+    seedBlockedIssue(7, "107", withRecheck("2026-11-01"), true);
+    seedBlockedIssue(8, "108", withRecheck("2026-10-19"), true);
     expect(attentionIssues().map((item) => item.recheck)).toEqual([
       "2026-10-19",
       "2026-11-01",
@@ -363,40 +429,42 @@ describe("attentionIssues", () => {
 
 describe("getIssueListItem", () => {
   test("returns one hydrated row", () => {
-    expect(getIssueListItem(1, 1)?.title).toBe("Alpha crash");
-    expect(getIssueListItem(1, 999)).toBeUndefined();
+    expect(getIssueListItem(coreId, 1)?.title).toBe("Alpha crash");
+    expect(getIssueListItem(coreId, 999)).toBeUndefined();
   });
 });
 
 describe("milestones", () => {
   function seedMilestone(): void {
-    replaceRepoMilestones(1, [
+    replaceRepoMilestones(coreId, [
       {
         number: 1,
-        githubId: 10,
+        externalId: "10",
         title: "v1",
         description: "First release",
         state: "open",
         dueOn: 1_000,
         openIssues: 1,
         closedIssues: 0,
-        creator: user(7, "octocat"),
+        creator: user("7", "octocat"),
         createdAt: 1,
         updatedAt: 2,
         closedAt: null,
-        htmlUrl: "https://github.com/orgA/core/milestone/1",
+        url: "https://github.com/orgA/core/milestone/1",
       },
     ]);
     upsertIssue(
       {
-        githubId: 101,
-        repoId: 1,
+        externalId: "101",
+        kind: "issue",
+        repoId: coreId,
         number: 1,
         title: "Alpha crash",
         body: "stack trace",
+        url: issueUrl("orgA/core", 1),
         state: "open",
         stateReason: null,
-        author: user(7, "octocat"),
+        author: user("7", "octocat"),
         milestoneNumber: 1,
         createdAt: 1,
         updatedAt: 100,
@@ -411,7 +479,7 @@ describe("milestones", () => {
 
   test("hydrates the issue's milestone and exposes it in filter options", () => {
     seedMilestone();
-    const issue = getIssueListItem(1, 1);
+    const issue = getIssueListItem(coreId, 1);
     expect(issue?.milestone).toEqual({
       repo: "orgA/core",
       number: 1,
@@ -423,15 +491,26 @@ describe("milestones", () => {
 
   test("lists milestones with progress and resolves one by number", () => {
     seedMilestone();
-    const [milestone] = listMilestones(1);
-    expect(milestone).toMatchObject({ repo: "orgA/core", number: 1, progress: 0 });
-    expect(getMilestone(1, 1)?.title).toBe("v1");
-    expect(getMilestone(1, 99)).toBeUndefined();
+    const [milestone] = listMilestones(coreId);
+    expect(milestone).toMatchObject({
+      repo: "orgA/core",
+      number: 1,
+      progress: 0,
+      url: "https://github.com/orgA/core/milestone/1",
+    });
+    expect(milestone.creator).toMatchObject({
+      externalId: "7",
+      forge: "github",
+      instance: "github.com",
+      login: "octocat",
+    });
+    expect(getMilestone(coreId, 1)?.title).toBe("v1");
+    expect(getMilestone(coreId, 99)).toBeUndefined();
   });
 
   test("returns the milestone's issues and filters by milestone", () => {
     seedMilestone();
-    expect(numbers(milestoneIssues(1, 1))).toEqual([1]);
+    expect(numbers(milestoneIssues(coreId, 1))).toEqual([1]);
     expect(numbers(allIssues(parse("milestone=orgA/core#1")))).toEqual([1]);
     expect(numbers(allIssues(parse("milestone=none")))).toEqual([3, 6]);
   });

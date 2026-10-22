@@ -4,16 +4,16 @@ import {
   EMPTY_FILTER,
   escapeLike,
   parseIssueFilter,
-  type FilterContext,
+  type IssueFilterContext,
 } from "./filters";
 
-const ctx: FilterContext = {
+const ctx: IssueFilterContext = {
   repos: [
-    { githubId: 1, org: "orgA", name: "core" },
-    { githubId: 2, org: "orgA", name: "web" },
+    { id: 1, org: "orgA", name: "core" },
+    { id: 2, org: "orgA", name: "web" },
   ],
-  viewerGithubId: 42,
-  resolveLogin: (login) => (login === "octocat" ? 7 : undefined),
+  viewerExternalId: "42",
+  resolveLogin: (login) => (login === "octocat" ? "7" : undefined),
 };
 
 describe("parseIssueFilter", () => {
@@ -34,18 +34,27 @@ describe("parseIssueFilter", () => {
     expect(filter.repos).toEqual([1]);
   });
 
-  test("resolves assignee me / login / numeric ids", () => {
+  test("resolves assignee me / login / numeric external ids", () => {
     expect(
       parseIssueFilter(new URLSearchParams("assignee=me"), ctx).assignees,
-    ).toEqual([42]);
+    ).toEqual(["42"]);
     expect(
       parseIssueFilter(new URLSearchParams("assignee=octocat"), ctx).assignees,
-    ).toEqual([7]);
+    ).toEqual(["7"]);
     expect(
       parseIssueFilter(new URLSearchParams("assignee=8"), ctx).assignees,
-    ).toEqual([8]);
+    ).toEqual(["8"]);
     expect(
       parseIssueFilter(new URLSearchParams("assignee=ghost"), ctx).assignees,
+    ).toEqual([]);
+  });
+
+  test("drops me when no viewer external id is present", () => {
+    expect(
+      parseIssueFilter(new URLSearchParams("assignee=me"), {
+        ...ctx,
+        viewerExternalId: null,
+      }).assignees,
     ).toEqual([]);
   });
 

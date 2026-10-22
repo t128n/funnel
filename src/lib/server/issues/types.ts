@@ -7,9 +7,15 @@
  */
 import type { StagedSubmission } from "#lib/server/intake/staging";
 
-/** A mirrored person (author or assignee). */
+/**
+ * A mirrored person (author or assignee). Identity is the forge-native
+ * `externalId` scoped by `forge`/`instance`; the internal mirror id never
+ * leaves the server.
+ */
 export interface UserRef {
-  githubId: number;
+  externalId: string;
+  forge: string;
+  instance: string;
   login: string;
   avatarUrl: string;
 }
@@ -29,7 +35,7 @@ export interface RepoMilestoneRef {
 /** One repo-scoped milestone for the Milestones view. */
 export interface MilestoneItem {
   repoId: number;
-  /** `owner/name`, resolved from `mirror_github_repo`. */
+  /** `owner/name`, resolved from `mirror_repo`. */
   repo: string;
   number: number;
   title: string;
@@ -41,7 +47,7 @@ export interface MilestoneItem {
   /** `closed / (open + closed)`, `0` when the milestone has no issues. */
   progress: number;
   creator: UserRef | null;
-  htmlUrl: string;
+  url: string;
   createdAt: number;
   updatedAt: number;
   closedAt: number | null;
@@ -50,7 +56,7 @@ export interface MilestoneItem {
 /** One row in a dense issue stream (All Issues / My Issues / Inbox issues). */
 export interface IssueListItem {
   repoId: number;
-  /** `owner/name`, resolved from `mirror_github_repo`. */
+  /** `owner/name`, resolved from `mirror_repo`. */
   repo: string;
   number: number;
   title: string;
@@ -122,7 +128,7 @@ export interface StatusBoard {
  * `bodyHtml` at the delivery boundary — see {@link RenderedComment}.
  */
 export interface CommentItem {
-  githubId: number;
+  externalId: string;
   author: UserRef | null;
   body: string;
   createdAt: number;

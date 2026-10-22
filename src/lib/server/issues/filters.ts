@@ -6,9 +6,9 @@
  * `LIKE` search over titles, bodies, and comments (FTS5 is deferred; INTERVIEW
  * Q16/Q17).
  *
- * Parsing is pure over an injected {@link FilterContext} so it is unit-testable
- * without a database; {@link buildIssueWhere} turns the parsed filter into a
- * Drizzle `WHERE` clause evaluated against the mirror.
+ * Parsing is pure over an injected {@link IssueFilterContext} so it is
+ * unit-testable without a database; {@link buildIssueWhere} turns the parsed
+ * filter into a Drizzle `WHERE` clause evaluated against the mirror.
  */
 import {
   and,
@@ -23,10 +23,11 @@ import {
 } from "drizzle-orm";
 import { db } from "#lib/server/db/index";
 import {
-  mirrorGithubComment,
-  mirrorGithubIssue,
-  mirrorGithubIssueAssignee,
-  mirrorGithubIssueLabel,
+  mirrorComment,
+  mirrorThread,
+  mirrorThreadAssignee,
+  mirrorThreadLabel,
+  mirrorUser,
 } from "#lib/server/db/schema";
 import { CANONICAL_LABELS, type LabelGroup } from "#lib/server/github/labels";
 
@@ -69,14 +70,14 @@ export interface MilestoneFilterRef {
 
 /** Parsed, validated filter state. Empty arrays mean "no constraint". */
 export interface IssueFilter {
-  /** `mirror_github_repo.github_id` values. */
+  /** Internal `mirror_repo.id` values. */
   repos: number[];
   /** `open` and/or `closed`; absence means "all states". */
   states: string[];
   /** Canonical status names and/or {@link NONE}. */
   statuses: string[];
-  /** `mirror_github_user.github_id` values. */
-  assignees: number[];
+  /** Forge-native `mirror_user.external_id` values. */
+  assignees: string[];
   /** `p1`-`p3` and/or {@link NONE}. */
   priorities: string[];
   /** `sm`/`md`/`lg` and/or {@link NONE}. */
@@ -92,13 +93,13 @@ export interface IssueFilter {
 }
 
 /** Everything parsing needs from the surrounding request. */
-export interface FilterContext {
-  /** Every mirrored repo, for `owner/name` -> id resolution. */
-  repos: ReadonlyArray<{ githubId: number; org: string; name: string }>;
-  /** The signed-in viewer's numeric GitHub id (`assignee=me`). */
-  viewerGithubId?: number | null;
-  /** Login -> numeric id resolver (case-insensitive) for assignee names. */
-  resolveLogin?: (login: string) => number | undefined;
+export interface IssueFilterContext {
+  /** Every mirrored repo, for `owner/name` -> internal id resolution. */
+  repos: ReadonlyArray<{ id: number; org: string; name: string }>;
+  /** The signed-in viewer's forge-native id (`assignee=me`). */
+  viewerExternalId?: string | null;
+  /** Login -> external id resolver (case-insensitive) for assignee names. */
+  resolveLogin?: (login: string) => string | undefined;
 }
 
 export const EMPTY_FILTER: IssueFilter = {
@@ -144,7 +145,7 @@ function vocab(values: readonly string[], allowed: Set<string>): string[] {
 /** Map `owner/name` (case-insensitive) to a mirrored repo id. */
 function resolveRepos(
   values: readonly string[],
-  repos: FilterContext["repos"],
+  repos: IssueFilterContext["repos"],
 ): number[] {
   const out: number[] = [];
   for (const value of values) {
@@ -155,28 +156,26 @@ function resolveRepos(
     const match = repos.find(
       (repo) => repo.org.toLowerCase() === org && repo.name.toLowerCase() === name,
     );
-    if (match && !out.includes(match.githubId)) out.push(match.githubId);
+    if (match && !out.includes(match.id)) out.push(match.id);
   }
   return out;
 }
 
 function resolveAssignees(
   values: readonly string[],
-  ctx: FilterContext,
-): number[] {
-  const out: number[] = [];
-  const push = (id: number | undefined) => {
-    if (typeof id === "number" && Number.isFinite(id) && !out.includes(id)) {
-      out.push(id);
-    }
+  ctx: IssueFilterContext,
+): string[] {
+  const out: string[] = [];
+  const push = (id: string | undefined) => {
+    if (id !== undefined && id.length > 0 && !out.includes(id)) out.push(id);
   };
   for (const value of values) {
     if (value.toLowerCase() === "me") {
-      push(ctx.viewerGithubId ?? undefined);
+      push(ctx.viewerExternalId ?? undefined);
       continue;
     }
     if (/^\d+$/.test(value)) {
-      push(Number(value));
+      push(value);
       continue;
     }
     push(ctx.resolveLogin?.(value));
@@ -191,7 +190,7 @@ function resolveAssignees(
  */
 function resolveMilestones(
   values: readonly string[],
-  repos: FilterContext["repos"],
+  repos: IssueFilterContext["repos"],
 ): { refs: MilestoneFilterRef[]; none: boolean } {
   const refs: MilestoneFilterRef[] = [];
   let none = false;
@@ -212,7 +211,7 @@ function resolveMilestones(
     const match = repos.find(
       (repo) => repo.org.toLowerCase() === org && repo.name.toLowerCase() === name,
     );
-    if (match) refs.push({ repoId: match.githubId, number });
+    if (match) refs.push({ repoId: match.id, number });
   }
   return { refs, none };
 }
@@ -223,7 +222,7 @@ function resolveMilestones(
  */
 export function parseIssueFilter(
   params: URLSearchParams,
-  ctx: FilterContext,
+  ctx: IssueFilterContext,
 ): IssueFilter {
   const milestones = resolveMilestones(multi(params, "milestone"), ctx.repos);
   return {
@@ -249,17 +248,22 @@ export function escapeLike(value: string): string {
   return value.replace(/[\\%_]/g, (match) => `\\${match}`);
 }
 
-/** `EXISTS` clause for "assigned to any of these users" (OR within group). */
-export function assigneeExists(userIds: readonly number[]): SQL {
+/**
+ * `EXISTS` clause for "assigned to any of these forge users" (OR within
+ * group). Assignee identity is the forge-native external id, so the junction
+ * row joins `mirror_user` on the internal id.
+ */
+export function assigneeExists(externalIds: readonly string[]): SQL {
   return exists(
     db
       .select({ one: sql`1` })
-      .from(mirrorGithubIssueAssignee)
+      .from(mirrorThreadAssignee)
+      .innerJoin(mirrorUser, eq(mirrorThreadAssignee.userId, mirrorUser.id))
       .where(
         and(
-          eq(mirrorGithubIssueAssignee.repoId, mirrorGithubIssue.repoId),
-          eq(mirrorGithubIssueAssignee.issueNumber, mirrorGithubIssue.number),
-          inArray(mirrorGithubIssueAssignee.userId, [...userIds]),
+          eq(mirrorThreadAssignee.repoId, mirrorThread.repoId),
+          eq(mirrorThreadAssignee.threadNumber, mirrorThread.number),
+          inArray(mirrorUser.externalId, [...externalIds]),
         ),
       ),
   );
@@ -270,12 +274,12 @@ function labelExists(names: readonly string[]): SQL {
   return exists(
     db
       .select({ one: sql`1` })
-      .from(mirrorGithubIssueLabel)
+      .from(mirrorThreadLabel)
       .where(
         and(
-          eq(mirrorGithubIssueLabel.repoId, mirrorGithubIssue.repoId),
-          eq(mirrorGithubIssueLabel.issueNumber, mirrorGithubIssue.number),
-          inArray(mirrorGithubIssueLabel.labelName, [...names]),
+          eq(mirrorThreadLabel.repoId, mirrorThread.repoId),
+          eq(mirrorThreadLabel.threadNumber, mirrorThread.number),
+          inArray(mirrorThreadLabel.labelName, [...names]),
         ),
       ),
   );
@@ -300,14 +304,14 @@ export function buildIssueWhere(filter: IssueFilter): SQL | undefined {
   const conditions: SQL[] = [];
 
   if (filter.repos.length > 0) {
-    conditions.push(inArray(mirrorGithubIssue.repoId, filter.repos));
+    conditions.push(inArray(mirrorThread.repoId, filter.repos));
   }
 
   for (const [column, values] of [
-    [mirrorGithubIssue.state, filter.states],
-    [mirrorGithubIssue.status, filter.statuses],
-    [mirrorGithubIssue.priority, filter.priorities],
-    [mirrorGithubIssue.size, filter.sizes],
+    [mirrorThread.state, filter.states],
+    [mirrorThread.status, filter.statuses],
+    [mirrorThread.priority, filter.priorities],
+    [mirrorThread.size, filter.sizes],
   ] as const) {
     const clause = dimension(column, values);
     if (clause) conditions.push(clause);
@@ -324,12 +328,12 @@ export function buildIssueWhere(filter: IssueFilter): SQL | undefined {
     const parts: SQL[] = filter.milestones.map(
       (m) =>
         and(
-          eq(mirrorGithubIssue.repoId, m.repoId),
-          eq(mirrorGithubIssue.milestoneNumber, m.number),
+          eq(mirrorThread.repoId, m.repoId),
+          eq(mirrorThread.milestoneNumber, m.number),
         ) as SQL,
     );
     if (filter.noMilestone) {
-      parts.push(isNull(mirrorGithubIssue.milestoneNumber) as SQL);
+      parts.push(isNull(mirrorThread.milestoneNumber) as SQL);
     }
     conditions.push(parts.length === 1 ? parts[0] : (or(...parts) as SQL));
   }
@@ -340,17 +344,17 @@ export function buildIssueWhere(filter: IssueFilter): SQL | undefined {
       sql`${column} LIKE ${pattern} ESCAPE '\\'`;
     conditions.push(
       or(
-        like(mirrorGithubIssue.title),
-        like(mirrorGithubIssue.body),
+        like(mirrorThread.title),
+        like(mirrorThread.body),
         exists(
           db
             .select({ one: sql`1` })
-            .from(mirrorGithubComment)
+            .from(mirrorComment)
             .where(
               and(
-                eq(mirrorGithubComment.repoId, mirrorGithubIssue.repoId),
-                eq(mirrorGithubComment.issueNumber, mirrorGithubIssue.number),
-                like(mirrorGithubComment.body),
+                eq(mirrorComment.repoId, mirrorThread.repoId),
+                eq(mirrorComment.threadNumber, mirrorThread.number),
+                like(mirrorComment.body),
               ),
             ),
         ),
