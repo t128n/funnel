@@ -1,7 +1,6 @@
 import { afterEach, beforeEach, describe, expect, spyOn, test } from "bun:test";
 import type { ForgeEvent, Thread } from "forges";
 import { setConfig } from "#/lib/server/config";
-import { resetAppCache } from "#/lib/server/github/app.server";
 import { forge } from "#/lib/server/forge/providers.server";
 import { TEST_CONFIG } from "#tests/test-config";
 import { clearMirror } from "#tests/mirror-helpers";
@@ -96,7 +95,7 @@ let spy: { mockRestore(): void };
 beforeEach(() => {
   clearMirror();
   setConfig(TEST_CONFIG);
-  resetAppCache();
+  forge.resetCaches();
   globalThis.fetch = (async (
     input: unknown,
     init?: { method?: string; body?: unknown },
@@ -129,7 +128,7 @@ beforeEach(() => {
 afterEach(() => {
   spy.mockRestore();
   globalThis.fetch = realFetch;
-  resetAppCache();
+  forge.resetCaches();
 });
 
 function seedStaleIssue() {

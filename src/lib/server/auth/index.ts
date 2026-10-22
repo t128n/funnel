@@ -168,8 +168,8 @@ export async function getSession(request: Request) {
  * before returning it, persisting the rotated access/refresh tokens (still
  * encrypted) back to `auth_account`. This is the automatic refresh path for
  * write operations — call it instead of reading `auth_account.accessToken`
- * directly, which now holds ciphertext. Compose it with the GitHub client:
- * `await github.asUser(await getUserAccessToken(userId))`.
+ * directly, which now holds ciphertext. Compose it with the GitHub provider:
+ * `forge.userProvider(await getUserAccessToken(userId))`.
  */
 export async function getUserAccessToken(userId: string): Promise<string> {
   const auth = await getAuth();

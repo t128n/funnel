@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { setConfig } from "#/lib/server/config";
-import { resetAppCache } from "#/lib/server/github/app.server";
+import { forge } from "#/lib/server/forge/providers.server";
 import { clearPassthroughCache } from "#/lib/server/github/api-passthrough.server";
 import { GET as getIssues } from "#/routes/api/repos/[owner]/[repo]/issues/+server";
 import { GET as getIssue } from "#/routes/api/repos/[owner]/[repo]/issues/[number]/+server";
@@ -61,7 +61,7 @@ beforeEach(() => {
   FETCHED.length = 0;
   clearPassthroughCache();
   setConfig(TEST_CONFIG);
-  resetAppCache();
+  forge.resetCaches();
   canned = { status: 200, data: [], headers: {} };
   failInstall = false;
   globalThis.fetch = stubFetch as typeof fetch;
@@ -302,8 +302,8 @@ describe("read route wiring", () => {
       "src/routes/api/users/[username]/+server.ts",
     ]) {
       const text = readFileSync(file, "utf8");
-      // `installationErrorResponse` stays on `app.server.ts` until T13; every
-      // client and installation lookup must already come from the forge module.
+      // `installationErrorResponse` still lives on `app.server.ts`; every
+      // client and installation lookup must come from the forge module.
       for (const line of text.split("\n")) {
         if (line.includes("github/app.server")) {
           expect(line).toContain("installationErrorResponse");

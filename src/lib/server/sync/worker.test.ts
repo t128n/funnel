@@ -1,7 +1,6 @@
 import { afterEach, beforeEach, describe, expect, spyOn, test } from "bun:test";
 import type { ForgeEvent, Thread, ThreadQuery } from "forges";
 import { setConfig } from "#/lib/server/config";
-import { resetAppCache } from "#/lib/server/github/app.server";
 import { forge } from "#/lib/server/forge/providers.server";
 import { TEST_CONFIG } from "#tests/test-config";
 import { clearMirror } from "#tests/mirror-helpers";
@@ -184,7 +183,7 @@ beforeEach(() => {
   resetEventBus();
   stopSyncWorker();
   setConfig(TEST_CONFIG);
-  resetAppCache();
+  forge.resetCaches();
   pages = [];
   etag = '"e1"';
   notModified = false;
@@ -212,7 +211,7 @@ beforeEach(() => {
 afterEach(() => {
   spy.mockRestore();
   globalThis.fetch = realFetch;
-  resetAppCache();
+  forge.resetCaches();
 });
 
 describe("inHistoryWindow", () => {

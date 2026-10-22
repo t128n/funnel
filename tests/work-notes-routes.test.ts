@@ -11,7 +11,7 @@ import {
   stateAttachment,
   stateWorkNote,
 } from "#/lib/server/db/schema";
-import { resetAppCache } from "#/lib/server/github/app.server";
+import { forge } from "#/lib/server/forge/providers.server";
 import { upsertRepo } from "#/lib/server/sync/mirror";
 import { GET as downloadAttachment, DELETE as removeAttachment } from "#/routes/api/attachments/[id]/+server";
 import { POST as uploadAttachment } from "#/routes/api/repos/[owner]/[repo]/issues/[number]/attachments/+server";
@@ -114,7 +114,7 @@ beforeEach(async () => {
   db.delete(stateAttachment).run();
   await rm(resolve(FUNNEL_UPLOAD_DIR), { recursive: true, force: true });
   setConfig({ ...TEST_CONFIG, repos: [{ repo: REPO_SLUG, shortcode: "CORE" }] });
-  resetAppCache();
+  forge.resetCaches();
   globalThis.fetch = stubFetch as typeof fetch;
   upsertRepo({ githubId: 1, org: OWNER, name: REPO, archived: false });
   await seedViewer();

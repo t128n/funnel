@@ -19,7 +19,6 @@
 import type { Thread, ThreadQuery } from "forges";
 import { configuredRepoSlugs, getConfig } from "#/lib/server/config";
 import { createLogger } from "#/lib/server/log";
-import { getInstallationId } from "#/lib/server/github/app.server";
 import {
   forge,
   type GitHubProvider,
@@ -302,7 +301,7 @@ export async function refreshRepoMilestonesBySlug(
   owner: string,
   repo: string,
 ): Promise<void> {
-  const installationId = await getInstallationId(owner, repo);
+  const installationId = await forge.getInstallationId(owner, repo);
   const repoRow = await ensureRepoMirror(owner, repo, installationId);
   await refreshRepoMilestones(installationId, repoRow);
 }
@@ -316,7 +315,7 @@ export async function runRepoCycle(
   owner: string,
   repo: string,
 ): Promise<PollResult> {
-  const installationId = await getInstallationId(owner, repo);
+  const installationId = await forge.getInstallationId(owner, repo);
   const repoRow = await ensureRepoMirror(owner, repo, installationId);
   try {
     await refreshRepoLabels(installationId, repoRow);
@@ -344,7 +343,7 @@ export async function refreshIssue(
   repo: string,
   number: number,
 ): Promise<void> {
-  const installationId = await getInstallationId(owner, repo);
+  const installationId = await forge.getInstallationId(owner, repo);
   const repoRow = await ensureRepoMirror(owner, repo, installationId);
   const provider = await forge.installationProvider(installationId);
   const repoRef = forge.repoRef(owner, repo);
