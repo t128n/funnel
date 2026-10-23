@@ -32,6 +32,33 @@ export function mergeFirstPage<T>(
   first: T[],
   keyOf: (item: T) => string,
 ): T[] {
+  // Fast path: the page is already an identity-equal, duplicate-free prefix of
+  // the loaded window. An unchanged SSE refresh then reuses the loaded array,
+  // so rows keep their object identity and the UI does not re-render.
+  if (first.length <= loaded.length) {
+    const keys = new Set<string>();
+    let unchanged = true;
+    for (let index = 0; index < first.length; index += 1) {
+      const key = keyOf(first[index]);
+      if (keys.has(key) || loaded[index] !== first[index]) {
+        unchanged = false;
+        break;
+      }
+      keys.add(key);
+    }
+    if (unchanged) {
+      for (let index = first.length; index < loaded.length; index += 1) {
+        const key = keyOf(loaded[index]);
+        if (keys.has(key)) {
+          unchanged = false;
+          break;
+        }
+        keys.add(key);
+      }
+    }
+    if (unchanged) return loaded;
+  }
+
   const seen = new Set<string>();
   const out: T[] = [];
   for (const item of uniqueBy(first, keyOf)) {
@@ -53,13 +80,16 @@ export function appendUnique<T>(
   page: T[],
   keyOf: (item: T) => string,
 ): T[] {
+  if (page.length === 0) return loaded;
   const seen = new Set(loaded.map(keyOf));
-  const out = [...loaded];
+  // Copy lazily: a page of already-loaded rows must not allocate a new window.
+  let out: T[] | null = null;
   for (const item of page) {
     const key = keyOf(item);
     if (seen.has(key)) continue;
     seen.add(key);
+    if (out === null) out = loaded.slice();
     out.push(item);
   }
-  return out;
+  return out ?? loaded;
 }
