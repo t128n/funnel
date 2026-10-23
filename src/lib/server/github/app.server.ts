@@ -30,7 +30,7 @@ export async function installationErrorResponse(
   return Response.json({ message: "Upstream error" }, { status });
 }
 
-export interface RepoGetOptions {
+interface RepoGetOptions {
   /** Query params forwarded upstream; every other param is dropped. */
   query?: ReadonlySet<string>;
   /** Drop entries with a `pull_request` key (issues lists). */
