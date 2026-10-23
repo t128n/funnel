@@ -24,7 +24,8 @@ import {
 import {
   createNotifications,
   getRecipientByExternalId,
-  getRecipientByLogin,
+  getRecipientsByExternalIds,
+  getRecipientsByLogins,
   listWatchers,
 } from "#lib/server/notifications/service";
 import type {
@@ -271,6 +272,35 @@ export function snapshotIssue(
   };
 }
 
+/**
+ * Build the post-upsert planner snapshot from the hydrated record and the
+ * metadata derived for it, avoiding a re-read of the rows just written.
+ */
+function snapshotFromRecord(
+  record: mirror.IssueRecord,
+  metadata: mirror.StoredMetadata,
+): IssueSnapshot {
+  return {
+    status: metadata.status ?? "",
+    priority: metadata.priority ?? "",
+    state: record.state,
+    updatedAt: record.updatedAt,
+    assigneeIds: record.assignees.map((assignee) => assignee.externalId),
+    comments: record.comments.map((comment) => ({
+      externalId: comment.externalId,
+      body: comment.body,
+      ...(comment.author
+        ? {
+            authorLogin: comment.author.login,
+            authorAvatarUrl: comment.author.avatarUrl,
+          }
+        : {}),
+    })),
+    title: record.title,
+    number: record.number,
+  };
+}
+
 /** One hydrated issue diff, handed to the rule planner. */
 export interface IssueChangeInput {
   repoId: number;
@@ -323,22 +353,25 @@ function collectRecipients(input: IssueChangeInput): Recipient[] {
     if (recipient) found.set(recipient.userId, recipient);
   };
 
-  for (const externalId of input.next.assigneeIds) {
-    add(getRecipientByExternalId(externalId));
-  }
+  const externalIds = new Set(input.next.assigneeIds);
   for (const user of mirror.getRepoAssignees(input.repoId)) {
-    add(getRecipientByExternalId(user.externalId));
+    externalIds.add(user.externalId);
+  }
+  for (const recipient of getRecipientsByExternalIds([...externalIds]).values()) {
+    add(recipient);
   }
 
   const knownComments = new Set(
     (input.previous?.comments ?? []).map((comment) => comment.externalId),
   );
+  const logins = new Set<string>();
   for (const comment of input.next.comments) {
     if (knownComments.has(comment.externalId)) continue;
-    if (comment.authorLogin) add(getRecipientByLogin(comment.authorLogin));
-    for (const login of parseMentions(comment.body)) {
-      add(getRecipientByLogin(login));
-    }
+    if (comment.authorLogin) logins.add(comment.authorLogin);
+    for (const login of parseMentions(comment.body)) logins.add(login);
+  }
+  for (const recipient of getRecipientsByLogins([...logins]).values()) {
+    add(recipient);
   }
 
   return [...found.values()];
@@ -541,11 +574,21 @@ export async function hydrateAndStore(
     ? await options.notificationsEnabled()
     : await notificationsEnabled();
   const notify = options.notify ?? notifyIssueChanges;
-  for (const record of records) {
-    const previous =
-      enabled && repo ? snapshotIssue(repoId, record.number) : null;
+
+  // Snapshot every issue's previous state before the batch write; a missing
+  // row means a first sighting, which stays silent.
+  const previousByNumber = new Map<number, IssueSnapshot>();
+  if (enabled && repo) {
+    for (const record of records) {
+      const previous = snapshotIssue(repoId, record.number);
+      if (previous) previousByNumber.set(record.number, previous);
+    }
+  }
+
+  const metadataByNumber = new Map<number, mirror.StoredMetadata>();
+  mirror.upsertIssues(records, (record) => {
     const derived = deriveMetadata(record.labels);
-    mirror.upsertIssue(record, {
+    const metadata: mirror.StoredMetadata = {
       status: derived.status,
       impact: derived.impact,
       urgency: derived.urgency,
@@ -553,11 +596,18 @@ export async function hydrateAndStore(
       size: derived.size,
       blocked: derived.blocked,
       labelConflict: derived.conflicts.length > 0,
-    });
+    };
+    metadataByNumber.set(record.number, metadata);
+    return metadata;
+  });
 
-    if (!enabled || !repo || !previous) continue;
-    const next = snapshotIssue(repoId, record.number);
-    if (!next) continue;
+  if (!enabled || !repo) return records;
+
+  for (const record of records) {
+    const previous = previousByNumber.get(record.number);
+    const metadata = metadataByNumber.get(record.number);
+    if (!previous || !metadata) continue;
+    const next = snapshotFromRecord(record, metadata);
     try {
       notify({
         repoId,

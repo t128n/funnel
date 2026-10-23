@@ -8,7 +8,7 @@
  * "current user" beyond the id it is given.
  */
 
-import { and, asc, desc, eq, gt, isNull, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, inArray, isNull, sql } from "drizzle-orm";
 import { db } from "#lib/server/db/index";
 import {
 	authAccount,
@@ -108,8 +108,8 @@ export function listNotifications(
 }
 
 export function unreadNotificationCount(userId: string): number {
-	return db
-		.select({ id: stateNotification.id })
+	const row = db
+		.select({ count: sql<number>`count(*)` })
 		.from(stateNotification)
 		.where(
 			and(
@@ -117,7 +117,8 @@ export function unreadNotificationCount(userId: string): number {
 				isNull(stateNotification.readAt),
 			),
 		)
-		.all().length;
+		.get();
+	return row?.count ?? 0;
 }
 
 /** Mark one row read. Returns whether the row belongs to the user. */
@@ -132,8 +133,7 @@ export function markNotificationRead(userId: string, id: string): boolean {
 					eq(stateNotification.id, id),
 				),
 			)
-			.returning({ id: stateNotification.id })
-			.all().length > 0
+			.run().changes > 0
 	);
 }
 
@@ -148,8 +148,7 @@ export function markAllNotificationsRead(userId: string): number {
 				isNull(stateNotification.readAt),
 			),
 		)
-		.returning({ id: stateNotification.id })
-		.all().length;
+		.run().changes;
 }
 
 export function watchIssue(
@@ -264,6 +263,57 @@ export function getRecipientByLogin(login: string): Recipient | null {
 			.limit(1)
 			.all()[0] ?? null
 	);
+}
+
+/**
+ * Resolve many mirrored GitHub people in one query. The returned map is keyed
+ * by the external id that was looked up; unresolved ids are simply absent.
+ */
+export function getRecipientsByExternalIds(
+	externalIds: readonly string[],
+): Map<string, Recipient> {
+	const recipients = new Map<string, Recipient>();
+	const ids = [...new Set(externalIds)];
+	if (ids.length === 0) return recipients;
+	const rows = db
+		.select(recipientColumns())
+		.from(mirrorUser)
+		.innerJoin(
+			authAccount,
+			and(eq(authAccount.providerId, "github"), githubAccountMatch),
+		)
+		.where(inArray(mirrorUser.externalId, ids))
+		.all();
+	for (const row of rows) {
+		if (!recipients.has(row.externalId)) recipients.set(row.externalId, row);
+	}
+	return recipients;
+}
+
+/**
+ * Resolve many GitHub logins in one query, case-insensitively. The returned map
+ * is keyed by lowercased login; unresolved logins are simply absent.
+ */
+export function getRecipientsByLogins(
+	logins: readonly string[],
+): Map<string, Recipient> {
+	const recipients = new Map<string, Recipient>();
+	const keys = [...new Set(logins.map((login) => login.toLowerCase()))];
+	if (keys.length === 0) return recipients;
+	const rows = db
+		.select(recipientColumns())
+		.from(mirrorUser)
+		.innerJoin(
+			authAccount,
+			and(eq(authAccount.providerId, "github"), githubAccountMatch),
+		)
+		.where(inArray(sql`lower(${mirrorUser.login})`, keys))
+		.all();
+	for (const row of rows) {
+		const key = row.login.toLowerCase();
+		if (!recipients.has(key)) recipients.set(key, row);
+	}
+	return recipients;
 }
 
 /** Every linked user with the `admin` role. */
