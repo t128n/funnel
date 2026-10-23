@@ -37,8 +37,10 @@ flowchart LR
   T67[notification stubs]
   T68[dependency cleanup]
   T69[mutations dedupe]
+  T70[route test harness]
   %% taskgraph
   T63 --> T68
+  T64 --> T70
 ```
 
 ```mermaid
@@ -179,6 +181,18 @@ critical path: T63 → T68 (3.9 min) · peak width 8 · predicted build 3.9 min 
 **Review Focus:** state: `GROUP_VALUES` still contains the same impact, urgency, and flag members.
 **Steps:** 1 delete `namesIn`; 2 use `groupMembers` in the `GROUP_VALUES` entries for `impact`, `urgency`, and `flags`; 3 `bash "$SL" run_tests --fast src/lib/server/issues/mutations.test.ts --background` then `--wait`; 4 `bun run check`.
 **Notes:** Issue #69. `groupMembers` is a hoisted function declaration, so using it above its definition is safe.
+
+### T70 align repo GET route tests · Complexity 1 · Est. context 6k
+**Owns:** tests/routes.test.ts
+**Components:** 1
+**LOC owned:** 63
+**Tests:** fast
+**Kind:** design
+**Model:** sonnet
+**Est. time:** 1 min
+**Review Focus:** protocol: the harness passes query params on `request.url`, and all five repo GET routes still assert delegation to `repoGet`.
+**Steps:** 1 (review fix, already applied) send query params in the fabricated request URL instead of only the event `url`; 2 add coverage for the labels `per_page`/`page` allowlist and the percent-encoded label 404 `html_url`; 3 `bash "$SL" run_tests --fast tests/routes.test.ts --background` then `--wait`.
+**Notes:** Follow-up to the T64 package review; `repoGet` now reads `request.url`, matching SvelteKit's production contract.
 
 ## Review Focus
 
