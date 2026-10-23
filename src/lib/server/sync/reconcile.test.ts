@@ -73,6 +73,7 @@ const fakeProvider = {
       isArchived: false,
     }),
     labels: () => iterable([]),
+    assignableUsers: () => iterable([]),
     createLabel: async (
       _ref: unknown,
       input: { name: string; colour?: string; description?: string },

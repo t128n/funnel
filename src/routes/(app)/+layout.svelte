@@ -42,11 +42,22 @@
 
 		let timer: ReturnType<typeof setTimeout> | undefined;
 		let inFlight = false;
+		/** Set on teardown so an in-flight refresh cannot queue another pass. */
+		let stopped = false;
 		/** Scope of the queued burst; `null` means nothing is queued. */
 		let pending: RefreshScope | null = null;
 
+		// A repo slug is always `owner/name`, so the empty string can never match
+		// an open issue. Non-`issues` events bump the signal with it to refresh
+		// the streams without making the Inspector refetch its detail. Treat it
+		// as neutral when a burst mixes event kinds: the issue events still scope
+		// the burst, and a notifications-only burst still skips the Inspector.
+		const NO_ISSUE_REPO = '';
+		const noIssueScope: RefreshScope = { repo: NO_ISSUE_REPO };
+		const isNoIssueScope = (scope: RefreshScope): boolean => scope.repo === NO_ISSUE_REPO;
+
 		const scopeOf = (event: FunnelEvent): RefreshScope => {
-			if (event.type !== 'issues') return {};
+			if (event.type !== 'issues') return noIssueScope;
 			const repo = typeof event.repo === 'string' ? event.repo : undefined;
 			if (repo === undefined) return {};
 			const numbers = Array.isArray(event.numbers)
@@ -58,6 +69,8 @@
 		// Two scoped events stay scoped only while they share a repo; anything
 		// broader (or a repo-wide event) widens the burst to "all".
 		const mergeScopes = (left: RefreshScope, right: RefreshScope): RefreshScope => {
+			if (isNoIssueScope(left)) return right;
+			if (isNoIssueScope(right)) return left;
 			if (left.repo === undefined || right.repo === undefined || left.repo !== right.repo) {
 				return {};
 			}
@@ -71,7 +84,7 @@
 
 		const run = async () => {
 			timer = undefined;
-			if (inFlight || pending === null) return;
+			if (stopped || inFlight || pending === null) return;
 			const scope = pending;
 			pending = null;
 			inFlight = true;
@@ -83,11 +96,12 @@
 			} finally {
 				inFlight = false;
 				// A burst arrived while refreshing; give it its own trailing pass.
-				if (pending !== null) schedule();
+				if (!stopped && pending !== null) schedule();
 			}
 		};
 
 		const schedule = () => {
+			if (stopped) return;
 			if (timer !== undefined) clearTimeout(timer);
 			timer = setTimeout(() => void run(), 300);
 		};
@@ -102,7 +116,9 @@
 		});
 
 		return () => {
+			stopped = true;
 			if (timer !== undefined) clearTimeout(timer);
+			timer = undefined;
 			stopNative();
 			stopEvents();
 			stopClock();

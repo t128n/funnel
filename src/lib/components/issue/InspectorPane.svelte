@@ -303,9 +303,11 @@
 	// Refetch when the selection changes or the server reports a change.
 	// A signal scoped to another issue is ignored, and events that land while
 	// the title or description is being edited never discard the draft: the
-	// next signal (or leaving edit mode) picks the change up.
+	// signal is remembered and replayed once editing ends.
 	let loadedKey = '';
 	let loadedSeq = -1;
+	/** A change arrived while an editor was open; reload when it closes. */
+	let pendingReload = $state(false);
 
 	/** Whether a signal may have touched the issue currently open. */
 	function signalTouchesIssue(signal: RefreshPayload): boolean {
@@ -323,15 +325,32 @@
 		if (key !== loadedKey) {
 			loadedKey = key;
 			loadedSeq = signal.seq;
+			pendingReload = false;
 			commentLimit = DEFAULT_COMMENT_LIMIT;
 			void load();
 			return;
 		}
 		if (signal.seq === loadedSeq) return;
 		if (!signalTouchesIssue(signal)) return;
-		if (editingBody || editingTitle) return;
+		// Reading the edit flags untracked keeps this effect from rerunning (and
+		// reloading) on every edit; the effect below replays a remembered signal
+		// when the editor closes.
+		if (untrack(() => editingBody || editingTitle)) {
+			pendingReload = true;
+			return;
+		}
 
 		loadedSeq = signal.seq;
+		void load();
+	});
+
+	// A refresh skipped while editing is not dropped: reload as soon as the
+	// draft is saved or cancelled.
+	$effect(() => {
+		const editing = editingBody || editingTitle;
+		if (editing || !pendingReload) return;
+		pendingReload = false;
+		loadedSeq = untrack(() => $refreshSignal.seq);
 		void load();
 	});
 
@@ -1261,7 +1280,7 @@
 				<h2 class="text-foreground text-base font-semibold">
 					Activity
 				</h2>
-				<span class="mono text-muted-foreground text-xs">{detail.comments.length}</span>
+				<span class="mono text-muted-foreground text-xs">{detail.commentTotal}</span>
 			</div>
 			{#if detail.hasMoreComments && commentLimit < MAX_COMMENT_LIMIT}
 				<div class="flex justify-center">

@@ -21,6 +21,21 @@ function uniqueBy<T>(items: readonly T[], keyOf: (item: T) => string): T[] {
 }
 
 /**
+ * Content equality for the fast path. Identity is not enough: the loaded rows
+ * are Svelte proxies while a fresh page is parsed JSON, so deep-equal values
+ * always fail `===`. JSON form matches field-for-field for these plain feed
+ * rows; a value that cannot be serialized simply takes the merge path.
+ */
+function sameContent<T>(left: T, right: T): boolean {
+  if (left === right) return true;
+  try {
+    return JSON.stringify(left) === JSON.stringify(right);
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Merge the authoritative first page into the loaded window.
  *
  * The first page defines both content and order for its rows; anything already
@@ -32,15 +47,19 @@ export function mergeFirstPage<T>(
   first: T[],
   keyOf: (item: T) => string,
 ): T[] {
-  // Fast path: the page is already an identity-equal, duplicate-free prefix of
-  // the loaded window. An unchanged SSE refresh then reuses the loaded array,
-  // so rows keep their object identity and the UI does not re-render.
+  // Fast path: the page is already a duplicate-free, deep-equal prefix of the
+  // loaded window. An unchanged SSE refresh then reuses the loaded array, so
+  // rows keep their (proxied) object identity and the UI does not re-render.
   if (first.length <= loaded.length) {
     const keys = new Set<string>();
     let unchanged = true;
     for (let index = 0; index < first.length; index += 1) {
       const key = keyOf(first[index]);
-      if (keys.has(key) || loaded[index] !== first[index]) {
+      if (
+        keys.has(key) ||
+        keyOf(loaded[index]) !== key ||
+        !sameContent(loaded[index], first[index])
+      ) {
         unchanged = false;
         break;
       }

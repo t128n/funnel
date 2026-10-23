@@ -74,6 +74,30 @@ describe("mergeFirstPage", () => {
     expect(mergeFirstPage([a, b, c], [a2, b], keyOf)).toEqual([a2, b, c]);
   });
 
+  test("an unchanged page of deep-equal clones reuses the loaded array", () => {
+    const keyOf = (item: unknown) => (item as { id: string }).id;
+    const loaded = [
+      { id: "a", title: "A", nested: { labels: ["x", "y"] } },
+      { id: "b", title: "B", nested: { labels: [] } },
+      { id: "c", title: "C", nested: { labels: ["z"] } },
+    ];
+    // A parsed refresh has new object identities but the same content.
+    const first = JSON.parse(JSON.stringify(loaded.slice(0, 2)));
+
+    expect(first[0]).not.toBe(loaded[0]);
+    expect(mergeFirstPage(loaded, first, keyOf)).toBe(loaded);
+  });
+
+  test("changed content in the prefix takes the merge path", () => {
+    const keyOf = (item: unknown) => (item as { id: string }).id;
+    const loaded = [{ id: "a", title: "A" }, { id: "b", title: "B" }];
+    const first = [{ id: "a", title: "A edited" }];
+
+    const merged = mergeFirstPage(loaded, first, keyOf);
+    expect(merged).not.toBe(loaded);
+    expect(merged).toEqual([{ id: "a", title: "A edited" }, { id: "b", title: "B" }]);
+  });
+
   test("deduplicates within the first page and the loaded tail", () => {
     const keyOf = (item: unknown) => (item as { id: string }).id;
     const first: Array<{ id: string; value?: number }> = [
