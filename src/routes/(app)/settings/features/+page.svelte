@@ -7,6 +7,7 @@
 		serializeFeatureOverrides,
 		type FeatureOverrides
 	} from '#lib/features';
+	import * as Item from '#lib/components/ui/item';
 	import type { PageProps } from './$types';
 
 	/**
@@ -55,12 +56,14 @@
 		<div class="flex flex-col gap-3">
 			{#each FEATURE_FLAGS as flag (flag.key)}
 				{@const on = effective(flag.key, flag.default)}
-				<div class="flex items-start justify-between gap-4 rounded-lg border p-4">
-					<div class="flex min-w-0 flex-col gap-0.5">
-						<span class="text-sm font-medium">{flag.name}</span>
-						<span class="text-muted-foreground text-xs leading-relaxed">{flag.description}</span>
-					</div>
-					<div class="flex shrink-0 items-center gap-2.5">
+				<Item.Root variant="outline" class="items-start gap-4 p-4">
+					<Item.Content class="gap-0.5">
+						<Item.Title>{flag.name}</Item.Title>
+						<Item.Description class="text-xs leading-relaxed">
+							{flag.description}
+						</Item.Description>
+					</Item.Content>
+					<Item.Actions class="gap-2.5">
 						<span class="text-muted-foreground text-xs" aria-hidden="true">
 							{on ? flag.onLabel : flag.offLabel}
 						</span>
@@ -80,8 +83,8 @@
 									: 'translate-x-0.5'}"
 							></span>
 						</button>
-					</div>
-				</div>
+					</Item.Actions>
+				</Item.Root>
 			{/each}
 		</div>
 	{/if}

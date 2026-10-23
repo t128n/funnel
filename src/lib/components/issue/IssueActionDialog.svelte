@@ -123,9 +123,11 @@
 		{/if}
 
 		<Dialog.Footer>
-			<Button variant="outline" onclick={() => onopenchange(false)} disabled={busy}>
-				Cancel
-			</Button>
+			<Dialog.Close type="button">
+				{#snippet child({ props })}
+					<Button variant="outline" {...props} type="button" disabled={busy}>Cancel</Button>
+				{/snippet}
+			</Dialog.Close>
 			<Button onclick={confirm} disabled={!canConfirm}>
 				{#if busy}
 					<span data-icon="inline-start" class="inline-flex items-center">

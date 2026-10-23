@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { formatForDisplay } from '@tanstack/svelte-hotkeys';
 	import * as Popover from '#lib/components/ui/popover';
-	import { Kbd } from '#lib/components/ui/kbd';
+	import { Kbd, KbdGroup } from '#lib/components/ui/kbd';
 	import { appHotkeys } from '#lib/client/hotkeys';
 	import KeyboardIcon from '@lucide/svelte/icons/keyboard';
 
@@ -45,11 +45,11 @@
 			{#each rows as row (row.label)}
 				<li class="flex items-center justify-between gap-3">
 					<span class="text-xs">{row.label}</span>
-					<span class="flex items-center gap-1">
+					<KbdGroup class="gap-1">
 						{#each row.keys as key (key)}
 							<Kbd class="h-4 min-w-4 px-1 text-[10px]">{displayKey(key)}</Kbd>
 						{/each}
-					</span>
+					</KbdGroup>
 				</li>
 			{/each}
 		</ul>

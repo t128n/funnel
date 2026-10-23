@@ -32,18 +32,18 @@
 		</Card.Root>
 	{:else}
 		<Card.Root>
-			<Card.Header class="flex-row items-center justify-between gap-3">
-				<div class="flex flex-col gap-1">
-					<Card.Title>{data.credentials.name}</Card.Title>
-					<Card.Description>
-						Owned by <code>{data.credentials.ownerLogin || '—'}</code>
-					</Card.Description>
-				</div>
-				{#if data.credentials.installationId}
-					<Badge class="bg-emerald-500/15 text-emerald-400">Installed</Badge>
-				{:else}
-					<Badge variant="destructive">Not installed</Badge>
-				{/if}
+			<Card.Header>
+				<Card.Title>{data.credentials.name}</Card.Title>
+				<Card.Description>
+					Owned by <code>{data.credentials.ownerLogin || '—'}</code>
+				</Card.Description>
+				<Card.Action>
+					{#if data.credentials.installationId}
+						<Badge class="bg-emerald-500/15 text-emerald-400">Installed</Badge>
+					{:else}
+						<Badge variant="destructive">Not installed</Badge>
+					{/if}
+				</Card.Action>
 			</Card.Header>
 			<Card.Content class="grid gap-4 sm:grid-cols-2">
 				<div class="flex flex-col gap-1">

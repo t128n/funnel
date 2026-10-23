@@ -186,14 +186,11 @@
 			{/if}
 
 			<Dialog.Footer class="mt-4">
-				<Button
-					variant="outline"
-					onclick={() => onopenchange(false)}
-					disabled={pending}
-					type="button"
-				>
-					Cancel
-				</Button>
+				<Dialog.Close type="button">
+					{#snippet child({ props })}
+						<Button variant="outline" {...props} type="button" disabled={pending}>Cancel</Button>
+					{/snippet}
+				</Dialog.Close>
 				<Button type="submit" disabled={pending || loading || number.trim().length === 0}>
 					{#if pending}
 						<span data-icon="inline-start" class="inline-flex items-center">
