@@ -298,18 +298,6 @@
   --surface-divider: rgba(255, 255, 255, 0.06);
 }
 
-/**
- * The dragged card is cloned to <body> by `svelte-dnd-action`, which writes an
- * inline `transform` for positioning. Individual `rotate`/`scale` properties
- * compose with that transform, so the lift does not fight the drag maths.
- */
-#dnd-action-dragged-el {
-  rotate: 2deg;
-  scale: 1.02;
-  cursor: grabbing !important;
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45) !important;
-}
-
 @theme inline {
   --font-sans: "Inter Variable", sans-serif;
   --color-sidebar-ring: var(--sidebar-ring);
