@@ -1,5 +1,6 @@
 import type { RequestHandler } from "./$types";
 import { maxUploadBytes, saveAttachment } from "#lib/server/attachments/store";
+import { issueNumberParam } from "#lib/server/issues/http";
 import { apiRole } from "#lib/server/http/session";
 import { publish } from "#lib/server/sync/events";
 import { getRepoByOrgName } from "#lib/server/sync/mirror";
@@ -16,10 +17,8 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
   const denied = apiRole(locals, "write");
   if (denied instanceof Response) return denied;
 
-  const number = Number(params.number);
-  if (!Number.isInteger(number) || number <= 0) {
-    return Response.json({ message: "Invalid issue number" }, { status: 400 });
-  }
+  const number = issueNumberParam(params.number);
+  if (number instanceof Response) return number;
   if (!getRepoByOrgName(params.owner, params.repo)) {
     return Response.json(
       {

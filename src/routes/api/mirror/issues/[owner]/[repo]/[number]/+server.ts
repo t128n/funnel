@@ -1,3 +1,4 @@
+import { issueNumberParam } from "#lib/server/issues/http";
 import { getIssueDetail } from "#lib/server/issues/queries";
 import type { RenderedIssueDetail } from "#lib/server/issues/types";
 import { apiRole } from "#lib/server/http/session";
@@ -24,10 +25,8 @@ export const GET: RequestHandler = ({ params, locals }) => {
     );
   }
 
-  const number = Number(params.number);
-  if (!Number.isInteger(number) || number <= 0) {
-    return Response.json({ message: "Invalid issue number" }, { status: 400 });
-  }
+  const number = issueNumberParam(params.number);
+  if (number instanceof Response) return number;
 
   const detail = getIssueDetail(repo.id, number);
   if (!detail) {
