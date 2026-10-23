@@ -307,7 +307,7 @@ export function getRecipientsByLogins(
 			authAccount,
 			and(eq(authAccount.providerId, "github"), githubAccountMatch),
 		)
-		.where(inArray(sql`lower(${mirrorUser.login})`, keys))
+		.where(inArray(sql`${mirrorUser.login} COLLATE NOCASE`, keys))
 		.all();
 	for (const row of rows) {
 		const key = row.login.toLowerCase();
