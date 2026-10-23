@@ -90,7 +90,7 @@ critical path: T2 → T3a → T3b → T5 → T6a → T6b (16.0 min) · peak widt
 **Notes:** Native notifications must reuse the same stream, not open a second one.
 
 ### T2 stop per-poll directory refresh · Complexity 2 · Est. context 24k
-**Owns:** src/lib/server/sync/worker.ts, src/lib/server/sync/mirror.ts
+**Owns:** src/lib/server/sync/worker.ts, src/lib/server/sync/mirror.ts, src/lib/server/sync/worker.test.ts, src/lib/server/sync/mirror.test.ts
 **Components:** 2
 **LOC owned:** 100
 **Tests:** fast
