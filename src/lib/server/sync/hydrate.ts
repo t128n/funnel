@@ -60,6 +60,7 @@ export const HYDRATE_QUERY = `query FunnelHydrate($ids: [ID!]!) {
       labels(first: 100) { nodes { name } }
       assignees(first: 100) { nodes { login avatarUrl ... on User { databaseId } } }
       comments(first: 100) {
+        pageInfo { hasNextPage endCursor }
         nodes {
           databaseId
           author { login avatarUrl ... on User { databaseId } }
@@ -71,6 +72,30 @@ export const HYDRATE_QUERY = `query FunnelHydrate($ids: [ID!]!) {
     }
   }
 }`;
+
+/**
+ * Follow-up comment page for issues whose first page reported more comments.
+ * Only issued for those issues, keyed by node id and the previous `endCursor`.
+ */
+export const COMMENTS_QUERY = `query FunnelComments($id: ID!, $after: String) {
+  node(id: $id) {
+    ... on Issue {
+      comments(first: 100, after: $after) {
+        pageInfo { hasNextPage endCursor }
+        nodes {
+          databaseId
+          author { login avatarUrl ... on User { databaseId } }
+          body
+          createdAt
+          updatedAt
+        }
+      }
+    }
+  }
+}`;
+
+/** Bounded follow-up pages per issue; exceeding it fails closed. */
+export const MAX_COMMENT_PAGES = 100;
 
 export type GraphqlFn = (
   query: string,
@@ -91,6 +116,16 @@ interface GqlComment {
   updatedAt?: string | null;
 }
 
+interface GqlPageInfo {
+  hasNextPage?: boolean | null;
+  endCursor?: string | null;
+}
+
+interface GqlCommentConnection {
+  nodes?: GqlComment[];
+  pageInfo?: GqlPageInfo | null;
+}
+
 interface GqlNode {
   databaseId?: number | null;
   number?: number | null;
@@ -106,7 +141,7 @@ interface GqlNode {
   milestone?: { number?: number | null } | null;
   labels?: { nodes?: Array<{ name?: string | null }> } | null;
   assignees?: { nodes?: GqlActor[] } | null;
-  comments?: { nodes?: GqlComment[] } | null;
+  comments?: GqlCommentConnection | null;
 }
 
 function ms(value: string | null | undefined): number | null {
@@ -136,6 +171,26 @@ function toUser(
     avatarUrl: actor.avatarUrl ?? "",
     url: "",
   };
+}
+
+/** Map a comment connection to mirror records, dropping unidentified rows. */
+function normalizeComments(
+  comments: GqlCommentConnection | null | undefined,
+  forge: string,
+  instance: string,
+): mirror.CommentRecord[] {
+  return (comments?.nodes ?? [])
+    .filter(
+      (c): c is GqlComment & { databaseId: number } =>
+        typeof c.databaseId === "number",
+    )
+    .map((c) => ({
+      externalId: String(c.databaseId),
+      author: toUser(c.author, forge, instance),
+      body: c.body ?? "",
+      createdAt: ms(c.createdAt) ?? 0,
+      updatedAt: ms(c.updatedAt) ?? 0,
+    }));
 }
 
 /**
@@ -169,18 +224,7 @@ export function normalizeNode(
     .map((actor) => toUser(actor, forge, instance))
     .filter((u): u is mirror.UserRecord => u !== null);
 
-  const comments = (node.comments?.nodes ?? [])
-    .filter(
-      (c): c is GqlComment & { databaseId: number } =>
-        typeof c.databaseId === "number",
-    )
-    .map((c) => ({
-      externalId: String(c.databaseId),
-      author: toUser(c.author, forge, instance),
-      body: c.body ?? "",
-      createdAt: ms(c.createdAt) ?? 0,
-      updatedAt: ms(c.updatedAt) ?? 0,
-    }));
+  const comments = normalizeComments(node.comments, forge, instance);
 
   return {
     externalId: String(node.databaseId),
@@ -347,6 +391,62 @@ export function chunk<T>(items: readonly T[], size: number): T[][] {
   return out;
 }
 
+/**
+ * Follow `node(id:)` comment pages until the connection reports no more.
+ * Pages append in order and are de-duplicated by `externalId`. A page that
+ * claims another page without an `endCursor`, or a runaway server, throws so a
+ * partial list never reaches the caller.
+ */
+async function hydrateRemainingComments(
+  graphqlFn: GraphqlFn,
+  nodeId: string | undefined,
+  firstPage: readonly mirror.CommentRecord[],
+  firstCursor: string | null | undefined,
+  forge: string,
+  instance: string,
+): Promise<mirror.CommentRecord[]> {
+  if (typeof nodeId !== "string") {
+    throw new Error("comment pagination needs the node id");
+  }
+  let after = firstCursor;
+  if (!after) {
+    throw new Error("comment pagination reported hasNextPage without an endCursor");
+  }
+
+  const byId = new Map<string, mirror.CommentRecord>();
+  for (const comment of firstPage) byId.set(comment.externalId, comment);
+
+  for (let pages = 1; ; pages += 1) {
+    if (pages > MAX_COMMENT_PAGES) {
+      throw new Error(
+        `comment pagination exceeded ${MAX_COMMENT_PAGES} pages for node ${nodeId}`,
+      );
+    }
+    const result = (await graphqlFn(COMMENTS_QUERY, { id: nodeId, after })) as {
+      node?: { comments?: GqlCommentConnection | null } | null;
+    };
+    const connection = result?.node?.comments;
+    if (!connection) {
+      throw new Error(
+        `comment pagination lost node ${nodeId} on page ${pages}`,
+      );
+    }
+    for (const comment of normalizeComments(connection, forge, instance)) {
+      if (!byId.has(comment.externalId)) byId.set(comment.externalId, comment);
+    }
+    const pageInfo = connection?.pageInfo;
+    if (!pageInfo?.hasNextPage) break;
+    if (!pageInfo.endCursor) {
+      throw new Error(
+        "comment pagination reported hasNextPage without an endCursor",
+      );
+    }
+    after = pageInfo.endCursor;
+  }
+
+  return [...byId.values()];
+}
+
 /** Hydrate node ids into records without touching the database. */
 export async function hydrateNodes(
   graphqlFn: GraphqlFn,
@@ -360,9 +460,23 @@ export async function hydrateNodes(
     const result = (await graphqlFn(HYDRATE_QUERY, { ids })) as {
       nodes?: Array<GqlNode | null>;
     };
-    for (const node of result?.nodes ?? []) {
+    const nodes = result?.nodes ?? [];
+    for (let index = 0; index < nodes.length; index += 1) {
+      const node = nodes[index];
       const record = normalizeNode(node, repoId, forge, instance);
-      if (record) records.push(record);
+      if (!record) continue;
+      const pageInfo = node?.comments?.pageInfo;
+      if (pageInfo?.hasNextPage) {
+        record.comments = await hydrateRemainingComments(
+          graphqlFn,
+          ids[index],
+          record.comments,
+          pageInfo.endCursor,
+          forge,
+          instance,
+        );
+      }
+      records.push(record);
     }
   }
   return records;

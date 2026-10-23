@@ -1,0 +1,84 @@
+{"file": "src/lib/attention.test.ts", "line": 0, "context": "run_tests full: 14 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:45:08"}
+{"file": "src/lib/client/feed-merge.test.ts", "line": 0, "context": "run_tests full: 20 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:45:08"}
+{"file": "src/lib/client/native-notifications.test.ts", "line": 0, "context": "run_tests full: 10 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:45:08"}
+{"file": "src/lib/components/board/dnd.test.ts", "line": 0, "context": "run_tests full: 11 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:45:08"}
+{"file": "src/lib/components/issue/grouping.test.ts", "line": 0, "context": "run_tests full: 7 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:45:08"}
+{"file": "src/lib/errors.test.ts", "line": 0, "context": "run_tests full: 7 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:45:08"}
+{"file": "src/lib/features.test.ts", "line": 0, "context": "run_tests full: 7 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:45:08"}
+{"file": "src/lib/funnel-metadata.test.ts", "line": 0, "context": "run_tests full: 21 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:45:08"}
+{"file": "src/lib/issue-copy.test.ts", "line": 0, "context": "run_tests full: 13 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:45:08"}
+{"file": "src/lib/issue-ref.test.ts", "line": 0, "context": "run_tests full: 5 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:45:08"}
+{"file": "src/lib/issue-url.test.ts", "line": 0, "context": "run_tests full: 7 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:45:08"}
+{"file": "src/lib/priority.test.ts", "line": 0, "context": "run_tests full: 16 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:45:08"}
+{"file": "src/lib/seo.test.ts", "line": 0, "context": "run_tests full: 5 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:45:08"}
+{"file": "src/lib/server/attachments/store.test.ts", "line": 0, "context": "run_tests full: 6 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:45:08"}
+{"file": "src/lib/server/auth/auth.test.ts", "line": 0, "context": "run_tests full: 6 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:45:08"}
+{"file": "src/lib/server/config.test.ts", "line": 0, "context": "run_tests full: 13 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:45:08"}
+{"file": "src/lib/server/crypto/secrets.test.ts", "line": 0, "context": "run_tests full: 5 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:45:08"}
+{"file": "src/lib/server/db/schema.test.ts", "line": 0, "context": "run_tests full: 2 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:45:08"}
+{"file": "src/lib/server/forge/providers.test.ts", "line": 0, "context": "run_tests full: 6 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:45:08"}
+{"file": "src/lib/server/github/api-passthrough.test.ts", "line": 0, "context": "run_tests full: 21 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:45:08"}
+{"file": "src/lib/server/github/assignees.test.ts", "line": 0, "context": "run_tests full: 2 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:45:08"}
+{"file": "src/lib/server/github/cache.test.ts", "line": 0, "context": "run_tests full: 12 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:45:08"}
+{"file": "src/lib/server/github/credentials.test.ts", "line": 0, "context": "run_tests full: 5 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:45:08"}
+{"file": "src/lib/server/github/labels.test.ts", "line": 0, "context": "run_tests full: 12 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:45:08"}
+{"file": "src/lib/server/github/manifest-flow.server.test.ts", "line": 0, "context": "run_tests full: 7 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:45:08"}
+{"file": "src/lib/server/github/manifest.test.ts", "line": 0, "context": "run_tests full: 6 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:45:08"}
+{"file": "src/lib/server/github/milestones.test.ts", "line": 0, "context": "run_tests full: 9 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:45:08"}
+{"file": "src/lib/server/intake/actions.test.ts", "line": 0, "context": "run_tests full: 15 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:45:08"}
+{"file": "src/lib/server/intake/staging.test.ts", "line": 0, "context": "run_tests full: 10 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:45:08"}
+{"file": "src/lib/server/issues/detail.test.ts", "line": 0, "context": "run_tests full: 3 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:45:08"}
+{"file": "src/lib/server/issues/filters.test.ts", "line": 0, "context": "run_tests full: 14 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:45:08"}
+{"file": "src/lib/server/issues/mutations.test.ts", "line": 0, "context": "run_tests full: 36 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:45:08"}
+{"file": "src/lib/server/issues/queries.test.ts", "line": 0, "context": "run_tests full: 40 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:45:08"}
+{"file": "src/lib/server/log.test.ts", "line": 0, "context": "run_tests full: 3 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:45:08"}
+{"file": "src/lib/server/markdown/render.test.ts", "line": 0, "context": "run_tests full: 17 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:45:08"}
+{"file": "src/lib/server/notifications/plan.test.ts", "line": 0, "context": "run_tests full: 12 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:45:08"}
+{"file": "src/lib/server/notifications/service.test.ts", "line": 0, "context": "run_tests full: 8 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:45:08"}
+{"file": "src/lib/server/onboarding/access.test.ts", "line": 0, "context": "run_tests full: 2 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:45:08"}
+{"file": "src/lib/server/settings/apply.test.ts", "line": 0, "context": "run_tests full: 5 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:45:08"}
+{"file": "src/lib/server/settings/store.test.ts", "line": 0, "context": "run_tests full: 8 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:45:08"}
+{"file": "src/lib/server/sync/conflicts.test.ts", "line": 0, "context": "run_tests full: 19 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:45:08"}
+{"file": "src/lib/server/sync/events.test.ts", "line": 0, "context": "run_tests full: 3 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:45:08"}
+{"file": "src/lib/server/sync/hydrate.test.ts", "line": 0, "context": "run_tests full: 27 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:45:08"}
+{"file": "src/lib/server/sync/mirror.test.ts", "line": 0, "context": "run_tests full: 10 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:45:08"}
+{"file": "src/lib/server/sync/reconcile.test.ts", "line": 0, "context": "run_tests full: 4 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:45:08"}
+{"file": "src/lib/server/sync/worker.test.ts", "line": 0, "context": "run_tests full: 21 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:45:08"}
+{"file": "src/lib/server/work-notes.test.ts", "line": 0, "context": "run_tests full: 7 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:45:08"}
+{"file": "src/lib/time.test.ts", "line": 0, "context": "run_tests full: 3 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:45:08"}
+{"file": "src/lib/url-filter.test.ts", "line": 0, "context": "run_tests full: 11 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:45:08"}
+{"file": "src/routes/api/feeds/feeds.test.ts", "line": 0, "context": "run_tests full: 12 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:45:08"}
+{"file": "tests/error-routes.test.ts", "line": 0, "context": "run_tests full: 1 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:45:08"}
+{"file": "tests/flags.test.ts", "line": 0, "context": "run_tests full: 5 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:45:08"}
+{"file": "tests/hotkeys.test.ts", "line": 0, "context": "run_tests full: 2 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:45:08"}
+{"file": "tests/inbox-projection.test.ts", "line": 0, "context": "run_tests full: 4 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:45:08"}
+{"file": "tests/intake-deeplink.test.ts", "line": 0, "context": "run_tests full: 11 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:45:08"}
+{"file": "tests/intake-prefill.test.ts", "line": 0, "context": "run_tests full: 8 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:45:08"}
+{"file": "tests/intake.test.ts", "line": 0, "context": "run_tests full: 9 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:45:08"}
+{"file": "tests/issues-routes.test.ts", "line": 0, "context": "run_tests full: 19 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:45:08"}
+{"file": "tests/mirror-issues-route.test.ts", "line": 0, "context": "run_tests full: 5 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:45:08"}
+{"file": "tests/notifications-routes.test.ts", "line": 0, "context": "run_tests full: 14 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:45:08"}
+{"file": "tests/openapi.test.ts", "line": 0, "context": "run_tests full: 2 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:45:08"}
+{"file": "tests/priority-migration.test.ts", "line": 0, "context": "run_tests full: 1 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:45:08"}
+{"file": "tests/rbac.test.ts", "line": 0, "context": "run_tests full: 8 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:45:08"}
+{"file": "tests/routes.test.ts", "line": 0, "context": "run_tests full: 15 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:45:08"}
+{"file": "tests/sse.test.ts", "line": 0, "context": "run_tests full: 2 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:45:08"}
+{"file": "tests/work-notes-routes.test.ts", "line": 0, "context": "run_tests full: 12 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:45:08"}
+{"file": ".superlite/briefs/wave0.md", "line": 165, "context": "Stub spec empty (tasks:); no stubs to write. Done-when 3 expects stubs failing; full suite is green.", "agent": "T0", "kind": "spec-ambiguity", "resolution": "Verified test-cmd.json resolves and full suite runs: 663 passed, 0 failed.", "confidence": "high", "time": "03:45:17"}
+{"file": "docs/plans/2026-10-23-comment-sync.spec.md", "line": 0, "context": "T0: change outside Owns blocked by commit_task; nothing committed", "agent": "commit_task", "kind": "exception", "resolution": "open", "time": "03:45:34"}
+{"file": "-", "line": 0, "context": "exit code 1: Ran 1 test across 1 file. [264.00ms]", "agent": "run_tests", "kind": "test-failure", "resolution": "open", "time": "03:46:38"}
+{"file": "src/lib/server/sync/hydrate.ts", "line": 429, "context": "Follow-up page returning node:null broke the loop and returned the first page only, so a partial comment list could reach upsertIssue and delete mirrored comments on T2's reconciliation.", "agent": "package-reviewer", "kind": "exception", "resolution": "fixed", "confidence": "high", "time": "03:48:49"}
+{"file": "src/lib/server/sync/hydrate.ts", "line": 472, "context": "Batch nodes map to follow-ups by index into ids, preserving order across null/PR nodes; verified with a multi-node regression test.", "agent": "package-reviewer", "kind": "verified", "confidence": "high", "time": "03:48:49"}
+{"file": "src/lib/server/sync/hydrate.ts", "line": 435, "context": "Overlap dedupe keeps the first-page Map insertion order and appends only unseen externalIds; verified by full ordered-id assertion.", "agent": "package-reviewer", "kind": "verified", "confidence": "high", "time": "03:48:49"}
+{"file": "src/lib/server/sync/hydrate.ts", "line": 438, "context": "Missing endCursor and the bounded page cap both throw before any record is returned; verified by tests.", "agent": "package-reviewer", "kind": "verified", "confidence": "high", "time": "03:48:50"}
+{"file": "src/lib/server/sync/hydrate.ts", "line": 469, "context": "Issues whose first page reports hasNextPage:false issue no follow-up; verified by call-count test.", "agent": "package-reviewer", "kind": "verified", "confidence": "high", "time": "03:48:50"}
+{"file": "src/lib/server/sync/hydrate.ts", "line": 63, "context": "HYDRATE_QUERY changed only by adding comments.pageInfo; existing query===HYDRATE_QUERY test still passes.", "agent": "package-reviewer", "kind": "verified", "confidence": "high", "time": "03:48:50"}
+{"file": "src/lib/server/sync/mirror.ts", "line": 644, "context": "Empty incoming comment list clears the thread: stale=all mirrored ids, deleted in chunks; test 'an empty incoming list clears the thread's comments' passes.", "agent": "package-reviewer", "kind": "verified", "confidence": "high", "time": "03:49:23"}
+{"file": "src/lib/server/sync/mirror.ts", "line": 650, "context": "Deletes are scoped to (repoId, threadNumber) in both select and delete; cross-issue test leaves issue 2's comments intact.", "agent": "package-reviewer", "kind": "verified", "confidence": "high", "time": "03:49:23"}
+{"file": "src/lib/server/sync/mirror.ts", "line": 658, "context": "Array deletes chunk at 900 ids (902 bound params incl. repoId/threadNumber), below SQLite's 999 limit; 999-stale-id test exercises two chunks.", "agent": "package-reviewer", "kind": "verified", "confidence": "high", "time": "03:49:23"}
+{"file": "src/lib/server/sync/mirror.ts", "line": 627, "context": "Edited comments use the existing upsert: body/updatedAt overwritten, createdAt and (repoId, externalId) identity kept; added test asserts body, updatedAt=99, createdAt=3 and one row.", "agent": "package-reviewer", "kind": "verified", "confidence": "high", "time": "03:49:23"}
+{"file": "src/lib/server/sync/mirror.ts", "line": 525, "context": "Reconciliation and comment upserts share the same db.transaction; throw-on-null-externalId test proves rollback restores prior bodies.", "agent": "package-reviewer", "kind": "verified", "confidence": "high", "time": "03:49:23"}
+{"file": "src/lib/server/sync/mirror.ts", "line": 511, "context": "No behavior change for issues without comments: incoming empty and mirrored empty yields no deletes; existing comment-less tests still pass.", "agent": "package-reviewer", "kind": "verified", "confidence": "high", "time": "03:49:23"}
+{"file": "src/lib/server/sync/hydrate.ts", "line": 533, "context": "T1 upstream assumption holds: hydrateAndStore awaits hydrateNodes (all pages, fail-closed) before upsertIssue, and the combined hydrate+mirror focused run passes 52 tests.", "agent": "package-reviewer", "kind": "verified", "confidence": "high", "time": "03:49:23"}
+{"file": "src/lib/server/sync/hydrate.test.ts", "line": 0, "context": "run_tests full: 36 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:49:42"}
+{"file": "src/lib/server/sync/mirror.test.ts", "line": 0, "context": "run_tests full: 16 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:49:42"}

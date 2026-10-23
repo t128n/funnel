@@ -25,6 +25,7 @@ import type {
 import {
   BATCH_SIZE,
   chunk,
+  COMMENTS_QUERY,
   HYDRATE_QUERY,
   hydrateAndStore,
   hydrateNodes,
@@ -245,6 +246,278 @@ describe("hydrateNodes", () => {
     expect(calls).toHaveLength(2);
     expect((calls[0].ids as string[]).length).toBe(BATCH_SIZE);
     expect(records).toHaveLength(BATCH_SIZE);
+  });
+});
+
+const comment = (id: number) => ({
+  databaseId: id,
+  author: { databaseId: 7, login: "octocat", avatarUrl: "" },
+  body: `c${id}`,
+  createdAt: "2026-01-01T00:00:00Z",
+  updatedAt: "2026-01-01T00:00:00Z",
+});
+
+const issueNode = (comments: unknown) => ({
+  databaseId: 101,
+  number: 1,
+  url: "https://github.com/orgA/core/issues/1",
+  title: "Fix the thing",
+  body: "",
+  state: "OPEN",
+  stateReason: null,
+  createdAt: "2026-01-01T00:00:00Z",
+  updatedAt: "2026-01-02T00:00:00Z",
+  closedAt: null,
+  author: { databaseId: 7, login: "octocat", avatarUrl: "" },
+  milestone: null,
+  labels: { nodes: [] },
+  assignees: { nodes: [] },
+  comments,
+});
+
+describe("comment pagination", () => {
+  test("follows every comment page and de-duplicates ids", async () => {
+    const after: Array<string | null> = [];
+    const graphql: GraphqlFn = async (_query, vars) => {
+      const v = vars as { ids?: string[]; after?: string | null };
+      if (v.ids) {
+        return {
+          nodes: [
+            issueNode({
+              pageInfo: { hasNextPage: true, endCursor: "c100" },
+              nodes: Array.from({ length: 100 }, (_, i) => comment(i + 1)),
+            }),
+          ],
+        };
+      }
+      after.push(v.after ?? null);
+      if (v.after === "c100") {
+        return {
+          node: {
+            comments: {
+              pageInfo: { hasNextPage: true, endCursor: "c101" },
+              nodes: [comment(100), comment(101)],
+            },
+          },
+        };
+      }
+      return {
+        node: {
+          comments: {
+            pageInfo: { hasNextPage: false, endCursor: null },
+            nodes: [comment(102)],
+          },
+        },
+      };
+    };
+
+    const [record] = await hydrateNodes(graphql, 1, ["n1"]);
+    expect(record.comments).toHaveLength(102);
+    expect(record.comments.map((c) => c.externalId)).toEqual([
+      ...Array.from({ length: 100 }, (_, i) => String(i + 1)),
+      "101",
+      "102",
+    ]);
+    expect(new Set(record.comments.map((c) => c.externalId)).size).toBe(102);
+    expect(after).toEqual(["c100", "c101"]);
+  });
+
+  test("does not follow up when the first page is complete", async () => {
+    let calls = 0;
+    const graphql: GraphqlFn = async () => {
+      calls += 1;
+      return {
+        nodes: [
+          issueNode({
+            pageInfo: { hasNextPage: false, endCursor: null },
+            nodes: [comment(1)],
+          }),
+        ],
+      };
+    };
+    const [record] = await hydrateNodes(graphql, 1, ["n1"]);
+    expect(record.comments).toHaveLength(1);
+    expect(calls).toBe(1);
+  });
+
+  test("follows up with COMMENTS_QUERY and the node id plus cursor", async () => {
+    const queries: string[] = [];
+    const seen: Array<Record<string, unknown>> = [];
+    const graphql: GraphqlFn = async (query, vars) => {
+      queries.push(query);
+      if (vars && "ids" in vars) {
+        return {
+          nodes: [
+            issueNode({
+              pageInfo: { hasNextPage: true, endCursor: "c1" },
+              nodes: [comment(1)],
+            }),
+          ],
+        };
+      }
+      seen.push(vars ?? {});
+      return {
+        node: {
+          comments: {
+            pageInfo: { hasNextPage: false, endCursor: null },
+            nodes: [comment(2)],
+          },
+        },
+      };
+    };
+
+    const [record] = await hydrateNodes(graphql, 1, ["node-1"]);
+    expect(queries).toEqual([HYDRATE_QUERY, COMMENTS_QUERY]);
+    expect(seen).toEqual([{ id: "node-1", after: "c1" }]);
+    expect(record.comments.map((c) => c.externalId)).toEqual(["1", "2"]);
+  });
+
+  test("throws when hasNextPage is true without an endCursor", async () => {
+    const graphql: GraphqlFn = async () => ({
+      nodes: [
+        issueNode({
+          pageInfo: { hasNextPage: true, endCursor: null },
+          nodes: [comment(1)],
+        }),
+      ],
+    });
+    await expect(hydrateNodes(graphql, 1, ["n1"])).rejects.toThrow(
+      /endCursor/,
+    );
+  });
+
+  test("throws when a follow-up page is missing its endCursor", async () => {
+    const graphql: GraphqlFn = async (_query, vars) => {
+      if (vars && "ids" in vars) {
+        return {
+          nodes: [
+            issueNode({
+              pageInfo: { hasNextPage: true, endCursor: "c1" },
+              nodes: [comment(1)],
+            }),
+          ],
+        };
+      }
+      return {
+        node: {
+          comments: {
+            pageInfo: { hasNextPage: true, endCursor: null },
+            nodes: [comment(2)],
+          },
+        },
+      };
+    };
+    await expect(hydrateNodes(graphql, 1, ["n1"])).rejects.toThrow(
+      /endCursor/,
+    );
+  });
+
+  test("throws instead of looping forever when pages never end", async () => {
+    let page = 0;
+    const graphql: GraphqlFn = async (_query, vars) => {
+      if (vars && "ids" in vars) {
+        return {
+          nodes: [
+            issueNode({
+              pageInfo: { hasNextPage: true, endCursor: "c0" },
+              nodes: [comment(1)],
+            }),
+          ],
+        };
+      }
+      page += 1;
+      return {
+        node: {
+          comments: {
+            pageInfo: { hasNextPage: true, endCursor: `c${page}` },
+            nodes: [comment(page + 1)],
+          },
+        },
+      };
+    };
+    await expect(hydrateNodes(graphql, 1, ["n1"])).rejects.toThrow(/pages/);
+  });
+
+  test("throws before returning any record when pagination fails", async () => {
+    const graphql: GraphqlFn = async (_query, vars) => {
+      if (vars && "ids" in vars) {
+        return {
+          nodes: [
+            issueNode({
+              pageInfo: { hasNextPage: true, endCursor: null },
+              nodes: [comment(1)],
+            }),
+          ],
+        };
+      }
+      throw new Error("unreachable");
+    };
+    await expect(hydrateNodes(graphql, 1, ["n1"])).rejects.toThrow(
+      /endCursor/,
+    );
+  });
+
+  test("maps each follow-up to its own node id despite dropped PRs", async () => {
+    const followUps: Array<{ id: unknown; after: unknown }> = [];
+    const graphql: GraphqlFn = async (_query, vars) => {
+      if (vars && "ids" in vars) {
+        return {
+          nodes: [
+            issueNode({
+              pageInfo: { hasNextPage: true, endCursor: "a" },
+              nodes: [comment(1)],
+            }),
+            {},
+            {
+              ...issueNode({
+                pageInfo: { hasNextPage: true, endCursor: "b" },
+                nodes: [comment(2)],
+              }),
+              databaseId: 102,
+            },
+          ],
+        };
+      }
+      const v = vars as { id: string; after: string };
+      followUps.push({ id: v.id, after: v.after });
+      const extra = v.id === "n1" ? 11 : 22;
+      return {
+        node: {
+          comments: {
+            pageInfo: { hasNextPage: false, endCursor: null },
+            nodes: [comment(extra)],
+          },
+        },
+      };
+    };
+
+    const records = await hydrateNodes(graphql, 1, ["n1", "pr", "n2"]);
+    expect(followUps).toEqual([
+      { id: "n1", after: "a" },
+      { id: "n2", after: "b" },
+    ]);
+    expect(records.map((r) => r.externalId)).toEqual(["101", "102"]);
+    expect(records[0].comments.map((c) => c.externalId)).toEqual(["1", "11"]);
+    expect(records[1].comments.map((c) => c.externalId)).toEqual(["2", "22"]);
+  });
+
+  test("throws when a follow-up page returns no node instead of persisting a partial list", async () => {
+    const graphql: GraphqlFn = async (_query, vars) => {
+      if (vars && "ids" in vars) {
+        return {
+          nodes: [
+            issueNode({
+              pageInfo: { hasNextPage: true, endCursor: "c1" },
+              nodes: [comment(1)],
+            }),
+          ],
+        };
+      }
+      return { node: null };
+    };
+    await expect(hydrateNodes(graphql, 1, ["n1"])).rejects.toThrow(
+      /lost node/,
+    );
   });
 });
 

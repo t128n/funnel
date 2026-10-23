@@ -248,6 +248,176 @@ describe("issue upsert", () => {
   });
 });
 
+describe("comment reconciliation", () => {
+  const metadata: mirror.StoredMetadata = {
+    status: null,
+    impact: null,
+    urgency: null,
+    priority: null,
+    size: null,
+    blocked: false,
+    labelConflict: false,
+  };
+  const record = (
+    repoId: number,
+    number: number,
+    comments: Array<{ externalId: string; body: string }>,
+  ): mirror.IssueRecord => ({
+    externalId: String(9000 + number),
+    repoId,
+    number,
+    kind: "issue",
+    title: `issue ${number}`,
+    body: "",
+    state: "open",
+    stateReason: null,
+    author: null,
+    milestoneNumber: null,
+    url: `https://github.com/orgA/core/issues/${number}`,
+    createdAt: 1,
+    updatedAt: 2,
+    closedAt: null,
+    labels: [],
+    assignees: [],
+    comments: comments.map((c) => ({
+      ...c,
+      author: null,
+      createdAt: 3,
+      updatedAt: 4,
+    })),
+  });
+
+  test("reconciles deleted and edited comments", () => {
+    const repo = seedRepo();
+    mirror.upsertIssue(
+      record(repo.id, 1, [
+        { externalId: "1", body: "one" },
+        { externalId: "2", body: "two" },
+      ]),
+      metadata,
+    );
+    mirror.upsertIssue(
+      record(repo.id, 1, [{ externalId: "1", body: "one edited" }]),
+      metadata,
+    );
+
+    expect(
+      mirror.getIssueComments(repo.id, 1).map((c) => [c.externalId, c.body]),
+    ).toEqual([["1", "one edited"]]);
+  });
+
+  test("an edit overwrites body and updatedAt but preserves createdAt", () => {
+    const repo = seedRepo();
+    mirror.upsertIssue(
+      record(repo.id, 1, [{ externalId: "1", body: "one" }]),
+      metadata,
+    );
+
+    const edited = record(repo.id, 1, [{ externalId: "1", body: "one edited" }]);
+    edited.comments[0].updatedAt = 99;
+    mirror.upsertIssue(edited, metadata);
+
+    const rows = db.select().from(mirrorComment).all();
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      repoId: repo.id,
+      threadNumber: 1,
+      externalId: "1",
+      body: "one edited",
+      createdAt: 3,
+      updatedAt: 99,
+    });
+  });
+
+  test("an empty incoming list clears the thread's comments", () => {
+    const repo = seedRepo();
+    mirror.upsertIssue(
+      record(repo.id, 1, [
+        { externalId: "1", body: "one" },
+        { externalId: "2", body: "two" },
+      ]),
+      metadata,
+    );
+    mirror.upsertIssue(record(repo.id, 1, []), metadata);
+
+    expect(mirror.getIssueComments(repo.id, 1)).toEqual([]);
+  });
+
+  test("reconciling one issue leaves other issues' comments intact", () => {
+    const repo = seedRepo();
+    mirror.upsertIssue(
+      record(repo.id, 1, [
+        { externalId: "1", body: "one" },
+        { externalId: "2", body: "two" },
+      ]),
+      metadata,
+    );
+    mirror.upsertIssue(
+      record(repo.id, 2, [{ externalId: "3", body: "three" }]),
+      metadata,
+    );
+
+    mirror.upsertIssue(
+      record(repo.id, 1, [{ externalId: "1", body: "one" }]),
+      metadata,
+    );
+
+    expect(
+      mirror.getIssueComments(repo.id, 1).map((c) => c.externalId),
+    ).toEqual(["1"]);
+    expect(
+      mirror.getIssueComments(repo.id, 2).map((c) => c.externalId),
+    ).toEqual(["3"]);
+  });
+
+  test("deletes more stale ids than SQLite's bound-variable limit", () => {
+    const repo = seedRepo();
+    const many = Array.from({ length: 1000 }, (_, i) => ({
+      externalId: `c${i + 1}`,
+      body: `body ${i + 1}`,
+    }));
+    mirror.upsertIssue(record(repo.id, 1, many), metadata);
+    expect(mirror.getIssueComments(repo.id, 1)).toHaveLength(1000);
+
+    mirror.upsertIssue(
+      record(repo.id, 1, [{ externalId: "c1", body: "kept" }]),
+      metadata,
+    );
+
+    expect(
+      mirror.getIssueComments(repo.id, 1).map((c) => c.externalId),
+    ).toEqual(["c1"]);
+  });
+
+  test("a throw during the upsert rolls back the whole issue", () => {
+    const repo = seedRepo();
+    mirror.upsertIssue(
+      record(repo.id, 1, [
+        { externalId: "1", body: "one" },
+        { externalId: "2", body: "two" },
+      ]),
+      metadata,
+    );
+
+    const broken = record(repo.id, 1, [{ externalId: "1", body: "edited" }]);
+    broken.comments.push({
+      externalId: null as unknown as string,
+      author: null,
+      body: "bad",
+      createdAt: 3,
+      updatedAt: 4,
+    });
+    expect(() => mirror.upsertIssue(broken, metadata)).toThrow();
+
+    expect(
+      mirror.getIssueComments(repo.id, 1).map((c) => [c.externalId, c.body]),
+    ).toEqual([
+      ["1", "one"],
+      ["2", "two"],
+    ]);
+  });
+});
+
 describe("pruning", () => {
   test("deleteIssuesNotIn removes only absent rows", () => {
     const repo = seedRepo();
