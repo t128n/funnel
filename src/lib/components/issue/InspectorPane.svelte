@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import { onDestroy } from 'svelte';
+	import { onDestroy, tick, untrack } from 'svelte';
 	import { toast } from 'svelte-sonner';
 	import Avatar from '#lib/components/common/Avatar.svelte';
 	import MultiSelect from '#lib/components/common/MultiSelect.svelte';
@@ -106,8 +106,17 @@
 
 	let { repo, number, githubUrl, onclose, fill = false, commentBubbles = false }: Props = $props();
 
+	/** Matches the server default, so a first load needs no query parameter. */
+	const DEFAULT_COMMENT_LIMIT = 1000;
+	/** How many older comments each "Load earlier comments" step adds. */
+	const COMMENT_LIMIT_STEP = 500;
+	/** The server clamps the comment page to this many newest comments. */
+	const MAX_COMMENT_LIMIT = 2000;
+
 	let detail = $state<RenderedIssueDetail | null>(null);
 	let loading = $state(false);
+	/** Newest comments requested; grown when the thread has earlier comments. */
+	let commentLimit = $state(DEFAULT_COMMENT_LIMIT);
 	let error = $state<string | null>(null);
 	let busy = $state<string | null>(null);
 	/** Whether the viewer watches this issue (T5 surfaces it on the detail). */
@@ -235,7 +244,9 @@
 		const seq = ++loadSeq;
 		loading = true;
 		error = null;
-		const result = await fetchIssueDetail(repo, number);
+		// The limit is read untracked: growing it is an explicit reload, not a
+		// reason for the refresh effect to fire.
+		const result = await fetchIssueDetail(repo, number, untrack(() => commentLimit));
 		if (seq !== loadSeq) return;
 		if (result.ok) {
 			// Reconcile against the raw fetch, then bake any still-pending overlay
@@ -257,6 +268,36 @@
 			error = result.error;
 		}
 		loading = false;
+	}
+
+	/** The pane's scroll container (DetailShell's body), or the page scroller. */
+	function paneScroller(): HTMLElement | null {
+		return (
+			paneEl?.querySelector<HTMLElement>('.overflow-y-auto') ??
+			(document.scrollingElement as HTMLElement | null)
+		);
+	}
+
+	/**
+	 * Widen the comment window by one step and reload. Older comments are
+	 * prepended, so the scroll offset grows by the inserted height to keep the
+	 * reader on the comment they were looking at.
+	 */
+	async function loadEarlierComments() {
+		if (!detail?.hasMoreComments || loading) return;
+		if (commentLimit >= MAX_COMMENT_LIMIT) return;
+		const target = `${repo}#${number}`;
+		const scroller = paneScroller();
+		const beforeTop = scroller?.scrollTop ?? 0;
+		const beforeHeight = scroller?.scrollHeight ?? 0;
+		commentLimit = Math.min(commentLimit + COMMENT_LIMIT_STEP, MAX_COMMENT_LIMIT);
+		await load();
+		if (`${repo}#${number}` !== target) return;
+		await tick();
+		// Let the browser lay out the newly inserted comments first.
+		await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+		if (!scroller) return;
+		scroller.scrollTop = beforeTop + (scroller.scrollHeight - beforeHeight);
 	}
 
 	// Refetch when the selection changes or the server reports a change.
@@ -282,6 +323,7 @@
 		if (key !== loadedKey) {
 			loadedKey = key;
 			loadedSeq = signal.seq;
+			commentLimit = DEFAULT_COMMENT_LIMIT;
 			void load();
 			return;
 		}
@@ -1221,6 +1263,18 @@
 				</h2>
 				<span class="mono text-muted-foreground text-xs">{detail.comments.length}</span>
 			</div>
+			{#if detail.hasMoreComments && commentLimit < MAX_COMMENT_LIMIT}
+				<div class="flex justify-center">
+					<Button
+						variant="ghost"
+						size="xs"
+						disabled={loading}
+						onclick={() => void loadEarlierComments()}
+					>
+						Load earlier comments
+					</Button>
+				</div>
+			{/if}
 			{#if detail.comments.length === 0}
 				<div
 					class="border-border text-muted-foreground rounded-lg border border-dashed px-3 py-6 text-center text-xs"
