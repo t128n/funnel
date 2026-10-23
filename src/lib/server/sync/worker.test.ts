@@ -567,7 +567,7 @@ describe("runRepoCycle", () => {
     ).toEqual(["42", "43"]);
   });
 
-  test("mirrors the repo's milestones and replaces the set wholesale", async () => {
+  test("mirrors the repo's milestones on the first cycle only", async () => {
     repoMilestones = [
       {
         number: 1,
@@ -586,6 +586,11 @@ describe("runRepoCycle", () => {
 
     repoMilestones = [{ number: 2, id: 12, title: "v2", state: "open" }];
     await runRepoCycle("orgA", "core");
+    // Later polls skip the directory refresh; nightly reconciliation owns it.
+    expect(mirror.getRepoMilestones(repoId).map((m) => m.title)).toEqual(["v1"]);
+
+    const { refreshRepoMilestones } = await import("./worker");
+    await refreshRepoMilestones(7, mirror.getRepo(repoId)!);
     expect(mirror.getRepoMilestones(repoId).map((m) => m.title)).toEqual(["v2"]);
   });
 

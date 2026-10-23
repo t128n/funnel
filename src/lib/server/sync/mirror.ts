@@ -92,6 +92,30 @@ export interface StoredMetadata {
 }
 
 // ---------------------------------------------------------------------------
+// Change detection
+// ---------------------------------------------------------------------------
+
+/** True when both lists hold the same string values, ignoring order. */
+function sameStringMultiset(
+  a: readonly string[],
+  b: readonly string[],
+): boolean {
+  if (a.length !== b.length) return false;
+  const left = [...a].sort();
+  const right = [...b].sort();
+  return left.every((value, index) => value === right[index]);
+}
+
+/** True when `existing` holds exactly the ids in `incoming`. */
+function sameIdSet(
+  existing: readonly number[],
+  incoming: ReadonlySet<number>,
+): boolean {
+  if (existing.length !== incoming.size) return false;
+  return existing.every((id) => incoming.has(id));
+}
+
+// ---------------------------------------------------------------------------
 // Repos
 // ---------------------------------------------------------------------------
 
@@ -304,11 +328,25 @@ export interface RepoLabelRecord {
   description: string;
 }
 
+function labelFingerprint(label: RepoLabelRecord): string {
+  return `${label.name}\u0000${label.color}\u0000${label.description}`;
+}
+
+/** True when both label sets carry the same names, colors and descriptions. */
+function sameLabelSet(
+  a: readonly RepoLabelRecord[],
+  b: readonly RepoLabelRecord[],
+): boolean {
+  return sameStringMultiset(a.map(labelFingerprint), b.map(labelFingerprint));
+}
+
 /** Replace a repo's full label set (filter options come from here). */
 export function replaceRepoLabels(
   repoId: number,
   labels: readonly RepoLabelRecord[],
 ): void {
+  // Labels rarely change; skip the delete/reinsert when the set is identical.
+  if (sameLabelSet(getRepoLabels(repoId), labels)) return;
   db.transaction((tx) => {
     tx.delete(mirrorRepoLabel).where(eq(mirrorRepoLabel.repoId, repoId)).run();
     if (labels.length > 0) {
@@ -348,6 +386,10 @@ export function replaceRepoAssignees(
 ): void {
   const ids = new Map<string, number>();
   for (const user of users) ids.set(userKey(user), upsertUser(user).id);
+  // Users are upserted first (identity may change), but an unchanged assignment
+  // set needs no delete/reinsert.
+  const existing = getRepoAssignees(repoId).map((user) => user.id);
+  if (sameIdSet(existing, new Set(ids.values()))) return;
   db.transaction((tx) => {
     tx.delete(mirrorRepoAssignee)
       .where(eq(mirrorRepoAssignee.repoId, repoId))
@@ -398,10 +440,43 @@ export interface MilestoneRecord {
   url: string;
 }
 
+type MilestoneRow = typeof mirrorMilestone.$inferInsert;
+
+function milestoneFingerprint(m: MilestoneRow): string {
+  return [
+    m.number,
+    m.externalId,
+    m.title,
+    m.description,
+    m.state,
+    m.dueOn ?? "",
+    m.openIssues,
+    m.closedIssues,
+    m.creatorId ?? "",
+    m.createdAt,
+    m.updatedAt,
+    m.closedAt ?? "",
+    m.url,
+  ]
+    .map((value) => String(value))
+    .join("\u0000");
+}
+
+/** True when both milestone sets carry identical rows. */
+function sameMilestoneSet(
+  existing: readonly MilestoneRow[],
+  incoming: readonly MilestoneRow[],
+): boolean {
+  if (existing.length !== incoming.length) return false;
+  const left = existing.map(milestoneFingerprint).sort();
+  const right = incoming.map(milestoneFingerprint).sort();
+  return left.every((value, index) => value === right[index]);
+}
+
 /**
  * Replace a repo's full milestone set (SPEC §7.1). Milestones are repo-scoped,
- * so the list is swapped wholesale on each poll; the creator is upserted first
- * because it is an FK target.
+ * so the list is swapped wholesale when it changes; the creator is upserted
+ * first because it is an FK target. An identical set is left untouched.
  */
 export function replaceRepoMilestones(
   repoId: number,
@@ -410,31 +485,35 @@ export function replaceRepoMilestones(
   const creators = milestones.map((milestone) =>
     milestone.creator ? upsertUser(milestone.creator).id : null,
   );
+  const rows: MilestoneRow[] = milestones.map((m, index) => ({
+    repoId,
+    number: m.number,
+    externalId: m.externalId,
+    title: m.title,
+    description: m.description,
+    state: m.state,
+    dueOn: m.dueOn,
+    openIssues: m.openIssues,
+    closedIssues: m.closedIssues,
+    creatorId: creators[index] ?? null,
+    createdAt: m.createdAt,
+    updatedAt: m.updatedAt,
+    closedAt: m.closedAt,
+    url: m.url,
+  }));
+  const existing = db
+    .select()
+    .from(mirrorMilestone)
+    .where(eq(mirrorMilestone.repoId, repoId))
+    .all();
+  if (sameMilestoneSet(existing, rows)) return;
+
   db.transaction((tx) => {
     tx.delete(mirrorMilestone)
       .where(eq(mirrorMilestone.repoId, repoId))
       .run();
-    if (milestones.length > 0) {
-      tx.insert(mirrorMilestone)
-        .values(
-          milestones.map((m, index) => ({
-            repoId,
-            number: m.number,
-            externalId: m.externalId,
-            title: m.title,
-            description: m.description,
-            state: m.state,
-            dueOn: m.dueOn,
-            openIssues: m.openIssues,
-            closedIssues: m.closedIssues,
-            creatorId: creators[index] ?? null,
-            createdAt: m.createdAt,
-            updatedAt: m.updatedAt,
-            closedAt: m.closedAt,
-            url: m.url,
-          })),
-        )
-        .run();
+    if (rows.length > 0) {
+      tx.insert(mirrorMilestone).values(rows).run();
     }
   });
 }
@@ -573,44 +652,70 @@ export function upsertIssue(issue: IssueRecord, metadata: StoredMetadata): void 
       })
       .run();
 
-    tx.delete(mirrorThreadLabel)
+    const mirroredLabels = tx
+      .select({ name: mirrorThreadLabel.labelName })
+      .from(mirrorThreadLabel)
       .where(
         and(
           eq(mirrorThreadLabel.repoId, issue.repoId),
           eq(mirrorThreadLabel.threadNumber, issue.number),
         ),
       )
-      .run();
-    if (issue.labels.length > 0) {
-      tx.insert(mirrorThreadLabel)
-        .values(
-          issue.labels.map((labelName) => ({
-            repoId: issue.repoId,
-            threadNumber: issue.number,
-            labelName,
-          })),
+      .all()
+      .map((row) => row.name);
+    if (!sameStringMultiset(mirroredLabels, issue.labels)) {
+      tx.delete(mirrorThreadLabel)
+        .where(
+          and(
+            eq(mirrorThreadLabel.repoId, issue.repoId),
+            eq(mirrorThreadLabel.threadNumber, issue.number),
+          ),
         )
         .run();
+      if (issue.labels.length > 0) {
+        tx.insert(mirrorThreadLabel)
+          .values(
+            issue.labels.map((labelName) => ({
+              repoId: issue.repoId,
+              threadNumber: issue.number,
+              labelName,
+            })),
+          )
+          .run();
+      }
     }
 
-    tx.delete(mirrorThreadAssignee)
+    const mirroredAssignees = tx
+      .select({ userId: mirrorThreadAssignee.userId })
+      .from(mirrorThreadAssignee)
       .where(
         and(
           eq(mirrorThreadAssignee.repoId, issue.repoId),
           eq(mirrorThreadAssignee.threadNumber, issue.number),
         ),
       )
-      .run();
-    if (assigneeIds.size > 0) {
-      tx.insert(mirrorThreadAssignee)
-        .values(
-          [...assigneeIds.values()].map((userId) => ({
-            repoId: issue.repoId,
-            threadNumber: issue.number,
-            userId,
-          })),
+      .all()
+      .map((row) => row.userId);
+    if (!sameIdSet(mirroredAssignees, new Set(assigneeIds.values()))) {
+      tx.delete(mirrorThreadAssignee)
+        .where(
+          and(
+            eq(mirrorThreadAssignee.repoId, issue.repoId),
+            eq(mirrorThreadAssignee.threadNumber, issue.number),
+          ),
         )
         .run();
+      if (assigneeIds.size > 0) {
+        tx.insert(mirrorThreadAssignee)
+          .values(
+            [...assigneeIds.values()].map((userId) => ({
+              repoId: issue.repoId,
+              threadNumber: issue.number,
+              userId,
+            })),
+          )
+          .run();
+      }
     }
 
     for (const comment of comments) {
@@ -696,6 +801,7 @@ export function replaceIssueLabels(
   number: number,
   labels: readonly string[],
 ): void {
+  if (sameStringMultiset(getIssueLabels(repoId, number), labels)) return;
   db.transaction((tx) => {
     tx.delete(mirrorThreadLabel)
       .where(

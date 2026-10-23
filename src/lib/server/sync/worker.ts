@@ -367,19 +367,30 @@ export async function refreshRepoMilestonesBySlug(
 
 /**
  * Full cycle for one `owner/repo`: resolve the installation, ensure the repo
- * row, refresh labels, then poll. Marks the repo degraded on failure and
- * rethrows so the scheduler can isolate it.
+ * row, refresh the directory lists on the first cycle, then poll. Marks the
+ * repo degraded on failure and rethrows so the scheduler can isolate it.
+ *
+ * Repo metadata and directory lists change rarely, so a hot poll reuses the
+ * mirrored row and skips the label/assignee/milestone reads. The first cycle
+ * (`last_polled_at` unset, which includes a freshly ensured row) and nightly
+ * reconciliation are responsible for refreshing them.
  */
 export async function runRepoCycle(
   owner: string,
   repo: string,
 ): Promise<PollResult> {
   const installationId = await forge.getInstallationId(owner, repo);
-  const repoRow = await ensureRepoMirror(owner, repo, installationId);
+  const repoRow =
+    mirror.getRepoByOrgName(owner, repo) ??
+    (await ensureRepoMirror(owner, repo, installationId));
   try {
-    await refreshRepoLabels(installationId, repoRow);
-    await refreshRepoAssignees(installationId, repoRow);
-    await refreshRepoMilestones(installationId, repoRow);
+    if (repoRow.lastPolledAt === null) {
+      await Promise.all([
+        refreshRepoLabels(installationId, repoRow),
+        refreshRepoAssignees(installationId, repoRow),
+        refreshRepoMilestones(installationId, repoRow),
+      ]);
+    }
     const result = await pollRepo(repoRow, installationId, Date.now());
     log.debug({ repo: `${owner}/${repo}`, ...result }, "repo polled");
     return result;
@@ -404,7 +415,9 @@ export async function refreshIssue(
   actorUserId?: string,
 ): Promise<void> {
   const installationId = await forge.getInstallationId(owner, repo);
-  const repoRow = await ensureRepoMirror(owner, repo, installationId);
+  const repoRow =
+    mirror.getRepoByOrgName(owner, repo) ??
+    (await ensureRepoMirror(owner, repo, installationId));
   const provider = await forge.installationProvider(installationId);
   const repoRef = forge.repoRef(owner, repo);
   const thread = await provider.threads.get(
