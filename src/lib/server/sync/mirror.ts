@@ -15,7 +15,7 @@
  * `updated_at` mirrored for the repo (SPEC §7.2). Forge `since` is inclusive,
  * so re-sending that boundary thread is an idempotent upsert.
  */
-import { and, asc, eq, max } from "drizzle-orm";
+import { and, asc, eq, inArray, max } from "drizzle-orm";
 import { db } from "#lib/server/db/index";
 import {
   mirrorComment,
@@ -634,6 +634,37 @@ export function upsertIssue(issue: IssueRecord, metadata: StoredMetadata): void 
             updatedAt: comment.updatedAt,
           },
         })
+        .run();
+    }
+
+    // `issue.comments` is the complete upstream set: anything mirrored for this
+    // thread but absent from it was deleted or hidden, so prune it. Deletes are
+    // scoped to `(repoId, threadNumber)` and chunked below SQLite's 999
+    // bound-variable limit.
+    const incoming = new Set(comments.map((comment) => comment.externalId));
+    const mirrored = tx
+      .select({ externalId: mirrorComment.externalId })
+      .from(mirrorComment)
+      .where(
+        and(
+          eq(mirrorComment.repoId, issue.repoId),
+          eq(mirrorComment.threadNumber, issue.number),
+        ),
+      )
+      .all();
+    const stale = mirrored
+      .map((row) => row.externalId)
+      .filter((externalId) => !incoming.has(externalId));
+    const DELETE_CHUNK = 900;
+    for (let i = 0; i < stale.length; i += DELETE_CHUNK) {
+      tx.delete(mirrorComment)
+        .where(
+          and(
+            eq(mirrorComment.repoId, issue.repoId),
+            eq(mirrorComment.threadNumber, issue.number),
+            inArray(mirrorComment.externalId, stale.slice(i, i + DELETE_CHUNK)),
+          ),
+        )
         .run();
     }
   });
