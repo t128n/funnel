@@ -1,3 +1,5 @@
+import { bumpRevision } from "./revision";
+
 /**
  * In-process Server-Sent Events broadcast bus (SPEC §3.2).
  *
@@ -33,6 +35,10 @@ export function subscribe(listener: Listener): () => void {
 
 /** Broadcast an event to every open stream. A throwing listener is isolated. */
 export function publish(event: SyncEvent): void {
+  // A published event always follows a mirror write (or a sync status change),
+  // so advance the revision before delivery: every listener that reacts by
+  // reading the mirror then misses any cache built from the old state.
+  bumpRevision();
   for (const listener of listeners) {
     try {
       listener(event);

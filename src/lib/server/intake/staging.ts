@@ -111,6 +111,27 @@ export function listSubmissions(): StagedSubmission[] {
     .all();
 }
 
+/**
+ * Number of pending submissions matching `search`, counted in SQL so the Inbox
+ * badge never materialises the queue (plan T4). Matching mirrors
+ * `matchesSearch` in the query layer: a case-insensitive substring over title
+ * or body, with `%`/`_` treated literally (`instr`, not `LIKE`).
+ */
+export function countPendingSubmissions(search = ""): number {
+  const needle = search.toLowerCase();
+  const where =
+    needle.length === 0
+      ? undefined
+      : sql`instr(lower(${stateIntakeSubmission.title}), ${needle}) > 0
+          OR instr(lower(${stateIntakeSubmission.body}), ${needle}) > 0`;
+  const row = db
+    .select({ value: sql<number>`count(*)` })
+    .from(stateIntakeSubmission)
+    .where(where)
+    .get();
+  return Number(row?.value ?? 0);
+}
+
 /** Hard-delete a staged row. Returns whether a row was actually removed. */
 export function deleteSubmission(id: string): boolean {
   const result = db

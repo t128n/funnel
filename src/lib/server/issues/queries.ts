@@ -37,8 +37,12 @@ import {
   mirrorUser,
 } from "#lib/server/db/schema";
 import { listAttachments } from "#lib/server/attachments/store";
-import { listSubmissions } from "#lib/server/intake/staging";
+import {
+  countPendingSubmissions,
+  listSubmissions,
+} from "#lib/server/intake/staging";
 import { listRepos } from "#lib/server/sync/mirror";
+import { mirrorRevision } from "#lib/server/sync/revision";
 import { listWorkNotes } from "#lib/server/work-notes";
 import { readBlocked } from "#lib/funnel-metadata";
 import {
@@ -288,6 +292,44 @@ function countRows(where: SQL | undefined): number {
 }
 
 /**
+ * Page totals live across cursor pages (plan T4): the same filter pages
+ * repeatedly, and each page otherwise re-runs `count(*)` over the same rows.
+ * Entries are keyed by mirror revision plus the filter signature, so a write
+ * that published can never serve a count from before it, and are kept for a
+ * short TTL so a long-lived process does not pin an unbounded map. Totals were
+ * always computed server-side; this only avoids repeating the same query.
+ */
+const TOTAL_TTL_MS = 5_000;
+const TOTAL_CACHE_LIMIT = 256;
+const totalCache = new Map<string, { value: number; at: number }>();
+
+/** Filter-option lists, valid until the next mirror revision (plan T4). */
+let optionsCache: { revision: number; value: FilterOptions } | null = null;
+
+/** Drop every read cache; the mirror changed outside the revision bump. */
+export function clearQueryCaches(): void {
+  optionsCache = null;
+  totalCache.clear();
+}
+
+/** {@link countRows} memoised by revision + filter signature for a short TTL. */
+function cachedCount(where: SQL | undefined, signature: string): number {
+  const key = `${mirrorRevision()}:${signature}`;
+  const now = Date.now();
+  const hit = totalCache.get(key);
+  if (hit && now - hit.at < TOTAL_TTL_MS) return hit.value;
+
+  const value = countRows(where);
+  if (totalCache.size >= TOTAL_CACHE_LIMIT) {
+    // Insertion order is age order, so this drops the oldest entry.
+    const oldest = totalCache.keys().next();
+    if (!oldest.done) totalCache.delete(oldest.value);
+  }
+  totalCache.set(key, { value, at: now });
+  return value;
+}
+
+/**
  * Fetch one page of issues plus the unpaged total. Fetches `limit + 1` rows to
  * learn whether a further page exists, then hydrates only `limit`. A cursor
  * that fails to decode (malformed or from another filter) falls back to the
@@ -311,7 +353,7 @@ function pageIssues(
 
   return {
     items,
-    total: countRows(where),
+    total: cachedCount(where, signature),
     nextCursor:
       hasMore && last
         ? encodeCursor(signature, [
@@ -573,7 +615,10 @@ export function inbox(
  * materialising (or hydrating) the queue.
  */
 export function inboxCount(filter: IssueFilter): number {
-  return pendingSubmissions(filter).length + countRows(untriagedWhere(filter));
+  return (
+    countPendingSubmissions(filter.search) +
+    cachedCount(untriagedWhere(filter), filterSignature(filter, "inbox"))
+  );
 }
 
 /** Build the `WHERE` for one board lane (status columns or the Done window). */
@@ -715,8 +760,24 @@ export function attentionIssues(): AttentionItem[] {
  * assignable in at least one repo (union with anyone currently assigned, so a
  * historical assignee who lost collaborator access stays filterable), and every
  * non-reserved label in use.
+ *
+ * The whole list is cached until the mirror revision moves (plan T4): the
+ * filter bar is loaded on every cockpit navigation, while labels/assignees only
+ * change on a sync write or mutation, both of which `publish` and therefore
+ * bump the revision. Duplicate rows are eliminated in SQL (`DISTINCT`) rather
+ * than by scanning every assignment in JavaScript.
  */
 export function filterOptions(): FilterOptions {
+  const revision = mirrorRevision();
+  if (optionsCache?.revision === revision) return optionsCache.value;
+
+  const value = computeFilterOptions();
+  optionsCache = { revision, value };
+  return value;
+}
+
+/** Unbuffered {@link filterOptions} scan. */
+function computeFilterOptions(): FilterOptions {
   const repos = listRepos()
     .map((repo) => ({ id: repo.id, slug: `${repo.org}/${repo.name}` }))
     .sort((a, b) => a.slug.localeCompare(b.slug));
@@ -730,15 +791,17 @@ export function filterOptions(): FilterOptions {
   };
 
   const assignableRows = db
-    .select(userColumns)
+    .selectDistinct(userColumns)
     .from(mirrorRepoAssignee)
     .innerJoin(mirrorUser, eq(mirrorRepoAssignee.userId, mirrorUser.id))
+    .orderBy(asc(mirrorUser.login))
     .all();
 
   const assignedRows = db
-    .select(userColumns)
+    .selectDistinct(userColumns)
     .from(mirrorThreadAssignee)
     .innerJoin(mirrorUser, eq(mirrorThreadAssignee.userId, mirrorUser.id))
+    .orderBy(asc(mirrorUser.login))
     .all();
 
   const byIdentity = new Map<string, UserRef>();
@@ -751,20 +814,17 @@ export function filterOptions(): FilterOptions {
   );
 
   const labelRows = db
-    .select({ name: mirrorThreadLabel.labelName })
+    .selectDistinct({ name: mirrorThreadLabel.labelName })
     .from(mirrorThreadLabel)
+    .orderBy(asc(mirrorThreadLabel.labelName))
     .all();
-  const labels = [
-    ...new Set(
-      labelRows
-        .map((row) => row.name)
-        .filter(
-          (name) =>
-            !RESERVED_GROUP.has(name.toLowerCase()) &&
-            !isRetiredPriorityLabel(name),
-        ),
-    ),
-  ].sort((a, b) => a.localeCompare(b));
+  const labels = labelRows
+    .map((row) => row.name)
+    .filter(
+      (name) =>
+        !RESERVED_GROUP.has(name.toLowerCase()) &&
+        !isRetiredPriorityLabel(name),
+    );
 
   const milestoneRows = db
     .select({
