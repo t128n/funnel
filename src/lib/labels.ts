@@ -6,8 +6,6 @@
  * `src/lib/server/**` and client components. `src/lib/server/github/labels.ts`
  * re-exports these so the server keeps a single source of truth.
  */
-import { isRetiredPriorityLabel } from "./priority";
-
 export type LabelGroup =
   | "status"
   | "priority"
@@ -147,33 +145,11 @@ const STATUS_DISPLAY: Record<string, string> = {
   "in-review": "In Review",
 };
 
-const FLAG_DISPLAY: Record<string, string> = { blocked: "Blocked" };
-
-const IMPACT_DISPLAY: Record<string, string> = { sev: "Sev", mod: "Mod", min: "Min" };
-const URGENCY_DISPLAY: Record<string, string> = { high: "High", mid: "Mid", low: "Low" };
-
 const SIZE_DISPLAY: Record<string, string> = { sm: "S", md: "M", lg: "L" };
 
 /** The four open workflow stages, in order; `done` is appended by the board. */
 export const STATUS_OPTIONS = options("status", STATUS_DISPLAY);
-export const IMPACT_OPTIONS = options("impact", IMPACT_DISPLAY);
-export const URGENCY_OPTIONS = options("urgency", URGENCY_DISPLAY);
 export const SIZE_OPTIONS = options("size", SIZE_DISPLAY);
-/** Orthogonal flags carried alongside a status (SPEC §5.1). */
-export const FLAG_OPTIONS = options("flags", FLAG_DISPLAY);
-
-/**
- * Whether a label belongs to a Funnel-managed dimension, including the
- * retired priority labels. The cockpit hides these from the generic label
- * tracks and pickers; legacy `p1`–`p3` labels are surfaced through the
- * priority conflict flag instead.
- */
-export function isHiddenLabel(name: string): boolean {
-  return canonicalLabel(name) !== undefined || isRetiredPriorityLabel(name);
-}
-
-/** The canonical reserved-label name for the "blocked" flag. */
-export const BLOCKED_LABEL = "blocked";
 
 /** Board columns including Done (SPEC §9.3); blocking is not a column. */
 export const BOARD_COLUMNS: readonly { key: string; label: string }[] = [
