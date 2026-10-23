@@ -1,4 +1,3 @@
-import Content from "./empty-content.svelte";
 import Description from "./empty-description.svelte";
 import Header from "./empty-header.svelte";
 import Media from "./empty-media.svelte";
@@ -11,12 +10,10 @@ export {
 	Media,
 	Title,
 	Description,
-	Content,
 	//
 	Root as Empty,
 	Header as EmptyHeader,
 	Media as EmptyMedia,
 	Title as EmptyTitle,
 	Description as EmptyDescription,
-	Content as EmptyContent,
 };

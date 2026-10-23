@@ -57,14 +57,14 @@
 		{:else}
 			<form method="POST" action="?/save">
 				<Card.Root class="mt-4">
-					<Card.Header class="flex-row items-center justify-between gap-2">
-						<div class="flex flex-col gap-1">
-							<Card.Title>{data.repos.length} repositories</Card.Title>
-							<Card.Description>Owner: <code>{data.ownerLogin}</code></Card.Description>
-						</div>
-						<Button type="button" variant="outline" size="sm" onclick={toggleAll}>
-							{allSelected ? 'Clear all' : 'Select all'}
-						</Button>
+					<Card.Header>
+						<Card.Title>{data.repos.length} repositories</Card.Title>
+						<Card.Description>Owner: <code>{data.ownerLogin}</code></Card.Description>
+						<Card.Action>
+							<Button type="button" variant="outline" size="sm" onclick={toggleAll}>
+								{allSelected ? 'Clear all' : 'Select all'}
+							</Button>
+						</Card.Action>
 					</Card.Header>
 					<Card.Content class="p-0">
 						{#if data.error}

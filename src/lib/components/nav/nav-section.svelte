@@ -1,5 +1,6 @@
 <script lang="ts">
 	import ChevronRightIcon from '@lucide/svelte/icons/chevron-right';
+	import * as Collapsible from '#lib/components/ui/collapsible';
 	import * as Sidebar from '#lib/components/ui/sidebar/index.js';
 	import { cn } from '#lib/utils.js';
 	import type { Snippet } from 'svelte';
@@ -42,36 +43,38 @@
 </script>
 
 <Sidebar.Group class={cn('gap-1', className)}>
-	{#if label}
-		{#if canCollapse}
-			<button
-				type="button"
-				class="text-muted-foreground/70 hover:text-muted-foreground focus-visible:ring-sidebar-ring group-data-[collapsible=icon]:hidden flex h-7 w-full shrink-0 items-center gap-1 rounded-md px-2 text-[11px] font-medium tracking-wider uppercase transition-colors outline-hidden focus-visible:ring-2"
-				aria-expanded={!collapsed}
-				onclick={onToggle}
-			>
-				<ChevronRightIcon
-					class={cn(
-						'size-3.5 shrink-0 transition-transform duration-150 ease-[cubic-bezier(0.23,1,0.32,1)]',
-						!collapsed && 'rotate-90'
-					)}
-				/>
-				<span class="truncate">{label}</span>
-			</button>
-		{:else}
-			<div
-				class="text-muted-foreground/70 group-data-[collapsible=icon]:hidden flex h-7 w-full shrink-0 items-center px-2 text-[11px] font-medium tracking-wider uppercase"
-			>
-				<span class="truncate">{label}</span>
-			</div>
+	<Collapsible.Root
+		open={open}
+		onOpenChange={(next) => {
+			if (canCollapse && next !== open) onToggle?.();
+		}}
+		class="contents"
+	>
+		{#if label}
+			{#if canCollapse}
+				<Collapsible.Trigger
+					class="group text-muted-foreground/70 hover:text-muted-foreground focus-visible:ring-sidebar-ring group-data-[collapsible=icon]:hidden flex h-7 w-full shrink-0 items-center gap-1 rounded-md px-2 text-[11px] font-medium tracking-wider uppercase transition-colors outline-hidden focus-visible:ring-2"
+				>
+					<ChevronRightIcon
+						class="size-3.5 shrink-0 transition-transform duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] group-data-[state=open]:rotate-90"
+					/>
+					<span class="truncate">{label}</span>
+				</Collapsible.Trigger>
+			{:else}
+				<div
+					class="text-muted-foreground/70 group-data-[collapsible=icon]:hidden flex h-7 w-full shrink-0 items-center px-2 text-[11px] font-medium tracking-wider uppercase"
+				>
+					<span class="truncate">{label}</span>
+				</div>
+			{/if}
 		{/if}
-	{/if}
 
-	{#if open}
-		<Sidebar.GroupContent>
-			<Sidebar.Menu>
-				{@render children()}
-			</Sidebar.Menu>
-		</Sidebar.GroupContent>
-	{/if}
+		<Collapsible.Content>
+			<Sidebar.GroupContent>
+				<Sidebar.Menu>
+					{@render children()}
+				</Sidebar.Menu>
+			</Sidebar.GroupContent>
+		</Collapsible.Content>
+	</Collapsible.Root>
 </Sidebar.Group>

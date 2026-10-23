@@ -12,6 +12,7 @@
 	import SubmissionRow from '#lib/components/inbox/SubmissionRow.svelte';
 	import IssueRow from '#lib/components/issue/IssueRow.svelte';
 	import * as Alert from '#lib/components/ui/alert';
+	import * as Empty from '#lib/components/ui/empty';
 	import { createFeed } from '#lib/client/feed.svelte';
 	import {
 		isGroupCollapsed,
@@ -162,11 +163,9 @@
 			{/if}
 
 			{#if entries.length === 0}
-				<div
-					class="text-muted-foreground flex flex-1 items-center justify-center p-8 text-center text-sm"
-				>
-					Inbox zero. Nothing staged or untriaged.
-				</div>
+				<Empty.Root class="flex-1 border-0">
+					<Empty.Description>Inbox zero. Nothing staged or untriaged.</Empty.Description>
+				</Empty.Root>
 			{:else}
 				<div class="issue-list flex min-h-0 flex-1 flex-col">
 					<IssueListHeader />
