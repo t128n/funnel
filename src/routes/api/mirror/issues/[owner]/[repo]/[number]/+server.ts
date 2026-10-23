@@ -35,7 +35,7 @@ export const GET: RequestHandler = ({ params, url, locals }) => {
   if (number instanceof Response) return number;
 
   const requested = Number(
-    url.searchParams.get("comments") ?? DEFAULT_COMMENT_LIMIT,
+    url?.searchParams.get("comments") ?? DEFAULT_COMMENT_LIMIT,
   );
   const commentLimit = Number.isFinite(requested)
     ? Math.min(Math.max(Math.trunc(requested), 1), MAX_COMMENT_LIMIT)
