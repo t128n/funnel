@@ -12,6 +12,7 @@ import {
   type GitHubProvider,
 } from "#lib/server/forge/providers.server";
 import { errorMessage } from "#lib/server/http/outcome";
+import { apiRole } from "#lib/server/http/session";
 import { createLogger } from "#lib/server/log";
 import { refreshIssue } from "#lib/server/sync/worker";
 
@@ -43,6 +44,28 @@ export async function authenticate(
     log.warn({ err: errorMessage(error) }, "user token unavailable");
     return { ok: false, response: jsonError(errorMessage(error), 502) };
   }
+}
+
+/**
+ * Resolve a user-token provider for a write request. The session must hold the
+ * `write` role and a usable token; either failure returns a ready `Response`
+ * (401/403/502) with the same status and body as the inline guards.
+ */
+export async function authenticateWrite(
+  locals: App.Locals,
+): Promise<AuthResult> {
+  const userId = apiRole(locals, "write");
+  if (userId instanceof Response) return { ok: false, response: userId };
+  return authenticate(userId);
+}
+
+/** Parse a positive integer issue number, returning a 400 `Response` otherwise. */
+export function issueNumberParam(value: string | undefined): number | Response {
+  const number = Number(value);
+  if (!Number.isInteger(number) || number <= 0) {
+    return jsonError("Invalid issue number", 400);
+  }
+  return number;
 }
 
 /**

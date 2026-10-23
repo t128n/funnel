@@ -6,7 +6,12 @@ import {
   IMPACT_LABEL_VALUES,
   URGENCY_LABEL_VALUES,
 } from "#lib/priority";
-import { authenticate, readJson, scheduleRefresh } from "#lib/server/issues/http";
+import {
+  authenticateWrite,
+  issueNumberParam,
+  readJson,
+  scheduleRefresh,
+} from "#lib/server/issues/http";
 import { apiRole } from "#lib/server/http/session";
 import { updateIssue } from "#lib/server/issues/mutations";
 import { outcomeResponse } from "#lib/server/http/outcome";
@@ -59,16 +64,11 @@ export const PATCH: RequestHandler = async ({
   request,
   locals,
 }) => {
-  const denied = apiRole(locals, "write");
-  if (denied instanceof Response) return denied;
-
-  const auth = await authenticate(locals.user?.id);
+  const auth = await authenticateWrite(locals);
   if (!auth.ok) return auth.response;
 
-  const number = Number(params.number);
-  if (!Number.isInteger(number) || number <= 0) {
-    return Response.json({ message: "Invalid issue number" }, { status: 400 });
-  }
+  const number = issueNumberParam(params.number);
+  if (number instanceof Response) return number;
 
   const read = await readJson(request);
   if (!read.ok) return read.response;

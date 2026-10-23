@@ -11,13 +11,6 @@
  * the server. Scalars are emitted with JSON escaping, which is valid YAML, so an
  * external YAML reader parses the payload even though we do not ship one.
  */
-import {
-  parseImpact,
-  parseUrgency,
-  type Impact,
-  type Urgency,
-} from "./priority";
-
 /** A reserved envelope marker; only one such block is kept per body. */
 const FUNNEL_METADATA_RE = /<!--\s*funnel_metadata\b[\s\S]*?-->/;
 
@@ -173,7 +166,7 @@ export function readBlocked(body: string): BlockState {
  * clears the structured fields but keeps `is_blocked: false` (the unblock
  * comment carries the resolution). A body that never carried Funnel metadata is
  * left untouched when clearing, so manually-labelled issues are not polluted.
- * Sections written by other features (for example `priority`) are preserved.
+ * Sections written by other features are preserved.
  */
 export function writeBlocked(body: string, info: BlockInfo | null): string {
   const { content, block } = splitFunnelMetadata(body);
@@ -192,70 +185,6 @@ export function writeBlocked(body: string, info: BlockInfo | null): string {
   sections.set("blocked", fields);
   return composeFunnelMetadata(content, serializeSections(sections));
 }
-
-/** The raw triage axes stored on an issue; either may be unset. */
-export interface PriorityInputs {
-  impact: Impact | null;
-  urgency: Urgency | null;
-}
-
-export type PriorityAxes = PriorityInputs;
-
-/**
- * Read `impact`/`urgency` from the `priority:` section. The older top-level
- * form is accepted too, so hand-edited metadata still round-trips.
- */
-export function readPriorityInputs(body: string): PriorityInputs {
-  const { block } = splitFunnelMetadata(body);
-  if (!block) return { impact: null, urgency: null };
-  const sections = parseSections(envelopeInner(block));
-  const priority = sections.get("priority");
-  const top = sections.get(TOP_LEVEL);
-  const pick = (key: string) => priority?.get(key) ?? top?.get(key);
-  return {
-    impact: parseImpact(pick("impact")),
-    urgency: parseUrgency(pick("urgency")),
-  };
-}
-
-export const readImpactUrgency = readPriorityInputs;
-export const readPriorityAxes = readPriorityInputs;
-
-/**
- * Write `impact`/`urgency` without disturbing other metadata sections. Canonical
- * output groups them under `priority:`; an unset axis is omitted, and clearing
- * both removes the section (and the envelope when nothing else remains).
- */
-export function writePriorityInputs(
-  body: string,
-  inputs: PriorityInputs,
-): string {
-  const impact = parseImpact(inputs.impact);
-  const urgency = parseUrgency(inputs.urgency);
-  const { content, block } = splitFunnelMetadata(body);
-  const sections = block ? parseSections(envelopeInner(block)) : new Map();
-
-  const top = sections.get(TOP_LEVEL);
-  if (top) {
-    top.delete("impact");
-    top.delete("urgency");
-    if (top.size === 0) sections.delete(TOP_LEVEL);
-  }
-
-  const fields = sections.get("priority") ?? new Map();
-  fields.delete("impact");
-  fields.delete("urgency");
-  if (impact !== null) fields.set("impact", impact);
-  if (urgency !== null) fields.set("urgency", urgency);
-  if (fields.size === 0) sections.delete("priority");
-  else sections.set("priority", fields);
-
-  if (sections.size === 0) return content;
-  return composeFunnelMetadata(content, serializeSections(sections));
-}
-
-export const writeImpactUrgency = writePriorityInputs;
-export const writePriorityAxes = writePriorityInputs;
 
 /** The Markdown comment posted when an issue is blocked. */
 export function formatBlockComment(info: BlockInfo): string {

@@ -1,3 +1,4 @@
+import { issueNumberParam } from "#lib/server/issues/http";
 import { apiRole } from "#lib/server/http/session";
 import {
 	isWatching,
@@ -26,10 +27,8 @@ function resolve(ctx: WatchContext): { userId: string; org: string; name: string
 		);
 	}
 
-	const number = Number(ctx.params.number);
-	if (!Number.isInteger(number) || number <= 0) {
-		return Response.json({ message: "Invalid issue number" }, { status: 400 });
-	}
+	const number = issueNumberParam(ctx.params.number);
+	if (number instanceof Response) return number;
 
 	return { userId, org: repo.org, name: repo.name, number };
 }
