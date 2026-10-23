@@ -73,12 +73,12 @@ afterEach(() => {
 
 describe("GET issues list", () => {
   test("forwards allowlisted params, drops unknown ones", async () => {
+    const query =
+      "?state=open&labels=p1&assignee=bob&creator=a&mentioned=m&milestone=1&since=2024-01-01T00:00:00Z&sort=updated&direction=desc&per_page=5&page=2&evil=1";
     const res = await getIssues({
       params: { owner: "o", repo: "r" },
-      url: new URL(
-        "http://x/?state=open&labels=p1&assignee=bob&creator=a&mentioned=m&milestone=1&since=2024-01-01T00:00:00Z&sort=updated&direction=desc&per_page=5&page=2&evil=1",
-      ),
-      request: req(),
+      url: new URL(`http://x/${query}`),
+      request: req(query),
       locals: READ,
     } as never);
     expect(res.status).toBe(200);
@@ -196,12 +196,11 @@ describe("GET single issue", () => {
 
 describe("GET comments", () => {
   test("keeps since/per_page/page, drops the rest", async () => {
+    const query = "?since=2024-01-01T00:00:00Z&per_page=10&page=3&state=open";
     await getComments({
       params: { owner: "o", repo: "r", number: "7" },
-      url: new URL(
-        "http://x/?since=2024-01-01T00:00:00Z&per_page=10&page=3&state=open",
-      ),
-      request: req(),
+      url: new URL(`http://x/${query}`),
+      request: req(query),
       locals: READ,
     } as never);
     expect(SEEN[0]).toContain("/repos/o/r/issues/7/comments");
@@ -218,10 +217,12 @@ describe("GET labels", () => {
     const res = await getLabels({
       params: { owner: "o", repo: "r" },
       url: new URL("http://x/?per_page=100&page=1&state=open"),
-      request: req(),
+      request: req("?per_page=100&page=1&state=open"),
       locals: READ,
     } as never);
     expect(SEEN[0]).toContain("/repos/o/r/labels");
+    expect(SEEN[0]).toContain("per_page=100");
+    expect(SEEN[0]).toContain("page=1");
     expect(SEEN[0]).not.toContain("state=");
     expect(await res.json()).toEqual([{ name: "p1" }]);
   });
@@ -236,6 +237,21 @@ describe("GET labels", () => {
     } as never);
     expect(SEEN[0]).toBe("GET /repos/o/r/labels/bug%20fix");
     expect(await res.json()).toEqual({ name: "bug fix" });
+  });
+
+  test("upstream 404 carries the encoded label html_url", async () => {
+    canned = { status: 404, data: { message: "Not Found" }, headers: {} };
+    const res = await getLabel({
+      params: { owner: "o", repo: "r", name: "bug fix" },
+      url: new URL("http://x/"),
+      request: req(),
+      locals: READ,
+    } as never);
+    expect(res.status).toBe(404);
+    expect(await res.json()).toEqual({
+      message: "Not synced, open on GitHub",
+      html_url: "https://github.com/o/r/labels/bug%20fix",
+    });
   });
 });
 
@@ -297,22 +313,33 @@ describe("write route wiring", () => {
 
 describe("read route wiring", () => {
   test("read routes use the forge provider", () => {
+    // The shared `repoGet` helper owns the installation lookup and the
+    // passthrough; the repo read routes only delegate to it.
+    const shared = readFileSync("src/lib/server/github/app.server.ts", "utf8");
+    expect(shared).toContain("forge.");
+    expect(shared).not.toContain("github.asInstallation");
+    expect(shared).not.toContain("github.asApp");
+
     for (const file of [
       "src/routes/api/repos/[owner]/[repo]/issues/+server.ts",
-      "src/routes/api/users/[username]/+server.ts",
+      "src/routes/api/repos/[owner]/[repo]/issues/[number]/+server.ts",
+      "src/routes/api/repos/[owner]/[repo]/issues/[number]/comments/+server.ts",
+      "src/routes/api/repos/[owner]/[repo]/labels/+server.ts",
+      "src/routes/api/repos/[owner]/[repo]/labels/[name]/+server.ts",
     ]) {
       const text = readFileSync(file, "utf8");
-      // `installationErrorResponse` still lives on `app.server.ts`; every
-      // client and installation lookup must come from the forge module.
-      for (const line of text.split("\n")) {
-        if (line.includes("github/app.server")) {
-          expect(line).toContain("installationErrorResponse");
-        }
-      }
       expect(text).not.toContain("github.asInstallation");
       expect(text).not.toContain("github.asApp");
-      expect(text).toContain("forge.");
+      expect(text).toContain("repoGet");
     }
+
+    const user = readFileSync(
+      "src/routes/api/users/[username]/+server.ts",
+      "utf8",
+    );
+    expect(user).not.toContain("github.asInstallation");
+    expect(user).not.toContain("github.asApp");
+    expect(user).toContain("github/api-passthrough.server");
   });
 });
 

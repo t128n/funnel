@@ -11,42 +11,15 @@ import { getViewerExternalId } from "#lib/server/auth/index";
 import { apiRole } from "#lib/server/http/session";
 import { parseIssueFilter } from "#lib/server/issues/filters";
 import {
-  decodeCursor,
+  FeedRequestError,
   filterSignature,
+  pageOptions,
+  requireCursor,
   type ListPage,
-  type PageOptions,
 } from "#lib/server/issues/pagination";
 import { allIssues, filterContext } from "#lib/server/issues/queries";
 import type { IssueListItem } from "#lib/server/issues/types";
 import type { RequestHandler } from "./$types";
-
-/** A 400 the route turns into a JSON error response. */
-class FeedRequestError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "FeedRequestError";
-  }
-}
-
-/** `limit`/`cursor` passthrough; T1 clamps the limit to its hard cap. */
-function pageOptions(search: URLSearchParams): PageOptions {
-  const rawLimit = search.get("limit");
-  const cursor = search.get("cursor");
-  return {
-    limit: rawLimit === null ? undefined : Number(rawLimit),
-    cursor: cursor ? cursor : null,
-  };
-}
-
-/** Reject a cursor that does not decode for `signature`. */
-function requireCursor(
-  cursor: string | null,
-  signature: string,
-): void {
-  if (cursor && decodeCursor(cursor, signature) === null) {
-    throw new FeedRequestError("Invalid cursor");
-  }
-}
 
 /** One page of All Issues, defaulting to the open state like the cockpit. */
 function issuesPage(

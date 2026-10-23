@@ -12,9 +12,6 @@ export const IMPACT_VALUES = [1, 2, 3] as const;
 export const URGENCY_VALUES = [1, 2, 3] as const;
 export const PRIORITY_VALUES = ["P1", "P2", "P3"] as const;
 
-/** The lowercase query-string form of each derived priority. */
-export const PRIORITY_FILTER_VALUES = ["p1", "p2", "p3"] as const;
-
 export type Impact = (typeof IMPACT_VALUES)[number];
 export type Urgency = (typeof URGENCY_VALUES)[number];
 export type Priority = (typeof PRIORITY_VALUES)[number];
@@ -104,11 +101,6 @@ export function priorityMeta(value: unknown): PriorityLevel | null {
     : null;
 }
 
-/** A priority's display name (`P1` → `High`), or `null` when unset. */
-export function priorityName(value: unknown): string | null {
-  return priorityMeta(value)?.name ?? null;
-}
-
 /**
  * The retired reserved labels. They are only compared against the derived
  * priority so an old p-label that disagrees can be flagged; Funnel never writes
@@ -183,8 +175,6 @@ export const DEFAULT_PRIORITY_MATRIX: PriorityMatrix = {
 /** Used when either axis is unset or invalid; missing input is not severity. */
 export const DEFAULT_PRIORITY: Priority = "P3";
 
-export const PRIORITY_MATRIX = DEFAULT_PRIORITY_MATRIX;
-
 export interface PriorityRules {
   readonly matrix: PriorityMatrix;
   readonly fallback: Priority;
@@ -203,14 +193,6 @@ export function isImpact(value: unknown): value is Impact {
   return typeof value === "number" && IMPACT_SET.has(value);
 }
 
-export function isUrgency(value: unknown): value is Urgency {
-  return typeof value === "number" && URGENCY_SET.has(value);
-}
-
-export function isPriority(value: unknown): value is Priority {
-  return typeof value === "string" && PRIORITY_SET.has(value);
-}
-
 /** Coerce a stored value (`1` or `"1"`) to an impact, or `null`. */
 export function parseImpact(value: unknown): Impact | null {
   const numeric =
@@ -226,7 +208,9 @@ export function parseUrgency(value: unknown): Urgency | null {
     typeof value === "string" && /^\d+$/.test(value.trim())
       ? Number(value.trim())
       : value;
-  return isUrgency(numeric) ? numeric : null;
+  return typeof numeric === "number" && URGENCY_SET.has(numeric)
+    ? (numeric as Urgency)
+    : null;
 }
 
 /** Coerce a canonical label name to its impact level, or `null`. */
@@ -243,14 +227,6 @@ export function parseUrgencyLabel(value: unknown): Urgency | null {
     : null;
 }
 
-/** Coerce a stored/metadata priority (`P1`, `p1`, …) to the canonical form. */
-export function parsePriority(value: unknown): Priority | null {
-  if (isPriority(value)) return value;
-  return typeof value === "string"
-    ? (RETIRED_PRIORITY_LABELS[value.trim().toLowerCase()] ?? null)
-    : null;
-}
-
 export function isPriorityMatrix(value: unknown): value is PriorityMatrix {
   if (typeof value !== "object" || value === null) return false;
   const matrix = value as Record<number, unknown>;
@@ -258,7 +234,10 @@ export function isPriorityMatrix(value: unknown): value is PriorityMatrix {
     const row = matrix[impact];
     if (typeof row !== "object" || row === null) return false;
     const cells = row as Record<number, unknown>;
-    return URGENCY_VALUES.every((urgency) => isPriority(cells[urgency]));
+    return URGENCY_VALUES.every(
+      (urgency) =>
+        typeof cells[urgency] === "string" && PRIORITY_SET.has(cells[urgency]),
+    );
   });
 }
 
@@ -312,11 +291,6 @@ export function priorityRank(priority: Priority): number {
   return PRIORITY_VALUES.indexOf(priority);
 }
 
-/** The lowercase filter/label form (`P2` → `p2`). */
-export function priorityLabelName(priority: Priority): string {
-  return priority.toLowerCase();
-}
-
 /** Map a retired `p1`–`p3` label name to its tier, or `null`. */
 export function retiredPriority(name: unknown): Priority | null {
   return typeof name === "string"
@@ -341,13 +315,6 @@ export function legacyPriorityFromLabels(
     if (labels.some((label) => label.toLowerCase() === name)) return value;
   }
   return null;
-}
-
-/** Every retired priority label carried by an issue, lowercased. */
-export function legacyPriorityLabels(labels: readonly string[]): string[] {
-  return labels
-    .map((label) => label.toLowerCase())
-    .filter((label) => isRetiredPriorityLabel(label));
 }
 
 /**

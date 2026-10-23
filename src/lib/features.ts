@@ -2,7 +2,7 @@
  * Feature-flag registry (shared by client and server).
  *
  * One declaration per flag, so the `/settings/features` page, the server-side
- * OpenFeature evaluation (`#lib/server/flags`), and the cookie store all agree.
+ * resolution (`#lib/server/flags`), and the cookie store all agree.
  * Flag values are per-browser: a browser stores an override in a single cookie
  * ({@link FEATURES_COOKIE}); the effective value is the override, else the
  * instance default (the environment, else {@link FeatureFlag.default}).
@@ -11,7 +11,7 @@
  */
 
 export interface FeatureFlag {
-  /** Stable flag key, also the OpenFeature key. */
+  /** Stable flag key. */
   key: string;
   /** Human name shown in the Features settings list. */
   name: string;

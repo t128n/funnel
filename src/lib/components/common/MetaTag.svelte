@@ -4,8 +4,8 @@
 
 	/**
 	 * Compact, semi-translucent metadata tag used by board cards and list rows.
-	 * Deliberately quieter than the shared `Chip` so a row's title stays the
-	 * focal point.
+	 * Deliberately quieter than a shared chip so a row's title stays the focal
+	 * point.
 	 */
 	interface Props {
 		label: string;

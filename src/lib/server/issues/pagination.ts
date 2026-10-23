@@ -122,3 +122,31 @@ export function pageLimit(limit: number | undefined, defaultSize: number): numbe
   if (floored < 1) return 1;
   return Math.min(floored, MAX_PAGE_SIZE);
 }
+
+/** A 400 the feed routes turn into a JSON error response. */
+export class FeedRequestError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "FeedRequestError";
+  }
+}
+
+/** `limit`/`cursor` passthrough; {@link pageLimit} clamps the limit. */
+export function pageOptions(search: URLSearchParams): PageOptions {
+  const rawLimit = search.get("limit");
+  const cursor = search.get("cursor");
+  return {
+    limit: rawLimit === null ? undefined : Number(rawLimit),
+    cursor: cursor ? cursor : null,
+  };
+}
+
+/** Reject a cursor that does not decode for `signature`. */
+export function requireCursor(
+  cursor: string | null,
+  signature: string,
+): void {
+  if (cursor && decodeCursor(cursor, signature) === null) {
+    throw new FeedRequestError("Invalid cursor");
+  }
+}

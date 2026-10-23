@@ -91,15 +91,3 @@ export interface PlanIssueInput {
 	actor: Recipient | null;
 	now: number;
 }
-
-/** Raised by Wave 0 stubs so an unimplemented task fails loudly. */
-export class NotImplementedError extends Error {
-	constructor(taskId: string, feature: string) {
-		super(`${taskId} not implemented: ${feature}`);
-		this.name = 'NotImplementedError';
-	}
-}
-
-export function notImplemented(taskId: string, feature: string): never {
-	throw new NotImplementedError(taskId, feature);
-}

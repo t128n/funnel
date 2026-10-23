@@ -120,23 +120,15 @@ function splitRepo(repo: string): { owner: string; name: string } | null {
   return { owner: repo.slice(0, slash), name: repo.slice(slash + 1) };
 }
 
-function namesIn(group: LabelGroup): Set<string> {
-  return new Set(
-    CANONICAL_LABELS.filter((label) => label.group === group).map((label) =>
-      label.name.toLowerCase(),
-    ),
-  );
-}
-
 const GROUP_VALUES: Record<LabelGroup, ReadonlySet<string>> = {
   status: new Set(STATUS_VALUES),
   // Priority is no longer a label group; the set stays empty so the record
   // remains total without accepting a retired p-label as canonical.
   priority: new Set<string>(),
-  impact: namesIn("impact"),
-  urgency: namesIn("urgency"),
+  impact: groupMembers("impact"),
+  urgency: groupMembers("urgency"),
   size: new Set(SIZE_VALUES),
-  flags: namesIn("flags"),
+  flags: groupMembers("flags"),
 };
 
 function isCanonical(group: LabelGroup, value: string): boolean {
