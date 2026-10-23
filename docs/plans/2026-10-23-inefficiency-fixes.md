@@ -102,7 +102,7 @@ critical path: T2 → T3a → T3b → T5 → T6a → T6b (16.0 min) · peak widt
 **Notes:** Keep reconciliation eager: it may still force the full refresh.
 
 ### T3a batch sync writes · Complexity 3 · Est. context 30k
-**Owns:** src/lib/server/sync/mirror.ts
+**Owns:** src/lib/server/sync/mirror.ts, tests/notifications-routes.test.ts
 **Components:** 2
 **LOC owned:** 180
 **Tests:** fast
