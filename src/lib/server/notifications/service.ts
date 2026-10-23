@@ -259,7 +259,7 @@ export function getRecipientByLogin(login: string): Recipient | null {
 				authAccount,
 				and(eq(authAccount.providerId, "github"), githubAccountMatch),
 			)
-			.where(sql`lower(${mirrorUser.login}) = ${login.toLowerCase()}`)
+			.where(sql`${mirrorUser.login} = ${login} COLLATE NOCASE`)
 			.limit(1)
 			.all()[0] ?? null
 	);

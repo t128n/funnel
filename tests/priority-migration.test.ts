@@ -13,6 +13,9 @@ const migrations = readdirSync(DRIZZLE, { withFileTypes: true })
   .map((entry) => entry.name)
   .sort();
 
+/** The migration under test; earlier folders are the pre-priority schema. */
+const PRIORITY_MIGRATION = "20261019133410_windy_magma";
+
 const cleanup: string[] = [];
 
 afterEach(() => {
@@ -31,7 +34,9 @@ describe("priority label migration", () => {
     const dbPath = join(tmpdir(), `funnel-migrate-${process.pid}-${Date.now()}.db`);
     cleanup.push(prior, dbPath);
 
-    for (const name of migrations.slice(0, -1)) {
+    const priorEnd = migrations.indexOf(PRIORITY_MIGRATION);
+    if (priorEnd < 0) throw new Error("priority migration not found");
+    for (const name of migrations.slice(0, priorEnd)) {
       cpSync(join(DRIZZLE, name), join(prior, name), { recursive: true });
     }
 

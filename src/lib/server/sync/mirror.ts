@@ -29,6 +29,7 @@ import {
   mirrorUser,
 } from "#lib/server/db/schema";
 import {
+  priorityRank,
   retiredPriorityConflict,
   type Impact,
   type Priority,
@@ -710,6 +711,11 @@ function prepareIssue(
   };
 }
 
+/** Persisted sort rank: P1 → 0 … P3 → 2; unprioritized sorts last. */
+function storedPriorityRank(priority: Priority | null): number {
+  return priority === null ? 3 : priorityRank(priority);
+}
+
 /** Write one prepared issue and its children inside the caller's transaction. */
 function writeIssue(tx: MirrorTx, prepared: PreparedIssue): void {
   const { issue, metadata, authorId, assigneeIds, comments } = prepared;
@@ -740,6 +746,7 @@ function writeIssue(tx: MirrorTx, prepared: PreparedIssue): void {
       impact: metadata.impact,
       urgency: metadata.urgency,
       priority: metadata.priority,
+      priorityRank: storedPriorityRank(metadata.priority),
       size: metadata.size,
       blocked: metadata.blocked ? 1 : 0,
       labelConflict: labelConflict ? 1 : 0,
@@ -763,6 +770,7 @@ function writeIssue(tx: MirrorTx, prepared: PreparedIssue): void {
         impact: metadata.impact,
         urgency: metadata.urgency,
         priority: metadata.priority,
+        priorityRank: storedPriorityRank(metadata.priority),
         size: metadata.size,
         blocked: metadata.blocked ? 1 : 0,
         labelConflict: labelConflict ? 1 : 0,
@@ -933,6 +941,7 @@ export function setIssueMetadata(
       impact: metadata.impact,
       urgency: metadata.urgency,
       priority: metadata.priority,
+      priorityRank: storedPriorityRank(metadata.priority),
       size: metadata.size,
       blocked: metadata.blocked ? 1 : 0,
       labelConflict: metadata.labelConflict ? 1 : 0,

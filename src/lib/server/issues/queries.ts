@@ -94,8 +94,8 @@ const BOARD_LABELS: Record<StatusKey, string> = {
   done: "Done",
 };
 
-/** Default sort: derived priority (P1 first, unprioritized last) then updated. */
-const PRIORITY_RANK = sql`case ${mirrorThread.priority} when 'P1' then 0 when 'P2' then 1 when 'P3' then 2 else 3 end`;
+/** Default sort: derived priority rank (P1 first, unprioritized last) then updated. */
+const PRIORITY_RANK = mirrorThread.priorityRank;
 
 const issueColumns = {
   repoId: mirrorThread.repoId,
@@ -105,6 +105,7 @@ const issueColumns = {
   stateReason: mirrorThread.stateReason,
   status: mirrorThread.status,
   priority: mirrorThread.priority,
+  priorityRank: mirrorThread.priorityRank,
   impact: mirrorThread.impact,
   urgency: mirrorThread.urgency,
   size: mirrorThread.size,
@@ -134,6 +135,7 @@ interface RawRow {
   stateReason: string | null;
   status: string | null;
   priority: string | null;
+  priorityRank: number;
   impact: number | null;
   urgency: number | null;
   size: string | null;
@@ -215,7 +217,7 @@ export function filterContext(
       const row = db
         .select({ externalId: mirrorUser.externalId })
         .from(mirrorUser)
-        .where(sql`lower(${mirrorUser.login}) = lower(${login})`)
+        .where(sql`${mirrorUser.login} = ${login} COLLATE NOCASE`)
         .get();
       return row?.externalId;
     },
@@ -247,24 +249,10 @@ function rawQuery(where: SQL | undefined, opts: ListOptions): RawRow[] {
   return rows as RawRow[];
 }
 
-/** Priority rank mirroring {@link PRIORITY_RANK}: `p1`..`p3`, else last. */
-function priorityRank(priority: string | null): number {
-  switch (priority) {
-    case "P1":
-      return 0;
-    case "P2":
-      return 1;
-    case "P3":
-      return 2;
-    default:
-      return 3;
-  }
-}
-
 /**
  * Keyset predicate resuming strictly after `key` in the fixed sort order
- * (rank ASC, updatedAt DESC, repoId DESC, number DESC). Uses the same
- * {@link PRIORITY_RANK} expression as the `ORDER BY`, so the two cannot drift.
+ * (rank ASC, updatedAt DESC, repoId DESC, number DESC). Uses the persisted
+ * rank column, the same one the `ORDER BY` uses, so the two cannot drift.
  */
 function cursorWhere(key: [number, number, number, number]): SQL {
   const [rank, updatedAt, repoId, number] = key;
@@ -348,8 +336,9 @@ function pageIssues(
 
   const rows = rawQuery(pageWhere, { limit: limit + 1 });
   const hasMore = rows.length > limit;
-  const items = hydrate(hasMore ? rows.slice(0, limit) : rows);
-  const last = items[items.length - 1];
+  const pageRows = hasMore ? rows.slice(0, limit) : rows;
+  const items = hydrate(pageRows);
+  const last = pageRows[pageRows.length - 1];
 
   return {
     items,
@@ -357,7 +346,7 @@ function pageIssues(
     nextCursor:
       hasMore && last
         ? encodeCursor(signature, [
-            priorityRank(last.priority),
+            last.priorityRank,
             last.updatedAt,
             last.repoId,
             last.number,

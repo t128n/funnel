@@ -1,3 +1,4 @@
+import { desc, sql } from "drizzle-orm";
 import {
   index,
   integer,
@@ -339,6 +340,9 @@ export const mirrorUser = sqliteTable(
       t.externalId,
     ),
     uniqueIndex("uq_mirror_user_login").on(t.forge, t.instance, t.login),
+    // Login lookups are case-insensitive (`COLLATE NOCASE`); this index lets
+    // SQLite seek them instead of scanning `mirror_user`.
+    index("idx_mirror_user_login_nocase").on(sql`${t.login} COLLATE NOCASE`),
   ],
 );
 
@@ -419,6 +423,12 @@ export const mirrorThread = sqliteTable(
     urgency: integer("urgency"),
     /** Derived `P1`–`P3` cache (never a GitHub label). */
     priority: text("priority"),
+    /**
+     * Sortable rank of {@link priority}: P1 = 0, P2 = 1, P3 = 2, unprioritized
+     * = 3. Persisted so lists and cursors can order on an indexed column
+     * instead of evaluating a CASE expression per row.
+     */
+    priorityRank: integer("priority_rank").notNull().default(3),
     size: text("size"),
     blocked: integer("blocked").notNull().default(0),
     labelConflict: integer("label_conflict").notNull().default(0),
@@ -428,6 +438,11 @@ export const mirrorThread = sqliteTable(
     uniqueIndex("uq_mirror_thread_external").on(t.repoId, t.externalId),
     index("idx_mirror_thread_status_updated").on(t.status, t.updatedAt),
     index("idx_mirror_thread_priority_updated").on(t.priority, t.updatedAt),
+    index("idx_mirror_thread_priority_rank_updated").on(
+      t.priorityRank,
+      desc(t.updatedAt),
+    ),
+    index("idx_mirror_thread_blocked_state").on(t.blocked, t.state),
     index("idx_mirror_thread_state").on(t.state, t.stateReason),
     index("idx_mirror_thread_repo_updated").on(t.repoId, t.updatedAt),
     index("idx_mirror_thread_milestone").on(t.repoId, t.milestoneNumber),
