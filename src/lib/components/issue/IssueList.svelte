@@ -57,7 +57,7 @@
 	const END_THRESHOLD = 300;
 
 	const source = $derived(feed ? feed.items : issues);
-	const projected = $derived(project ? project([...source]) : [...source]);
+	const projected = $derived(project ? project(source) : source);
 
 	const requested = $derived(groupable ? getGroupBy() : 'none');
 	// A stored `project` preference with no configured projects renders flat.

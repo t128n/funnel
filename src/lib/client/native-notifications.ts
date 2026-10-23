@@ -96,6 +96,8 @@ export function startNativeNotifications(enabled: boolean): () => void {
 		if (stopped || stopStream) return;
 		if (Notification.permission !== "granted" || !optedIn) return;
 
+		// `connectEvents` hands back the tab's shared stream; this is only a
+		// subscription, never a second `EventSource`.
 		stopStream = connectEvents((event) => {
 			if (stopped || event.type !== "notifications") return;
 

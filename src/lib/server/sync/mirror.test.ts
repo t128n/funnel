@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, test } from "bun:test";
+import { sql } from "drizzle-orm";
 import { clearMirror } from "#tests/mirror-helpers";
 import { db } from "#lib/server/db/index";
 import { mirrorComment, mirrorThreadAssignee } from "#lib/server/db/schema";
@@ -516,5 +517,32 @@ describe("repo milestones", () => {
 
     mirror.replaceRepoMilestones(repo.id, []);
     expect(mirror.getRepoMilestones(repo.id)).toEqual([]);
+  });
+
+  test("leaves an unchanged set untouched", () => {
+    const repo = seedRepo();
+    const milestone: mirror.MilestoneRecord = {
+      number: 1,
+      externalId: "10",
+      title: "v1",
+      description: "",
+      state: "open",
+      dueOn: 1000,
+      openIssues: 2,
+      closedIssues: 1,
+      creator: user("7", "octocat"),
+      createdAt: 1,
+      updatedAt: 2,
+      closedAt: null,
+      url: "https://github.com/orgA/core/milestone/1",
+    };
+    const rowid = () =>
+      db.get<{ rowid: number }>(sql`select rowid from mirror_milestone`).rowid;
+
+    mirror.replaceRepoMilestones(repo.id, [milestone]);
+    const before = rowid();
+    mirror.replaceRepoMilestones(repo.id, [{ ...milestone }]);
+
+    expect(rowid()).toBe(before);
   });
 });

@@ -566,7 +566,6 @@ export async function createMilestone(
         dueOn: input.dueOn ?? undefined,
       },
     );
-    publish({ type: "issues", repo: input.repo, numbers: [] });
     return {
       ok: true,
       value: { number: milestone.number, htmlUrl: milestone.url },

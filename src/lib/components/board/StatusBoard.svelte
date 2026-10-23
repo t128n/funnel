@@ -58,25 +58,19 @@
 	let grid = $state<HTMLElement | null>(null);
 
 	/**
-	 * Content signature of the projection. The lanes only re-seed when this
+	 * Cheap content revision of the projection. The lanes only re-seed when this
 	 * changes, so a local (same-lane) reorder is not clobbered by the next
 	 * unrelated render while an optimistic move still lands.
 	 */
-	function boardSignature(): string {
-		return columns
-			.map((column) => `${column.key}:${column.issues.map(cardKey).join(',')}`)
-			.join('|');
-	}
-
 	let seeded = false;
-	let lastSignature = '';
+	let lastRevision = -1;
 
 	/** Re-seed the lanes from the authoritative projection. */
 	function seedFromBoard() {
 		const next: Record<string, IssueListItem[]> = {};
 		for (const column of columns) next[column.key] = column.issues.map((issue) => issue);
 		zones = next;
-		lastSignature = boardSignature();
+		lastRevision = board.revision;
 		seeded = true;
 	}
 
@@ -97,11 +91,11 @@
 	});
 
 	$effect(() => {
-		const signature = boardSignature();
+		const revision = board.revision;
 		// Never clobber the lanes mid-drag or mid-move; once the flag clears the
 		// effect re-runs and catches up with the projection if it changed.
 		if (dragging || keyboard.active) return;
-		if (seeded && signature === lastSignature) return;
+		if (seeded && revision === lastRevision) return;
 		seedFromBoard();
 	});
 

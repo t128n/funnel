@@ -55,6 +55,17 @@ export interface IssuePatch {
 const overlays = new SvelteMap<OverlayKey, IssuePatch>();
 const removedSubmissions = new SvelteSet<string>();
 
+/**
+ * Bumped on every overlay change. Board projections read this so a re-render
+ * that re-buckets the same cards does not look like a content change.
+ */
+let overlayRevision = 0;
+
+/** Current overlay revision; changes whenever a pending patch is added/removed. */
+export function overlayRevisionValue(): number {
+  return overlayRevision;
+}
+
 const STATUS_KEYS = new Set(STATUS_OPTIONS.map((option) => option.value));
 
 // --- Overlay lifecycle ------------------------------------------------------
@@ -68,12 +79,14 @@ function captureOverlay(key: OverlayKey): IssuePatch | null {
 function applyOverlay(key: OverlayKey, patch: IssuePatch): void {
   const current = overlays.get(key);
   overlays.set(key, { ...(current ?? {}), ...patch });
+  overlayRevision += 1;
 }
 
 /** Restore the exact pre-mutation overlay (or remove it if there was none). */
 function restoreOverlay(key: OverlayKey, snapshot: IssuePatch | null): void {
   if (snapshot) overlays.set(key, snapshot);
   else overlays.delete(key);
+  overlayRevision += 1;
 }
 
 // --- Public mutation entry point -------------------------------------------
@@ -186,7 +199,10 @@ export function reconcileIssues(issues: readonly IssueListItem[]): void {
     for (const issue of issues) {
       const key = overlayKey(issue.repo, issue.number);
       const patch = overlays.get(key);
-      if (patch && satisfied(issue, patch)) overlays.delete(key);
+      if (patch && satisfied(issue, patch)) {
+        overlays.delete(key);
+        overlayRevision += 1;
+      }
     }
   });
 }
@@ -214,7 +230,23 @@ export function projectIssue(issue: IssueListItem): IssueListItem {
 
 /** Apply pending overlays across a dense issue stream. */
 export function projectIssues(issues: IssueListItem[]): IssueListItem[] {
-  return issues.map(projectIssue);
+  // No overlays at all: the caller's array is already the projection.
+  if (overlays.size === 0) return issues;
+
+  // Copy only once a matching overlay is found, so an unrelated pending write
+  // (or a stream with no overlaid rows) does not allocate a full copy.
+  let projected: IssueListItem[] | null = null;
+  for (let index = 0; index < issues.length; index += 1) {
+    const issue = issues[index];
+    const patch = overlays.get(overlayKey(issue.repo, issue.number));
+    if (!patch) {
+      if (projected !== null) projected.push(issue);
+      continue;
+    }
+    if (projected === null) projected = issues.slice(0, index);
+    projected.push({ ...issue, ...patch });
+  }
+  return projected ?? issues;
 }
 
 /** Apply a pending overlay to the Inspector payload. */
@@ -245,6 +277,9 @@ function boardColumn(issue: IssueListItem): StatusKey | null {
  * change moves the card between columns immediately.
  */
 export function projectBoard(board: StatusBoard): StatusBoard {
+  // No overlays: re-bucketing would reproduce the server's own lanes.
+  if (overlays.size === 0) return board;
+
   const buckets = new Map<StatusKey, IssueListItem[]>();
   for (const column of board.columns) buckets.set(column.key, []);
 
@@ -258,10 +293,22 @@ export function projectBoard(board: StatusBoard): StatusBoard {
   }
 
   return {
-    columns: board.columns.map((column) => ({
-      ...column,
-      issues: buckets.get(column.key) ?? [],
-    })),
+    columns: board.columns.map((column) => {
+      const issues = buckets.get(column.key) ?? [];
+      // Keep the original column (and array) when the overlay did not change
+      // this lane, so untouched lanes stay identity-stable for the board.
+      if (issues.length === column.issues.length) {
+        let unchanged = true;
+        for (let index = 0; index < issues.length; index += 1) {
+          if (issues[index] !== column.issues[index]) {
+            unchanged = false;
+            break;
+          }
+        }
+        if (unchanged) return column;
+      }
+      return { ...column, issues };
+    }),
   };
 }
 

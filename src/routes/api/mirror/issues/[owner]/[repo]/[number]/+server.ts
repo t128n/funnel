@@ -1,5 +1,9 @@
 import { issueNumberParam } from "#lib/server/issues/http";
-import { getIssueDetail } from "#lib/server/issues/queries";
+import {
+  DEFAULT_COMMENT_LIMIT,
+  getIssueDetail,
+  MAX_COMMENT_LIMIT,
+} from "#lib/server/issues/queries";
 import type { RenderedIssueDetail } from "#lib/server/issues/types";
 import { apiRole } from "#lib/server/http/session";
 import { renderMarkdown } from "#lib/server/markdown/render";
@@ -12,8 +16,9 @@ import type { RequestHandler } from "./$types";
  *
  * No network, no auth token: this is the same disposable cache the streams read
  * from. Requires a signed-in `read` session, like every other cockpit read.
+ * `?comments=N` pages the thread from the newest end (1..2000).
  */
-export const GET: RequestHandler = ({ params, locals }) => {
+export const GET: RequestHandler = ({ params, url, locals }) => {
   const userId = apiRole(locals, "read");
   if (userId instanceof Response) return userId;
 
@@ -28,7 +33,18 @@ export const GET: RequestHandler = ({ params, locals }) => {
   const number = issueNumberParam(params.number);
   if (number instanceof Response) return number;
 
-  const detail = getIssueDetail(repo.id, number);
+  // Empty or whitespace-only `?comments=` means "no page requested", so fall
+  // back to the default rather than clamping `Number("")` down to 1.
+  const rawComments = url?.searchParams.get("comments")?.trim();
+  const requested =
+    rawComments === undefined || rawComments === ""
+      ? DEFAULT_COMMENT_LIMIT
+      : Number(rawComments);
+  const commentLimit = Number.isFinite(requested)
+    ? Math.min(Math.max(Math.trunc(requested), 1), MAX_COMMENT_LIMIT)
+    : DEFAULT_COMMENT_LIMIT;
+
+  const detail = getIssueDetail(repo.id, number, { commentLimit });
   if (!detail) {
     return Response.json(
       {

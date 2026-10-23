@@ -37,8 +37,12 @@ import {
   mirrorUser,
 } from "#lib/server/db/schema";
 import { listAttachments } from "#lib/server/attachments/store";
-import { listSubmissions } from "#lib/server/intake/staging";
+import {
+  countPendingSubmissions,
+  listSubmissions,
+} from "#lib/server/intake/staging";
 import { listRepos } from "#lib/server/sync/mirror";
+import { mirrorRevision } from "#lib/server/sync/revision";
 import { listWorkNotes } from "#lib/server/work-notes";
 import { readBlocked } from "#lib/funnel-metadata";
 import {
@@ -90,8 +94,8 @@ const BOARD_LABELS: Record<StatusKey, string> = {
   done: "Done",
 };
 
-/** Default sort: derived priority (P1 first, unprioritized last) then updated. */
-const PRIORITY_RANK = sql`case ${mirrorThread.priority} when 'P1' then 0 when 'P2' then 1 when 'P3' then 2 else 3 end`;
+/** Default sort: derived priority rank (P1 first, unprioritized last) then updated. */
+const PRIORITY_RANK = mirrorThread.priorityRank;
 
 const issueColumns = {
   repoId: mirrorThread.repoId,
@@ -101,6 +105,7 @@ const issueColumns = {
   stateReason: mirrorThread.stateReason,
   status: mirrorThread.status,
   priority: mirrorThread.priority,
+  priorityRank: mirrorThread.priorityRank,
   impact: mirrorThread.impact,
   urgency: mirrorThread.urgency,
   size: mirrorThread.size,
@@ -130,6 +135,7 @@ interface RawRow {
   stateReason: string | null;
   status: string | null;
   priority: string | null;
+  priorityRank: number;
   impact: number | null;
   urgency: number | null;
   size: string | null;
@@ -196,6 +202,23 @@ export interface ListOptions {
   limit?: number;
 }
 
+/**
+ * Milestone detail is a single scroll view, so cap its issue list even when the
+ * caller does not ask for a specific limit. A milestone with more issues than
+ * this renders the highest-priority ones first (the default sort is priority
+ * rank, then most recently updated).
+ */
+const MILESTONE_ISSUE_LIMIT = 500;
+
+/** Default and hard upper bound for comments pulled into one detail payload. */
+export const DEFAULT_COMMENT_LIMIT = 1000;
+export const MAX_COMMENT_LIMIT = 2000;
+
+export interface IssueDetailOptions {
+  /** Newest comments to include; clamped to `1..`{@link MAX_COMMENT_LIMIT}. */
+  commentLimit?: number;
+}
+
 /** Build the {@link IssueFilterContext} for parsing URL params. */
 export function filterContext(
   viewerExternalId?: string | null,
@@ -211,7 +234,7 @@ export function filterContext(
       const row = db
         .select({ externalId: mirrorUser.externalId })
         .from(mirrorUser)
-        .where(sql`lower(${mirrorUser.login}) = lower(${login})`)
+        .where(sql`${mirrorUser.login} = ${login} COLLATE NOCASE`)
         .get();
       return row?.externalId;
     },
@@ -243,24 +266,10 @@ function rawQuery(where: SQL | undefined, opts: ListOptions): RawRow[] {
   return rows as RawRow[];
 }
 
-/** Priority rank mirroring {@link PRIORITY_RANK}: `p1`..`p3`, else last. */
-function priorityRank(priority: string | null): number {
-  switch (priority) {
-    case "P1":
-      return 0;
-    case "P2":
-      return 1;
-    case "P3":
-      return 2;
-    default:
-      return 3;
-  }
-}
-
 /**
  * Keyset predicate resuming strictly after `key` in the fixed sort order
- * (rank ASC, updatedAt DESC, repoId DESC, number DESC). Uses the same
- * {@link PRIORITY_RANK} expression as the `ORDER BY`, so the two cannot drift.
+ * (rank ASC, updatedAt DESC, repoId DESC, number DESC). Uses the persisted
+ * rank column, the same one the `ORDER BY` uses, so the two cannot drift.
  */
 function cursorWhere(key: [number, number, number, number]): SQL {
   const [rank, updatedAt, repoId, number] = key;
@@ -288,6 +297,44 @@ function countRows(where: SQL | undefined): number {
 }
 
 /**
+ * Page totals live across cursor pages (plan T4): the same filter pages
+ * repeatedly, and each page otherwise re-runs `count(*)` over the same rows.
+ * Entries are keyed by mirror revision plus the filter signature, so a write
+ * that published can never serve a count from before it, and are kept for a
+ * short TTL so a long-lived process does not pin an unbounded map. Totals were
+ * always computed server-side; this only avoids repeating the same query.
+ */
+const TOTAL_TTL_MS = 5_000;
+const TOTAL_CACHE_LIMIT = 256;
+const totalCache = new Map<string, { value: number; at: number }>();
+
+/** Filter-option lists, valid until the next mirror revision (plan T4). */
+let optionsCache: { revision: number; value: FilterOptions } | null = null;
+
+/** Drop every read cache; the mirror changed outside the revision bump. */
+export function clearQueryCaches(): void {
+  optionsCache = null;
+  totalCache.clear();
+}
+
+/** {@link countRows} memoised by revision + filter signature for a short TTL. */
+function cachedCount(where: SQL | undefined, signature: string): number {
+  const key = `${mirrorRevision()}:${signature}`;
+  const now = Date.now();
+  const hit = totalCache.get(key);
+  if (hit && now - hit.at < TOTAL_TTL_MS) return hit.value;
+
+  const value = countRows(where);
+  if (totalCache.size >= TOTAL_CACHE_LIMIT) {
+    // Insertion order is age order, so this drops the oldest entry.
+    const oldest = totalCache.keys().next();
+    if (!oldest.done) totalCache.delete(oldest.value);
+  }
+  totalCache.set(key, { value, at: now });
+  return value;
+}
+
+/**
  * Fetch one page of issues plus the unpaged total. Fetches `limit + 1` rows to
  * learn whether a further page exists, then hydrates only `limit`. A cursor
  * that fails to decode (malformed or from another filter) falls back to the
@@ -306,16 +353,17 @@ function pageIssues(
 
   const rows = rawQuery(pageWhere, { limit: limit + 1 });
   const hasMore = rows.length > limit;
-  const items = hydrate(hasMore ? rows.slice(0, limit) : rows);
-  const last = items[items.length - 1];
+  const pageRows = hasMore ? rows.slice(0, limit) : rows;
+  const items = hydrate(pageRows);
+  const last = pageRows[pageRows.length - 1];
 
   return {
     items,
-    total: countRows(where),
+    total: cachedCount(where, signature),
     nextCursor:
       hasMore && last
         ? encodeCursor(signature, [
-            priorityRank(last.priority),
+            last.priorityRank,
             last.updatedAt,
             last.repoId,
             last.number,
@@ -495,7 +543,7 @@ export function milestoneIssues(
         eq(mirrorThread.repoId, repoId),
         eq(mirrorThread.milestoneNumber, milestoneNumber),
       ),
-      opts,
+      { limit: opts.limit ?? MILESTONE_ISSUE_LIMIT },
     ),
   );
 }
@@ -573,7 +621,10 @@ export function inbox(
  * materialising (or hydrating) the queue.
  */
 export function inboxCount(filter: IssueFilter): number {
-  return pendingSubmissions(filter).length + countRows(untriagedWhere(filter));
+  return (
+    countPendingSubmissions(filter.search) +
+    cachedCount(untriagedWhere(filter), filterSignature(filter, "inbox"))
+  );
 }
 
 /** Build the `WHERE` for one board lane (status columns or the Done window). */
@@ -715,8 +766,24 @@ export function attentionIssues(): AttentionItem[] {
  * assignable in at least one repo (union with anyone currently assigned, so a
  * historical assignee who lost collaborator access stays filterable), and every
  * non-reserved label in use.
+ *
+ * The whole list is cached until the mirror revision moves (plan T4): the
+ * filter bar is loaded on every cockpit navigation, while labels/assignees only
+ * change on a sync write or mutation, both of which `publish` and therefore
+ * bump the revision. Duplicate rows are eliminated in SQL (`DISTINCT`) rather
+ * than by scanning every assignment in JavaScript.
  */
 export function filterOptions(): FilterOptions {
+  const revision = mirrorRevision();
+  if (optionsCache?.revision === revision) return optionsCache.value;
+
+  const value = computeFilterOptions();
+  optionsCache = { revision, value };
+  return value;
+}
+
+/** Unbuffered {@link filterOptions} scan. */
+function computeFilterOptions(): FilterOptions {
   const repos = listRepos()
     .map((repo) => ({ id: repo.id, slug: `${repo.org}/${repo.name}` }))
     .sort((a, b) => a.slug.localeCompare(b.slug));
@@ -730,15 +797,17 @@ export function filterOptions(): FilterOptions {
   };
 
   const assignableRows = db
-    .select(userColumns)
+    .selectDistinct(userColumns)
     .from(mirrorRepoAssignee)
     .innerJoin(mirrorUser, eq(mirrorRepoAssignee.userId, mirrorUser.id))
+    .orderBy(asc(mirrorUser.login))
     .all();
 
   const assignedRows = db
-    .select(userColumns)
+    .selectDistinct(userColumns)
     .from(mirrorThreadAssignee)
     .innerJoin(mirrorUser, eq(mirrorThreadAssignee.userId, mirrorUser.id))
+    .orderBy(asc(mirrorUser.login))
     .all();
 
   const byIdentity = new Map<string, UserRef>();
@@ -751,20 +820,20 @@ export function filterOptions(): FilterOptions {
   );
 
   const labelRows = db
-    .select({ name: mirrorThreadLabel.labelName })
+    .selectDistinct({ name: mirrorThreadLabel.labelName })
     .from(mirrorThreadLabel)
+    .orderBy(asc(mirrorThreadLabel.labelName))
     .all();
-  const labels = [
-    ...new Set(
-      labelRows
-        .map((row) => row.name)
-        .filter(
-          (name) =>
-            !RESERVED_GROUP.has(name.toLowerCase()) &&
-            !isRetiredPriorityLabel(name),
-        ),
-    ),
-  ].sort((a, b) => a.localeCompare(b));
+  const labels = labelRows
+    .map((row) => row.name)
+    .filter(
+      (name) =>
+        !RESERVED_GROUP.has(name.toLowerCase()) &&
+        !isRetiredPriorityLabel(name),
+    )
+    // `selectDistinct` orders with SQLite's binary collation; restore the
+    // locale-aware order the picker previously got from the in-memory sort.
+    .sort((a, b) => a.localeCompare(b));
 
   const milestoneRows = db
     .select({
@@ -829,33 +898,35 @@ export function repoAssigneeOptions(repoId: number): UserRef[] {
     .all();
 }
 
+const milestoneColumns = {
+  repoId: mirrorMilestone.repoId,
+  org: mirrorRepo.org,
+  name: mirrorRepo.name,
+  number: mirrorMilestone.number,
+  title: mirrorMilestone.title,
+  description: mirrorMilestone.description,
+  state: mirrorMilestone.state,
+  dueOn: mirrorMilestone.dueOn,
+  openIssues: mirrorMilestone.openIssues,
+  closedIssues: mirrorMilestone.closedIssues,
+  creatorExternalId: mirrorUser.externalId,
+  creatorForge: mirrorUser.forge,
+  creatorInstance: mirrorUser.instance,
+  creatorLogin: mirrorUser.login,
+  creatorAvatar: mirrorUser.avatarUrl,
+  url: mirrorMilestone.url,
+  createdAt: mirrorMilestone.createdAt,
+  updatedAt: mirrorMilestone.updatedAt,
+  closedAt: mirrorMilestone.closedAt,
+};
+
 /**
  * Milestones for a repo (or every mirrored repo when `repoId` is omitted).
  * Ordered by title so the picker and the Milestones view stay stable.
  */
 export function listMilestones(repoId?: number): MilestoneItem[] {
   const rows = db
-    .select({
-      repoId: mirrorMilestone.repoId,
-      org: mirrorRepo.org,
-      name: mirrorRepo.name,
-      number: mirrorMilestone.number,
-      title: mirrorMilestone.title,
-      description: mirrorMilestone.description,
-      state: mirrorMilestone.state,
-      dueOn: mirrorMilestone.dueOn,
-      openIssues: mirrorMilestone.openIssues,
-      closedIssues: mirrorMilestone.closedIssues,
-      creatorExternalId: mirrorUser.externalId,
-      creatorForge: mirrorUser.forge,
-      creatorInstance: mirrorUser.instance,
-      creatorLogin: mirrorUser.login,
-      creatorAvatar: mirrorUser.avatarUrl,
-      url: mirrorMilestone.url,
-      createdAt: mirrorMilestone.createdAt,
-      updatedAt: mirrorMilestone.updatedAt,
-      closedAt: mirrorMilestone.closedAt,
-    })
+    .select(milestoneColumns)
     .from(mirrorMilestone)
     .innerJoin(mirrorRepo, eq(mirrorMilestone.repoId, mirrorRepo.id))
     .leftJoin(mirrorUser, eq(mirrorMilestone.creatorId, mirrorUser.id))
@@ -872,7 +943,16 @@ export function getMilestone(
   repoId: number,
   number: number,
 ): MilestoneItem | undefined {
-  return listMilestones(repoId).find((milestone) => milestone.number === number);
+  const row = db
+    .select(milestoneColumns)
+    .from(mirrorMilestone)
+    .innerJoin(mirrorRepo, eq(mirrorMilestone.repoId, mirrorRepo.id))
+    .leftJoin(mirrorUser, eq(mirrorMilestone.creatorId, mirrorUser.id))
+    .where(
+      and(eq(mirrorMilestone.repoId, repoId), eq(mirrorMilestone.number, number)),
+    )
+    .get();
+  return row ? toMilestoneItem(row) : undefined;
 }
 
 /** Project a milestone row onto the cockpit DTO, computing progress. */
@@ -927,11 +1007,18 @@ function toMilestoneItem(row: {
  * Full Inspector Pane payload for one issue: the stream row plus the body,
  * the raw comment thread (oldest first; rendered to HTML at the API boundary),
  * and the repo's label options.
+ *
+ * Comments are paged from the newest end: `opts.commentLimit` (default 1000)
+ * selects the latest comments, then returns them in chronological order so the
+ * timeline reads naturally. `commentTotal`/`hasMoreComments` let the Inspector
+ * offer a "load earlier" step without guessing.
+ *
  * Returns `undefined` when the issue is not mirrored.
  */
 export function getIssueDetail(
   repoId: number,
   number: number,
+  opts: IssueDetailOptions = {},
 ): IssueDetail | undefined {
   const issue = getIssueListItem(repoId, number);
   if (!issue) return undefined;
@@ -941,6 +1028,22 @@ export function getIssueDetail(
     .from(mirrorThread)
     .where(and(eq(mirrorThread.repoId, repoId), eq(mirrorThread.number, number)))
     .get();
+
+  const commentWhere = and(
+    eq(mirrorComment.repoId, repoId),
+    eq(mirrorComment.threadNumber, number),
+  );
+  const countRow = db
+    .select({ value: sql<number>`count(*)` })
+    .from(mirrorComment)
+    .where(commentWhere)
+    .get();
+  const commentTotal = Number(countRow?.value ?? 0);
+
+  const requested = opts.commentLimit ?? DEFAULT_COMMENT_LIMIT;
+  const commentLimit = Number.isFinite(requested)
+    ? Math.min(Math.max(Math.trunc(requested), 1), MAX_COMMENT_LIMIT)
+    : DEFAULT_COMMENT_LIMIT;
 
   const commentRows = db
     .select({
@@ -955,14 +1058,12 @@ export function getIssueDetail(
     })
     .from(mirrorComment)
     .leftJoin(mirrorUser, eq(mirrorComment.authorId, mirrorUser.id))
-    .where(
-      and(
-        eq(mirrorComment.repoId, repoId),
-        eq(mirrorComment.threadNumber, number),
-      ),
-    )
-    .orderBy(asc(mirrorComment.createdAt))
-    .all();
+    .where(commentWhere)
+    // Newest first for the limit, then reverse below to chronological order.
+    .orderBy(desc(mirrorComment.createdAt), desc(mirrorComment.id))
+    .limit(commentLimit)
+    .all()
+    .reverse();
 
   const comments: CommentItem[] = commentRows.map((row) => ({
     externalId: row.externalId,
@@ -1018,6 +1119,8 @@ export function getIssueDetail(
     issue,
     body: bodyRow?.body ?? "",
     comments,
+    commentTotal,
+    hasMoreComments: commentTotal > comments.length,
     workNotes: listWorkNotes(org, name, number),
     attachments: listAttachments(org, name, number),
     repoLabels,

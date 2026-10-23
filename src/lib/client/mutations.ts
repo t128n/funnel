@@ -61,13 +61,19 @@ async function request<T>(
   }
 }
 
-/** Read one issue's full Inspector payload from the local mirror. */
+/**
+ * Read one issue's full Inspector payload from the local mirror. `commentLimit`
+ * pages the thread from the newest end (the server bounds it).
+ */
 export function fetchIssueDetail(
   repo: string,
   number: number,
+  commentLimit?: number,
 ): Promise<MutationResult<RenderedIssueDetail>> {
+  const query =
+    commentLimit === undefined ? "" : `?comments=${encodeURIComponent(commentLimit)}`;
   return request<RenderedIssueDetail>(
-    `/api/mirror/issues/${repoPath(repo)}/${number}`,
+    `/api/mirror/issues/${repoPath(repo)}/${number}${query}`,
   );
 }
 

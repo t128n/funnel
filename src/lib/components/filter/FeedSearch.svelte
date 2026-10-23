@@ -24,6 +24,9 @@
 		if (!focused && fromUrl !== search) search = fromUrl;
 	});
 
+	// A navigation away must not fire a debounced `goto` afterwards.
+	$effect(() => () => clearTimeout(debounce));
+
 	function onInput(value: string) {
 		search = value;
 		clearTimeout(debounce);
