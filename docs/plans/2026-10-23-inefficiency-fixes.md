@@ -21,10 +21,10 @@ Spec coverage: Refresh behavior (T1); Sync cadence (T2); Sync write batching (T3
 
 ## File structure
 
-- `src/lib/client/events.ts`, `native-notifications.ts`, `refresh.ts`, `src/routes/(app)/+layout.svelte`, `InspectorPane.svelte`, `FeedSearch.svelte` — coalesced, scoped refresh.
+- `src/lib/client/events.ts`, `native-notifications.ts`, `refresh.ts`, `src/routes/*/+layout.svelte`, `InspectorPane.svelte`, `FeedSearch.svelte` — coalesced, scoped refresh.
 - `src/lib/server/sync/worker.ts`, `mirror.ts` — poll cadence, batched writes.
 - `src/lib/server/sync/hydrate.ts`, `src/lib/server/notifications/service.ts` — snapshots, recipients, counts.
-- `src/lib/server/issues/queries.ts`, `src/lib/server/intake/staging.ts`, `src/lib/server/sync/events.ts`, `src/lib/server/sync/revision.ts`, `src/routes/(app)/+layout.server.ts` — caches and counts.
+- `src/lib/server/issues/queries.ts`, `src/lib/server/intake/staging.ts`, `src/lib/server/sync/events.ts`, `src/lib/server/sync/revision.ts`, `src/routes/*/+layout.server.ts` — caches and counts.
 - `src/lib/server/db/schema.ts`, `drizzle/**`, `src/lib/server/issues/filters.ts` — indexes and priority rank.
 - `src/lib/server/issues/types.ts`, `src/lib/server/markdown/render.ts`, mirror issue API, `client/mutations.ts` — detail payload.
 - `src/lib/components/issue/IssueList.svelte`, `src/lib/client/feed-merge.ts`, `board-feed.svelte.ts`, `StatusBoard.svelte`, `optimistic.svelte.ts` — client churn.
@@ -78,7 +78,7 @@ critical path: T2 → T3a → T3b → T5 → T6a → T6b (16.0 min) · peak widt
 ## Tasks
 
 ### T1 coalesce and scope client refreshes · Complexity 3 · Est. context 30k
-**Owns:** src/lib/client/events.ts, src/lib/client/native-notifications.ts, src/lib/client/refresh.ts, src/routes/(app)/+layout.svelte, src/lib/components/issue/InspectorPane.svelte, src/lib/components/filter/FeedSearch.svelte
+**Owns:** src/lib/client/events.ts, src/lib/client/native-notifications.ts, src/lib/client/refresh.ts, src/routes/*/+layout.svelte, src/lib/components/issue/InspectorPane.svelte, src/lib/components/filter/FeedSearch.svelte
 **Components:** 6
 **LOC owned:** 120
 **Tests:** fast
@@ -126,7 +126,7 @@ critical path: T2 → T3a → T3b → T5 → T6a → T6b (16.0 min) · peak widt
 **Notes:** Watcher lookup may remain per issue; the goal is removing the per-person N+1s.
 
 ### T4 cache query options and counts · Complexity 3 · Est. context 28k
-**Owns:** src/lib/server/issues/queries.ts, src/lib/server/intake/staging.ts, src/lib/server/sync/events.ts, src/lib/server/sync/revision.ts, src/routes/(app)/+layout.server.ts, tests/mirror-helpers.ts
+**Owns:** src/lib/server/issues/queries.ts, src/lib/server/intake/staging.ts, src/lib/server/sync/events.ts, src/lib/server/sync/revision.ts, src/routes/*/+layout.server.ts, tests/mirror-helpers.ts
 **Components:** 6
 **LOC owned:** 150
 **Tests:** fast
