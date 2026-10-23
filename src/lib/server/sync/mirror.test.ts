@@ -306,6 +306,29 @@ describe("comment reconciliation", () => {
     ).toEqual([["1", "one edited"]]);
   });
 
+  test("an edit overwrites body and updatedAt but preserves createdAt", () => {
+    const repo = seedRepo();
+    mirror.upsertIssue(
+      record(repo.id, 1, [{ externalId: "1", body: "one" }]),
+      metadata,
+    );
+
+    const edited = record(repo.id, 1, [{ externalId: "1", body: "one edited" }]);
+    edited.comments[0].updatedAt = 99;
+    mirror.upsertIssue(edited, metadata);
+
+    const rows = db.select().from(mirrorComment).all();
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      repoId: repo.id,
+      threadNumber: 1,
+      externalId: "1",
+      body: "one edited",
+      createdAt: 3,
+      updatedAt: 99,
+    });
+  });
+
   test("an empty incoming list clears the thread's comments", () => {
     const repo = seedRepo();
     mirror.upsertIssue(
