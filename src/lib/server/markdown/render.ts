@@ -13,9 +13,21 @@
  * Sätteri needs a WASI fallback plus cross-origin isolation (which would break
  * GitHub avatars), so the client only ever sees the finished string.
  */
+import { createHash } from "node:crypto";
+import { LRUCache } from "lru-cache";
 import sanitizeHtml from "sanitize-html";
 import { markdownToHtml } from "satteri";
 import { highlightCode } from "./highlight";
+
+/**
+ * Rendered documents are immutable for a given source, so the same body is
+ * re-rendered on every Inspector fetch (and re-render is the expensive part of
+ * that read). Keep the sanitized output in a bounded LRU keyed by a content
+ * hash; 500 entries covers the recently opened issues and comments without
+ * letting a long-lived process pin every document it has ever rendered.
+ */
+const RENDER_CACHE_LIMIT = 500;
+const renderCache = new LRUCache<string, string>({ max: RENDER_CACHE_LIMIT });
 
 /**
  * Tags GitHub renders from issue Markdown, kept close to its own sanitizer so
@@ -141,6 +153,10 @@ const SANITIZE_OPTIONS: sanitizeHtml.IOptions = {
  * the original Markdown is kept separately by callers for editing.
  */
 export function renderMarkdown(source: string): string {
+  const key = createHash("sha256").update(source).digest("base64url");
+  const cached = renderCache.get(key);
+  if (cached !== undefined) return cached;
+
   const { html } = markdownToHtml(source, {
     features: {
       gfm: true,
@@ -154,5 +170,7 @@ export function renderMarkdown(source: string): string {
     // only the `hljs-*` spans lowlight emits.
     hastPlugins: [highlightCode],
   });
-  return sanitizeHtml(html, SANITIZE_OPTIONS);
+  const sanitized = sanitizeHtml(html, SANITIZE_OPTIONS);
+  renderCache.set(key, sanitized);
+  return sanitized;
 }

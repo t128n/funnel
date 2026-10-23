@@ -202,6 +202,22 @@ export interface ListOptions {
   limit?: number;
 }
 
+/**
+ * Milestone detail is a single scroll view, so cap its issue list even when the
+ * caller does not ask for a specific limit. A milestone with more issues than
+ * this renders the most recently updated ones first.
+ */
+const MILESTONE_ISSUE_LIMIT = 500;
+
+/** Default and hard upper bound for comments pulled into one detail payload. */
+const DEFAULT_COMMENT_LIMIT = 1000;
+export const MAX_COMMENT_LIMIT = 2000;
+
+export interface IssueDetailOptions {
+  /** Newest comments to include; clamped to `1..`{@link MAX_COMMENT_LIMIT}. */
+  commentLimit?: number;
+}
+
 /** Build the {@link IssueFilterContext} for parsing URL params. */
 export function filterContext(
   viewerExternalId?: string | null,
@@ -526,7 +542,7 @@ export function milestoneIssues(
         eq(mirrorThread.repoId, repoId),
         eq(mirrorThread.milestoneNumber, milestoneNumber),
       ),
-      opts,
+      { limit: opts.limit ?? MILESTONE_ISSUE_LIMIT },
     ),
   );
 }
@@ -878,33 +894,35 @@ export function repoAssigneeOptions(repoId: number): UserRef[] {
     .all();
 }
 
+const milestoneColumns = {
+  repoId: mirrorMilestone.repoId,
+  org: mirrorRepo.org,
+  name: mirrorRepo.name,
+  number: mirrorMilestone.number,
+  title: mirrorMilestone.title,
+  description: mirrorMilestone.description,
+  state: mirrorMilestone.state,
+  dueOn: mirrorMilestone.dueOn,
+  openIssues: mirrorMilestone.openIssues,
+  closedIssues: mirrorMilestone.closedIssues,
+  creatorExternalId: mirrorUser.externalId,
+  creatorForge: mirrorUser.forge,
+  creatorInstance: mirrorUser.instance,
+  creatorLogin: mirrorUser.login,
+  creatorAvatar: mirrorUser.avatarUrl,
+  url: mirrorMilestone.url,
+  createdAt: mirrorMilestone.createdAt,
+  updatedAt: mirrorMilestone.updatedAt,
+  closedAt: mirrorMilestone.closedAt,
+};
+
 /**
  * Milestones for a repo (or every mirrored repo when `repoId` is omitted).
  * Ordered by title so the picker and the Milestones view stay stable.
  */
 export function listMilestones(repoId?: number): MilestoneItem[] {
   const rows = db
-    .select({
-      repoId: mirrorMilestone.repoId,
-      org: mirrorRepo.org,
-      name: mirrorRepo.name,
-      number: mirrorMilestone.number,
-      title: mirrorMilestone.title,
-      description: mirrorMilestone.description,
-      state: mirrorMilestone.state,
-      dueOn: mirrorMilestone.dueOn,
-      openIssues: mirrorMilestone.openIssues,
-      closedIssues: mirrorMilestone.closedIssues,
-      creatorExternalId: mirrorUser.externalId,
-      creatorForge: mirrorUser.forge,
-      creatorInstance: mirrorUser.instance,
-      creatorLogin: mirrorUser.login,
-      creatorAvatar: mirrorUser.avatarUrl,
-      url: mirrorMilestone.url,
-      createdAt: mirrorMilestone.createdAt,
-      updatedAt: mirrorMilestone.updatedAt,
-      closedAt: mirrorMilestone.closedAt,
-    })
+    .select(milestoneColumns)
     .from(mirrorMilestone)
     .innerJoin(mirrorRepo, eq(mirrorMilestone.repoId, mirrorRepo.id))
     .leftJoin(mirrorUser, eq(mirrorMilestone.creatorId, mirrorUser.id))
@@ -921,7 +939,16 @@ export function getMilestone(
   repoId: number,
   number: number,
 ): MilestoneItem | undefined {
-  return listMilestones(repoId).find((milestone) => milestone.number === number);
+  const row = db
+    .select(milestoneColumns)
+    .from(mirrorMilestone)
+    .innerJoin(mirrorRepo, eq(mirrorMilestone.repoId, mirrorRepo.id))
+    .leftJoin(mirrorUser, eq(mirrorMilestone.creatorId, mirrorUser.id))
+    .where(
+      and(eq(mirrorMilestone.repoId, repoId), eq(mirrorMilestone.number, number)),
+    )
+    .get();
+  return row ? toMilestoneItem(row) : undefined;
 }
 
 /** Project a milestone row onto the cockpit DTO, computing progress. */
@@ -976,11 +1003,18 @@ function toMilestoneItem(row: {
  * Full Inspector Pane payload for one issue: the stream row plus the body,
  * the raw comment thread (oldest first; rendered to HTML at the API boundary),
  * and the repo's label options.
+ *
+ * Comments are paged from the newest end: `opts.commentLimit` (default 1000)
+ * selects the latest comments, then returns them in chronological order so the
+ * timeline reads naturally. `commentTotal`/`hasMoreComments` let the Inspector
+ * offer a "load earlier" step without guessing.
+ *
  * Returns `undefined` when the issue is not mirrored.
  */
 export function getIssueDetail(
   repoId: number,
   number: number,
+  opts: IssueDetailOptions = {},
 ): IssueDetail | undefined {
   const issue = getIssueListItem(repoId, number);
   if (!issue) return undefined;
@@ -990,6 +1024,22 @@ export function getIssueDetail(
     .from(mirrorThread)
     .where(and(eq(mirrorThread.repoId, repoId), eq(mirrorThread.number, number)))
     .get();
+
+  const commentWhere = and(
+    eq(mirrorComment.repoId, repoId),
+    eq(mirrorComment.threadNumber, number),
+  );
+  const countRow = db
+    .select({ value: sql<number>`count(*)` })
+    .from(mirrorComment)
+    .where(commentWhere)
+    .get();
+  const commentTotal = Number(countRow?.value ?? 0);
+
+  const requested = opts.commentLimit ?? DEFAULT_COMMENT_LIMIT;
+  const commentLimit = Number.isFinite(requested)
+    ? Math.min(Math.max(Math.trunc(requested), 1), MAX_COMMENT_LIMIT)
+    : DEFAULT_COMMENT_LIMIT;
 
   const commentRows = db
     .select({
@@ -1004,14 +1054,12 @@ export function getIssueDetail(
     })
     .from(mirrorComment)
     .leftJoin(mirrorUser, eq(mirrorComment.authorId, mirrorUser.id))
-    .where(
-      and(
-        eq(mirrorComment.repoId, repoId),
-        eq(mirrorComment.threadNumber, number),
-      ),
-    )
-    .orderBy(asc(mirrorComment.createdAt))
-    .all();
+    .where(commentWhere)
+    // Newest first for the limit, then reverse below to chronological order.
+    .orderBy(desc(mirrorComment.createdAt), desc(mirrorComment.id))
+    .limit(commentLimit)
+    .all()
+    .reverse();
 
   const comments: CommentItem[] = commentRows.map((row) => ({
     externalId: row.externalId,
@@ -1067,6 +1115,8 @@ export function getIssueDetail(
     issue,
     body: bodyRow?.body ?? "",
     comments,
+    commentTotal,
+    hasMoreComments: commentTotal > comments.length,
     workNotes: listWorkNotes(org, name, number),
     attachments: listAttachments(org, name, number),
     repoLabels,

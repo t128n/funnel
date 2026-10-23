@@ -187,6 +187,10 @@ export interface IssueDetail {
   issue: IssueListItem;
   body: string;
   comments: CommentItem[];
+  /** Total comments on the issue, including any older than the returned page. */
+  commentTotal: number;
+  /** Whether older comments exist beyond the returned (newest) page. */
+  hasMoreComments: boolean;
   /** Internal work notes for the issue, oldest first. */
   workNotes: WorkNoteItem[];
   /** Files uploaded to the issue's dropbox, oldest first. */
