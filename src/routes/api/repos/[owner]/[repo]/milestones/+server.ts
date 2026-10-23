@@ -5,6 +5,7 @@ import { createMilestone } from "#lib/server/issues/mutations";
 import { authenticate, readJson } from "#lib/server/issues/http";
 import { outcomeResponse } from "#lib/server/http/outcome";
 import { createLogger } from "#lib/server/log";
+import { publish } from "#lib/server/sync/events";
 import { refreshRepoMilestonesBySlug } from "#lib/server/sync/worker";
 
 const log = createLogger({ component: "milestones-api" });
@@ -63,15 +64,20 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
     dueOn: parsed.output.dueOn,
   });
 
-  // Mirror the new milestone before the cockpit refetches (SSE), so the picker
-  // lists it immediately. Failures are non-fatal: the next poll converges.
+  // Mirror the new milestone before publishing the SSE signal, so a cockpit
+  // refetch lists it immediately. Failures are non-fatal (the next poll
+  // converges), but the signal still fires so clients refetch.
   if (result.ok) {
-    void refreshRepoMilestonesBySlug(owner, repo).catch((error) => {
-      log.warn(
-        { repo: `${owner}/${repo}`, err: error instanceof Error ? error.message : String(error) },
-        "post-create milestone refresh failed",
-      );
-    });
+    void refreshRepoMilestonesBySlug(owner, repo)
+      .catch((error) => {
+        log.warn(
+          { repo: `${owner}/${repo}`, err: error instanceof Error ? error.message : String(error) },
+          "post-create milestone refresh failed",
+        );
+      })
+      .finally(() => {
+        publish({ type: "issues", repo: `${owner}/${repo}`, numbers: [] });
+      });
   }
 
   return outcomeResponse(result, 201);

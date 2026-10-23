@@ -379,9 +379,10 @@ export async function runRepoCycle(
   owner: string,
   repo: string,
 ): Promise<PollResult> {
+  const ref = forge.repoRef(owner, repo);
   const installationId = await forge.getInstallationId(owner, repo);
   const repoRow =
-    mirror.getRepoByOrgName(owner, repo) ??
+    mirror.getRepoBySlug(ref.forge, ref.instance, ref.owner, ref.name) ??
     (await ensureRepoMirror(owner, repo, installationId));
   try {
     if (repoRow.lastPolledAt === null) {
@@ -414,12 +415,16 @@ export async function refreshIssue(
   number: number,
   actorUserId?: string,
 ): Promise<void> {
+  const repoRef = forge.repoRef(owner, repo);
   const installationId = await forge.getInstallationId(owner, repo);
   const repoRow =
-    mirror.getRepoByOrgName(owner, repo) ??
-    (await ensureRepoMirror(owner, repo, installationId));
+    mirror.getRepoBySlug(
+      repoRef.forge,
+      repoRef.instance,
+      repoRef.owner,
+      repoRef.name,
+    ) ?? (await ensureRepoMirror(owner, repo, installationId));
   const provider = await forge.installationProvider(installationId);
-  const repoRef = forge.repoRef(owner, repo);
   const thread = await provider.threads.get(
     forge.threadRef(repoRef, "issue", number),
   );

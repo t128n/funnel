@@ -1,5 +1,6 @@
 import { issueNumberParam } from "#lib/server/issues/http";
 import {
+  DEFAULT_COMMENT_LIMIT,
   getIssueDetail,
   MAX_COMMENT_LIMIT,
 } from "#lib/server/issues/queries";
@@ -9,8 +10,6 @@ import { renderMarkdown } from "#lib/server/markdown/render";
 import { isWatching } from "#lib/server/notifications/service";
 import { getRepoByOrgName } from "#lib/server/sync/mirror";
 import type { RequestHandler } from "./$types";
-
-const DEFAULT_COMMENT_LIMIT = 1000;
 
 /**
  * Read-only Inspector payload straight from the local mirror (SPEC §1.4).
@@ -34,9 +33,13 @@ export const GET: RequestHandler = ({ params, url, locals }) => {
   const number = issueNumberParam(params.number);
   if (number instanceof Response) return number;
 
-  const requested = Number(
-    url?.searchParams.get("comments") ?? DEFAULT_COMMENT_LIMIT,
-  );
+  // Empty or whitespace-only `?comments=` means "no page requested", so fall
+  // back to the default rather than clamping `Number("")` down to 1.
+  const rawComments = url?.searchParams.get("comments")?.trim();
+  const requested =
+    rawComments === undefined || rawComments === ""
+      ? DEFAULT_COMMENT_LIMIT
+      : Number(rawComments);
   const commentLimit = Number.isFinite(requested)
     ? Math.min(Math.max(Math.trunc(requested), 1), MAX_COMMENT_LIMIT)
     : DEFAULT_COMMENT_LIMIT;

@@ -205,12 +205,13 @@ export interface ListOptions {
 /**
  * Milestone detail is a single scroll view, so cap its issue list even when the
  * caller does not ask for a specific limit. A milestone with more issues than
- * this renders the most recently updated ones first.
+ * this renders the highest-priority ones first (the default sort is priority
+ * rank, then most recently updated).
  */
 const MILESTONE_ISSUE_LIMIT = 500;
 
 /** Default and hard upper bound for comments pulled into one detail payload. */
-const DEFAULT_COMMENT_LIMIT = 1000;
+export const DEFAULT_COMMENT_LIMIT = 1000;
 export const MAX_COMMENT_LIMIT = 2000;
 
 export interface IssueDetailOptions {
@@ -829,7 +830,10 @@ function computeFilterOptions(): FilterOptions {
       (name) =>
         !RESERVED_GROUP.has(name.toLowerCase()) &&
         !isRetiredPriorityLabel(name),
-    );
+    )
+    // `selectDistinct` orders with SQLite's binary collation; restore the
+    // locale-aware order the picker previously got from the in-memory sort.
+    .sort((a, b) => a.localeCompare(b));
 
   const milestoneRows = db
     .select({

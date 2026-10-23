@@ -455,7 +455,12 @@ export function replaceRepoAssignees(
   // Users are upserted first (identity may change), but an unchanged assignment
   // set needs no delete/reinsert.
   const existing = getRepoAssignees(repoId).map((user) => user.id);
-  if (sameIdSet(existing, new Set(ids.values()))) return;
+  if (sameIdSet(existing, new Set(ids.values()))) {
+    // Users were upserted above, so their identity may have changed even when
+    // the assignment set did not; invalidate cached readers either way.
+    bumpRevision();
+    return;
+  }
   db.transaction((tx) => {
     tx.delete(mirrorRepoAssignee)
       .where(eq(mirrorRepoAssignee.repoId, repoId))
@@ -578,7 +583,12 @@ export function replaceRepoMilestones(
     .from(mirrorMilestone)
     .where(eq(mirrorMilestone.repoId, repoId))
     .all();
-  if (sameMilestoneSet(existing, rows)) return;
+  if (sameMilestoneSet(existing, rows)) {
+    // Milestone creators were upserted above, so their identity may have
+    // changed even when the milestone set did not; invalidate cached readers.
+    bumpRevision();
+    return;
+  }
 
   db.transaction((tx) => {
     tx.delete(mirrorMilestone)
@@ -956,6 +966,7 @@ export function setIssueMetadata(
       and(eq(mirrorThread.repoId, repoId), eq(mirrorThread.number, number)),
     )
     .run();
+  bumpRevision();
 }
 
 export function replaceIssueLabels(
@@ -985,6 +996,7 @@ export function replaceIssueLabels(
         .run();
     }
   });
+  bumpRevision();
 }
 
 export function getIssueLabels(repoId: number, number: number): string[] {

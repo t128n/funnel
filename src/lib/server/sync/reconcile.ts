@@ -18,7 +18,13 @@ import {
   type ProvisionSummary,
 } from "#/lib/server/github/labels";
 import * as mirror from "./mirror";
-import { ensureRepoMirror, pollRepo, refreshRepoMilestones } from "./worker";
+import {
+  ensureRepoMirror,
+  pollRepo,
+  refreshRepoAssignees,
+  refreshRepoLabels,
+  refreshRepoMilestones,
+} from "./worker";
 
 const log = createLogger({ component: "reconcile" });
 
@@ -62,8 +68,13 @@ export async function reconcileRepo(
   const result = await pollRepo(repoRow, installationId, Date.now(), {
     full: true,
   });
-  // Refresh the repo's milestone set so closed/renamed milestones converge.
-  await refreshRepoMilestones(installationId, repoRow);
+  // Refresh the repo directory lists so closed/renamed milestones, label
+  // options and the assignee picker all converge during the nightly sweep.
+  await Promise.all([
+    refreshRepoLabels(installationId, repoRow),
+    refreshRepoAssignees(installationId, repoRow),
+    refreshRepoMilestones(installationId, repoRow),
+  ]);
   const removed = mirror.deleteIssuesNotIn(repoRow.id, result.seenNumbers);
   const summary = await provisionRepoLabels(owner, repo);
   mirror.setRepoReconciledAt(repoRow.id, Date.now());
