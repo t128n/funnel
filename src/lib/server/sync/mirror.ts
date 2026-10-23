@@ -17,6 +17,7 @@
  */
 import { and, asc, eq, inArray, max, sql } from "drizzle-orm";
 import { db } from "#lib/server/db/index";
+import { bumpRevision } from "./revision";
 import {
   mirrorComment,
   mirrorMilestone,
@@ -156,6 +157,7 @@ export function upsertRepo(input: {
       `repo ${input.forge}/${input.instance}/${input.externalId} missing after upsert`,
     );
   }
+  bumpRevision();
   return row;
 }
 
@@ -426,6 +428,7 @@ export function replaceRepoLabels(
         .run();
     }
   });
+  bumpRevision();
 }
 
 export function getRepoLabels(repoId: number): RepoLabelRecord[] {
@@ -463,6 +466,7 @@ export function replaceRepoAssignees(
         .run();
     }
   });
+  bumpRevision();
 }
 
 export function getRepoAssignees(repoId: number): UserRecord[] {
@@ -584,6 +588,7 @@ export function replaceRepoMilestones(
       tx.insert(mirrorMilestone).values(rows).run();
     }
   });
+  bumpRevision();
 }
 
 /** One repo's milestones ordered by due date (SQLite sorts `NULL` first). */
@@ -923,6 +928,7 @@ export function upsertIssues(
       writeIssue(tx, prepareIssue(issue, metadataFor(issue), userIds));
     }
   });
+  bumpRevision();
 }
 
 /** One-record wrapper over {@link upsertIssues}. */
@@ -1099,6 +1105,7 @@ export function deleteIssue(repoId: number, number: number): void {
       )
       .run();
   });
+  bumpRevision();
 }
 
 /** Prune every mirrored issue for a repo that is absent from `numbers`. */
