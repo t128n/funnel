@@ -6,10 +6,10 @@
 	import AppSidebar from '#lib/components/app-sidebar.svelte';
 	import * as Sidebar from '#lib/components/ui/sidebar/index.js';
 	import { actionableCount, classifyAttention, toISODate } from '#lib/attention';
-	import { connectEvents } from '#lib/client/events';
+	import { connectEvents, type FunnelEvent } from '#lib/client/events';
 	import { startNativeNotifications } from '#lib/client/native-notifications';
 	import { clockTick, startClock } from '#lib/client/clock.svelte';
-	import { bumpRefresh } from '#lib/client/refresh';
+	import { bumpRefresh, type RefreshScope } from '#lib/client/refresh';
 	import { canWrite } from '#lib/roles';
 	import type { LayoutProps } from './$types';
 
@@ -27,25 +27,82 @@
 	});
 
 	// Realtime bridge: any server-side mirror change refreshes the streams and
-	// signals the Inspector to refetch (SPEC §3.2). The shared clock keeps the
-	// relative-time labels ticking even when no change arrives.
+	// signals the Inspector to refetch (SPEC §3.2). Bursts coalesce into one
+	// refresh behind a short trailing timer, and refreshes never overlap: an
+	// event that lands mid-flight schedules one more pass instead of piling on.
+	// The shared clock keeps the relative-time labels ticking even when no
+	// change arrives.
 	onMount(() => {
 		const stopClock = startClock();
 		// Browser notices are separate from the shared refresh signal: the SSE
 		// payload carries no recipients, so the helper fetches this tab's own
-		// unread feed when a `notifications` event arrives.
+		// unread feed when a `notifications` event arrives. It subscribes to the
+		// same single stream opened here.
 		const stopNative = startNativeNotifications(data.nativeNotifications);
-		const stopEvents = connectEvents(() => {
-			// Refresh the streams and signal the Inspector. Overlays are dropped
-			// later, by value (see `reconcileIssues`), so a refresh carrying data
-			// that does not yet reflect a write cannot bounce the UI back.
-			void refreshAll()
-				.then(() => bumpRefresh())
-				.catch(() => {
-					// A failed load leaves the current view (and overlays) intact.
-				});
+
+		let timer: ReturnType<typeof setTimeout> | undefined;
+		let inFlight = false;
+		/** Scope of the queued burst; `null` means nothing is queued. */
+		let pending: RefreshScope | null = null;
+
+		const scopeOf = (event: FunnelEvent): RefreshScope => {
+			if (event.type !== 'issues') return {};
+			const repo = typeof event.repo === 'string' ? event.repo : undefined;
+			if (repo === undefined) return {};
+			const numbers = Array.isArray(event.numbers)
+				? event.numbers.filter((value): value is number => typeof value === 'number')
+				: undefined;
+			return { repo, numbers };
+		};
+
+		// Two scoped events stay scoped only while they share a repo; anything
+		// broader (or a repo-wide event) widens the burst to "all".
+		const mergeScopes = (left: RefreshScope, right: RefreshScope): RefreshScope => {
+			if (left.repo === undefined || right.repo === undefined || left.repo !== right.repo) {
+				return {};
+			}
+			const a = left.numbers;
+			const b = right.numbers;
+			if (a === undefined || b === undefined || a.length === 0 || b.length === 0) {
+				return { repo: left.repo };
+			}
+			return { repo: left.repo, numbers: [...new Set([...a, ...b])] };
+		};
+
+		const run = async () => {
+			timer = undefined;
+			if (inFlight || pending === null) return;
+			const scope = pending;
+			pending = null;
+			inFlight = true;
+			try {
+				await refreshAll();
+				bumpRefresh(scope);
+			} catch {
+				// A failed load leaves the current view (and overlays) intact.
+			} finally {
+				inFlight = false;
+				// A burst arrived while refreshing; give it its own trailing pass.
+				if (pending !== null) schedule();
+			}
+		};
+
+		const schedule = () => {
+			if (timer !== undefined) clearTimeout(timer);
+			timer = setTimeout(() => void run(), 300);
+		};
+
+		const stopEvents = connectEvents((event) => {
+			// Overlays are dropped later, by value (see `reconcileIssues`), so a
+			// refresh carrying data that does not yet reflect a write cannot
+			// bounce the UI back.
+			const scope = scopeOf(event);
+			pending = pending === null ? scope : mergeScopes(pending, scope);
+			schedule();
 		});
+
 		return () => {
+			if (timer !== undefined) clearTimeout(timer);
 			stopNative();
 			stopEvents();
 			stopClock();

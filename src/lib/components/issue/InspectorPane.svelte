@@ -47,7 +47,7 @@
 		reconcileIssues,
 		type IssuePatch
 	} from '#lib/client/optimistic.svelte';
-	import { refreshSignal } from '#lib/client/refresh';
+	import { refreshSignal, type RefreshPayload } from '#lib/client/refresh';
 	import type { BlockPayload } from '#lib/client/issue-actions.svelte';
 	import {
 		composeFunnelMetadata,
@@ -260,10 +260,36 @@
 	}
 
 	// Refetch when the selection changes or the server reports a change.
+	// A signal scoped to another issue is ignored, and events that land while
+	// the title or description is being edited never discard the draft: the
+	// next signal (or leaving edit mode) picks the change up.
+	let loadedKey = '';
+	let loadedSeq = -1;
+
+	/** Whether a signal may have touched the issue currently open. */
+	function signalTouchesIssue(signal: RefreshPayload): boolean {
+		if (signal.repo === undefined) return true;
+		if (signal.repo !== repo) return false;
+		// An empty list means the whole repo changed, e.g. a new milestone.
+		if (signal.numbers === undefined || signal.numbers.length === 0) return true;
+		return signal.numbers.includes(number);
+	}
+
 	$effect(() => {
-		void repo;
-		void number;
-		void $refreshSignal;
+		const key = `${repo}#${number}`;
+		const signal = $refreshSignal;
+
+		if (key !== loadedKey) {
+			loadedKey = key;
+			loadedSeq = signal.seq;
+			void load();
+			return;
+		}
+		if (signal.seq === loadedSeq) return;
+		if (!signalTouchesIssue(signal)) return;
+		if (editingBody || editingTitle) return;
+
+		loadedSeq = signal.seq;
 		void load();
 	});
 
