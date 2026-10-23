@@ -1,0 +1,24 @@
+# Progress ledger
+
+- tests fast passed=5 failed=0 skipped=0 seconds=0.2
+- tests full passed=663 failed=0 skipped=0 seconds=6.7
+- start 3ede60849213ede3cbcd1f4d68597f3dd628de15
+- unblocked: dispatched T0 T1 T2 at 03:45:34; waiting on fixes: none
+- tests fast passed=0 failed=1 skipped=0 seconds=0.3
+- tests fast passed=15 failed=0 skipped=0 seconds=0.5
+- tests fast passed=34 failed=0 skipped=0 seconds=0.4
+- tests fast passed=34 failed=0 skipped=0 seconds=0.4
+- commit T1 f39144e517 comment pagination
+- commit T2 723bc2bff3 comment reconciliation
+- tests fast passed=15 failed=0 skipped=0 seconds=0.3
+- tests fast passed=34 failed=0 skipped=0 seconds=0.4
+- tests fast passed=36 failed=0 skipped=0 seconds=0.5
+- tests fast passed=16 failed=0 skipped=0 seconds=0.3
+- tests fast passed=52 failed=0 skipped=0 seconds=0.5
+- commit T1 81493618f9 comment pagination
+- commit T2 801e5b1844 comment reconciliation
+- tests full passed=678 failed=0 skipped=0 seconds=6.5
+- Ruling: Ignore the final-review finding on the red run_tests incident - it is the intended TDD red step before COMMENTS_QUERY existed, and the full suite is now 678 passed / 0 failed after review fixes - cost if wrong: none, the green full run is the authority
+- Ruling: Ignore the wave0 done-when finding - this plan has no skeleton stubs; T0's only deliverable was .superlite/test-cmd.json, verified by the green full run - cost if wrong: a missing stub would have surfaced as an import failure, which it did not
+- Ruling: Ignore the T0 out-of-scope finding - plan/spec docs were committed separately as "docs: add comment sync fix plan", matching the repo's prior plan convention, and no code was left uncommitted - cost if wrong: plan docs absent from history, but git log confirms the commit
+- Ruling: Ignore the T2 contract-check mismatch - upsertIssue already existed and remains exported from src/lib/server/sync/mirror.ts:503 with the stated signature; the checker only resolves newly declared modules - cost if wrong: signature drift, but the diff, type-check and full suite pass
