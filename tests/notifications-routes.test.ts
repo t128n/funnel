@@ -25,6 +25,7 @@ import {
 	PUT as putWatch,
 } from "#/routes/api/mirror/issues/[owner]/[repo]/[number]/watch/+server";
 import { TEST_CONFIG } from "#tests/test-config";
+import { clearMirror } from "#tests/mirror-helpers";
 
 // Routes read the signed-in user's rows only. Every case gets fresh user ids so
 // the shared in-memory DB cannot leak read state between cases (or between
@@ -100,6 +101,7 @@ function seedDraft(userId: string, key: string, createdAt = 1000) {
 }
 
 beforeEach(() => {
+	clearMirror();
 	setConfig(TEST_CONFIG);
 	repoId = upsertRepo({ externalId: "900501", forge: "github", instance: "github.com", org: OWNER, name: REPO, url: "https://github.com/" + OWNER + "/" + REPO, archived: false }).id;
 });
