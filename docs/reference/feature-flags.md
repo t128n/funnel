@@ -1,6 +1,6 @@
 # Feature flags
 
-Funnel resolves a small registry of per-browser feature flags on the server using an in-process OpenFeature provider, with browser overrides stored in a single cookie.
+Funnel resolves a small registry of per-browser feature flags on the server directly from the registry and the instance defaults, with browser overrides stored in a single cookie.
 
 ## Registry
 
@@ -12,7 +12,7 @@ The registry lives in `src/lib/features.ts` and is shared by the client and serv
 | `work-notes` | Internal work notes | `true` | Hidden | Visible | Shows the internal journal in the issue Inspector alongside GitHub comments. |
 | `attachments` | Attachment dropbox | `true` | Hidden | Visible | Shows the attachment dropbox in the issue Inspector. |
 
-Each registry entry also carries a description used by `/settings/features`. The key is both the registry key and the OpenFeature key.
+Each registry entry also carries a description used by `/settings/features`. The key is both the registry key and the key used in the cookie.
 
 ## Resolution order
 
@@ -20,11 +20,11 @@ For each flag, the effective value is resolved in this order:
 
 1. **Browser override** — the value under the flag key in the `funnel:features` cookie.
 2. **Instance default** — `flagDefault(key)` in `src/lib/server/flags.ts`.
-3. **Registry default** — `FeatureFlag.default`, also the OpenFeature `defaultVariant`.
+3. **Registry default** — `FeatureFlag.default`.
 
 The instance default is environment-derived only for `comment-bubbles`; for `work-notes` and `attachments` it is the same as the registry default. There is no database setting or admin UI for feature flags.
 
-`resolveFeatures(overrides)` builds a `{ key: boolean }` map with `overrides[key] ?? flagDefault(key)`, then asks OpenFeature for every known flag. The result is a plain map keyed by flag name. The `(app)` layout also derives `commentBubbles` from the `comment-bubbles` entry for the Inspector.
+`resolveFeatures(overrides)` builds a `{ key: boolean }` map with `overrides[key] ?? flagDefault(key)` for every registered flag. It is `async` so callers do not need to change. The result is a plain map keyed by flag name. The `(app)` layout also derives `commentBubbles` from the `comment-bubbles` entry for the Inspector.
 
 ## Environment override
 
@@ -55,18 +55,6 @@ Parsing (`parseFeatureOverrides`):
 
 The settings page drops an override when the chosen value equals the instance default, and persists the remaining overrides. A cookie therefore normally contains only deviations from the instance defaults.
 
-## OpenFeature provider
-
-`src/lib/server/flags.ts` registers a process-wide `TypedInMemoryProvider` at module load:
-
-- One configuration entry per registry flag.
-- Variants: `on` → `true`, `off` → `false`.
-- `defaultVariant` is the registry default (`on` or `off`).
-- `disabled: false` for every flag.
-- The `contextEvaluator` reads a context value under the key `features` and returns `on` when the resolved map has `true` for that flag, otherwise `off`.
-
-`resolveFeatures` calls `client.getBooleanValue(key, FeatureFlag.default, { features: values })` for every flag. There is no external flag service, no network call and no background synchronisation. The provider can be swapped for a hosted provider without changing the registry or callers.
-
 ## Consumption
 
 - The `(app)` layout returns the resolved `features` map to every cockpit page.
@@ -81,7 +69,7 @@ Flags are presentation controls only. They do not gate authorisation or the API:
 - Unknown keys in the cookie are ignored.
 - Non-boolean values are ignored.
 - Duplicate or stale registry entries cannot break parsing; the parser always returns an object.
-- An unknown OpenFeature key has no configuration entry; evaluation falls back to the supplied registry default.
+- A key absent from the registry resolves to `false` from `flagDefault`.
 - A missing or empty `features` map in the client defaults `work-notes` and `attachments` to visible and `comment-bubbles` to the compact list.
 
 ## Related
