@@ -313,7 +313,11 @@ describe("comment pagination", () => {
 
     const [record] = await hydrateNodes(graphql, 1, ["n1"]);
     expect(record.comments).toHaveLength(102);
-    expect(record.comments.at(-1)?.externalId).toBe("102");
+    expect(record.comments.map((c) => c.externalId)).toEqual([
+      ...Array.from({ length: 100 }, (_, i) => String(i + 1)),
+      "101",
+      "102",
+    ]);
     expect(new Set(record.comments.map((c) => c.externalId)).size).toBe(102);
     expect(after).toEqual(["c100", "c101"]);
   });
@@ -450,6 +454,69 @@ describe("comment pagination", () => {
     };
     await expect(hydrateNodes(graphql, 1, ["n1"])).rejects.toThrow(
       /endCursor/,
+    );
+  });
+
+  test("maps each follow-up to its own node id despite dropped PRs", async () => {
+    const followUps: Array<{ id: unknown; after: unknown }> = [];
+    const graphql: GraphqlFn = async (_query, vars) => {
+      if (vars && "ids" in vars) {
+        return {
+          nodes: [
+            issueNode({
+              pageInfo: { hasNextPage: true, endCursor: "a" },
+              nodes: [comment(1)],
+            }),
+            {},
+            {
+              ...issueNode({
+                pageInfo: { hasNextPage: true, endCursor: "b" },
+                nodes: [comment(2)],
+              }),
+              databaseId: 102,
+            },
+          ],
+        };
+      }
+      const v = vars as { id: string; after: string };
+      followUps.push({ id: v.id, after: v.after });
+      const extra = v.id === "n1" ? 11 : 22;
+      return {
+        node: {
+          comments: {
+            pageInfo: { hasNextPage: false, endCursor: null },
+            nodes: [comment(extra)],
+          },
+        },
+      };
+    };
+
+    const records = await hydrateNodes(graphql, 1, ["n1", "pr", "n2"]);
+    expect(followUps).toEqual([
+      { id: "n1", after: "a" },
+      { id: "n2", after: "b" },
+    ]);
+    expect(records.map((r) => r.externalId)).toEqual(["101", "102"]);
+    expect(records[0].comments.map((c) => c.externalId)).toEqual(["1", "11"]);
+    expect(records[1].comments.map((c) => c.externalId)).toEqual(["2", "22"]);
+  });
+
+  test("throws when a follow-up page returns no node instead of persisting a partial list", async () => {
+    const graphql: GraphqlFn = async (_query, vars) => {
+      if (vars && "ids" in vars) {
+        return {
+          nodes: [
+            issueNode({
+              pageInfo: { hasNextPage: true, endCursor: "c1" },
+              nodes: [comment(1)],
+            }),
+          ],
+        };
+      }
+      return { node: null };
+    };
+    await expect(hydrateNodes(graphql, 1, ["n1"])).rejects.toThrow(
+      /lost node/,
     );
   });
 });

@@ -426,6 +426,11 @@ async function hydrateRemainingComments(
       node?: { comments?: GqlCommentConnection | null } | null;
     };
     const connection = result?.node?.comments;
+    if (!connection) {
+      throw new Error(
+        `comment pagination lost node ${nodeId} on page ${pages}`,
+      );
+    }
     for (const comment of normalizeComments(connection, forge, instance)) {
       if (!byId.has(comment.externalId)) byId.set(comment.externalId, comment);
     }
