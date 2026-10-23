@@ -1,4 +1,8 @@
 import { forge } from "#/lib/server/forge/providers.server";
+import {
+  passthrough,
+  toResponse,
+} from "#/lib/server/github/api-passthrough.server";
 
 /**
  * Map a failed installation lookup to a client response.
@@ -24,4 +28,52 @@ export async function installationErrorResponse(
     );
   }
   return Response.json({ message: "Upstream error" }, { status });
+}
+
+export interface RepoGetOptions {
+  /** Query params forwarded upstream; every other param is dropped. */
+  query?: ReadonlySet<string>;
+  /** Drop entries with a `pull_request` key (issues lists). */
+  filterPullRequests?: boolean;
+  /** Repo-relative path used to enrich upstream 404s with `html_url`. */
+  fallbackPath?: string;
+}
+
+/**
+ * Resolve the installation and serve the shared GitHub REST passthrough:
+ * allowlisted query, `If-None-Match`, `pull_request` filtering, and 404
+ * `html_url` enrichment, so every `GET /api/repos/...` route stays one shape.
+ */
+export async function repoGet(
+  params: { owner: string; repo: string; number?: string; name?: string },
+  request: Request,
+  path: string,
+  options: RepoGetOptions = {},
+): Promise<Response> {
+  let installationId: number;
+  try {
+    installationId = await forge.getInstallationId(params.owner, params.repo);
+  } catch (e) {
+    return installationErrorResponse(params.owner, params.repo, e);
+  }
+
+  const query = new URLSearchParams();
+  for (const [k, v] of new URL(request.url).searchParams) {
+    if (options.query?.has(k)) query.append(k, v);
+  }
+
+  const result = await passthrough(
+    await forge.installationProvider(installationId),
+    installationId,
+    path,
+    query,
+    request.headers.get("if-none-match"),
+    {
+      filterPullRequests: options.filterPullRequests,
+      htmlUrlFallback: options.fallbackPath
+        ? await forge.webUrl(options.fallbackPath)
+        : undefined,
+    },
+  );
+  return toResponse(result);
 }
