@@ -166,7 +166,7 @@ critical path: T7 (4.8 min) · peak width 10 · predicted build 4.8 min · predi
 **Notes:** Do not change `readJson` or `scheduleRefresh`.
 
 ### T8 share the issue detail wrapper · Complexity 3 · Est. context 23k
-**Owns:** src/lib/components/issue/IssueDetailView.svelte, src/routes/(app)/issues/[owner]/[repo]/[number]/+page.svelte, src/routes/(app)/inbox/[owner]/[repo]/[number]/+page.svelte, src/routes/(app)/board/[owner]/[repo]/[number]/+page.svelte
+**Owns:** src/lib/components/issue/IssueDetailView.svelte, src/routes/*/issues/[owner]/[repo]/[number]/+page.svelte, src/routes/*/inbox/[owner]/[repo]/[number]/+page.svelte, src/routes/*/board/[owner]/[repo]/[number]/+page.svelte
 **Components:** 4
 **LOC owned:** 70
 **Tests:** fast
