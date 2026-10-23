@@ -138,7 +138,7 @@ critical path: T2 → T3a → T3b → T5 → T6a → T6b (16.0 min) · peak widt
 **Notes:** Keep the public return shapes unchanged.
 
 ### T5 schema indexes and priority rank · Complexity 4 · Est. context 35k
-**Owns:** src/lib/server/db/schema.ts, drizzle/, src/lib/server/issues/queries.ts, src/lib/server/sync/mirror.ts, src/lib/server/issues/filters.ts, src/lib/server/notifications/service.ts
+**Owns:** src/lib/server/db/schema.ts, drizzle/, src/lib/server/issues/queries.ts, src/lib/server/sync/mirror.ts, src/lib/server/issues/filters.ts, src/lib/server/notifications/service.ts, tests/priority-migration.test.ts
 **Components:** 6
 **LOC owned:** 180
 **Tests:** fast
