@@ -60,11 +60,6 @@ export function requireRole(
   return user;
 }
 
-/** Require `write` or higher. */
-export function requireWrite(locals: App.Locals, url: URL): ViewerUser {
-  return requireRole(locals, url, "write");
-}
-
 /** Require `admin`. */
 export function requireAdmin(locals: App.Locals, url: URL): ViewerUser {
   return requireRole(locals, url, "admin");

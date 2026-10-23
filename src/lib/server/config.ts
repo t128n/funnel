@@ -81,38 +81,6 @@ function normalizeRepos(entries: RepoInput[]): RepoConfig[] {
   return repos;
 }
 
-/**
- * The configuration defaults, mirroring the per-key defaults in the settings
- * store (plus the env host defaults). Used as the documentation of record and
- * by tests; the store applies its own defaults when a row is missing.
- */
-export const DEFAULT_CONFIG = {
-  github: {
-    url: "https://github.com",
-    api_url: "https://api.github.com",
-  },
-  repos: [] as RepoConfig[],
-  projects: [] as ProjectConfig[],
-  intake: {} as { default_repo?: string },
-  sync: {
-    history_days: 90,
-    poll_interval_active_seconds: 30,
-    poll_interval_idle_seconds: 300,
-  },
-  board: {
-    done_days: 14,
-    wip_limits: {} as Record<string, number>,
-  },
-  session: {
-    idle_days: 30,
-  },
-  notifications: {
-    enabled: true,
-    native: true,
-    new_intake: true,
-  },
-};
-
 export const configSchema = v.pipe(
   v.object({
     github: v.object({

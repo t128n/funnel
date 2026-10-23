@@ -1,7 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import {
   ConfigError,
-  DEFAULT_CONFIG,
   getConfig,
   loadFunnelConfig,
   resetConfigCache,
@@ -85,11 +84,22 @@ describe("loadFunnelConfig", () => {
 
     const config = await loadFunnelConfig();
 
-    expect(config.github).toEqual(DEFAULT_CONFIG.github);
-    expect(config.sync).toEqual(DEFAULT_CONFIG.sync);
-    expect(config.board).toEqual(DEFAULT_CONFIG.board);
-    expect(config.session).toEqual(DEFAULT_CONFIG.session);
-    expect(config.notifications).toEqual(DEFAULT_CONFIG.notifications);
+    expect(config.github).toEqual({
+      url: "https://github.com",
+      api_url: "https://api.github.com",
+    });
+    expect(config.sync).toEqual({
+      history_days: 90,
+      poll_interval_active_seconds: 30,
+      poll_interval_idle_seconds: 300,
+    });
+    expect(config.board).toEqual({ done_days: 14, wip_limits: {} });
+    expect(config.session).toEqual({ idle_days: 30 });
+    expect(config.notifications).toEqual({
+      enabled: true,
+      native: true,
+      new_intake: true,
+    });
     expect(config.intake).toEqual({});
   });
 
