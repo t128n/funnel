@@ -75,7 +75,6 @@ The addon comes from the optional package `@bruits/satteri-<suffix>`. `bun insta
 | `start` | `bun ./build/index.js` | Runs the built adapter-node server under Bun. Does not run migrations or parse CLI flags. The server cannot run under Node because the database layer uses `bun:sqlite`. |
 | `release` | `bun scripts/release.ts` | Applies pending migrations and prints `[release] <n> migration(s) applied — db=<path> migrations=<path> total=<n>`. |
 | `build:standalone` | `bun scripts/build-standalone.ts` | Compiles the executable into `dist/`. Requires `build/index.js` to exist; accepts `--target`, `--outdir`, and `--outfile`. The default target is the host and the default output directory is `dist/`. |
-| `icons` | `bun scripts/generate-icons.ts` | Regenerates the committed raster icon set (`favicon.ico`, `apple-touch-icon.png`, `icon-192.png`, `icon-512.png`) from the SVG mark. |
 | `prepare` | `bun --bun svelte-kit sync` | Synchronises SvelteKit's generated types. A failure is swallowed by a suffix that ignores it. |
 | `check` | `bun --bun svelte-kit sync && bun --bun svelte-check --tsconfig ./tsconfig.json` | Synchronises types and type-checks the project. |
 | `check:watch` | `bun --bun svelte-kit sync && bun --bun svelte-check --tsconfig ./tsconfig.json --watch` | The same check in watch mode. |

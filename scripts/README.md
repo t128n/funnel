@@ -100,6 +100,5 @@ go -C tools/funnel-intake run ./cmd/funnel-intake -test
 | :--- | :--- |
 | `build-intake.ts` | Builds `dist/funnel-intake.exe` (`mise run intake:exe`). |
 | `build-standalone.ts` | Builds the self-contained Funnel server executable. |
-| `generate-icons.ts` | Regenerates the committed raster icon set (`static/favicon.ico`, `apple-touch-icon.png`, `icon-192.png`, `icon-512.png`) from the SVG mark; see the `icons` task in the [build tasks reference](../docs/reference/build-tasks.md). |
 | `release.ts` | Applies pending database migrations. |
 | `install-intake.ps1` | Installs/removes the intake hotkey helper. |
