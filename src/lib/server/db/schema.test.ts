@@ -86,11 +86,31 @@ test("test_baseline_seed", () => {
   ).id;
   const insertThread = sqlite.query(
     `INSERT INTO mirror_thread
-       (repo_id, number, external_id, title, state, status, blocked, created_at, updated_at)
-     VALUES (?, ?, ?, ?, 'open', ?, ?, 1, 1)`,
+       (repo_id, number, external_id, kind, title, state, status, blocked, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, 1)`,
   );
-  insertThread.run(repoId, 1, "seed-open", "Open", "in-progress", 0);
-  insertThread.run(repoId, 2, "seed-blocked", "Blocked", "backlog", 1);
+  insertThread.run(repoId, 1, "seed-open", "issue", "Open", "open", "in-progress", 0);
+  insertThread.run(repoId, 2, "seed-blocked", "issue", "Blocked", "open", "backlog", 1);
+  insertThread.run(
+    repoId,
+    3,
+    "seed-closed-blocked",
+    "issue",
+    "Closed blocked",
+    "closed",
+    "backlog",
+    1,
+  );
+  insertThread.run(
+    repoId,
+    4,
+    "seed-pull-request",
+    "pull_request",
+    "A PR",
+    "open",
+    "in-progress",
+    1,
+  );
 
   // Replay the baseline seed statements from the additive migration against
   // rows that already existed, as they would at deploy time.
@@ -138,6 +158,31 @@ test("test_baseline_seed", () => {
   expect(delays[0].ended_at).toBeNull();
   expect(delays[0].source).toBe("blocked");
   expect(delays[0].started_at).toBeGreaterThan(0);
+  // A blocked issue that is already closed must not keep an open delay: nothing
+  // would ever close it, so it would accrue delay minutes forever.
+  const closedDelay = sqlite
+    .query(
+      `SELECT started_at, ended_at FROM state_issue_delay
+       WHERE org = 'seedorg' AND issue_number = 3`,
+    )
+    .get() as any;
+  expect(closedDelay).not.toBeNull();
+  expect(closedDelay.ended_at).toBe(closedDelay.started_at);
+  // Only issues get baselines; a mirrored PR thread does not.
+  expect(
+    sqlite
+      .query(
+        "SELECT COUNT(*) AS n FROM state_issue_event WHERE issue_number = 4",
+      )
+      .get(),
+  ).toEqual({ n: 0 });
+  expect(
+    sqlite
+      .query(
+        "SELECT COUNT(*) AS n FROM state_issue_delay WHERE issue_number = 4",
+      )
+      .get(),
+  ).toEqual({ n: 0 });
   expect(
     sqlite
       .query(
