@@ -213,7 +213,7 @@ describe("week and cycle plans", () => {
 
   test("test_lane_issue_indexes_map_back", async () => {
     const repoId = seedPlanningRepo("orgA/core");
-    const seeds: PlanningIssueSeed[] = [
+    const seeds: Omit<PlanningIssueSeed, "repoId">[] = [
       { number: 1, size: "md", assignees: [planningUser("ann")] },
       { number: 2, size: "lg", assignees: [planningUser("ann")] },
       {
