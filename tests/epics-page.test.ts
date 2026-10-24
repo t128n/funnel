@@ -289,6 +289,59 @@ describe("epic detail", () => {
     expect(page).toContain("<EpicRollups");
     expect(page).toContain("<EpicChildTable");
   });
+
+  test("test_unavailable_child_stays_in_list", async () => {
+    const core = repo("epicpage", "core", "detail-3");
+    issue({
+      repoId: core,
+      number: 1,
+      title: "Epic",
+      labels: ["epic"],
+      body: writeEpicChildren("", ["epicpage/core#10", "epicpage/core#99"]),
+    });
+    issue({ repoId: core, number: 10, title: "Mirrored child", labels: ["sm"] });
+
+    const data = await loadDetail({
+      params: { owner: "epicpage", repo: "core", number: "1" },
+    } as never);
+
+    // The unmirrored ref is kept in written order and excluded from rollups.
+    expect(data.epic.children.map((child) => child.ref)).toEqual([
+      "epicpage/core#10",
+      "epicpage/core#99",
+    ]);
+    expect(data.epic.children[1].available).toBe(false);
+    expect(data.epic.childCount).toBe(1);
+
+    // Removing the mirrored child still sends the unavailable ref, so a body
+    // rewrite never silently drops a ref the reader cannot resolve.
+    const refs = data.epic.children.map((child) => child.ref);
+    const request = removeChildRequest(
+      data.epic.repo,
+      data.epic.number,
+      refs,
+      "epicpage/core#10",
+    );
+    expect(JSON.parse(request.body)).toEqual({
+      children: ["epicpage/core#99"],
+    });
+  });
+
+  test("test_epic_detail_missing_returns_404", async () => {
+    const core = repo("epicpage", "core", "detail-4");
+    issue({ repoId: core, number: 5, title: "Plain issue", labels: [] });
+
+    await expect(
+      loadDetail({
+        params: { owner: "epicpage", repo: "core", number: "5" },
+      } as never),
+    ).rejects.toThrow();
+    await expect(
+      loadDetail({
+        params: { owner: "epicpage", repo: "core", number: "nope" },
+      } as never),
+    ).rejects.toThrow();
+  });
 });
 
 describe("epic child mutations", () => {
@@ -315,6 +368,12 @@ describe("epic child mutations", () => {
     expect(JSON.parse(request.body)).toEqual({
       children: ["epicpage/core#10", "epicpage/web#3"],
     });
+
+    // The dialog must take the tested path, so dedupe and the full-list body
+    // cannot drift from the helper the unit test exercises.
+    const dialog = source("src/lib/components/epics/AddChildDialog.svelte");
+    expect(dialog).toContain("addChildRequest(");
+    expect(dialog).not.toContain("[...children, selected.ref]");
   });
 
   test("test_remove_child", () => {

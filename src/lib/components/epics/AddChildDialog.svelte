@@ -8,8 +8,8 @@
 	import { Input } from '#lib/components/ui/input';
 	import { cn } from '#lib/utils';
 	import {
+		addChildRequest,
 		epicChildErrorMessage,
-		epicChildrenRequest,
 		type EpicCandidate
 	} from './epic-actions';
 
@@ -67,7 +67,12 @@
 		if (selected === null || busy) return;
 		busy = true;
 		error = null;
-		const request = epicChildrenRequest(epicRepo, epicNumber, [...children, selected.ref]);
+		const request = addChildRequest(
+			epicRepo,
+			epicNumber,
+			children,
+			selected.ref
+		);
 		try {
 			const response = await fetch(request.url, {
 				method: request.method,
