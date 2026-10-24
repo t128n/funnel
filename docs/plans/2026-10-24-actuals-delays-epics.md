@@ -184,8 +184,8 @@ critical path: T1 → T4 → T6 → T7 → T8 (17.0 min) · peak width 3 · pred
 
 ## Review Focus
 
-**Actuals/delays** — numeric, state. Risks: overlapping intervals, close/reopen, blocked/manual overlap, missing baseline, duplicate events.
-**Epics** — protocol, state. Risks: malformed/self/nested/duplicate refs, missing children, body edits losing sections, label removal, cross-repo, write failure.
-**UI** — protocol, encoding. Risks: read-only controls, formatting, 409 surface, stale detail.
+**actuals** — numeric, state. Risks: overlapping intervals, close/reopen, blocked/manual overlap, missing baseline, duplicate events.
+**epics** — protocol, state. Risks: malformed/self/nested/duplicate refs, missing children, body edits losing sections, label removal, cross-repo, write failure.
+**ui** — protocol, encoding. Risks: read-only controls, formatting, 409 surface, stale detail.
 **Probe entry:** call=actuals.time.computeIssueTime · run=bun test --preload ./tests/setup.ts --max-concurrency 1 --coverage src tests
 **Probe entry:** call=epics.queries.listEpics · run=bun test --preload ./tests/setup.ts --max-concurrency 1 --coverage src tests
