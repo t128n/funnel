@@ -8,11 +8,20 @@
  */
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
-import { resetConfigCache } from "#lib/server/config";
+import { cycleForWeek } from "#lib/server/planning/calendar";
+import { getConfig, resetConfigCache } from "#lib/server/config";
+import { saveSettings } from "#lib/server/settings/apply";
 import { clearSettings } from "#lib/server/settings/store";
-import { load as loadPlan } from "#/routes/(app)/plan/+page.server";
-import { load as loadPlanningSettings } from "#/routes/(app)/settings/planning/+page.server";
+import type { Role } from "#lib/roles";
+import * as planRoute from "#/routes/(app)/plan/+page.server";
+import { load as loadSettingsLayout } from "#/routes/(app)/settings/+layout.server";
+import {
+  actions as planningActions,
+  load as loadPlanningSettings,
+} from "#/routes/(app)/settings/planning/+page.server";
 import { resetPlanning } from "#tests/planning-helpers";
+
+const { load: loadPlan } = planRoute;
 
 const HINT =
   "Enter net hours: contracted weekly hours minus recurring meetings, on-call, and other fixed commitments. Funnel plans at most 60% of this; the rest is buffer.";
@@ -22,7 +31,7 @@ const USER = {
   name: "Planning Page",
   email: "planning@example.com",
   image: null,
-  role: "admin" as const,
+  role: "admin" as Role,
 };
 
 /** The full shape `requireUser` projects for a page load. */
@@ -33,6 +42,37 @@ function locals(user: typeof USER | null = USER) {
 function url(path: string): URL {
   return new URL(`http://x${path}`);
 }
+
+/** A `save` action request carrying one settings payload. */
+function payloadForm(payload: unknown): Request {
+  const body = new FormData();
+  body.set("payload", JSON.stringify(payload));
+  return new Request("http://x/settings/planning?/save", {
+    method: "POST",
+    body,
+  });
+}
+
+/** The page's own planning slice: decimal hours already converted to minutes. */
+const PLANNING_PAYLOAD = {
+  planning: {
+    size_minutes: { sm: 90, md: 240, lg: 480 },
+    allocation_percent: 55,
+    cycle_weeks: 3,
+    cycle_anchor: "2024-01-01",
+    maintainers: [
+      {
+        forge: "github",
+        instance: "github.com",
+        external_id: "7",
+        login: "ann",
+        avatar_url: null,
+        weekly_minutes: 450,
+        active: true,
+      },
+    ],
+  },
+};
 
 function source(relative: string): string {
   return readFileSync(new URL(`../${relative}`, import.meta.url), "utf8");
@@ -72,6 +112,38 @@ describe("planning settings load", () => {
     expect(data.planning.maintainers).toEqual([]);
     expect(data.planning.size_minutes).toEqual({ sm: 120, md: 240, lg: 480 });
     expect(data.candidates).toEqual([]);
+  });
+
+  test("test_settings_requires_admin", async () => {
+    let caught: unknown;
+    try {
+      await loadSettingsLayout({
+        locals: locals({ ...USER, role: "write" }),
+        url: url("/settings/planning"),
+      } as never);
+    } catch (error) {
+      caught = error;
+    }
+
+    expect((caught as { status?: number }).status).toBe(403);
+  });
+
+  test("test_planning_save_preserves_other_slices", async () => {
+    const seeded = saveSettings({ board: { done_days: 30, wip_limits: {} } });
+    expect(seeded.ok).toBe(true);
+
+    const result = await planningActions.save({
+      request: payloadForm(PLANNING_PAYLOAD),
+      locals: locals(),
+    } as never);
+    expect(result).toEqual({ saved: true });
+
+    resetConfigCache();
+    const config = await getConfig();
+    expect(config.board.done_days).toBe(30);
+    expect(config.planning.size_minutes.sm).toBe(90);
+    expect(config.planning.allocation_percent).toBe(55);
+    expect(config.planning.maintainers[0]?.weekly_minutes).toBe(450);
   });
 });
 
@@ -116,11 +188,66 @@ describe("plan load", () => {
     expect((caught as { status?: number }).status).toBe(303);
     expect((caught as { location?: string }).location).toContain("/login");
   });
+
+  test("test_plan_route_is_read_only", () => {
+    expect("actions" in planRoute).toBe(false);
+  });
+
+  test("test_invalid_query_falls_back_to_current_week", async () => {
+    const data = await loadPlan({
+      locals: locals(),
+      url: url("/plan?horizon=bogus&week=2026-02-30&cycle=2026-10-20"),
+    } as never);
+
+    const monday = currentMonday();
+    expect(data.horizon).toBe("week");
+    expect(data.week).toBe(monday);
+    expect(data.weekPlan.weekStart).toBe(monday);
+    expect(data.cycle).toBe(cycleForWeek(monday, "2024-01-01", 2).key);
+  });
+
+  test("test_week_navigation", async () => {
+    const data = await loadPlan({
+      locals: locals(),
+      url: url("/plan?week=2026-10-19"),
+    } as never);
+
+    expect(data.previous).toBe("2026-10-12");
+    expect(data.next).toBe("2026-10-26");
+  });
+
+  test("test_cycle_navigation", async () => {
+    const data = await loadPlan({
+      locals: locals(),
+      url: url("/plan?horizon=cycle&cycle=2026-10-19"),
+    } as never);
+
+    expect(data.previous).toBe("2026-10-05");
+    expect(data.next).toBe("2026-11-02");
+  });
+
+  test("test_milestone_horizon_has_no_navigation", async () => {
+    const data = await loadPlan({
+      locals: locals(),
+      url: url("/plan?horizon=milestone"),
+    } as never);
+
+    expect(data.previous).toBeNull();
+    expect(data.next).toBeNull();
+  });
 });
 
 describe("planning navigation and copy", () => {
   test("test_sidebar_has_plan", () => {
     expect(source("src/lib/components/app-sidebar.svelte")).toContain("/plan");
+  });
+
+  test("test_sidebar_plan_active_state", () => {
+    const sidebar = source("src/lib/components/app-sidebar.svelte");
+    expect(sidebar).toContain(
+      'const planActive = $derived(path.startsWith("/plan"));',
+    );
+    expect(sidebar).toContain("active: planActive");
   });
 
   test("test_settings_nav_has_planning", () => {
@@ -130,8 +257,18 @@ describe("planning navigation and copy", () => {
   });
 
   test("test_net_hours_hint", () => {
-    expect(
-      source("src/routes/(app)/settings/planning/+page.svelte"),
-    ).toContain(HINT);
+    const page = source("src/routes/(app)/settings/planning/+page.svelte");
+    expect(page).toContain(HINT);
+    expect(page.toLowerCase()).not.toContain("gross hours");
+  });
+
+  test("test_hours_minutes_conversion_direction", () => {
+    const page = source("src/routes/(app)/settings/planning/+page.svelte");
+    // Stored minutes are shown as decimal hours…
+    expect(page).toContain("minutesToHours(planning.size_minutes.sm)");
+    expect(page).toContain("minutesToHours(maintainer.weekly_minutes)");
+    // …and the posted payload converts the edited hours back to minutes.
+    expect(page).toContain("hoursToMinutes(sizeSm ?? 0)");
+    expect(page).toContain("hoursToMinutes(row.hours ?? 0)");
   });
 });
