@@ -1,0 +1,68 @@
+- start e2e113f52b99aed08f9c65bc192264cf61cba21b
+- unblocked: dispatched T0 T1 T2 T3 T8 at 15:26:05; waiting on fixes: none
+- tests fast passed=1 failed=0 skipped=0 seconds=0.2
+- tests fast passed=5 failed=0 skipped=0 seconds=0.2
+- tests full passed=677 failed=0 skipped=0 seconds=6.5
+- tests fast passed=0 failed=1 skipped=0 seconds=0.3
+- tests fast passed=38 failed=0 skipped=0 seconds=0.3
+- tests fast passed=0 failed=1 skipped=0 seconds=0.1
+- tests fast passed=34 failed=0 skipped=0 seconds=0.4
+- tests fast passed=10 failed=0 skipped=0 seconds=0.4
+- tests fast passed=11 failed=0 skipped=0 seconds=0.2
+- tests fast passed=34 failed=0 skipped=0 seconds=0.7
+- commit T1 6f5b181e3a plan persistence and queries
+- commit T8 376c2fbc6c documentation
+- commit T3 7b8b3a8ea6 calendar, capacity and formatting
+- commit T2 cdfc3b2721 planning settings
+- tests fast passed=38 failed=0 skipped=0 seconds=0.4
+- tests fast passed=58 failed=0 skipped=0 seconds=1.0
+- tests fast passed=0 failed=1 skipped=0 seconds=1.2
+- tests fast passed=10 failed=0 skipped=0 seconds=1.3
+- tests fast passed=9 failed=0 skipped=0 seconds=0.7
+- Ruling: unowned settings fixtures updated by fixer after T2 added a required planning section - merging them as a chore commit keeps the plan frozen - low risk
+- commit T4 1a1c200952 week, cycle and milestone views
+- tests fast passed=18 failed=0 skipped=0 seconds=2.6
+- commit T5 d79342e2ba schedule mutation and API
+- tests fast passed=9 failed=0 skipped=0 seconds=1.9
+- tests fast passed=18 failed=0 skipped=0 seconds=1.6
+- tests fast passed=39 failed=0 skipped=0 seconds=0.3
+- tests fast passed=92 failed=0 skipped=0 seconds=0.5
+- tests fast passed=7 failed=0 skipped=0 seconds=0.4
+- tests fast passed=8 failed=0 skipped=0 seconds=0.3
+- tests fast passed=39 failed=0 skipped=0 seconds=0.9
+- commit T3 64794dc3690c44afbcc3b2e5bd98cac5c57bb90d
+- commit T6 9575bc13246b73b62c4165967682bdb0bb55c078
+- Ruling: commit_task parses Owns with parenthetical stripping, so (app) route paths cannot be owned; UI commits staged explicitly by path - low risk
+- commit T7 3ab9fa51565f3d339d10aa49a51d74b1e1118b24
+- commit T3 30c8546c290107e8c8a0d8e3399d6e15a1619644
+- tests fast passed=7 failed=0 skipped=0 seconds=0.4
+- tests fast passed=11 failed=0 skipped=0 seconds=0.7
+- tests fast passed=7 failed=0 skipped=0 seconds=0.8
+- tests fast passed=10 failed=0 skipped=0 seconds=1.8
+- tests fast passed=43 failed=0 skipped=0 seconds=3.8
+- tests fast passed=20 failed=0 skipped=0 seconds=2.4
+- tests fast passed=11 failed=1 skipped=0 seconds=1.7
+- tests fast passed=11 failed=0 skipped=0 seconds=1.3
+- tests fast passed=20 failed=0 skipped=0 seconds=1.2
+- tests fast passed=95 failed=0 skipped=0 seconds=1.7
+- commit T2 1bfd86509adad907fedb491f8e363a1359a366ba
+- Ruling: generated probe adapter is Python-shaped for this TypeScript repo; probe runs cannot verify TS call/run targets, so verification relies on focused tests and bun run check - low risk
+- commit T1 99ed06837da53460b0cc3d5e2961b766a4f80cad
+- tests fast passed=0 failed=1 skipped=0 seconds=0.3
+- commit T5 99bcd7cbda2ea5735db6d98bbaa5246a6315a452
+- tests fast passed=12 failed=1 skipped=0 seconds=0.3
+- tests fast passed=13 failed=0 skipped=0 seconds=0.3
+- tests fast passed=12 failed=0 skipped=0 seconds=0.4
+- tests fast passed=19 failed=0 skipped=0 seconds=0.5
+- commit T4 e87c6e9d5b2c8ba276899890959ec1314da2732a
+- tests fast passed=15 failed=0 skipped=0 seconds=0.3
+- tests fast passed=16 failed=0 skipped=0 seconds=0.6
+- tests fast passed=13 failed=0 skipped=0 seconds=0.4
+- commit T4 6eec757ec60609217719708374aafd3eaeecb232
+- commit T7 8f3bf3136a2f2897547176a401cda80bc0ef4317
+- commit T6 5c44d9e044 settings page and plan load
+- tests full passed=810 failed=0 skipped=0 seconds=6.8
+- tests fast passed=11 failed=0 skipped=0 seconds=0.2
+- tests fast passed=16 failed=0 skipped=0 seconds=0.2
+- commit T8 802e86779f documentation
+- tests full passed=815 failed=0 skipped=0 seconds=6.7
