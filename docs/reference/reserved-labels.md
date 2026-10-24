@@ -2,7 +2,7 @@
 
 This page records Funnel's canonical reserved-label vocabulary, the one-label-per-group rule, absence semantics, conflict resolution, and label provisioning.
 
-The canonical list is defined in `src/lib/labels.ts` and re-exported by the server provisioner in `src/lib/server/github/labels.ts`. There are fourteen reserved labels. Colours are six-digit hexadecimal values without `#`, the format the GitHub labels API expects.
+The canonical list is defined in `src/lib/labels.ts` and re-exported by the server provisioner in `src/lib/server/github/labels.ts`. There are fifteen reserved labels. Colours are six-digit hexadecimal values without `#`, the format the GitHub labels API expects.
 
 ## Canonical labels
 
@@ -22,6 +22,7 @@ The canonical list is defined in `src/lib/labels.ts` and re-exported by the serv
 | `sm` | `size` | `6aab73` | Size: Small |
 | `md` | `size` | `2aacb8` | Size: Medium |
 | `lg` | `size` | `e28d78` | Size: Large |
+| `epic` | `epic` | `b389f5` | Type: Epic |
 
 ## Retired priority labels
 
@@ -35,8 +36,10 @@ conflict. See [Impact, urgency, and priority](./priority.md).
 
 An issue carries at most one label from each active group. Status, impact,
 urgency and size are single-valued workflow groups. `blocked` is an orthogonal
-flag: it belongs to its own group and can coexist with any other group. Priority
-is not a label group.
+flag: it belongs to its own group and can coexist with any other group. `epic`
+is an orthogonal membership marker in its own `epic` group: it is independent of
+status, size and the `blocked` flag, so an epic can be triaged and sized like any
+other issue. Priority is not a label group.
 
 Writes that change a group read the issue's authoritative label set from GitHub, remove the group's existing members, and replace them with the requested label in one `PUT`. A write that supplies an ungrouped label set keeps the first reserved label encountered per group and drops later duplicates case-insensitively. Non-reserved labels are preserved.
 
@@ -51,6 +54,7 @@ Writes that change a group read the issue's authoritative label set from GitHub,
 | `urgency` | Not assessed. |
 | `size` | Unestimated. |
 | `flags` | Not flagged. |
+| `epic` | Not an epic. The issue is ordinary work, not a container for children. |
 
 Closing an issue does not by itself add a reserved label.
 
@@ -74,9 +78,9 @@ Provisioning reconciles the canonical labels in every configured repository:
 
 For each repository, the provisioner lists all labels, matches existing labels case-insensitively, creates missing canonical labels, patches canonical labels whose colour or description has drifted, and leaves correct labels unchanged. A converged repository issues zero writes.
 
-Only the fourteen names in the canonical table are ever created or patched. Every other label, including `bug`, `frontend`, and domain tags, is preserved untouched. Failures are isolated per repository: one repository that cannot be provisioned is recorded and skipped while the remaining repositories still reconcile.
+Only the fifteen names in the canonical table are ever created or patched. Every other label, including `bug`, `frontend`, and domain tags, is preserved untouched. Failures are isolated per repository: one repository that cannot be provisioned is recorded and skipped while the remaining repositories still reconcile.
 
-Writes run through the shared installation Octokit. The provisioning code expects Octokit's throttling to keep these writes to roughly one per second, so a repository missing all fourteen labels takes roughly fourteen seconds to converge; a converged repository returns immediately.
+Writes run through the shared installation Octokit. The provisioning code expects Octokit's throttling to keep these writes to roughly one per second, so a repository missing all fifteen labels takes roughly fifteen seconds to converge; a converged repository returns immediately.
 
 ## Related
 

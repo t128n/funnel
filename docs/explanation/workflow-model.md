@@ -1,6 +1,6 @@
 # The workflow model
 
-Funnel keeps most of its workflow state on GitHub itself, in a small reserved label vocabulary, and treats its own database as a disposable projection of those labels. The exceptions are priority, which Funnel derives from the impact and urgency labels, and the time plan, which is entirely Funnel-owned.
+Funnel keeps most of its workflow state on GitHub itself, in a small reserved label vocabulary, and treats its own database as a disposable projection of those labels. The exceptions are priority, which Funnel derives from the impact and urgency labels, the observed event log and delays that produce actual time, and the time plan — all Funnel-owned.
 
 ## Labels are the source of truth
 
@@ -10,13 +10,16 @@ This is a deliberate inversion of the usual tracker design. Rather than Funnel h
 
 ## The reserved vocabulary
 
-The vocabulary lives in the dependency-free `src/lib/labels.ts` so that the cockpit UI and the server share one definition, and `src/lib/server/github/labels.ts` re-exports it. `CANONICAL_LABELS` fixes fourteen names in five active groups:
+The vocabulary lives in the dependency-free `src/lib/labels.ts` so that the cockpit UI and the server share one definition, and `src/lib/server/github/labels.ts` re-exports it. `CANONICAL_LABELS` fixes fifteen names in six active groups:
 
 - **status** — `backlog`, `todo`, `in-progress`, `in-review`
 - **impact** — `sev`, `mod`, `min`
 - **urgency** — `high`, `mid`, `low`
 - **size** — `sm`, `md`, `lg`
 - **flags** — `blocked`
+- **epic** — `epic`
+
+`epic` is an orthogonal membership marker, not a stage: an epic is still triaged, sized and blocked like any other issue.
 
 Priority is not a label group. It is derived from impact × urgency; the old `p1`–`p3` labels are retired.
 
@@ -50,6 +53,33 @@ The vocabulary comment calls a generated issue's group over-full state a "confli
 `blocked` is a **flag**, not a stage. It lives in its own group and is deliberately not a board column: `BOARD_COLUMNS` lists the four open stages plus `Done`, and the comment on `statusBoard` states that "Blocking is an orthogonal flag on the card, not a lane, so it never appears here". An issue keeps its stage (`in-progress`, say) and carries `blocked` alongside it; removing the flag restores its unblocked state without a separate transition.
 
 This matters because being blocked is information *about* work that is otherwise in flight. Modelling it as a fifth status would force an issue to choose between "in progress" and "blocked", destroying the fact that work is assigned and underway but waiting on something. The orthogonality also gives the Attention view something meaningful to query: `attentionIssues()` selects open issues whose `blocked` column is set and reads the optional structured re-check date from the trailing `<!-- funnel_metadata -->` envelope. That envelope (`src/lib/funnel-metadata.ts`) is a machine-readable YAML comment holding the blocker, what is needed to unblock it, what is being tried meanwhile, and the re-check date; it renders invisibly because the Markdown sanitiser discards comments. A manually labelled issue has no envelope and an issue can be blocked without a date, so Attention surfaces those under **No re-check date** rather than hiding them.
+
+## Actual time is observed, not reconstructed
+
+Next to the labels, Funnel keeps a durable `state_issue_event` log of the transitions it actually sees: status changes, open/closed changes and blocked-flag changes. Every issue gets baseline rows on first observation (or at migration for issues already mirrored), and each later sync appends a row only when a value changed. There is **no historical backfill** from the forge timeline: tracking starts at deployment, so an issue's actual time begins at the moment Funnel first observes it, not at the moment it was created on GitHub.
+
+Actual time is the union of intervals where the issue is open and its status is `in-progress` or `in-review`. **In-review counts as active time**; it is still time someone is working the issue, even though the code is waiting on a reviewer. Closing ends the active interval at `closedAt` when known, otherwise at the close event, and reopening starts a new interval if the status is still active. The Inspector pairs actual minutes with the estimate to show variance, and reports lead time (opened to closed/now), cycle time (first active to closed/now) and delay minutes.
+
+This is deliberately observation, not archaeology. The forge does not expose a reliable per-status history through the mirror's polling, and reconstructing one from timelines would mix guesses into a number the planner and reports rely on. Starting from the migration timestamp is honest: the data is complete from the moment Funnel began watching.
+
+## Delays are intervals, not statuses
+
+A delay is waiting time recorded as an interval in `state_issue_delay`, with a structured reason — `dependency`, `info`, `review`, `external`, `capacity` or `other` — an optional note, and a source of `blocked` or `manual`.
+
+Automatic delays follow the `blocked` flag that already exists in the label vocabulary. Adding the flag opens a delay whose reason comes from the issue's `funnel_metadata` block; removing the flag closes it. Closing the issue closes every open delay, and reopening a still-blocked issue opens a new one. The migration gives every issue already blocked at deploy time an `other` delay so the waiting time is visible from day one. Manual delays are entered from the Inspector and are local-only, so they never touch GitHub.
+
+The two sources may overlap — an issue can be blocked and also have a manually recorded dependency wait. Total delay time is the union of the intervals, so an overlap is counted once. Keeping delays as intervals rather than a single `blocked` status preserves the reason and the note, and lets the same issue carry more than one wait over its life.
+
+## Epics are containers in the body
+
+An epic is not a new kind of record. It is an ordinary issue carrying the `epic` label, and the label is cached as `mirror_thread.is_epic` so lists can query it efficiently. The children live in the epic issue's trailing `<!-- funnel_metadata -->` envelope:
+
+```yaml
+epic:
+  children: "orgA/core#12,orgA/web#3"
+```
+
+That comma-separated `owner/name#number` list is the source of truth. Reading parses it in order and drops malformed or self references; writing replaces only the `epic:` section and preserves every other section. Because the relation is in the issue body and not a join table, it is portable, visible on GitHub and survives a mirror rebuild. Children may come from any configured repository, but an issue should belong to one epic: adding a child already claimed by another epic, or nesting an epic inside an epic, is rejected. `/epics` and the Inspector roll up child progress with the same estimate and actual-time calculators as the issue detail.
 
 ## Milestones are repository metadata
 
@@ -90,7 +120,7 @@ Because the vocabulary must exist before it can be used, Funnel provisions it an
 - `provisionCanonicalLabels()` runs at startup from the `init` hook before the server answers its first request. It walks every configured repository, creates missing reserved labels, and patches any whose colour or description has drifted from canonical, under the label's existing spelling because GitHub matches names case-insensitively.
 - `reconcileRepo()` runs it again during nightly reconciliation, so a label deleted or recoloured in the meantime is restored without a restart.
 
-Provisioning is **idempotent**: a converged repository issues zero writes. It only ever touches the reserved names, and it runs with the GitHub App installation token (`funnel[bot]`), independent of any signed-in user. It is also **non-fatal**: `provisionCanonicalLabels` swallows per-repository errors and a config-load failure, recording them in a report and logging a warning, so an unreachable GitHub or a fresh, un-onboarded instance cannot block or crash startup. The comment notes the throttling trade-off plainly: writes are throttled to roughly one per second, so a repository missing all fourteen labels takes about fourteen seconds to converge, while a converged one returns immediately.
+Provisioning is **idempotent**: a converged repository issues zero writes. It only ever touches the reserved names, and it runs with the GitHub App installation token (`funnel[bot]`), independent of any signed-in user. It is also **non-fatal**: `provisionCanonicalLabels` swallows per-repository errors and a config-load failure, recording them in a report and logging a warning, so an unreachable GitHub or a fresh, un-onboarded instance cannot block or crash startup. The comment notes the throttling trade-off plainly: writes are throttled to roughly one per second, so a repository missing all fifteen labels takes about fifteen seconds to converge, while a converged one returns immediately.
 
 ## Work notes and attachments sit outside the labels
 
@@ -137,4 +167,6 @@ It costs:
 - [Settings reference](../reference/settings.md) — `board.done_days`, projects, and repositories.
 - [Configure the board](../how-to/configure/board.md) — setting the Done window and Work-in-Progress limits.
 - [Configure estimates and weekly plans](../how-to/configure/planning.md) — size minutes, net hours, cycles and the 60% cap.
+- [Track time and delays](../how-to/use/track-time-and-delays.md) — reading actual time and recording a delay.
+- [Manage epics](../how-to/use/epics.md) — marking an epic, adding children and reading rollups.
 - [UI/UX standards](../DESIGN.md) — how the board and streams present this model.

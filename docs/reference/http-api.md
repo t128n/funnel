@@ -1,6 +1,6 @@
 # HTTP API
 
-Funnel exposes a public intake and health surface, a session-gated cockpit read surface, a per-user notification feed and watch API, GitHub-backed issue writes executed with the signed-in user's token, and Funnel-local work-note, attachment and plan endpoints.
+Funnel exposes a public intake and health surface, a session-gated cockpit read surface, a per-user notification feed and watch API, GitHub-backed issue writes executed with the signed-in user's token, and Funnel-local work-note, attachment, plan, epic-membership and delay endpoints.
 
 ## Conventions
 
@@ -199,7 +199,7 @@ Detail responses:
 
 | Field | Shape |
 | :--- | :--- |
-| `issue` | `IssueListItem`: `repoId`, `repo`, `number`, `title`, `state`, `stateReason`, `status`, `priority` (`P1`–`P3` or null), `impact` (`1`–`3` or null), `urgency` (`1`–`3` or null), `size`, `blocked`, `labelConflict`, `createdAt`, `updatedAt`, `closedAt`, `author`, `assignees`, `labels`, `milestone`. |
+| `issue` | `IssueListItem`: `repoId`, `repo`, `number`, `title`, `state`, `stateReason`, `status`, `priority` (`P1`–`P3` or null), `impact` (`1`–`3` or null), `urgency` (`1`–`3` or null), `size`, `blocked`, `isEpic`, `labelConflict`, `createdAt`, `updatedAt`, `closedAt`, `author`, `assignees`, `labels`, `milestone`. |
 | `body` | Raw Markdown body from the mirror. |
 | `bodyHtml` | Sanitised HTML rendered from `body`. |
 | `comments` | `RenderedComment[]`: `externalId`, `author`, `body`, `createdAt`, `bodyHtml`. |
@@ -209,6 +209,9 @@ Detail responses:
 | `assigneeOptions` | `UserRef[]`: `externalId`, `forge`, `instance`, `login`, `avatarUrl`. |
 | `milestoneOptions` | `RepoMilestoneRef[]`: `repo`, `number`, `title`, `state`, `dueOn`. |
 | `watching` | Boolean; whether the signed-in viewer watches this issue. |
+| `time` | `IssueTime`: `actualMinutes`, `estimateMinutes`, `varianceMinutes`, `leadMinutes`, `cycleMinutes`, `delayMinutes`, `delayCount`. |
+| `delays` | `DelayItem[]`, oldest first: `id`, `reason`, `startedAt`, `endedAt`, `note`, `source`. |
+| `epic` | `EpicRef` (`owner`, `name`, `number`) when the issue is a child, otherwise `null`. |
 
 `author` and `uploadedBy` are `UserRef` objects or `null` — as are `comments[].author` and `workNotes[].author` when the mirror cannot resolve the person — while entries in `assignees` are always `UserRef` objects. Markdown is rendered with the server's sanitised renderer at the delivery boundary; the raw body is retained for the Inspector's editors.
 
@@ -336,7 +339,7 @@ To attach or clear a milestone on an issue, use the `milestone` field on the iss
 
 ## Funnel-local surface
 
-These routes store data in Funnel's durable `state_*` tables. They require a session and do not use a GitHub token except for publishing a work note.
+These routes store Funnel-owned data in the durable `state_*` tables or edit Funnel-specific issue metadata. They require a session; only the epic children write and work-note publish use a GitHub token.
 
 ### Work notes
 
@@ -413,6 +416,56 @@ The `PUT` body is:
 
 `DELETE` is idempotent: clearing an issue with no plan item still returns `200 { "cleared": true }`. Every successful `PUT` or `DELETE` publishes a `planning` SSE event.
 
+### Epics and delays
+
+Epic membership has two halves. The `epic` label marks the container and is an ordinary GitHub label edit; the ordered child list lives in the epic issue's trailing `<!-- funnel_metadata -->` envelope and is rewritten through the signed-in user's token. Delays are Funnel-local durable rows. Every route in this section requires `write`, and every successful write publishes an `issues` SSE event for the affected issue.
+
+| Method | Path | Success | Purpose |
+| :--- | :--- | :--- | :--- |
+| `PUT` | `/api/repos/{owner}/{repo}/issues/{number}/epic` | `200` | Add or remove the `epic` label. |
+| `PUT` | `/api/repos/{owner}/{repo}/issues/{number}/epic/children` | `200` | Replace the epic's ordered children list. |
+| `POST` | `/api/repos/{owner}/{repo}/issues/{number}/delays` | `201` `DelayItem` | Record a manual delay. |
+| `PATCH` | `/api/repos/{owner}/{repo}/issues/{number}/delays/{id}` | `200` `DelayItem` | Close or edit a manual delay. |
+| `DELETE` | `/api/repos/{owner}/{repo}/issues/{number}/delays/{id}` | `204`, no body | Delete a manual delay. |
+
+The epic label body uses the `is_epic` field:
+
+```json
+{ "is_epic": true }
+```
+
+`false` removes the label but leaves the body metadata untouched. The label is orthogonal to status, size and `blocked`.
+
+The `children` body replaces the whole list in order:
+
+```json
+{ "children": ["orgA/core#12", "orgA/web#3"] }
+```
+
+Each entry must be `owner/name#number`. The endpoint rejects a malformed ref with `400`, a self reference or a nested epic with `409`, and a child already listed by another epic with `409`. An empty array clears the section. The relation is portable because it lives in the epic body and survives a mirror rebuild; there is no membership table. An issue should belong to one epic.
+
+The delay create body is:
+
+```json
+{
+  "reason": "review",
+  "started_at": 1760000000000,
+  "ended_at": null,
+  "note": "Waiting for the security review"
+}
+```
+
+| Field | Type | Required | Constraints |
+| :--- | :--- | :--- | :--- |
+| `reason` | string | yes | `dependency`, `info`, `review`, `external`, `capacity` or `other`. |
+| `started_at` | integer (Unix ms) | no | Defaults to now. |
+| `ended_at` | integer (Unix ms) or `null` | no | `null` or omitted leaves the delay open. |
+| `note` | string | no | Defaults to `""`. |
+
+`PATCH` accepts any of `ended_at`, `note` and `reason`; an empty patch returns `400`. `DELETE` is idempotent for a missing row. Only `source = manual` rows can be edited or deleted; an automatic blocked row returns `409`, and a blocked delay is closed by unblocking the issue instead.
+
+`DelayItem` is `{ "id": string, "reason": string, "startedAt": number, "endedAt": number | null, "note": string, "source": "blocked" | "manual" }`.
+
 ## Unknown API paths
 
 `/api/*` paths that do not match a more specific route return a JSON 404 for every method (`GET`, `POST`, `PUT`, `PATCH`, `DELETE`, `OPTIONS`, `HEAD`):
@@ -427,15 +480,15 @@ The response carries `Cache-Control: no-store`, so an API client that sends `Acc
 
 | Status | Typical cause |
 | :--- | :--- |
-| `200` | Successful read, update, label deletion, notification list or read-state update, work-note update or publish, plan schedule or clear. |
-| `201` | Intake staging, issue/comment creation, label addition, work-note creation, attachment upload, milestone creation. |
-| `204` | Intake preflight, work-note deletion, attachment deletion. |
+| `200` | Successful read, update, label deletion, notification list or read-state update, work-note update or publish, plan schedule or clear, epic label or children update, delay update. |
+| `201` | Intake staging, issue/comment creation, label addition, work-note creation, attachment upload, milestone creation, delay creation. |
+| `204` | Intake preflight, work-note deletion, attachment deletion, manual delay deletion. |
 | `304` | Passthrough read revalidated with `If-None-Match`. |
 | `400` | Malformed JSON, schema validation failure, invalid issue number, unconfigured repository, empty patch. |
 | `401` | No cockpit session. |
 | `403` | Session lacks the minimum role. |
 | `404` | Repo or issue not mirrored, unknown work note or attachment, unknown API path. |
-| `409` | A plan mutation would push a maintainer over capacity, or demoting the last administrator. |
+| `409` | A plan mutation would push a maintainer over capacity, an epic child is self-referencing, nested, already in another epic, or an automatic delay is edited, or demoting the last administrator. |
 | `413` | Attachment exceeds the upload limit. |
 | `502` | User token unavailable, or an upstream transport failure without a status. |
 | `503` | Auth API while onboarding is incomplete, or readiness not achieved. |
