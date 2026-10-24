@@ -14,6 +14,23 @@
 /** A reserved envelope marker; only one such block is kept per body. */
 const FUNNEL_METADATA_RE = /<!--\s*funnel_metadata\b[\s\S]*?-->/;
 
+/**
+ * The canonical delay reasons. Defined here (rather than in the server-only
+ * actuals module) so client dialogs and the server share one list; the server
+ * module re-exports it.
+ */
+export const DELAY_REASONS = [
+  "dependency",
+  "info",
+  "review",
+  "external",
+  "capacity",
+  "other",
+] as const;
+
+/** A structured reason for a delay record. */
+export type DelayReason = (typeof DELAY_REASONS)[number];
+
 /** Structured blocker fields captured by the Block dialog. */
 export interface BlockInfo {
   /** What is blocking the issue. */
@@ -24,7 +41,18 @@ export interface BlockInfo {
   trying: string;
   /** Optional `YYYY-MM-DD` date to re-check the blocker. */
   recheck: string;
+  /** Why the issue is delayed; older blocks without one read as `other`. */
+  reason: DelayReason;
 }
+
+/**
+ * What `writeBlocked` accepts. `reason` is required by `BlockInfo`, but a
+ * rewrite that only touches another field (for example snoozing the re-check
+ * date) may omit it; the existing reason is then kept, falling back to `other`.
+ */
+export type BlockWriteInfo = Omit<BlockInfo, "reason"> & {
+  reason?: DelayReason;
+};
 
 /** The parsed `blocked:` state for an issue. */
 export interface BlockState {
@@ -143,6 +171,12 @@ function parseBlockedSection(fields: MetadataSection | undefined): BlockState {
     const value = fields.get(key);
     return typeof value === "string" ? value : "";
   };
+  const rawReason = fields.get("reason");
+  const reason: DelayReason =
+    typeof rawReason === "string" &&
+    (DELAY_REASONS as readonly string[]).includes(rawReason)
+      ? (rawReason as DelayReason)
+      : "other";
   return {
     isBlocked: true,
     info: {
@@ -150,6 +184,7 @@ function parseBlockedSection(fields: MetadataSection | undefined): BlockState {
       needs: str("needs"),
       trying: str("trying"),
       recheck: str("recheck"),
+      reason,
     },
   };
 }
@@ -167,22 +202,132 @@ export function readBlocked(body: string): BlockState {
  * comment carries the resolution). A body that never carried Funnel metadata is
  * left untouched when clearing, so manually-labelled issues are not polluted.
  * Sections written by other features are preserved.
+ *
+ * `reason` is required by `BlockInfo`; when a partial rewrite omits it, the
+ * body's existing reason is kept, or `other` when there is none.
  */
-export function writeBlocked(body: string, info: BlockInfo | null): string {
+export function writeBlocked(body: string, info: BlockWriteInfo | null): string {
   const { content, block } = splitFunnelMetadata(body);
   if (!info && block === null) return body;
   const sections = block ? parseSections(envelopeInner(block)) : new Map();
   const fields: MetadataSection = new Map();
   if (info) {
+    const previous = parseBlockedSection(sections.get("blocked")).info;
     fields.set("is_blocked", true);
     fields.set("blocker", info.blocker);
     fields.set("needs", info.needs);
     fields.set("trying", info.trying);
     fields.set("recheck", info.recheck);
+    fields.set("reason", info.reason ?? previous?.reason ?? "other");
   } else {
     fields.set("is_blocked", false);
   }
   sections.set("blocked", fields);
+  return composeFunnelMetadata(content, serializeSections(sections));
+}
+
+/** A `owner/name#number` reference to an epic or a child issue. */
+export interface EpicRef {
+  owner: string;
+  name: string;
+  number: number;
+}
+
+/** The single accepted shape of an epic reference (SPEC §3). */
+const EPIC_REF_RE = /^([\w.-]+)\/([\w.-]+)#(\d+)$/;
+
+/** Parse an `owner/name#number` ref, rejecting malformed and zero refs. */
+export function parseEpicRef(ref: string): EpicRef | null {
+  const match = EPIC_REF_RE.exec(ref);
+  if (!match) return null;
+  const number = Number(match[3]);
+  if (!Number.isSafeInteger(number) || number <= 0) return null;
+  return { owner: match[1], name: match[2], number };
+}
+
+/** Render a ref in the canonical `owner/name#number` form. */
+export function formatEpicRef(ref: EpicRef): string {
+  return `${ref.owner}/${ref.name}#${ref.number}`;
+}
+
+/** Case-insensitive identity of a ref (forge names are case-insensitive). */
+function epicRefKey(ref: EpicRef): string {
+  return `${ref.owner.toLowerCase()}/${ref.name.toLowerCase()}#${ref.number}`;
+}
+
+function toEpicRef(value: EpicRef | string | null | undefined): EpicRef | null {
+  if (!value) return null;
+  if (typeof value === "string") return parseEpicRef(value);
+  return parseEpicRef(formatEpicRef(value));
+}
+
+/** Split a `children` scalar on commas, dropping blanks. */
+function splitEpicChildren(raw: string): string[] {
+  return raw
+    .split(",")
+    .map((part) => part.trim())
+    .filter((part) => part.length > 0);
+}
+
+/**
+ * Read the ordered child refs from the `epic.children` scalar. Malformed refs,
+ * zero issue numbers, duplicates and the issue's own ref (`self`) are dropped;
+ * the rest keep their written order.
+ */
+export function readEpicChildren(
+  body: string,
+  self?: EpicRef | string | null,
+): string[] {
+  const { block } = splitFunnelMetadata(body);
+  if (!block) return [];
+  const fields = parseSections(envelopeInner(block)).get("epic");
+  const raw = fields?.get("children");
+  if (typeof raw !== "string") return [];
+  const selfKey = toEpicRef(self);
+  const selfId = selfKey ? epicRefKey(selfKey) : null;
+  const seen = new Set<string>();
+  const children: string[] = [];
+  for (const part of splitEpicChildren(raw)) {
+    const ref = parseEpicRef(part);
+    if (!ref) continue;
+    const key = epicRefKey(ref);
+    if (key === selfId || seen.has(key)) continue;
+    seen.add(key);
+    children.push(formatEpicRef(ref));
+  }
+  return children;
+}
+
+/**
+ * Rewrite only the `epic:` section with the given children, preserving every
+ * other section. Invalid refs and duplicates are dropped; an empty list removes
+ * the section (and the envelope when nothing else is left). A body that never
+ * carried Funnel metadata and gets no children is returned untouched.
+ */
+export function writeEpicChildren(body: string, children: string[]): string {
+  const { content, block } = splitFunnelMetadata(body);
+  const sections: MetadataSections = block
+    ? parseSections(envelopeInner(block))
+    : new Map();
+  const seen = new Set<string>();
+  const valid: string[] = [];
+  for (const child of children) {
+    const ref = parseEpicRef(child.trim());
+    if (!ref) continue;
+    const key = epicRefKey(ref);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    valid.push(formatEpicRef(ref));
+  }
+  if (valid.length === 0) {
+    if (!sections.delete("epic")) return body;
+    if (sections.size === 0) return content;
+    return composeFunnelMetadata(content, serializeSections(sections));
+  }
+  const fields: MetadataSection = new Map([
+    ["children", valid.join(",")],
+  ]);
+  sections.set("epic", fields);
   return composeFunnelMetadata(content, serializeSections(sections));
 }
 
