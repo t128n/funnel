@@ -82,7 +82,15 @@ describe("settings store", () => {
   });
 
   test("test_allocation_bounds", () => {
-    for (const allocation_percent of [0, 101]) {
+    // Both inclusive boundaries are valid and persist unchanged.
+    for (const allocation_percent of [1, 100]) {
+      writeSettings({
+        ...BASE,
+        planning: { ...BASE.planning, allocation_percent },
+      });
+      expect(readSettings().planning.allocation_percent).toBe(allocation_percent);
+    }
+    for (const allocation_percent of [0, 101, 60.5]) {
       expect(() =>
         writeSettings({
           ...BASE,
@@ -93,7 +101,12 @@ describe("settings store", () => {
   });
 
   test("test_cycle_weeks_bounds", () => {
-    for (const cycle_weeks of [0, 53]) {
+    // Both inclusive boundaries are valid and persist unchanged.
+    for (const cycle_weeks of [1, 52]) {
+      writeSettings({ ...BASE, planning: { ...BASE.planning, cycle_weeks } });
+      expect(readSettings().planning.cycle_weeks).toBe(cycle_weeks);
+    }
+    for (const cycle_weeks of [0, 53, 1.5]) {
       expect(() =>
         writeSettings({ ...BASE, planning: { ...BASE.planning, cycle_weeks } })
       ).toThrow(SettingsError);

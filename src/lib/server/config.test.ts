@@ -117,6 +117,19 @@ describe("loadFunnelConfig", () => {
     expect(config.intake).toEqual({});
   });
 
+  test("test_planning_defaults_from_empty_store", async () => {
+    // No rows at all: the planning section must compose from per-key defaults.
+    const config = await loadFunnelConfig();
+
+    expect(config.planning).toEqual({
+      size_minutes: { sm: 120, md: 240, lg: 480 },
+      allocation_percent: 60,
+      cycle_weeks: 2,
+      cycle_anchor: "2024-01-01",
+      maintainers: [],
+    });
+  });
+
   test("test_duplicate_maintainer_rejected", async () => {
     const maintainer = (login: string) => ({
       forge: "github",
