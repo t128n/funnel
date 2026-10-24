@@ -10,7 +10,7 @@ import {
   seedPlanningRepo,
 } from "#tests/planning-helpers";
 import { scheduleIssue, unscheduleIssue } from "./mutations";
-import { getPlanItem, listPlanItems } from "./store";
+import { getPlanItem, listPlanItems, setPlanItem } from "./store";
 
 const WEEK = "2026-10-19";
 const NEXT = "2026-10-26";
@@ -125,6 +125,62 @@ describe("scheduleIssue", () => {
 
     expect(schedule(1, NEXT)).toEqual({ ok: true });
     expect(getPlanItem("orgA", "core", 1)?.weekStart).toBe(NEXT);
+
+    expect(schedule(2)).toEqual({ ok: true });
+    expect(getPlanItem("orgA", "core", 2)?.weekStart).toBe(WEEK);
+  });
+
+  test("test_failed_move_writes_nothing", () => {
+    const repoId = seedPlanningRepo("orgA/core");
+    seedAnnIssue(repoId, 1);
+    seedAnnIssue(repoId, 2);
+
+    expect(schedule(1)).toEqual({ ok: true });
+    expect(schedule(2, NEXT)).toEqual({ ok: true });
+
+    const moved = schedule(1, NEXT);
+    expect(moved.ok).toBe(false);
+    if (!moved.ok) expect(moved.status).toBe(409);
+    expect(getPlanItem("orgA", "core", 1)?.weekStart).toBe(WEEK);
+    expect(getPlanItem("orgA", "core", 2)?.weekStart).toBe(NEXT);
+  });
+
+  test("test_same_login_other_instance_is_not_affected", () => {
+    const repoId = seedPlanningRepo("orgA/core");
+    // A maintainer on another forge instance shares ann's login but not her
+    // identity; their over-cap lane must not reject ann's schedule.
+    seedPlanningIssue({
+      repoId,
+      number: 1,
+      size: "lg",
+      assignees: [
+        {
+          id: 0,
+          externalId: "ann",
+          forge: "ghe",
+          instance: "ghe.example",
+          login: "ann",
+          avatarUrl: "",
+          url: "",
+        },
+      ],
+    });
+    seedAnnIssue(repoId, 2);
+    setMaintainers([
+      rosterRow("ann", {
+        forge: "ghe",
+        instance: "ghe.example",
+        weekly_minutes: 500,
+      }),
+      rosterRow("ann"),
+    ]);
+    // Simulate a roster/size change after scheduling: ghe/ann is already over.
+    setPlanItem({
+      org: "orgA",
+      name: "core",
+      issueNumber: 1,
+      weekStart: WEEK,
+    });
 
     expect(schedule(2)).toEqual({ ok: true });
     expect(getPlanItem("orgA", "core", 2)?.weekStart).toBe(WEEK);

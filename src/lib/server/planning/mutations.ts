@@ -10,9 +10,9 @@
  */
 import { isMondayISO } from "#lib/server/planning/calendar";
 import {
+  distributeIssues,
   estimateMinutes,
   maintainerKey,
-  overCapacity,
   type CapacityIssue,
   type CapacityMaintainer,
   type CapacityViolation,
@@ -150,17 +150,20 @@ export function scheduleIssue(input: ScheduleInput): ScheduleResult {
   const loginByKey = new Map(
     active.map((maintainer) => [maintainerKey(maintainer), maintainer.login]),
   );
-  const affectedLogins = new Set(
-    candidateAssignees
-      .map((key) => loginByKey.get(key))
-      .filter((login): login is string => login !== undefined),
-  );
-  const violations = overCapacity(
+  const affectedKeys = new Set(candidateAssignees);
+  const violations: CapacityViolation[] = distributeIssues(
     projected,
     maintainers,
     planning.allocation_percent,
     1,
-  ).filter((violation) => affectedLogins.has(violation.login));
+  )
+    .totals.filter((lane) => lane.over && affectedKeys.has(lane.key))
+    .map((lane) => ({
+      login: loginByKey.get(lane.key) ?? lane.key,
+      capMinutes: lane.capMinutes,
+      committedMinutes: lane.committedMinutes,
+      excessMinutes: lane.committedMinutes - lane.capMinutes,
+    }));
 
   if (violations.length > 0) {
     return fail(409, "Week capacity exceeded", violations);
