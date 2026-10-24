@@ -114,7 +114,7 @@ function refKey(ref: EpicRef | string): string {
             : null;
         })()
       : ref;
-  if (!parsed) return ref.trim().toLowerCase();
+  if (!parsed) return typeof ref === "string" ? ref.trim().toLowerCase() : "";
   return `${parsed.owner.toLowerCase()}/${parsed.name.toLowerCase()}#${parsed.number}`;
 }
 
