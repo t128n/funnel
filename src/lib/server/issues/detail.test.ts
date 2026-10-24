@@ -1,10 +1,18 @@
 import { beforeEach, describe, expect, test } from "bun:test";
 import { setConfig } from "#lib/server/config";
+import { db } from "#lib/server/db/index";
+import {
+	stateIssueDelay,
+	stateIssueEvent,
+} from "#lib/server/db/schema";
+import { writeEpicChildren } from "#lib/funnel-metadata";
 import {
 	replaceRepoAssignees,
 	replaceRepoLabels,
+	setIssueMetadata,
 	upsertIssue,
 	upsertRepo,
+	type StoredMetadata,
 	type UserRecord,
 } from "#lib/server/sync/mirror";
 import { clearMirror } from "#tests/mirror-helpers";
@@ -95,8 +103,46 @@ function seed(): void {
 	);
 }
 
+const START = Date.parse("2026-10-01T00:00:00Z");
+const MINUTE = 60_000;
+
+function metadata(size: string | null, isEpic = false): StoredMetadata {
+	return {
+		status: "todo",
+		impact: null,
+		urgency: null,
+		priority: null,
+		size,
+		blocked: false,
+		isEpic,
+		labelConflict: false,
+	};
+}
+
+function event(
+	kind: "status" | "state",
+	toValue: string,
+	at: number,
+): void {
+	db.insert(stateIssueEvent)
+		.values({
+			id: `evt-${kind}-${at}-${toValue}`,
+			org: "orgA",
+			name: "core",
+			issueNumber: 1,
+			kind,
+			fromValue: null,
+			toValue,
+			at,
+			source: "test",
+		})
+		.run();
+}
+
 beforeEach(() => {
 	clearMirror();
+	db.delete(stateIssueEvent).run();
+	db.delete(stateIssueDelay).run();
 	setConfig(TEST_CONFIG);
 	seed();
 });
@@ -129,7 +175,114 @@ describe("getIssueDetail", () => {
 		]);
 	});
 
-	test("returns undefined for an unmirrored issue", () => {
+	test("test_detail_time", () => {
+		setIssueMetadata(coreId, 1, metadata("md"));
+		event("status", "in-progress", START);
+		event("status", "todo", START + 120 * MINUTE);
+
+		const detail = getIssueDetail(coreId, 1);
+		expect(detail?.time).toMatchObject({
+			estimateMinutes: 240,
+			actualMinutes: 120,
+			varianceMinutes: -120,
+		});
+	});
+
+	test("test_detail_delays", () => {
+		db.insert(stateIssueDelay)
+			.values([
+				{
+					id: "delay-older",
+					org: "orgA",
+					name: "core",
+					issueNumber: 1,
+					reason: "info",
+					startedAt: START,
+					endedAt: START + MINUTE,
+					note: "older",
+					source: "manual",
+				},
+				{
+					id: "delay-newer",
+					org: "orgA",
+					name: "core",
+					issueNumber: 1,
+					reason: "dependency",
+					startedAt: START + 30 * MINUTE,
+					endedAt: null,
+					note: "newer",
+					source: "blocked",
+				},
+			])
+			.run();
+
+		const detail = getIssueDetail(coreId, 1);
+		expect(detail?.delays.map((delay) => delay.id)).toEqual([
+			"delay-older",
+			"delay-newer",
+		]);
+	});
+
+	test("test_detail_epic_parent", () => {
+		upsertIssue(
+			{
+				externalId: "105",
+				kind: "issue",
+				repoId: coreId,
+				number: 5,
+				title: "Epic",
+				body: writeEpicChildren("", ["orgA/core#1"]),
+				url: "",
+				state: "open",
+				stateReason: null,
+				author: null,
+				milestoneNumber: null,
+				createdAt: 1,
+				updatedAt: 1,
+				closedAt: null,
+				labels: ["epic"],
+				assignees: [],
+				comments: [],
+			},
+			metadata(null, true),
+		);
+
+		const detail = getIssueDetail(coreId, 1);
+		expect(detail?.epic).toEqual({
+			repo: "orgA/core",
+			number: 5,
+			title: "Epic",
+		});
+	});
+
+	test("test_detail_is_epic", () => {
+		upsertIssue(
+			{
+				externalId: "106",
+				kind: "issue",
+				repoId: coreId,
+				number: 6,
+				title: "Epic issue",
+				body: "",
+				url: "",
+				state: "open",
+				stateReason: null,
+				author: null,
+				milestoneNumber: null,
+				createdAt: 1,
+				updatedAt: 1,
+				closedAt: null,
+				labels: ["epic"],
+				assignees: [],
+				comments: [],
+			},
+			metadata(null, true),
+		);
+
+		expect(getIssueDetail(coreId, 6)?.issue.isEpic).toBe(true);
+	});
+
+	test("test_detail_missing", () => {
 		expect(getIssueDetail(coreId, 999)).toBeUndefined();
 		expect(getIssueDetail(99, 1)).toBeUndefined();
 	});

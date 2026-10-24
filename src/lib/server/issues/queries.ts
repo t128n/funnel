@@ -36,6 +36,14 @@ import {
   mirrorThreadLabel,
   mirrorUser,
 } from "#lib/server/db/schema";
+import {
+  computeIssueTime,
+  type IssueTime,
+} from "#lib/server/actuals/time";
+import {
+  listDelays,
+  listIssueEvents,
+} from "#lib/server/actuals/store";
 import { listAttachments } from "#lib/server/attachments/store";
 import {
   countPendingSubmissions,
@@ -44,7 +52,9 @@ import {
 import { listRepos } from "#lib/server/sync/mirror";
 import { mirrorRevision } from "#lib/server/sync/revision";
 import { listWorkNotes } from "#lib/server/work-notes";
-import { readBlocked } from "#lib/funnel-metadata";
+import { estimateMinutes } from "#lib/server/planning/capacity";
+import { readSettings } from "#lib/server/settings/store";
+import { readBlocked, readEpicChildren } from "#lib/funnel-metadata";
 import {
   isRetiredPriorityLabel,
   parseImpact,
@@ -73,6 +83,7 @@ import {
 import type {
   AttentionItem,
   CommentItem,
+  EpicRef,
   FilterOptions,
   InboxEntry,
   IssueDetail,
@@ -1006,6 +1017,58 @@ function toMilestoneItem(row: {
   };
 }
 
+/** Case-insensitive `owner/name#number` identity used for epic children. */
+function epicChildKey(ref: {
+  owner: string;
+  name: string;
+  number: number;
+}): string {
+  return `${ref.owner.toLowerCase()}/${ref.name.toLowerCase()}#${ref.number}`;
+}
+
+/**
+ * The first epic whose body lists this issue as a child (SPEC §3). Children
+ * live only in the epic body, so the scan parses each epic's `epic.children`
+ * scalar and compares the canonical ref. Returns the Inspector's compact
+ * parent reference, or `null` when the issue belongs to no epic.
+ */
+function epicParent(
+  org: string,
+  name: string,
+  number: number,
+): EpicRef | null {
+  const wanted = epicChildKey({ owner: org, name, number });
+  const rows = db
+    .select({
+      org: mirrorRepo.org,
+      name: mirrorRepo.name,
+      number: mirrorThread.number,
+      title: mirrorThread.title,
+      body: mirrorThread.body,
+    })
+    .from(mirrorThread)
+    .innerJoin(mirrorRepo, eq(mirrorThread.repoId, mirrorRepo.id))
+    .where(eq(mirrorThread.isEpic, 1))
+    .orderBy(desc(mirrorThread.updatedAt), desc(mirrorThread.number))
+    .all();
+
+  for (const row of rows) {
+    const children = readEpicChildren(row.body, {
+      owner: row.org,
+      name: row.name,
+      number: row.number,
+    });
+    if (children.some((child) => child.toLowerCase() === wanted)) {
+      return {
+        repo: `${row.org}/${row.name}`,
+        number: row.number,
+        title: row.title,
+      };
+    }
+  }
+  return null;
+}
+
 /**
  * Full Inspector Pane payload for one issue: the stream row plus the body,
  * the raw comment thread (oldest first; rendered to HTML at the API boundary),
@@ -1118,9 +1181,23 @@ export function getIssueDetail(
   // the disposable `repoId`, so it outlives mirror pruning and re-sync.
   const [org, name] = issue.repo.split("/");
 
+  const delays = listDelays(org, name, number);
+  const sizeMinutes = readSettings().planning.size_minutes;
+  const time: IssueTime = computeIssueTime({
+    events: listIssueEvents(org, name, number),
+    delays,
+    estimateMinutes: estimateMinutes(issue.size, sizeMinutes),
+    openedAt: issue.createdAt,
+    closedAt: issue.closedAt,
+    now: Date.now(),
+  });
+
   return {
     issue,
     body: bodyRow?.body ?? "",
+    time,
+    delays,
+    epic: epicParent(org, name, number),
     comments,
     commentTotal,
     hasMoreComments: commentTotal > comments.length,

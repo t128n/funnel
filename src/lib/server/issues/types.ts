@@ -6,6 +6,8 @@
  * mixed submission/issue queue, and the six-column status board.
  */
 import type { StagedSubmission } from "#lib/server/intake/staging";
+import type { DelayItem } from "#lib/server/actuals/store";
+import type { IssueTime } from "#lib/server/actuals/time";
 
 /**
  * A mirrored person (author or assignee). Identity is the forge-native
@@ -86,6 +88,14 @@ export interface IssueListItem {
   milestone: RepoMilestoneRef | null;
   /** Every label on the issue, reserved and non-reserved. */
   labels: string[];
+}
+
+/** A parent epic as the Inspector renders it. */
+export interface EpicRef {
+  /** `owner/name` of the epic's repository. */
+  repo: string;
+  number: number;
+  title: string;
 }
 
 /** The Inbox unifies staged intake submissions with untriaged issues. */
@@ -188,6 +198,12 @@ export interface RepoLabelOption {
 export interface IssueDetail {
   issue: IssueListItem;
   body: string;
+  /** Observed and estimated time for the issue (SPEC §1). */
+  time: IssueTime;
+  /** Delay intervals, oldest first (SPEC §2). */
+  delays: DelayItem[];
+  /** The epic that lists this issue as a child, or `null` when none does. */
+  epic: EpicRef | null;
   comments: CommentItem[];
   /** Total comments on the issue, including any older than the returned page. */
   commentTotal: number;
