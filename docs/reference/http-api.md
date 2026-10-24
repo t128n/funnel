@@ -211,7 +211,7 @@ Detail responses:
 | `watching` | Boolean; whether the signed-in viewer watches this issue. |
 | `time` | `IssueTime`: `actualMinutes`, `estimateMinutes`, `varianceMinutes`, `leadMinutes`, `cycleMinutes`, `delayMinutes`, `delayCount`. |
 | `delays` | `DelayItem[]`, oldest first: `id`, `reason`, `startedAt`, `endedAt`, `note`, `source`. |
-| `epic` | `EpicRef` (`owner`, `name`, `number`) when the issue is a child, otherwise `null`. |
+| `epic` | `EpicRef` (`repo`, `number`, `title`) when the issue is a child, otherwise `null`. |
 
 `author` and `uploadedBy` are `UserRef` objects or `null` — as are `comments[].author` and `workNotes[].author` when the mirror cannot resolve the person — while entries in `assignees` are always `UserRef` objects. Markdown is rendered with the server's sanitised renderer at the delivery boundary; the raw body is retained for the Inspector's editors.
 
