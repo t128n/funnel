@@ -129,6 +129,7 @@ const GROUP_VALUES: Record<LabelGroup, ReadonlySet<string>> = {
   urgency: groupMembers("urgency"),
   size: new Set(SIZE_VALUES),
   flags: groupMembers("flags"),
+  epic: groupMembers("epic"),
 };
 
 function isCanonical(group: LabelGroup, value: string): boolean {
