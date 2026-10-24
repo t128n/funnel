@@ -110,6 +110,7 @@ const issueColumns = {
   urgency: mirrorThread.urgency,
   size: mirrorThread.size,
   blocked: mirrorThread.blocked,
+  isEpic: mirrorThread.isEpic,
   labelConflict: mirrorThread.labelConflict,
   createdAt: mirrorThread.createdAt,
   updatedAt: mirrorThread.updatedAt,
@@ -140,6 +141,7 @@ interface RawRow {
   urgency: number | null;
   size: string | null;
   blocked: number;
+  isEpic: number;
   labelConflict: number;
   createdAt: number;
   updatedAt: number;
@@ -447,6 +449,7 @@ function hydrate(rows: RawRow[]): IssueListItem[] {
       urgency: parseUrgency(row.urgency),
       size: row.size,
       blocked: row.blocked === 1,
+      isEpic: row.isEpic === 1,
       labelConflict: row.labelConflict === 1,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,

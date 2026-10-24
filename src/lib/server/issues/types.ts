@@ -72,6 +72,8 @@ export interface IssueListItem {
   size: string | null;
   /** Orthogonal `blocked` flag (SPEC §5.1); not a workflow stage. */
   blocked: boolean;
+  /** Whether the issue carries the `epic` type label (SPEC §5.1). */
+  isEpic?: boolean;
   /** Ambiguous reserved-label timeline flagged for the UI (SPEC §5.2.2). */
   labelConflict: boolean;
   /** When the issue was opened (from GitHub); drives the "opened … ago" label. */

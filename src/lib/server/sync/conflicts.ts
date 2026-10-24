@@ -39,6 +39,8 @@ export interface DerivedMetadata {
   size: string | null;
   /** Whether the orthogonal `blocked` flag is present (SPEC §5.1). */
   blocked: boolean;
+  /** Whether the issue carries the `epic` type label (SPEC §5.1). */
+  isEpic: boolean;
   /** Groups carrying more than one label. */
   conflicts: LabelGroup[];
 }
@@ -49,6 +51,7 @@ export const GROUP_ORDER: readonly LabelGroup[] = [
   "urgency",
   "size",
   "flags",
+  "epic",
 ];
 
 /** Canonical label name (lowercase) -> group, for fast lookups. */
@@ -97,6 +100,7 @@ export function deriveMetadata(labelNames: readonly string[]): DerivedMetadata {
     priority: null,
     size: null,
     blocked: false,
+    isEpic: false,
     conflicts: [],
   };
   for (const group of GROUP_ORDER) {
@@ -108,6 +112,7 @@ export function deriveMetadata(labelNames: readonly string[]): DerivedMetadata {
     else if (group === "urgency") metadata.urgency = URGENCY_LABELS[winner] ?? null;
     else if (group === "size") metadata.size = winner;
     else if (group === "flags") metadata.blocked = true;
+    else if (group === "epic") metadata.isEpic = true;
     if (names.length > 1) metadata.conflicts.push(group);
   }
   metadata.priority = derivePriorityOrNull(metadata.impact, metadata.urgency);
