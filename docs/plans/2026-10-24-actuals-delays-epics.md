@@ -153,14 +153,14 @@ critical path: T1 → T4 → T6 → T7 → T8 (17.0 min) · peak width 3 · pred
 **Notes:** Add `time: IssueTime`, `delays: DelayItem[]`, `epic: EpicRef | null`. `getIssueDetail` computes time from `listDelays` + `listIssueEvents` and finds the parent via a T6 helper. The mirror detail route returns the fields unchanged.
 
 ### T8 Inspector time, delays and epic · Complexity 5 · Est. context 36k
-**Owns:** src/lib/components/issue/InspectorPane.svelte, src/lib/components/issue/IssueTimeCard.svelte, src/lib/components/issue/DelayList.svelte, src/lib/components/issue/RecordDelayDialog.svelte, src/lib/components/issue/EpicProperty.svelte, src/lib/components/board/BlockActionDialog.svelte
+**Owns:** src/lib/components/issue/InspectorPane.svelte, src/lib/components/issue/IssueTimeCard.svelte, src/lib/components/issue/DelayList.svelte, src/lib/components/issue/RecordDelayDialog.svelte, src/lib/components/issue/EpicProperty.svelte, src/lib/components/issue/inspector-format.ts, src/lib/components/issue/inspector-format.test.ts, src/lib/components/board/BlockActionDialog.svelte
 **Components:** 6
 **LOC owned:** 340
 **Tests:** fast
 **Model:** sonnet
 **Produces:** time card · delay list/dialog · block reason · epic property
 **Review Focus:** `test_time_card_formats`: 240→`4h`, 90→`1h 30m`, 0→`0m`. `test_delay_list_splits_auto_and_manual`: blocked rows read-only, manual rows closable. `test_block_reason_required`: dialog payload includes the reason. `test_epic_property_states`: epic badge+link, child parent link, otherwise writer-only mark action. `test_read_only_hides_controls`.
-**Notes:** Use `formatMinutes` from `#lib/planning`. Delay dialog posts to `/api/.../delays`; close uses PATCH, delete uses DELETE, then `invalidateAll`. Extend the block payload with reason. Epic property links to `/epics/{owner}/{repo}/{number}`; mark/remove calls `PUT /epic`.
+**Notes:** `inspector-format.ts` holds the testable helpers. Use `formatMinutes`; delay dialog posts to `/api/.../delays`, close PATCH, delete DELETE then `invalidateAll`. Block payload gains reason. Epic links to `/epics/...`; mark/remove calls `PUT /epic`.
 
 ### T9 epics views and navigation · Complexity 5 · Est. context 36k
 **Owns:** src/routes/*/epics/+page.server.ts, src/routes/*/epics/+page.svelte, src/routes/*/epics/[owner]/[repo]/[number]/+page.server.ts, src/routes/*/epics/[owner]/[repo]/[number]/+page.svelte, src/lib/components/epics/*, src/lib/components/app-sidebar.svelte, tests/epics-page.test.ts
@@ -170,7 +170,7 @@ critical path: T1 → T4 → T6 → T7 → T8 (17.0 min) · peak width 3 · pred
 **Model:** sonnet
 **Produces:** `/epics` · `/epics/{owner}/{repo}/{number}` · sidebar `Epics` item
 **Review Focus:** `test_epics_list_open_first`. `test_epics_list_rollups`: progress, estimate, actual and delay from `listEpics`. `test_epic_detail_children`: rows and rollups. `test_add_child_replaces_list`: dialog sends the full array. `test_remove_child`: sends the list without the child. `test_sidebar_epics_active`. `test_read_only_hides_edit`.
-**Notes:** `/epics` lists open then closed; detail shows header, rollups and child table. Add-child searches open issues not already in another epic and sends the full list to `PUT /epic/children`. Add `Epics` under Workspace with `LayersIcon`.
+**Notes:** `/epics` lists open then closed; detail shows rollups and child table. Add-child sends the full list to `PUT /epic/children`. Add `Epics` under Workspace.
 
 ### T10 documentation · Complexity 2 · Est. context 20k
 **Owns:** docs/how-to/use/track-time-and-delays.md, docs/how-to/use/epics.md, docs/reference/reserved-labels.md, docs/reference/database-schema.md, docs/reference/routes-and-pages.md, docs/reference/http-api.md, docs/reference/glossary.md, docs/explanation/workflow-model.md, docs/README.md, tests/docs-actuals-epics.test.ts
