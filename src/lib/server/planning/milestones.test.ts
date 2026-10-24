@@ -94,6 +94,32 @@ describe("milestone plans", () => {
     });
   });
 
+  test("test_overdue_due_window_floors_at_zero", async () => {
+    const repoId = seedPlanningRepo("orgA/core");
+    seedMilestones(repoId, [
+      planningMilestone(1, {
+        dueOn: Date.UTC(2026, 9, 12),
+        openIssues: 1,
+      }),
+    ]);
+    seedPlanningIssue({
+      repoId,
+      number: 1,
+      size: "md",
+      milestoneNumber: 1,
+      assignees: [planningUser("ann")],
+    });
+
+    const [plan] = await milestonePlans(NOW);
+
+    expect(plan).toMatchObject({ capacityWeeks: 0 });
+    expect(plan.lanes[0]).toMatchObject({
+      capMinutes: 0,
+      committedMinutes: 240,
+      over: true,
+    });
+  });
+
   test("test_groups_by_repo_and_number", async () => {
     const core = seedPlanningRepo("orgA/core");
     const web = seedPlanningRepo("orgA/web");

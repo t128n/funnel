@@ -7,8 +7,10 @@ import {
   resetPlanning,
   seedPlanningIssue,
   seedPlanningRepo,
+  type PlanningIssueSeed,
 } from "#tests/planning-helpers";
 import { TEST_CONFIG } from "#tests/test-config";
+import { clearMirror } from "#tests/mirror-helpers";
 import { cyclePlan, weekPlan } from "./plans";
 
 const WEEK = "2026-10-19";
@@ -172,5 +174,85 @@ describe("week and cycle plans", () => {
     expect(plan.lanes[0]).toMatchObject({ capMinutes: 360, committedMinutes: 0 });
     expect(plan.unassigned).toEqual({ committedMinutes: 0, issues: [] });
     expect(plan.unestimated).toEqual([]);
+  });
+
+  test("test_closed_and_pruned_plans_free_capacity", async () => {
+    const repoId = seedPlanningRepo("orgA/core");
+    seedPlanningIssue({
+      repoId,
+      number: 1,
+      size: "md",
+      state: "closed",
+      assignees: [planningUser("ann")],
+    });
+    seedPlanningIssue({
+      repoId,
+      number: 2,
+      size: "lg",
+      assignees: [planningUser("ann")],
+    });
+    for (const issueNumber of [1, 2]) {
+      setPlanItem({ org: "orgA", name: "core", issueNumber, weekStart: WEEK });
+    }
+
+    const afterClose = await weekPlan(WEEK);
+    expect(afterClose.lanes[0]).toMatchObject({
+      committedMinutes: 480,
+      remainingMinutes: -120,
+      over: true,
+    });
+    expect(afterClose.lanes[0].issues.map((issue) => issue.number)).toEqual([2]);
+
+    // The durable row survives, but pruning the mirror frees its capacity.
+    clearMirror();
+    const pruned = await weekPlan(WEEK);
+    expect(pruned.lanes[0]).toMatchObject({ committedMinutes: 0, over: false });
+    expect(pruned.lanes[0].issues).toEqual([]);
+    expect(pruned.unassigned).toEqual({ committedMinutes: 0, issues: [] });
+  });
+
+  test("test_lane_issue_indexes_map_back", async () => {
+    const repoId = seedPlanningRepo("orgA/core");
+    const seeds: PlanningIssueSeed[] = [
+      { number: 1, size: "md", assignees: [planningUser("ann")] },
+      { number: 2, size: "lg", assignees: [planningUser("ann")] },
+      {
+        number: 3,
+        size: "sm",
+        assignees: [planningUser("ann"), planningUser("bob")],
+      },
+      { number: 4, size: "md", assignees: [] },
+    ];
+    for (const seed of seeds) {
+      seedPlanningIssue({ repoId, ...seed });
+      setPlanItem({
+        org: "orgA",
+        name: "core",
+        issueNumber: seed.number,
+        weekStart: WEEK,
+      });
+    }
+    usePlanning([maintainer("ann", 600), maintainer("bob", 600)]);
+
+    const plan = await weekPlan(WEEK);
+
+    expect(plan.lanes.map((lane) => lane.maintainer.login)).toEqual([
+      "ann",
+      "bob",
+    ]);
+    expect(plan.lanes[0]).toMatchObject({
+      capMinutes: 360,
+      committedMinutes: 780,
+      over: true,
+    });
+    expect(plan.lanes[0].issues.map((issue) => issue.number)).toEqual([1, 2, 3]);
+    expect(plan.lanes[1]).toMatchObject({
+      capMinutes: 360,
+      committedMinutes: 60,
+      over: false,
+    });
+    expect(plan.lanes[1].issues.map((issue) => issue.number)).toEqual([3]);
+    expect(plan.unassigned.committedMinutes).toBe(240);
+    expect(plan.unassigned.issues.map((issue) => issue.number)).toEqual([4]);
   });
 });
