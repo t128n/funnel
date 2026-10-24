@@ -8,6 +8,7 @@
  */
 import BellRingIcon from '@lucide/svelte/icons/bell-ring';
 import BotIcon from '@lucide/svelte/icons/bot';
+import CalendarRangeIcon from '@lucide/svelte/icons/calendar-range';
 import CircleUserIcon from '@lucide/svelte/icons/circle-user';
 import FlagIcon from '@lucide/svelte/icons/flag';
 import FolderGit2Icon from '@lucide/svelte/icons/folder-git-2';
@@ -77,6 +78,13 @@ export const settingsGroups: SettingsGroup[] = [
 			{ id: 'projects', label: 'Projects', href: '/settings/projects', minRole: 'admin', icon: TagIcon },
 			{ id: 'intake', label: 'Intake', href: '/settings/intake', minRole: 'admin', icon: InboxIcon },
 			{ id: 'board', label: 'Board', href: '/settings/board', minRole: 'admin', icon: KanbanIcon },
+			{
+				id: 'planning',
+				label: 'Planning',
+				href: '/settings/planning',
+				minRole: 'admin',
+				icon: CalendarRangeIcon
+			},
 			{
 				id: 'notifications',
 				label: 'Notifications',
