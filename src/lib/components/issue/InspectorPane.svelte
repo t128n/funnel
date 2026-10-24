@@ -12,8 +12,13 @@
 	import DetailShell from '#lib/components/detail/DetailShell.svelte';
 	import ActivityTimeline from '#lib/components/issue/ActivityTimeline.svelte';
 	import AttachmentDropbox from '#lib/components/issue/AttachmentDropbox.svelte';
+	import DelayList from '#lib/components/issue/DelayList.svelte';
+	import EpicProperty from '#lib/components/issue/EpicProperty.svelte';
 	import IssueActionDialog from '#lib/components/issue/IssueActionDialog.svelte';
+	import IssueTimeCard from '#lib/components/issue/IssueTimeCard.svelte';
 	import MilestonePicker from '#lib/components/issue/MilestonePicker.svelte';
+	import RecordDelayDialog from '#lib/components/issue/RecordDelayDialog.svelte';
+	import { delayReasonLabel } from '#lib/components/issue/inspector-format';
 	import PriorityPicker from '#lib/components/issue/PriorityPicker.svelte';
 	import * as Alert from '#lib/components/ui/alert';
 	import { Button } from '#lib/components/ui/button';
@@ -179,6 +184,9 @@
 	/** Structured block/unblock dialog (SPEC §5.1). */
 	let blockedDialogMode = $state<'block' | 'unblock' | null>(null);
 	let blockError = $state<string | null>(null);
+
+	/** Manual delay dialog (SPEC §2, §5). */
+	let delayDialogOpen = $state(false);
 
 	// `detail` is the raw fetched payload; `issue` reflects pending overlays so
 	// optimistic edits show instantly and reconcile on the next SSE refresh.
@@ -1243,7 +1251,17 @@
 					<TagIcon class="size-3.5" />
 				{/snippet}
 			</MultiSelect>
+
+			<EpicProperty
+				issue={detail.issue}
+				parent={detail.epic}
+				{repo}
+				{number}
+				mayWrite={mayWrite}
+			/>
 		</section>
+
+		<IssueTimeCard time={detail.time} />
 
 		{#if blockedState.isBlocked && blockedState.info}
 			<section
@@ -1259,6 +1277,10 @@
 						</span>
 					{/if}
 				</div>
+				<p class="text-muted-foreground">
+					<span class="font-medium">Reason:</span>
+					{delayReasonLabel(blockedState.info.reason)}
+				</p>
 				<p class="text-foreground">{blockedState.info.blocker}</p>
 				{#if blockedState.info.needs}
 					<p class="text-muted-foreground">
@@ -1274,6 +1296,14 @@
 				{/if}
 			</section>
 		{/if}
+
+		<DelayList
+			delays={detail.delays}
+			{repo}
+			{number}
+			mayWrite={mayWrite}
+			onrecord={() => (delayDialogOpen = true)}
+		/>
 
 		<section bind:this={activityEl} class="flex flex-col gap-3" aria-label="Activity">
 			<div class="flex items-center justify-between">
@@ -1335,6 +1365,13 @@
 		if (dialogMode === 'reopen') void confirmReopen(payload);
 		else void confirmClose(payload);
 	}}
+/>
+
+<RecordDelayDialog
+	open={delayDialogOpen}
+	{repo}
+	{number}
+	onopenchange={(open) => (delayDialogOpen = open)}
 />
 
 <BlockActionDialog

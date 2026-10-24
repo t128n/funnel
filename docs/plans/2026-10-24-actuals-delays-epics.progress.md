@@ -1,0 +1,76 @@
+- start b0a2e62a5031ff9470eea3eb9846c699719fbfb7
+- unblocked: dispatched T0 T1 T3 T10 at 17:37:28; waiting on fixes: none
+- tests fast passed=0 failed=1 skipped=0 seconds=7.0
+- tests fast passed=2 failed=4 skipped=0 seconds=0.3
+- tests full passed=815 failed=4 skipped=0 seconds=6.8
+- tests fast passed=6 failed=0 skipped=0 seconds=0.3
+- tests fast passed=6 failed=0 skipped=0 seconds=0.4
+- tests fast passed=0 failed=1 skipped=0 seconds=0.3
+- commit T1 d0e767ead5 persistence and migration
+- tests fast passed=29 failed=0 skipped=0 seconds=0.3
+- tests fast passed=31 failed=9 skipped=0 seconds=0.5
+- tests fast passed=5 failed=0 skipped=0 seconds=0.3
+- tests fast passed=40 failed=0 skipped=0 seconds=0.4
+- tests fast passed=29 failed=0 skipped=0 seconds=0.2
+- tests fast passed=11 failed=1 skipped=0 seconds=0.3
+- tests fast passed=5 failed=0 skipped=0 seconds=0.2
+- tests fast passed=5 failed=0 skipped=0 seconds=0.5
+- tests fast passed=40 failed=0 skipped=0 seconds=0.4
+- tests fast passed=42 failed=0 skipped=0 seconds=0.6
+- commit T10 3d8fa1b855 documentation
+- commit T2 ddb63931fd epic label and isEpic cache
+- commit T3 50a1219da6 metadata: block reason and epic children
+- tests fast passed=48 failed=0 skipped=0 seconds=0.3
+- Ruling: unowned label-mutation map and vocabulary fixture updated by fixer after T2 added the epic group - low risk
+- tests fast passed=22 failed=0 skipped=0 seconds=0.2
+- tests fast passed=12 failed=0 skipped=0 seconds=0.4
+- tests fast passed=47 failed=0 skipped=0 seconds=0.5
+- tests fast passed=47 failed=0 skipped=0 seconds=0.5
+- commit T4 37bd554cbe actuals, delays and delay API
+- tests fast passed=12 failed=0 skipped=0 seconds=0.3
+- tests fast passed=36 failed=0 skipped=0 seconds=0.5
+- tests fast passed=50 failed=0 skipped=0 seconds=0.4
+- tests fast passed=8 failed=0 skipped=0 seconds=0.4
+- tests fast passed=50 failed=0 skipped=0 seconds=0.4
+- tests fast passed=13 failed=0 skipped=0 seconds=1.3
+- commit T6 58509b7b83 epic queries, mutations and API
+- tests fast passed=39 failed=0 skipped=0 seconds=0.6
+- tests fast passed=50 failed=0 skipped=0 seconds=0.4
+- commit T5 1956192454 sync transitions
+- tests fast passed=49 failed=0 skipped=0 seconds=0.6
+- commit T7 217ace5d71 issue detail integration
+- tests fast passed=7 failed=0 skipped=0 seconds=0.4
+- tests fast passed=3 failed=0 skipped=0 seconds=0.3
+- commit T9 383f0ed29f epics views and navigation
+- commit T6 1e94043275980ffd3b70d00ddb0fd595497c6e2d
+- tests fast passed=12 failed=0 skipped=0 seconds=0.3
+- tests fast passed=20 failed=0 skipped=0 seconds=1.6
+- tests fast passed=36 failed=2 skipped=0 seconds=0.5
+- tests fast passed=123 failed=0 skipped=0 seconds=0.5
+- tests fast passed=67 failed=0 skipped=0 seconds=0.7
+- tests fast passed=5 failed=0 skipped=0 seconds=0.4
+- tests fast passed=46 failed=0 skipped=0 seconds=0.4
+- commit T8 43e6fbf068 Inspector time, delays and epic
+- tests fast passed=16 failed=0 skipped=0 seconds=0.8
+- tests fast passed=67 failed=0 skipped=0 seconds=0.7
+- tests fast passed=25 failed=0 skipped=0 seconds=0.4
+- tests fast passed=121 failed=0 skipped=0 seconds=2.0
+- commit T4 738e0308cc actuals, delays and delay API
+- commit T5 3d676a742e sync transitions
+- tests fast passed=16 failed=0 skipped=0 seconds=0.5
+- tests fast passed=38 failed=0 skipped=0 seconds=0.3
+- tests fast passed=124 failed=0 skipped=0 seconds=0.5
+- tests fast passed=5 failed=0 skipped=0 seconds=0.4
+- commit T9 af43071387 epics views and navigation
+- commit T10 291100a0b3 documentation
+- commit T1 f439b17225 persistence and migration
+- commit T2 8bab8f0d65 epic label and isEpic cache
+- tests fast passed=4 failed=0 skipped=0 seconds=0.3
+- tests fast passed=5 failed=0 skipped=0 seconds=0.2
+- tests fast passed=5 failed=0 skipped=0 seconds=0.4
+- commit T8 f39b792b780ecd8e6dfea2a931cc829bd49fddc5
+- tests fast passed=43 failed=0 skipped=0 seconds=0.6
+- Ruling: attention page and shared issue DTO fixed together after T8 made the block reason required - low risk
+- tests fast passed=20 failed=0 skipped=0 seconds=1.4
+- tests fast passed=20 failed=0 skipped=0 seconds=1.3
+- tests full passed=944 failed=0 skipped=0 seconds=8.3

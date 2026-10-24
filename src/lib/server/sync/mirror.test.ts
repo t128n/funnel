@@ -3,6 +3,7 @@ import { sql } from "drizzle-orm";
 import { clearMirror } from "#tests/mirror-helpers";
 import { db } from "#lib/server/db/index";
 import { mirrorComment, mirrorThreadAssignee } from "#lib/server/db/schema";
+import { getIssueListItem } from "#lib/server/issues/queries";
 import * as mirror from "./mirror";
 
 const GITHUB = { forge: "github", instance: "github.com" } as const;
@@ -146,6 +147,113 @@ describe("cursor", () => {
 });
 
 describe("issue upsert", () => {
+  test("test_mirror_round_trip", () => {
+    const repo = seedRepo();
+    const record = {
+      externalId: "7001",
+      repoId: repo.id,
+      number: 1,
+      kind: "issue" as const,
+      title: "epic",
+      body: "",
+      state: "open",
+      stateReason: null,
+      author: null,
+      milestoneNumber: null,
+      url: "https://github.com/orgA/core/issues/1",
+      createdAt: 1000,
+      updatedAt: 1000,
+      closedAt: null,
+      labels: ["epic", "todo"],
+      assignees: [],
+      comments: [],
+    };
+    mirror.upsertIssue(record, {
+      status: "todo",
+      impact: null,
+      urgency: null,
+      priority: null,
+      size: null,
+      blocked: false,
+      isEpic: true,
+      labelConflict: false,
+    });
+
+    expect(mirror.getIssue(repo.id, 1)?.isEpic).toBe(1);
+    expect(getIssueListItem(repo.id, 1)?.isEpic).toBe(true);
+
+    mirror.setIssueMetadata(repo.id, 1, {
+      status: "todo",
+      impact: null,
+      urgency: null,
+      priority: null,
+      size: null,
+      blocked: false,
+      isEpic: false,
+      labelConflict: false,
+    });
+    expect(mirror.getIssue(repo.id, 1)?.isEpic).toBe(0);
+  });
+
+  test("test_metadata_write_keeps_epic_from_labels", () => {
+    const repo = seedRepo();
+    const record = {
+      externalId: "7101",
+      repoId: repo.id,
+      number: 2,
+      kind: "issue" as const,
+      title: "epic",
+      body: "",
+      state: "open",
+      stateReason: null,
+      author: null,
+      milestoneNumber: null,
+      url: "https://github.com/orgA/core/issues/2",
+      createdAt: 1000,
+      updatedAt: 1000,
+      closedAt: null,
+      labels: ["epic", "todo"],
+      assignees: [],
+      comments: [],
+    };
+    // Hydrate passes no isEpic; the label set is authoritative.
+    mirror.upsertIssue(record, {
+      status: "todo",
+      impact: null,
+      urgency: null,
+      priority: null,
+      size: null,
+      blocked: false,
+      labelConflict: false,
+    });
+    expect(mirror.getIssue(repo.id, 2)?.isEpic).toBe(1);
+
+    // Conflict resolution rewrites metadata without isEpic; the cache must not
+    // be cleared for an issue whose labels still carry `epic`.
+    mirror.setIssueMetadata(repo.id, 2, {
+      status: "todo",
+      impact: null,
+      urgency: null,
+      priority: null,
+      size: null,
+      blocked: false,
+      labelConflict: true,
+    });
+    expect(mirror.getIssue(repo.id, 2)?.isEpic).toBe(1);
+
+    mirror.setIssueMetadata(repo.id, 2, {
+      status: "todo",
+      impact: null,
+      urgency: null,
+      priority: null,
+      size: null,
+      blocked: false,
+      isEpic: false,
+      labelConflict: false,
+    });
+    expect(mirror.getIssue(repo.id, 2)?.isEpic).toBe(0);
+  });
+
   test("replaces labels and assignees on re-hydration", () => {
     const repo = seedRepo();
     seedIssue(repo.id, 1, 1000);

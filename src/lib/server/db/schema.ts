@@ -227,6 +227,71 @@ export const statePlanItem = sqliteTable(
 );
 
 // ---------------------------------------------------------------------------
+// State: observed issue transitions (actual-time log).
+// Durable append-only events keyed by `org/name` + issue number so they
+// survive mirror pruning and a re-sync. `kind` is `status`, `state` or
+// `blocked`; `from_value` is null for the baseline rows written on first
+// observation. There is no historical backfill from the forge timeline.
+// ---------------------------------------------------------------------------
+export const stateIssueEvent = sqliteTable(
+  "state_issue_event",
+  {
+    id: text("id").primaryKey(),
+    org: text("org").notNull(),
+    name: text("name").notNull(),
+    issueNumber: integer("issue_number").notNull(),
+    /** `status` | `state` | `blocked`. */
+    kind: text("kind").notNull(),
+    fromValue: text("from_value"),
+    toValue: text("to_value"),
+    at: integer("at").notNull(),
+    /** `migration` | `sync`. */
+    source: text("source").notNull(),
+  },
+  (t) => [
+    index("idx_state_issue_event_issue_at").on(
+      t.org,
+      t.name,
+      t.issueNumber,
+      t.at,
+    ),
+  ],
+);
+
+// ---------------------------------------------------------------------------
+// State: issue delay intervals (blocked and manual).
+// `source = "blocked"` rows follow the issue's blocked flag automatically;
+// `source = "manual"` rows are created in the Inspector. Active intervals
+// have a null `ended_at`. Total delay time is the union of intervals, so an
+// automatic and a manual delay may overlap and count once.
+// ---------------------------------------------------------------------------
+export const stateIssueDelay = sqliteTable(
+  "state_issue_delay",
+  {
+    id: text("id").primaryKey(),
+    org: text("org").notNull(),
+    name: text("name").notNull(),
+    issueNumber: integer("issue_number").notNull(),
+    /** `dependency` | `info` | `review` | `external` | `capacity` | `other`. */
+    reason: text("reason").notNull(),
+    startedAt: integer("started_at").notNull(),
+    endedAt: integer("ended_at"),
+    note: text("note").notNull().default(""),
+    /** `blocked` | `manual`. */
+    source: text("source").notNull(),
+  },
+  (t) => [
+    index("idx_state_issue_delay_issue_started").on(
+      t.org,
+      t.name,
+      t.issueNumber,
+      t.startedAt,
+    ),
+    index("idx_state_issue_delay_ended").on(t.endedAt),
+  ],
+);
+
+// ---------------------------------------------------------------------------
 // Auth: Better Auth tables (SPEC 7, 8). Field names match Better Auth's
 // stock schema. Date columns use timestamp mode and `emailVerified`
 // boolean mode: the drizzle adapter passes Date/boolean objects, and
@@ -455,6 +520,8 @@ export const mirrorThread = sqliteTable(
     priorityRank: integer("priority_rank").notNull().default(3),
     size: text("size"),
     blocked: integer("blocked").notNull().default(0),
+    /** Derived cache of the `epic` label; children live in the issue body. */
+    isEpic: integer("is_epic").notNull().default(0),
     labelConflict: integer("label_conflict").notNull().default(0),
   },
   (t) => [

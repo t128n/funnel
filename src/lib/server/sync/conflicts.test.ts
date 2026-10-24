@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { CANONICAL_LABELS } from "#lib/labels";
 import type { GitHubProvider, RepoRef } from "#lib/server/forge/providers.server";
 import {
   deriveMetadata,
@@ -10,6 +11,26 @@ import {
 } from "./conflicts";
 
 describe("deriveMetadata", () => {
+  test("test_epic_label_is_canonical", () => {
+    expect(CANONICAL_LABELS).toContainEqual({
+      name: "epic",
+      color: "b389f5",
+      description: "Type: Epic",
+      group: "epic",
+    });
+  });
+
+  test("test_derive_epic", () => {
+    const derived = deriveMetadata(["epic", "backlog"]);
+    expect(derived.isEpic).toBe(true);
+    expect(derived.status).toBe("backlog");
+  });
+
+  test("test_epic_does_not_set_blocked", () => {
+    expect(deriveMetadata(["epic"]).blocked).toBe(false);
+    expect(deriveMetadata(["epic"]).isEpic).toBe(true);
+  });
+
   test("projects a clean label set onto the reserved groups", () => {
     expect(
       deriveMetadata(["todo", "sev", "high", "md", "bug", "frontend"]),
@@ -20,6 +41,7 @@ describe("deriveMetadata", () => {
       priority: "P1",
       size: "md",
       blocked: false,
+      isEpic: false,
       conflicts: [],
     });
   });
@@ -32,6 +54,7 @@ describe("deriveMetadata", () => {
       priority: null,
       size: null,
       blocked: false,
+      isEpic: false,
       conflicts: [],
     });
   });
@@ -57,6 +80,7 @@ describe("deriveMetadata", () => {
       priority: null,
       size: null,
       blocked: true,
+      isEpic: false,
       conflicts: [],
     });
   });
@@ -80,6 +104,7 @@ describe("deriveMetadata", () => {
       priority: null,
       size: null,
       blocked: false,
+      isEpic: false,
       conflicts: [],
     });
   });
@@ -261,6 +286,7 @@ describe("resolveIssueConflict", () => {
         priority: null,
         size: null,
         blocked: false,
+        isEpic: false,
         conflicts: [],
       },
       removed: [],

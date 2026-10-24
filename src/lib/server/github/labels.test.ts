@@ -107,6 +107,7 @@ describe("CANONICAL_LABELS", () => {
       "sm",
       "md",
       "lg",
+      "epic",
     ]);
     for (const label of CANONICAL_LABELS) {
       expect(label.color).toMatch(/^[0-9a-fA-F]{6}$/);

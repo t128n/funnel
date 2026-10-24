@@ -12,7 +12,8 @@ export type LabelGroup =
   | "impact"
   | "urgency"
   | "size"
-  | "flags";
+  | "flags"
+  | "epic";
 
 export interface CanonicalLabel {
   name: string;
@@ -93,6 +94,14 @@ export const CANONICAL_LABELS: readonly CanonicalLabel[] = [
   { name: "sm", color: "6aab73", description: "Size: Small", group: "size" },
   { name: "md", color: "2aacb8", description: "Size: Medium", group: "size" },
   { name: "lg", color: "e28d78", description: "Size: Large", group: "size" },
+  // Epic. A type marker, orthogonal to status, size and the blocked flag:
+  // an epic is just an issue whose children live in its body metadata.
+  {
+    name: "epic",
+    color: "b389f5",
+    description: "Type: Epic",
+    group: "epic",
+  },
 ];
 
 const BY_NAME = new Map(CANONICAL_LABELS.map((l) => [l.name.toLowerCase(), l]));

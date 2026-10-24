@@ -21,6 +21,7 @@ This index is the entry point to Funnel's documentation, which follows the four 
 | Back up, upgrade, or fix an instance | [Backup and restore](how-to/operate/backup-and-restore.md), [upgrade](how-to/operate/upgrade.md), [troubleshoot](how-to/operate/troubleshoot.md) |
 | Configure the App, repositories, projects, people, or sync | [Configure Funnel](#configure) |
 | Work an issue queue day to day | [Use the cockpit](#use) |
+| Measure actual time, record a delay, or group issues into an epic | [Track time and delays](how-to/use/track-time-and-delays.md), [manage epics](how-to/use/epics.md) |
 | Call the intake API or hook up a Windows hotkey | [Integrate](#integrate) |
 | Build, test, or release Funnel | [Contribute](#contribute) |
 | Find an exact setting, route, label, or command | [Reference](#reference) |
@@ -64,6 +65,8 @@ Learning-oriented, with one path and expected results.
 - [Triage intake](how-to/use/triage-intake.md) — accept, dismiss, or duplicate a staged submission.
 - [Create and edit issues](how-to/use/create-and-edit-issues.md) — create an issue, then edit its title, description, properties, assignees, and labels.
 - [Close, reopen, and block](how-to/use/close-reopen-block.md) — record resolutions, reopen notes, and structured blockers with re-check dates.
+- [Track time and delays](how-to/use/track-time-and-delays.md) — read actual time, record manual delays, and understand why tracking starts at deployment.
+- [Manage epics](how-to/use/epics.md) — mark an epic, edit its child list in the issue body, and read progress and time rollups.
 - [Use the board](how-to/use/board.md) — drag cards, switch to the Backlog list, and use the Done lane.
 - [Use milestones](how-to/use/milestones.md) — browse repo-scoped milestones, filter and group by them, and set or create one from an issue.
 - [Work notes and attachments](how-to/use/work-notes-and-attachments.md) — keep internal notes, publish them, and manage the file dropbox.
@@ -86,14 +89,14 @@ Learning-oriented, with one path and expected results.
 - [CLI](reference/cli.md) — the packaged executable's flags and the Bun scripts it maps to.
 - [Build tasks](reference/build-tasks.md) — the `mise` tasks and what each one produces.
 - [Settings](reference/settings.md) — the instance settings stored in SQLite, with defaults and validation rules.
-- [Reserved labels](reference/reserved-labels.md) — the canonical status, impact, urgency, size, and flag vocabulary plus the retired priority labels.
+- [Reserved labels](reference/reserved-labels.md) — the canonical status, impact, urgency, size, flag, and epic vocabulary plus the retired priority labels.
 - [Impact, urgency, and priority](reference/priority.md) — the three-point input labels, the P1–P3 lookup matrix, and the retired priority labels.
 - [Roles and permissions](reference/roles-and-permissions.md) — what `read`, `write`, and `admin` may do.
 - [HTTP API](reference/http-api.md) — the intake endpoint, mutation endpoints, mirror reads, and health probes.
 - [Database schema](reference/database-schema.md) — mirror tables, Funnel-owned state, and authentication tables.
 - [Routes and pages](reference/routes-and-pages.md) — the public, onboarding, cockpit, settings, and API route map.
 - [Feature flags](reference/feature-flags.md) — the flag keys, defaults, and per-browser overrides.
-- [Glossary](reference/glossary.md) — the terms Funnel uses for intake, mirror, triage, and workflow.
+- [Glossary](reference/glossary.md) — the terms Funnel uses for intake, mirror, triage, workflow, actual time, delays, and epics.
 
 ## Explanation
 

@@ -7,6 +7,7 @@
 	import FunnelIcon from "@lucide/svelte/icons/funnel";
 	import InboxIcon from "@lucide/svelte/icons/inbox";
 	import KanbanIcon from "@lucide/svelte/icons/kanban";
+	import LayersIcon from "@lucide/svelte/icons/layers";
 	import MilestoneIcon from "@lucide/svelte/icons/milestone";
 	import PlusIcon from "@lucide/svelte/icons/plus";
 	import SearchIcon from "@lucide/svelte/icons/search";
@@ -78,6 +79,7 @@
 	const issuesActive = $derived(viewOf(path) === "issues" && !mine);
 	const boardActive = $derived(viewOf(path) === "board");
 	const planActive = $derived(path.startsWith("/plan"));
+	const epicsActive = $derived(path.startsWith("/epics"));
 	const milestonesActive = $derived(path.startsWith("/milestones"));
 	const attentionActive = $derived(path.startsWith("/attention"));
 	const notificationsActive = $derived(path.startsWith("/notifications"));
@@ -117,6 +119,7 @@
 		{ href: "/issues", label: "Issues", icon: CircleDotIcon, active: issuesActive },
 		{ href: "/board", label: "Board", icon: KanbanIcon, active: boardActive },
 		{ href: "/plan", label: "Plan", icon: CalendarRangeIcon, active: planActive },
+		{ href: "/epics", label: "Epics", icon: LayersIcon, active: epicsActive },
 		{
 			href: "/milestones",
 			label: "Milestones",

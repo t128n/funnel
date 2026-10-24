@@ -116,6 +116,51 @@ Primary key: `(org, name, issue_number)`; one plan item per issue, so re-schedul
 
 - `idx_state_plan_item_week` on `(week_start)` for week and cycle reads.
 
+### `state_issue_event`
+
+Observed workflow transitions for one issue, keyed by the durable `org/name` slug plus issue number rather than a mirror foreign key. The log is append-only and durable: rows are never pruned with the mirror.
+
+| Column | Type | Constraints / notes |
+| :--- | :--- | :--- |
+| `id` | TEXT | Primary key; UUID. |
+| `org` | TEXT | Not null; repository owner. |
+| `name` | TEXT | Not null; repository name. |
+| `issue_number` | INTEGER | Not null. |
+| `kind` | TEXT | Not null; `status`, `state` or `blocked`. |
+| `from_value` | TEXT | Nullable; the previous value, or `null` for a baseline row. |
+| `to_value` | TEXT | Nullable; the observed value. |
+| `at` | INTEGER | Not null, Unix ms. |
+| `source` | TEXT | Not null; `sync` for events observed by the sync worker, `migration` for baselines seeded at deploy. |
+
+Primary key: `id`. Foreign keys: none. Indexes:
+
+- `idx_state_issue_event_issue_at` on `(org, name, issue_number, at)`.
+
+On first observation every issue gets baseline `status`, `state` and `blocked` rows with `from_value` `null`. The migration seeds the same baselines for issues already mirrored, at the migration timestamp. There is no historical backfill from the forge timeline.
+
+### `state_issue_delay`
+
+Delay intervals for one issue: automatic rows opened by the `blocked` flag and manual rows recorded from the Inspector. Total delay time is the union of the intervals, so overlapping rows count once. Rows are durable and never pruned with the mirror.
+
+| Column | Type | Constraints / notes |
+| :--- | :--- | :--- |
+| `id` | TEXT | Primary key; UUID. |
+| `org` | TEXT | Not null; repository owner. |
+| `name` | TEXT | Not null; repository name. |
+| `issue_number` | INTEGER | Not null. |
+| `reason` | TEXT | Not null; `dependency`, `info`, `review`, `external`, `capacity` or `other`. |
+| `started_at` | INTEGER | Not null, Unix ms. |
+| `ended_at` | INTEGER | Nullable, Unix ms; `null` means the delay is still open. |
+| `note` | TEXT | Not null, default `''`. |
+| `source` | TEXT | Not null; `blocked` or `manual`. |
+
+Primary key: `id`. Foreign keys: none. Indexes:
+
+- `idx_state_issue_delay_issue_started` on `(org, name, issue_number, started_at)`.
+- `idx_state_issue_delay_ended` on `(ended_at)`.
+
+Adding the `blocked` flag opens a `source = blocked` delay using the reason from the issue's `funnel_metadata`; removing it closes the open blocked row. Closing the issue closes every open delay. The migration opens one `other` delay for every issue blocked at deploy time. Manual rows are editable and deletable; blocked rows are read-only.
+
 ### `state_github_app`
 
 The single GitHub App created by the onboarding manifest flow. It is the source of truth for App credentials; there are no credential environment variables.
@@ -375,6 +420,7 @@ The thread cache (currently issues only). `status`, `impact`, `urgency`, `size` 
 | `size` | TEXT | Nullable; `sm`, `md` or `lg`. |
 | `blocked` | INTEGER | Not null, default `0`; 0/1 orthogonal flag. |
 | `label_conflict` | INTEGER | Not null, default `0`; 0/1 ambiguous reserved-label timeline or a retired p-label that disagrees with the derived priority. |
+| `is_epic` | INTEGER | Not null, default `0`; 0/1 cache of the orthogonal `epic` label. Parsed children live in the issue body, not here. |
 
 Primary key: `(repo_id, number)`. Foreign keys:
 
@@ -493,6 +539,8 @@ Indexes:
 | GitHub account link | `auth_account.accountId` | Forge account id stored as text for `providerId = 'github'`; compared with `mirror_user.external_id`. |
 | Funnel-local issue state | `(org, name, issue_number)` | Work notes, attachments and issue watches; durable across mirror pruning. |
 | Plan item | `(org, name, issue_number)` | One scheduled week per issue in `state_plan_item`; never written to GitHub and durable across mirror pruning. |
+| Issue event | `id` | UUID; the observed issue is `(org, name, issue_number)` and rows are ordered by `at`. |
+| Issue delay | `id` | UUID; the delayed issue is `(org, name, issue_number)` and open rows have `ended_at IS NULL`. |
 | Notification | `id` | UUID; scoped to one `auth_user.id` and de-duplicated by `dedupe_key`. |
 | Instance setting | `key` | Dotted path; JSON-encoded `value`. |
 | GitHub App | `id = 'default'` | Singleton row. |
@@ -515,7 +563,7 @@ Foreign keys declared in the schema:
 | `mirror_repo_assignee.user_id` | `mirror_user.id` | `CASCADE` |
 | `mirror_comment.author_id` | `mirror_user.id` | `SET NULL` |
 
-The composite child tables `mirror_thread_label` and `mirror_thread_assignee`, and the `repo_id`/`thread_number` columns on `mirror_comment`, carry no foreign key to `mirror_thread`. `mirror_thread.milestone_number` also has no foreign key to `mirror_milestone`: the milestone set is replaced wholesale on refresh, and a thread may briefly reference a number that has not been mirrored yet. The sync layer therefore deletes labels, assignees and comments explicitly before deleting a thread row (`deleteIssue` in `src/lib/server/sync/mirror.ts`). `state_work_note`, `state_attachment`, `state_notification`, `state_issue_watch` and `state_plan_item` also carry no foreign key to the mirror: their author/uploader/recipient/actor identities are snapshots, and their issue identity is the durable `org/name` plus number.
+The composite child tables `mirror_thread_label` and `mirror_thread_assignee`, and the `repo_id`/`thread_number` columns on `mirror_comment`, carry no foreign key to `mirror_thread`. `mirror_thread.milestone_number` also has no foreign key to `mirror_milestone`: the milestone set is replaced wholesale on refresh, and a thread may briefly reference a number that has not been mirrored yet. The sync layer therefore deletes labels, assignees and comments explicitly before deleting a thread row (`deleteIssue` in `src/lib/server/sync/mirror.ts`). `state_work_note`, `state_attachment`, `state_notification`, `state_issue_watch`, `state_plan_item`, `state_issue_event` and `state_issue_delay` also carry no foreign key to the mirror: their author/uploader/recipient/actor identities are snapshots, and their issue identity is the durable `org/name` plus number.
 
 ## Storage, pragmas and migrations
 

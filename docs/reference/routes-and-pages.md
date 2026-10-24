@@ -66,6 +66,8 @@ All cockpit routes live under the `(app)` layout and require at least the `read`
 | `/milestones` | Every mirrored milestone, grouped by repository, with progress and due dates. | `read` | GitHub scopes a milestone to one repository, so equal titles in two repositories are separate entries. |
 | `/milestones/{owner}/{repo}/{number}` | The issues attached to one repo-scoped milestone. | `read` | Returns `404` for an unknown repository or milestone. |
 | `/plan` | Time planner with week, cycle and milestone horizons. | `read` to view; `write` to schedule or remove | A week is its Monday date; the default horizon is the current week. Writer-only **Schedule issue** control; every planned issue links to its Inspector. |
+| `/epics` | Every issue carrying the `epic` label, open before closed, with progress and estimate/actual/delay rollups. | `read` | An epic is a normal issue with the `epic` label; its children are parsed from the body's `funnel_metadata` envelope. |
+| `/epics/{owner}/{repo}/{number}` | One epic: header, rollup cards and the ordered child table. | `read` to view; `write` to add or remove children | Writers add a child from open issues not already in another epic. Malformed params return `404`. |
 | `/settings` | Account landing: signed-in identity and sign-out. | `read` | Personal section. |
 | `/settings/appearance` | Theme and appearance controls. | `read` | Personal section. |
 | `/settings/features` | Per-browser feature-flag toggles. | `read` | Personal section; writes the `funnel:features` cookie. |
@@ -137,6 +139,10 @@ API routes are not under the `(app)` layout and enforce their own guards. Detail
 | `/api/repos/{owner}/{repo}/issues/{number}/work-notes/{id}/publish` | POST | `write` | Publish a note as a GitHub comment. |
 | `/api/repos/{owner}/{repo}/issues/{number}/attachments` | POST | `write` | Upload an attachment. |
 | `/api/repos/{owner}/{repo}/issues/{number}/plan` | PUT, DELETE | `write` | Schedule or clear the issue's plan item. |
+| `/api/repos/{owner}/{repo}/issues/{number}/epic` | PUT | `write` | Add or remove the `epic` label. |
+| `/api/repos/{owner}/{repo}/issues/{number}/epic/children` | PUT | `write` | Replace the ordered children list by editing the epic body. |
+| `/api/repos/{owner}/{repo}/issues/{number}/delays` | POST | `write` | Record a manual delay. |
+| `/api/repos/{owner}/{repo}/issues/{number}/delays/{id}` | PATCH, DELETE | `write` | Close or edit, or delete, a manual delay. |
 | `/api/attachments/{id}` | GET, DELETE | `read` / `write` | Download or delete an attachment. |
 | `/api/users/{username}` | GET | `read` | GitHub user lookup. |
 | `/api/*` (unmatched) | All methods | None | JSON `404` fallback. |
@@ -167,6 +173,8 @@ API routes are not under the `(app)` layout and enforce their own guards. Detail
 | `/milestones` | Repo-scoped milestones and progress. | `read` |
 | `/milestones/{owner}/{repo}/{number}` | Issues attached to a milestone. | `read` |
 | `/plan` | Week, cycle and milestone planner. | `read`; scheduling `write` |
+| `/epics` | Epics with progress and time rollups. | `read` |
+| `/epics/{owner}/{repo}/{number}` | One epic and its children. | `read`; children `write` |
 | `/settings` | Account. | `read` |
 | `/settings/appearance` | Appearance. | `read` |
 | `/settings/features` | Feature flags. | `read` |

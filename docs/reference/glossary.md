@@ -14,7 +14,7 @@ Definitions of the terms used across Funnel's reference documentation.
 
 **Reconciliation** — The nightly full sweep that re-hydrates every open issue and every issue closed inside the history window, prunes mirror rows that were deleted, transferred or aged out, and re-provisions canonical labels. It is scheduled for 03:00 local time. See [`reconcile.ts`](../../src/lib/server/sync/reconcile.ts).
 
-**Reserved label** — One of Funnel's canonical labels: status `backlog`, `todo`, `in-progress`, `in-review`; impact `sev`, `mod`, `min`; urgency `high`, `mid`, `low`; size `sm`, `md`, `lg`; and the orthogonal flag `blocked`. At most one label per active group is authoritative; a conflicting set is resolved by the latest `labeled` timeline event, or flagged as a label conflict. Absence means untriaged, unassessed, unestimated or not blocked. Priority is derived, not a label. See [`labels.ts`](../../src/lib/labels.ts).
+**Reserved label** — One of Funnel's fifteen canonical labels: status `backlog`, `todo`, `in-progress`, `in-review`; impact `sev`, `mod`, `min`; urgency `high`, `mid`, `low`; size `sm`, `md`, `lg`; the orthogonal flag `blocked`; and the orthogonal membership marker `epic`. At most one label per active group is authoritative; a conflicting set is resolved by the latest `labeled` timeline event, or flagged as a label conflict. Absence means untriaged, unassessed, unestimated, not blocked or not an epic. Priority is derived, not a label. See [`labels.ts`](../../src/lib/labels.ts).
 
 **Impact** — The first of two triage inputs, a reserved label: `sev` (Severe), `mod` (Moderate) or `min` (Minor). The mirror caches it as `1`–`3`. See [Impact, urgency, and priority](./priority.md).
 
@@ -33,6 +33,12 @@ Definitions of the terms used across Funnel's reference documentation.
 **Cycle** — A fixed number (`planning.cycle_weeks`, default 2) of contiguous Monday weeks counted from `planning.cycle_anchor` (default Monday `2024-01-01`). Its key is its first Monday, and it exposes its start, end and ordered week list. Weeks before the anchor floor into negative cycles, so historical plan items keep stable windows. See [`calendar.ts`](../../src/lib/server/planning/calendar.ts).
 
 **Plan item** — A durable row in `state_plan_item` that schedules one open, sized issue into one Monday week, keyed by `(org, name, issue_number)` with no foreign key to the mirror. Plan items are never written to GitHub and survive mirror pruning and `clearMirror`; a plan item whose issue is closed or no longer mirrored frees its capacity. See [Database schema](./database-schema.md#state_plan_item).
+
+**Actual time** — The union of observed intervals where an issue is open and its status is `in-progress` or `in-review`. Both active statuses count, so time in review is part of actual time. Active time is derived from the durable `state_issue_event` log and ends at `closedAt` when the issue closes. Tracking starts at deployment or first observation; there is no historical backfill, so issues that predate the feature show time from the migration timestamp onward. See [Track time and delays](../how-to/use/track-time-and-delays.md).
+
+**Delay** — A durable interval in `state_issue_delay` when work is waiting, with a reason (`dependency`, `info`, `review`, `external`, `capacity` or `other`), an optional note, and a source of `blocked` or `manual`. The `blocked` flag opens and closes automatic delays; manual delays are recorded from the Inspector and are local-only. Delay minutes are the union of all intervals, so an overlap between a blocked and a manual delay counts once. See [Track time and delays](../how-to/use/track-time-and-delays.md).
+
+**Epic** — An ordinary issue carrying the `epic` label. Its ordered children are a comma-separated `owner/name#number` list in the epic body's `funnel_metadata` envelope (`epic.children`), which makes the relation portable and independent of the mirror. An issue belongs to at most one epic; nested epics are rejected. `/epics` and the Inspector show progress and estimate, actual and delay rollups. See [Manage epics](../how-to/use/epics.md).
 
 **Intake** — Funnel's public submission channel, available as the `/intake` form and `POST /api/intake`. Anonymous submissions are staged locally and nothing reaches GitHub until a triager accepts them. See [HTTP API](./http-api.md#public-surface).
 
