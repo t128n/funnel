@@ -75,6 +75,20 @@ describe("activeIntervals", () => {
     const events = [status("in-progress", m(100)), state("closed", m(200))];
     expect(activeIntervals(events, m(300), m(50))).toEqual([]);
   });
+
+  test("a reopen does not stretch the earlier interval to the latest close", () => {
+    // A close/reopen/close cycle: only the final close may use `closedAt`.
+    // Applying the latest close time to the first close would merge the idle
+    // gap into the first interval and over-count by 60 minutes.
+    const events = [
+      status("in-progress", m(0)),
+      state("open", m(0)),
+      state("closed", m(60)),
+      state("open", m(120)),
+      state("closed", m(180)),
+    ];
+    expect(totalMinutes(activeIntervals(events, m(240), m(180)))).toBe(120);
+  });
 });
 
 describe("mergeIntervals", () => {

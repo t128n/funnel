@@ -56,7 +56,9 @@ function minutesBetween(start: number, end: number): number {
  * Events are walked in timestamp order; each `status`/`state` event moves the
  * machine between active and idle. A close ends the current interval at
  * `closedAt ?? event.at` (clamped so it never precedes the start); an interval
- * still open at the end runs to `now`. `blocked` events are ignored here.
+ * still open at the end runs to `now`. `closedAt` describes only the issue's
+ * latest close, so earlier closes in a close/reopen/close history end at their
+ * own event time. `blocked` events are ignored here.
  */
 export function activeIntervals(
   events: readonly IssueEvent[],
@@ -64,6 +66,13 @@ export function activeIntervals(
   closedAt: number | null = null,
 ): ClosedInterval[] {
   const ordered = [...events].sort((a, b) => a.at - b.at);
+  // The forge close time belongs to the last close event only; applying it to
+  // an earlier close would swallow the idle gap before a reopen.
+  let lastClose = -1;
+  for (let index = 0; index < ordered.length; index += 1) {
+    const event = ordered[index];
+    if (event.kind === "state" && event.toValue === "closed") lastClose = index;
+  }
   const intervals: ClosedInterval[] = [];
   let status: string | null = null;
   let open = true;
@@ -82,7 +91,8 @@ export function activeIntervals(
     }
   };
 
-  for (const event of ordered) {
+  for (let index = 0; index < ordered.length; index += 1) {
+    const event = ordered[index];
     if (event.kind === "status") {
       status = event.toValue;
       sync(event.at);
@@ -91,7 +101,7 @@ export function activeIntervals(
     if (event.kind === "state") {
       if (event.toValue === "closed") {
         open = false;
-        sync(closedAt ?? event.at);
+        sync(index === lastClose ? (closedAt ?? event.at) : event.at);
       } else {
         open = true;
         sync(event.at);

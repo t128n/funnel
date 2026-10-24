@@ -179,24 +179,29 @@ export function openDelay(input: OpenDelayInput): DelayItem {
   return toDelayItem(delayRow(id) as DelayRow);
 }
 
-/** Close every open delay for an issue; returns how many were closed. */
+/**
+ * Close open delays for an issue; returns how many were closed. Pass `source`
+ * to close only automatic (`blocked`) rows, e.g. when the block flag is removed
+ * and manual delays must stay open.
+ */
 export function closeOpenDelays(
   org: string,
   name: string,
   issueNumber: number,
   at: number,
+  source?: DelaySource,
 ): number {
+  const predicates = [
+    eq(stateIssueDelay.org, org),
+    eq(stateIssueDelay.name, name),
+    eq(stateIssueDelay.issueNumber, issueNumber),
+    isNull(stateIssueDelay.endedAt),
+  ];
+  if (source) predicates.push(eq(stateIssueDelay.source, source));
   const open = db
     .select()
     .from(stateIssueDelay)
-    .where(
-      and(
-        eq(stateIssueDelay.org, org),
-        eq(stateIssueDelay.name, name),
-        eq(stateIssueDelay.issueNumber, issueNumber),
-        isNull(stateIssueDelay.endedAt),
-      ),
-    )
+    .where(and(...predicates))
     .all();
   for (const row of open) {
     db.update(stateIssueDelay)
