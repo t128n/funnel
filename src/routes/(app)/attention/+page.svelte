@@ -98,7 +98,8 @@
 					blocker: pendingItem.blocker,
 					needs: pendingItem.needs,
 					trying: pendingItem.trying,
-					recheck: pendingItem.recheck
+					recheck: pendingItem.recheck,
+					reason: pendingItem.reason
 				}
 			: undefined
 	);

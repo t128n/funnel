@@ -444,6 +444,26 @@ describe("attentionIssues", () => {
     expect(items[0].blocker).toBe("Upstream API key");
   });
 
+  test("exposes the stored block reason for revise-in-place", () => {
+    seedBlockedIssue(
+      13,
+      "113",
+      writeBlocked("desc", {
+        blocker: "Upstream API key",
+        needs: "Token",
+        trying: "",
+        recheck: "2026-10-25",
+        reason: "dependency",
+      }),
+      true,
+    );
+
+    const item = attentionIssues().find((entry) => entry.issue.number === 13);
+    expect(item?.reason).toBe("dependency");
+    // The page hands this straight to BlockActionDialog's `initial`.
+    expect({ reason: item?.reason }).toEqual({ reason: "dependency" });
+  });
+
   test("treats calendar-invalid dates as unscheduled", () => {
     seedBlockedIssue(11, "111", withRecheck("2026-02-30"), true);
     expect(attentionIssues().map((item) => [item.issue.number, item.recheck])).toEqual([

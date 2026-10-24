@@ -6,6 +6,7 @@
  * mixed submission/issue queue, and the six-column status board.
  */
 import type { StagedSubmission } from "#lib/server/intake/staging";
+import type { DelayReason } from "#lib/server/actuals/reasons";
 import type { DelayItem } from "#lib/server/actuals/store";
 import type { IssueTime } from "#lib/server/actuals/time";
 
@@ -117,6 +118,8 @@ export interface AttentionItem {
   trying: string;
   /** Re-check date `YYYY-MM-DD`, or `""` when missing or malformed. */
   recheck: string;
+  /** Why the issue is delayed; older blocks without one read as `other`. */
+  reason: DelayReason;
 }
 
 /** Canonical board column keys; `done` is the closed-completed window. */

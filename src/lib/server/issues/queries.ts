@@ -762,6 +762,7 @@ export function attentionIssues(): AttentionItem[] {
       needs: blocked.info?.needs ?? "",
       trying: blocked.info?.trying ?? "",
       recheck,
+      reason: blocked.info?.reason ?? "other",
     });
   }
 
