@@ -36,6 +36,10 @@ import type {
 } from "#lib/server/notifications/types";
 import { deriveMetadata } from "./conflicts";
 import * as mirror from "./mirror";
+import {
+  recordIssueTransitions,
+  type IssueTransitionSnapshot,
+} from "#lib/server/actuals/transitions";
 
 const log = createLogger({ component: "sync" });
 
@@ -298,6 +302,22 @@ function snapshotFromRecord(
     })),
     title: record.title,
     number: record.number,
+  };
+}
+
+/**
+ * The state the actual-time recorder diffs. `IssueSnapshot` belongs to the
+ * notification planner and carries no blocked flag; transitions need only the
+ * status, state and blocked dimensions, so they get their own snapshot shape.
+ */
+function transitionSnapshotFromRecord(
+  record: mirror.IssueRecord,
+  metadata: mirror.StoredMetadata,
+): IssueTransitionSnapshot {
+  return {
+    status: metadata.status ?? "",
+    state: record.state,
+    blocked: metadata.blocked,
   };
 }
 
@@ -576,10 +596,19 @@ export async function hydrateAndStore(
   const notify = options.notify ?? notifyIssueChanges;
 
   // Snapshot every issue's previous state before the batch write; a missing
-  // row means a first sighting, which stays silent.
+  // row means a first sighting. The transition recorder needs its snapshot even
+  // when notifications are disabled.
   const previousByNumber = new Map<number, IssueSnapshot>();
-  if (enabled && repo) {
+  const previousTransitions = new Map<number, IssueTransitionSnapshot>();
+  if (repo) {
     for (const record of records) {
+      const row = mirror.getIssue(repoId, record.number);
+      if (!row) continue;
+      previousTransitions.set(record.number, {
+        status: row.status ?? "",
+        state: row.state,
+        blocked: row.blocked === 1,
+      });
       const previous = snapshotIssue(repoId, record.number);
       if (previous) previousByNumber.set(record.number, previous);
     }
@@ -601,7 +630,41 @@ export async function hydrateAndStore(
     return metadata;
   });
 
-  if (!enabled || !repo) return records;
+  if (!repo) return records;
+
+  // Record observed transitions before notifying: the event log and automatic
+  // delays must reflect the same observation, whether or not notifications
+  // are enabled.
+  const observedAt = Date.now();
+  for (const record of records) {
+    const metadata = metadataByNumber.get(record.number);
+    if (!metadata) continue;
+    try {
+      recordIssueTransitions({
+        org: repo.org,
+        name: repo.name,
+        issueNumber: record.number,
+        previous: previousTransitions.get(record.number) ?? null,
+        next: transitionSnapshotFromRecord(record, metadata),
+        body: record.body,
+        at: observedAt,
+        closedAt: record.closedAt,
+        source: "sync",
+      });
+    } catch (error) {
+      // A transition failure is logged, never allowed to fail the mirror.
+      log.warn(
+        {
+          repo: `${repo.org}/${repo.name}`,
+          number: record.number,
+          err: error,
+        },
+        "transition recorder failed",
+      );
+    }
+  }
+
+  if (!enabled) return records;
 
   for (const record of records) {
     const previous = previousByNumber.get(record.number);
