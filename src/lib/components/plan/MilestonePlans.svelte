@@ -5,7 +5,7 @@
 	import { issuePath } from '#lib/issue-url';
 	import { formatMinutes } from '#lib/planning';
 	import CapacityBar from './CapacityBar.svelte';
-	import { dueLabel, weeksLabel } from './format';
+	import { dueLabel, milestoneCap, weeksLabel } from './format';
 
 	/**
 	 * Read-only capacity for open milestones. A milestone without a due date
@@ -74,7 +74,7 @@
 						<CapacityBar
 							class="ms-auto w-full max-w-64"
 							committedMinutes={lane.committedMinutes}
-							capMinutes={plan.capacityWeeks === null ? null : lane.capMinutes}
+							capMinutes={milestoneCap(plan.capacityWeeks, lane.capMinutes)}
 							{allocationPercent}
 						/>
 						{#if lane.over}

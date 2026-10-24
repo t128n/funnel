@@ -47,3 +47,56 @@ export function unscheduleRequest(
 		method: "DELETE",
 	};
 }
+
+/**
+ * The week the dialog schedules into.
+ *
+ * The week horizon has one visible week. The cycle horizon has many, so it
+ * schedules into the cycle's first week rather than a `week` query parameter
+ * that the cycle view does not show.
+ */
+export function scheduleWeekFor(
+	horizon: string,
+	week: string,
+	cycleStart: string,
+): string {
+	return horizon === "cycle" && cycleStart.length > 0 ? cycleStart : week;
+}
+
+/**
+ * Turn a failed schedule response into the inline message.
+ *
+ * A `409` names the cap violation; any other status falls back to the server's
+ * message or a generic one. Per-maintainer violations are appended so the user
+ * sees who is over and by how much.
+ */
+export function scheduleErrorMessage(
+	status: number,
+	payload: unknown,
+): string {
+	const body = payload as
+		| {
+				message?: unknown;
+				violations?: Array<{
+					login?: unknown;
+					excessMinutes?: unknown;
+				}>;
+		  }
+		| null;
+	const message =
+		typeof body?.message === "string" && body.message.length > 0
+			? body.message
+			: `Could not schedule this issue (${status}).`;
+	const violations = body?.violations
+		?.filter((violation) => typeof violation.login === "string")
+		.map((violation) => {
+			const excess =
+				typeof violation.excessMinutes === "number"
+					? ` (+${violation.excessMinutes} min)`
+					: "";
+			return `${violation.login}${excess}`;
+		});
+	return violations && violations.length > 0
+		? `${message} Over cap: ${violations.join(", ")}.`
+		: message;
+}

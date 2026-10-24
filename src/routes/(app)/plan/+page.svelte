@@ -4,7 +4,7 @@
 	import MilestonePlans from '#lib/components/plan/MilestonePlans.svelte';
 	import PlanLanes from '#lib/components/plan/PlanLanes.svelte';
 	import ScheduleDialog from '#lib/components/plan/ScheduleDialog.svelte';
-	import { unscheduleRequest } from '#lib/components/plan/schedule';
+	import { scheduleWeekFor, unscheduleRequest } from '#lib/components/plan/schedule';
 	import { Button } from '#lib/components/ui/button';
 	import * as Empty from '#lib/components/ui/empty';
 	import type { MilestonePlan } from '#lib/server/planning/milestones';
@@ -53,6 +53,13 @@
 	const allocationPercent = $derived(data.allocationPercent ?? 60);
 	const candidates = $derived(data.candidates ?? []);
 	const milestones = $derived(data.milestones ?? []);
+	const scheduleWeek = $derived(
+		scheduleWeekFor(
+			horizon,
+			week,
+			data.cyclePlan?.weeks[0]?.weekStart ?? cycleKey
+		)
+	);
 
 	function horizonHref(next: 'week' | 'cycle' | 'milestone', value?: string): string {
 		const params = new URLSearchParams({ horizon: next });
@@ -188,7 +195,7 @@
 			<Button
 				size="sm"
 				class="ms-auto"
-				disabled={week.length === 0}
+				disabled={scheduleWeek.length === 0}
 				onclick={() => (dialogOpen = true)}
 			>
 				<PlusIcon />
@@ -266,7 +273,7 @@
 {#if mayWrite}
 	<ScheduleDialog
 		open={dialogOpen}
-		{week}
+		week={scheduleWeek}
 		{candidates}
 		onopenchange={(open) => (dialogOpen = open)}
 	/>

@@ -43,3 +43,14 @@ export function weeksLabel(capacityWeeks: number | null | undefined): string {
 	}
 	return `${capacityWeeks} ${capacityWeeks === 1 ? "week" : "weeks"}`;
 }
+
+/**
+ * A milestone's lane cap. Without a due date there is no capacity window, so
+ * the lane has no cap and the bar shows committed hours only.
+ */
+export function milestoneCap(
+	capacityWeeks: number | null,
+	capMinutes: number,
+): number | null {
+	return capacityWeeks === null ? null : capMinutes;
+}

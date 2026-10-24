@@ -8,7 +8,7 @@
 	import { Input } from '#lib/components/ui/input';
 	import type { PlanningIssue } from '#lib/server/planning/queries';
 	import { cn } from '#lib/utils';
-	import { scheduleRequest } from './schedule';
+	import { scheduleErrorMessage, scheduleRequest } from './schedule';
 
 	/**
 	 * Schedule one candidate issue to the week currently in view.
@@ -65,35 +65,6 @@
 		onopenchange(next);
 	}
 
-	/** Apply `message` from a 409 body, plus any per-maintainer violations. */
-	function errorMessage(status: number, payload: unknown): string {
-		const body = payload as
-			| {
-					message?: unknown;
-					violations?: Array<{
-						login?: unknown;
-						excessMinutes?: unknown;
-					}>;
-			  }
-			| null;
-		const message =
-			typeof body?.message === 'string' && body.message.length > 0
-				? body.message
-				: `Could not schedule this issue (${status}).`;
-		const violations = body?.violations
-			?.filter((violation) => typeof violation.login === 'string')
-			.map((violation) => {
-				const excess =
-					typeof violation.excessMinutes === 'number'
-						? ` (+${violation.excessMinutes} min)`
-						: '';
-				return `${violation.login}${excess}`;
-			});
-		return violations && violations.length > 0
-			? `${message} Over cap: ${violations.join(', ')}.`
-			: message;
-	}
-
 	async function submit() {
 		if (selected === null || busy) return;
 		busy = true;
@@ -107,12 +78,12 @@
 			});
 			if (response.status === 409) {
 				const payload = await response.json().catch(() => null);
-				error = errorMessage(409, payload);
+				error = scheduleErrorMessage(409, payload);
 				return;
 			}
 			if (!response.ok) {
 				const payload = await response.json().catch(() => null);
-				error = errorMessage(response.status, payload);
+				error = scheduleErrorMessage(response.status, payload);
 				return;
 			}
 			await invalidateAll();
