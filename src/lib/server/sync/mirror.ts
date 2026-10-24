@@ -959,6 +959,25 @@ export function upsertIssue(issue: IssueRecord, metadata: StoredMetadata): void 
   upsertIssues([issue], metadata);
 }
 
+/**
+ * Whether the issue's mirrored label set carries the `epic` type label. Used
+ * when a metadata-only write omits `isEpic` (older callers, such as conflict
+ * resolution): the cache must follow the labels, not be cleared to 0.
+ */
+function carriedEpicLabel(repoId: number, number: number): boolean {
+  return db
+    .select({ name: mirrorThreadLabel.labelName })
+    .from(mirrorThreadLabel)
+    .where(
+      and(
+        eq(mirrorThreadLabel.repoId, repoId),
+        eq(mirrorThreadLabel.threadNumber, number),
+      ),
+    )
+    .all()
+    .some((row) => row.name.toLowerCase() === "epic");
+}
+
 export function setIssueMetadata(
   repoId: number,
   number: number,
@@ -973,7 +992,7 @@ export function setIssueMetadata(
       priorityRank: storedPriorityRank(metadata.priority),
       size: metadata.size,
       blocked: metadata.blocked ? 1 : 0,
-      isEpic: metadata.isEpic ? 1 : 0,
+      isEpic: (metadata.isEpic ?? carriedEpicLabel(repoId, number)) ? 1 : 0,
       labelConflict: metadata.labelConflict ? 1 : 0,
     })
     .where(
