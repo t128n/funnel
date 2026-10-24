@@ -1,4 +1,7 @@
 import { beforeEach, describe, expect, test } from "bun:test";
+import { eq } from "drizzle-orm";
+import { db } from "#lib/server/db/index";
+import { statePlanItem } from "#lib/server/db/schema";
 import { clearMirror } from "#tests/mirror-helpers";
 import {
   resetPlanning,
@@ -21,13 +24,13 @@ describe("plan item store", () => {
     const repoId = seedPlanningRepo("orgA/core");
     seedPlanningIssue({ repoId, number: 1, size: "md" });
 
-    const first = setPlanItem({
+    setPlanItem({
       org: "orgA",
       name: "core",
       issueNumber: 1,
       weekStart: "2026-10-19",
     });
-    const second = setPlanItem({
+    setPlanItem({
       org: "orgA",
       name: "core",
       issueNumber: 1,
@@ -38,7 +41,22 @@ describe("plan item store", () => {
     expect(rows).toHaveLength(1);
     expect(rows[0].weekStart).toBe("2026-10-26");
     expect(getPlanItem("orgA", "core", 1)?.weekStart).toBe("2026-10-26");
-    expect(second.createdAt).toBe(first.createdAt);
+
+    // Pin `created_at` to a value no write could produce, so the move's
+    // preservation of it cannot pass just because both writes shared a
+    // millisecond.
+    db.update(statePlanItem)
+      .set({ createdAt: 1 })
+      .where(eq(statePlanItem.issueNumber, 1))
+      .run();
+    const moved = setPlanItem({
+      org: "orgA",
+      name: "core",
+      issueNumber: 1,
+      weekStart: "2026-11-02",
+    });
+    expect(moved.createdAt).toBe(1);
+    expect(moved.weekStart).toBe("2026-11-02");
   });
 
   test("test_plan_items_survive_mirror_clear", () => {

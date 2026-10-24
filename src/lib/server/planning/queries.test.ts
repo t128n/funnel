@@ -15,6 +15,7 @@ import {
   listMilestoneIssues,
   listPlanCandidates,
   listPlannedIssues,
+  PLAN_CANDIDATE_LIMIT,
 } from "./queries";
 
 describe("planning queries", () => {
@@ -124,6 +125,18 @@ describe("planning queries", () => {
     const candidates = listPlanCandidates();
     expect(candidates.map((issue) => issue.title)).toEqual(["First", "Later"]);
     expect(candidates.map((issue) => issue.weekStart)).toEqual([null, null]);
+  });
+
+  test("test_candidates_respect_limit", () => {
+    const repoId = seedPlanningRepo("orgA/core");
+    for (const number of [1, 2, 3]) {
+      seedPlanningIssue({ repoId, number, status: "todo", size: "md" });
+    }
+
+    // The picker asks for a bounded page; most recently updated first.
+    const limited = listPlanCandidates(2);
+    expect(limited.map((issue) => issue.number)).toEqual([3, 2]);
+    expect(PLAN_CANDIDATE_LIMIT).toBe(300);
   });
 
   test("test_closed_issue_is_absent", () => {
