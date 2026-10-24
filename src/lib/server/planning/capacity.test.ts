@@ -48,13 +48,10 @@ describe("estimateMinutes", () => {
 });
 
 describe("capMinutes", () => {
-	test("floors the percentage", () => {
+	test("test_cap_floors", () => {
 		expect(capMinutes(599, 60, 1)).toBe(359);
-		expect(capMinutes(600, 60, 2)).toBe(720);
-	});
-
-	test("a null window has no capacity", () => {
 		expect(capMinutes(600, 60, null)).toBe(0);
+		expect(capMinutes(600, 60, 2)).toBe(720);
 	});
 
 	test("zero weeks has no capacity", () => {
@@ -63,7 +60,7 @@ describe("capMinutes", () => {
 });
 
 describe("splitMinutes", () => {
-	test("puts the integer remainder on the first share", () => {
+	test("test_remainder_to_first", () => {
 		expect(splitMinutes(241, 2)).toEqual([121, 120]);
 		expect(splitMinutes(240, 2)).toEqual([120, 120]);
 		expect(splitMinutes(100, 3)).toEqual([34, 33, 33]);
@@ -102,7 +99,7 @@ describe("distributeIssues", () => {
 		expect(result.unassigned.committedMinutes).toBe(0);
 	});
 
-	test("leaves inactive maintainers unassigned", () => {
+	test("test_inactive_is_unassigned", () => {
 		const inactive = person("ann", { active: false });
 		const issues: CapacityIssue[] = [
 			{ estimateMinutes: 240, assignees: [maintainerKey(inactive)] },
@@ -113,6 +110,21 @@ describe("distributeIssues", () => {
 		expect(result.unassigned.committedMinutes).toBe(240);
 		expect(result.unassigned.issueIndexes).toEqual([0]);
 		expect(result.unassigned.over).toBe(false);
+	});
+
+	test("an inactive assignee next to an active one only splits to the active", () => {
+		const inactive = person("bob", { active: false });
+		const issues: CapacityIssue[] = [
+			{
+				estimateMinutes: 240,
+				assignees: [key("ann"), maintainerKey(inactive)],
+			},
+		];
+		const result = distributeIssues(issues, [ann, inactive]);
+
+		expect(result.totals[0]?.committedMinutes).toBe(240);
+		expect(result.unassigned.committedMinutes).toBe(0);
+		expect(result.unassigned.issueIndexes).toEqual([]);
 	});
 
 	test("an unmatched assignee is unassigned", () => {
@@ -171,7 +183,7 @@ describe("distributeIssues", () => {
 });
 
 describe("overCapacity", () => {
-	test("reports each over-cap active lane", () => {
+	test("test_over_capacity", () => {
 		const issues: CapacityIssue[] = [
 			{ estimateMinutes: 240, assignees: [key("ann")] },
 			{ estimateMinutes: 240, assignees: [key("ann")] },
@@ -181,10 +193,15 @@ describe("overCapacity", () => {
 		]);
 	});
 
-	test("a null window never reports over", () => {
+	test("test_null_weeks_never_over", () => {
 		const issues: CapacityIssue[] = [
 			{ estimateMinutes: 480, assignees: [key("ann")] },
 		];
+		const distribution = distributeIssues(issues, [ann], 60, null);
+
+		expect(distribution.totals[0]?.capMinutes).toBe(0);
+		expect(distribution.totals[0]?.committedMinutes).toBe(480);
+		expect(distribution.totals[0]?.over).toBe(false);
 		expect(overCapacity(issues, [ann], 60, null)).toEqual([]);
 	});
 

@@ -9,10 +9,11 @@ import {
 } from "./calendar";
 
 describe("weekStartOf", () => {
-	test("maps any day of the week to its Monday in UTC", () => {
+	test("test_week_start_is_monday_utc", () => {
 		expect(weekStartOf("2026-10-25")).toBe("2026-10-19");
 		expect(weekStartOf("2026-10-19")).toBe("2026-10-19");
 		expect(weekStartOf("2026-10-21")).toBe("2026-10-19");
+		expect(addWeeks("2026-12-28", 1)).toBe("2027-01-04");
 	});
 
 	test("uses the UTC day for Date inputs", () => {
@@ -51,11 +52,17 @@ describe("weekLabel", () => {
 	test("renders a compact human label", () => {
 		expect(weekLabel("2026-10-19")).toBe("19–25 Oct 2026");
 		expect(weekLabel("2026-10-26")).toBe("26 Oct – 1 Nov 2026");
+		expect(weekLabel("2026-12-28")).toBe("28 Dec 2026 – 3 Jan 2027");
+	});
+
+	test("never renders NaN for an unusable week", () => {
+		expect(weekLabel("not-a-date")).toBe("not-a-date");
+		expect(weekLabel("2026-02-30")).toBe("2026-02-30");
 	});
 });
 
 describe("cycleForWeek", () => {
-	test("returns the containing window", () => {
+	test("test_cycle_boundaries", () => {
 		expect(cycleForWeek("2026-10-19", "2024-01-01", 2)).toEqual({
 			key: "2026-10-19",
 			start: "2026-10-19",
@@ -69,6 +76,14 @@ describe("cycleForWeek", () => {
 		expect(cycle.key).toBe("2023-12-18");
 		expect(cycle.weeks).toEqual(["2023-12-18", "2023-12-25"]);
 		expect(cycle.end).toBe("2023-12-31");
+	});
+
+	test("keeps every week inside its own cycle", () => {
+		for (let offset = -8; offset <= 8; offset += 1) {
+			const week = addWeeks("2026-10-19", offset);
+			const cycle = cycleForWeek(week, "2024-01-01", 2);
+			expect(cycle.weeks).toContain(week);
+		}
 	});
 
 	test("honours a single-week cycle", () => {
@@ -88,7 +103,7 @@ describe("weeksUntilDue", () => {
 		expect(weeksUntilDue("2026-10-19", "2026-10-19")).toBe(0);
 	});
 
-	test("past due dates are zero", () => {
+	test("test_past_due_is_zero", () => {
 		expect(weeksUntilDue("2026-10-01", "2026-10-19")).toBe(0);
 	});
 

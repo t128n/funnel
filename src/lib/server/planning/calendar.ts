@@ -95,9 +95,11 @@ export function isMondayISO(value: string): boolean {
 /**
  * A compact human label for a week, e.g. `19–25 Oct 2026` or
  * `26 Oct – 1 Nov 2026`. Years are repeated when the week straddles one.
+ * An unusable input is echoed back rather than rendered as `NaN`.
  */
 export function weekLabel(week: string): string {
 	const start = midnightOf(weekStartOf(week));
+	if (Number.isNaN(start)) return week;
 	const end = start + 6 * DAY_MS;
 	const startDate = new Date(start);
 	const endDate = new Date(end);
