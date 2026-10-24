@@ -57,6 +57,7 @@ Learning-oriented, with one path and expected results.
 - [Configure sync](how-to/configure/sync.md) — set the history window and the active/idle polling cadence.
 - [Configure the board](how-to/configure/board.md) — set the Done window and per-stage Work-in-Progress limits.
 - [Configure features](how-to/configure/features.md) — choose per-browser rendering, work-note, and attachment visibility.
+- [Configure estimates and weekly plans](how-to/configure/planning.md) — set size minutes, net hours, cycle length and the 60% allocation cap.
 
 ### Use
 
