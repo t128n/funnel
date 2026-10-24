@@ -442,7 +442,7 @@ The `children` body replaces the whole list in order:
 { "children": ["orgA/core#12", "orgA/web#3"] }
 ```
 
-Each entry must be `owner/name#number`. The endpoint rejects a malformed ref with `400`, a self reference or a nested epic with `409`, and a child already listed by another epic with `409`. An empty array clears the section. The relation is portable because it lives in the epic body and survives a mirror rebuild; there is no membership table. An issue should belong to one epic.
+Each entry must be `owner/name#number`. The endpoint rejects a malformed ref, a self reference or a nested epic with `400`, and a child already listed by another epic with `409`. An empty array clears the section. The relation is portable because it lives in the epic body and survives a mirror rebuild; there is no membership table. An issue should belong to one epic.
 
 The delay create body is:
 
@@ -462,7 +462,7 @@ The delay create body is:
 | `ended_at` | integer (Unix ms) or `null` | no | `null` or omitted leaves the delay open. |
 | `note` | string | no | Defaults to `""`. |
 
-`PATCH` accepts any of `ended_at`, `note` and `reason`; an empty patch returns `400`. `DELETE` is idempotent for a missing row. Only `source = manual` rows can be edited or deleted; an automatic blocked row returns `409`, and a blocked delay is closed by unblocking the issue instead.
+`PATCH` accepts any of `ended_at`, `note` and `reason`; a request that carries none of them returns the delay unchanged with `200`. `DELETE` returns `404` for a missing row. Only `source = manual` rows can be edited or deleted; an automatic blocked row returns `403`, and a blocked delay is closed by unblocking the issue instead.
 
 `DelayItem` is `{ "id": string, "reason": string, "startedAt": number, "endedAt": number | null, "note": string, "source": "blocked" | "manual" }`.
 
@@ -486,9 +486,9 @@ The response carries `Cache-Control: no-store`, so an API client that sends `Acc
 | `304` | Passthrough read revalidated with `If-None-Match`. |
 | `400` | Malformed JSON, schema validation failure, invalid issue number, unconfigured repository, empty patch. |
 | `401` | No cockpit session. |
-| `403` | Session lacks the minimum role. |
-| `404` | Repo or issue not mirrored, unknown work note or attachment, unknown API path. |
-| `409` | A plan mutation would push a maintainer over capacity, an epic child is self-referencing, nested, already in another epic, or an automatic delay is edited, or demoting the last administrator. |
+| `403` | Session lacks the minimum role, or a manual-delay route targets an automatic blocked row. |
+| `404` | Repo or issue not mirrored, unknown work note, attachment or delay, unknown API path. |
+| `409` | A plan mutation would push a maintainer over capacity, an epic child is already in another epic, or demoting the last administrator. |
 | `413` | Attachment exceeds the upload limit. |
 | `502` | User token unavailable, or an upstream transport failure without a status. |
 | `503` | Auth API while onboarding is incomplete, or readiness not achieved. |

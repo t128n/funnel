@@ -47,11 +47,11 @@ The API equivalent is `PUT /api/repos/{owner}/{repo}/issues/{number}/epic/childr
 
 ## Read progress and rollups
 
-`/epics` lists epics with open epics before closed ones. Each row shows progress (closed children over total children) and the summed estimate, actual time and delay time.
+`/epics` lists epics with open epics before closed ones. Each row shows progress (closed children over resolved children) and the summed estimate, actual time and delay time.
 
 The epic detail page shows:
 
-- the epic issue itself, with its own status and time;
+- the epic issue header with its title, reference, milestone and closed marker;
 - rollup cards for progress, estimate, actual and delay;
 - the ordered child table with each child's status, assignees, estimate, actual and delay.
 

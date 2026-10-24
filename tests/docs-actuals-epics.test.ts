@@ -102,4 +102,20 @@ describe("actuals, delays and epics documentation", () => {
     expect(epics).toContain('epic:\n  children:');
     expect(workflow).toContain("funnel_metadata");
   });
+
+  test("test_error_statuses_match_routes", () => {
+    // The documented statuses must match the implemented handlers.
+    expect(api).toContain("self reference or a nested epic with `400`");
+    expect(api).not.toContain("nested epic with `409`");
+    expect(api).toContain("automatic blocked row returns `403`");
+    expect(api).toContain("`DELETE` returns `404` for a missing row");
+    expect(api).not.toContain("idempotent for a missing row");
+  });
+
+  test("test_epic_detail_docs_match_surface", () => {
+    // The detail page renders the epic header, rollup cards and child table;
+    // it does not render the epic issue's own time block.
+    expect(epics).toContain("epic issue header");
+    expect(epics).not.toContain("its own status and time");
+  });
 });
