@@ -407,7 +407,7 @@ The `PUT` body is:
 | Status | Body |
 | :--- | :--- |
 | `200` | `{ "item": PlanItem }`; scheduling is idempotent per week. |
-| `400` | `{ "message": "…", "issues"?: ["…"] }` for a malformed body or a week that is not a Monday, and for an unestimated or unowned issue. |
+| `400` | `{ "message": "…", "issues"?: ["…"] }` for a malformed body or a week that is not a Monday, and for a closed, unestimated or unowned issue. |
 | `404` | `{ "message": "…" }` when the repository or issue is not mirrored. |
 | `409` | `{ "message": "…", "violations": [{ "login": string, "capMinutes": number, "committedMinutes": number, "excessMinutes": number }] }` when the candidate would exceed any affected maintainer's cap. Nothing is written. |
 

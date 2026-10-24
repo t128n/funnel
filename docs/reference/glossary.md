@@ -30,7 +30,7 @@ Definitions of the terms used across Funnel's reference documentation.
 
 **Net hours** — A maintainer's contracted weekly hours minus recurring meetings, on-call and other fixed commitments. Funnel stores net hours as `weekly_minutes` in `planning.maintainers` and plans at most 60% of them by default; the rest is buffer for reviews, unplanned work and slack. The value is never called "gross hours". See [Configure estimates and weekly plans](../how-to/configure/planning.md).
 
-**Cycle** — A fixed number (`planning.cycle_weeks`, default 2) of contiguous Monday weeks counted from `planning.cycle_anchor` (default Monday `2024-01-01`). Its key is its first Monday, and it exposes its start, end and ordered week list. Weeks before the anchor floor to the first cycle. See [`calendar.ts`](../../src/lib/server/planning/calendar.ts).
+**Cycle** — A fixed number (`planning.cycle_weeks`, default 2) of contiguous Monday weeks counted from `planning.cycle_anchor` (default Monday `2024-01-01`). Its key is its first Monday, and it exposes its start, end and ordered week list. Weeks before the anchor floor into negative cycles, so historical plan items keep stable windows. See [`calendar.ts`](../../src/lib/server/planning/calendar.ts).
 
 **Plan item** — A durable row in `state_plan_item` that schedules one open, sized issue into one Monday week, keyed by `(org, name, issue_number)` with no foreign key to the mirror. Plan items are never written to GitHub and survive mirror pruning and `clearMirror`; a plan item whose issue is closed or no longer mirrored frees its capacity. See [Database schema](./database-schema.md#state_plan_item).
 

@@ -87,6 +87,41 @@ describe("planning documentation", () => {
     }
   });
 
+  test("test_cycle_docs_match_negative_cycle_flooring", () => {
+    // `cycleForWeek` floors pre-anchor weeks into negative cycles; it does not
+    // clamp them to the anchor's cycle (see calendar.test.ts).
+    expect(glossary).toContain("negative cycles");
+    expect(howTo).toContain("negative cycles");
+    expect(settings).toContain("negative cycles");
+    for (const doc of [glossary, howTo, settings]) {
+      expect(doc).not.toContain("floor to the first cycle");
+      expect(doc).not.toContain("rather than producing negative cycle numbers");
+    }
+  });
+
+  test("test_settings_docs_describe_the_full_roster_row", () => {
+    // `maintainerInput` requires `login` and accepts an optional `avatar_url`;
+    // `cycle_anchor` is not trimmed before validation.
+    expect(settings).toContain("`login`");
+    expect(settings).toContain("`avatar_url`");
+    expect(settings).not.toContain("Trimmed `YYYY-MM-DD`");
+  });
+
+  test("test_api_docs_cover_closed_and_unowned_400s", () => {
+    // `scheduleIssue` rejects a closed, unestimated or unowned issue with 400.
+    expect(api).toContain("closed, unestimated or unowned issue");
+  });
+
+  test("test_how_to_documents_the_unowned_rejection", () => {
+    expect(howTo).toContain("active, configured maintainer");
+    expect(howTo).toContain("unconfigured or inactive people is rejected with `400`");
+  });
+
+  test("test_workflow_model_qualifies_the_unassigned_bucket", () => {
+    expect(workflow).toContain("assignees changed after scheduling");
+    expect(workflow).toContain("rejects an unowned issue with `400`");
+  });
+
   test("test_net_hours_hint_is_verbatim", () => {
     const hint =
       "Enter net hours: contracted weekly hours minus recurring meetings, on-call, and other fixed commitments. Funnel plans at most 60% of this; the rest is buffer.";

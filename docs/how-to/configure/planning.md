@@ -39,7 +39,7 @@ An issue's estimate is split evenly across its assignees that are active, config
 - `planning.cycle_weeks` is the cycle length, an integer in `1..52`. Default `2`.
 - `planning.cycle_anchor` is the Monday that anchors cycle numbering, in `YYYY-MM-DD` form. Default `2024-01-01`. Any other weekday is rejected.
 
-A cycle's key is its first Monday, and it exposes its start, end and ordered week list. Weeks before the anchor floor to the first cycle rather than producing negative cycle numbers.
+A cycle's key is its first Monday, and it exposes its start, end and ordered week list. Weeks before the anchor floor into negative cycles, so historical plan items keep stable windows instead of being clamped onto the anchor's cycle.
 
 ## Steps
 
@@ -53,7 +53,7 @@ A cycle's key is its first Monday, and it exposes its start, end and ordered wee
 
 ## Scheduling issues
 
-A writer can schedule an issue from `/plan` with **Schedule issue**: the dialog searches open, sized, unplanned issues and posts the chosen Monday week. Moving an issue to another week frees its old week before the cap is checked. Re-scheduling to the same week is a no-op, and removing a plan item is idempotent.
+A writer can schedule an issue from `/plan` with **Schedule issue**: the dialog searches open, sized, unplanned issues and posts the chosen Monday week. Scheduling also requires at least one assignee who is an active, configured maintainer; an issue assigned only to unconfigured or inactive people is rejected with `400`. Moving an issue to another week frees its old week before the cap is checked. Re-scheduling to the same week is a no-op, and removing a plan item is idempotent.
 
 The allocation cap is hard. Before writing, the server checks the affected maintainers' lanes after applying the candidate and rejects the write with `409` when any lane would exceed its cap. The response names each violating maintainer with the cap, projected committed minutes and excess. The same limits are enforced by `PUT /api/repos/{owner}/{repo}/issues/{number}/plan`, so a direct API call cannot bypass them.
 
