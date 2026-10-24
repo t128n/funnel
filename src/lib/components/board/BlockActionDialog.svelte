@@ -17,9 +17,9 @@
 	} from '#lib/funnel-metadata';
 	import { cn } from '#lib/utils';
 	import {
+		blockInfoPayload,
 		canSubmitBlock,
-		delayReasonLabel,
-		isDelayReason
+		delayReasonLabel
 	} from '#lib/components/issue/inspector-format';
 
 	/**
@@ -85,17 +85,9 @@
 	function confirm() {
 		if (!canConfirm) return;
 		if (isBlock) {
-			if (!canSubmitBlock({ blocker, needs, reason }) || !isDelayReason(reason)) return;
-			onconfirm({
-				kind: 'block',
-				info: {
-					blocker: blocker.trim(),
-					needs: needs.trim(),
-					trying: trying.trim(),
-					recheck: recheck.trim(),
-					reason
-				}
-			});
+			const info = blockInfoPayload({ blocker, needs, trying, recheck, reason });
+			if (!info) return;
+			onconfirm({ kind: 'block', info });
 		} else {
 			onconfirm({ kind: 'unblock', note: note.trim() });
 		}

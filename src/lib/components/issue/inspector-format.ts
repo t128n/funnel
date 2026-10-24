@@ -3,7 +3,11 @@
  * epic surfaces (SPEC §2, §3, §5). Kept out of the Svelte components so the
  * read-only rules and labels stay testable without a browser.
  */
-import { DELAY_REASONS, type DelayReason } from "#lib/funnel-metadata";
+import {
+	DELAY_REASONS,
+	type BlockInfo,
+	type DelayReason,
+} from "#lib/funnel-metadata";
 import { formatMinutes } from "#lib/planning";
 import type { DelayItem } from "#lib/server/actuals/store";
 import type { IssueTime } from "#lib/server/actuals/time";
@@ -121,6 +125,28 @@ export function canSubmitBlock(input: {
 		(input.needs ?? "").trim().length > 0 &&
 		isDelayReason(input.reason)
 	);
+}
+
+/**
+ * The block dialog's payload, or `null` until it has a blocker, the next step
+ * and a canonical reason. Trimming and the required reason live here so the
+ * submitted info — not just the disabled confirm button — stays testable.
+ */
+export function blockInfoPayload(input: {
+	blocker?: string;
+	needs?: string;
+	trying?: string;
+	recheck?: string;
+	reason?: string;
+}): BlockInfo | null {
+	if (!canSubmitBlock(input) || !isDelayReason(input.reason)) return null;
+	return {
+		blocker: (input.blocker ?? "").trim(),
+		needs: (input.needs ?? "").trim(),
+		trying: (input.trying ?? "").trim(),
+		recheck: (input.recheck ?? "").trim(),
+		reason: input.reason,
+	};
 }
 
 export type EpicPropertyState = "epic" | "child" | "none";

@@ -1,9 +1,12 @@
 import { describe, expect, test } from "bun:test";
+import { readBlocked, writeBlocked } from "#lib/funnel-metadata";
 import type { DelayItem } from "#lib/server/actuals/store";
 import type { IssueTime } from "#lib/server/actuals/time";
 import type { EpicRef } from "#lib/server/issues/types";
 import {
+	blockInfoPayload,
 	canCloseDelay,
+	canDeleteDelay,
 	canManage,
 	canSubmitBlock,
 	delayDuration,
@@ -80,6 +83,8 @@ describe("delay list", () => {
 		expect(canCloseDelay(auto, true)).toBe(false);
 		expect(canCloseDelay(manual, true)).toBe(true);
 		expect(canCloseDelay(delay({ endedAt: NOW }), true)).toBe(false);
+		expect(canDeleteDelay(auto, true)).toBe(false);
+		expect(canDeleteDelay(manual, true)).toBe(true);
 		expect(delayReasonLabel("review")).toBe("Review");
 		expect(delayDuration(auto, NOW)).toBe("2h");
 	});
@@ -95,6 +100,25 @@ describe("block reason", () => {
 		expect(
 			canSubmitBlock({ blocker: "API", needs: "deploy", reason: "dependency" })
 		).toBe(true);
+
+		const info = blockInfoPayload({
+			blocker: " API ",
+			needs: " deploy ",
+			trying: "",
+			recheck: "",
+			reason: "dependency"
+		});
+		expect(info).toEqual({
+			blocker: "API",
+			needs: "deploy",
+			trying: "",
+			recheck: "",
+			reason: "dependency"
+		});
+		expect(blockInfoPayload({ blocker: "API", needs: "deploy", reason: "" })).toBeNull();
+		if (info === null) throw new Error("expected block info");
+		// The payload's reason survives the metadata write the dialog triggers.
+		expect(readBlocked(writeBlocked("desc", info)).info?.reason).toBe("dependency");
 	});
 });
 
@@ -115,5 +139,6 @@ describe("read-only", () => {
 		expect(canManage(true)).toBe(true);
 		expect(canManage(true, true)).toBe(false);
 		expect(canCloseDelay(delay(), false)).toBe(false);
+		expect(canDeleteDelay(delay(), false)).toBe(false);
 	});
 });
