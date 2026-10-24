@@ -1,0 +1,176 @@
+import { beforeEach, describe, expect, test } from "bun:test";
+import { setConfig } from "#lib/server/config";
+import { setPlanItem } from "#lib/server/planning/store";
+import type { MaintainerInput } from "#lib/server/settings/store";
+import {
+  planningUser,
+  resetPlanning,
+  seedPlanningIssue,
+  seedPlanningRepo,
+} from "#tests/planning-helpers";
+import { TEST_CONFIG } from "#tests/test-config";
+import { cyclePlan, weekPlan } from "./plans";
+
+const WEEK = "2026-10-19";
+
+function maintainer(
+  login: string,
+  weeklyMinutes: number,
+  active = true,
+): MaintainerInput {
+  return {
+    forge: "github",
+    instance: "github.com",
+    external_id: login,
+    login,
+    avatar_url: `https://avatars/${login}.png`,
+    weekly_minutes: weeklyMinutes,
+    active,
+  };
+}
+
+function usePlanning(maintainers: MaintainerInput[] = []): void {
+  setConfig({
+    ...TEST_CONFIG,
+    planning: {
+      ...TEST_CONFIG.planning,
+      maintainers,
+    },
+  });
+}
+
+describe("week and cycle plans", () => {
+  beforeEach(() => {
+    resetPlanning();
+    usePlanning([maintainer("ann", 600)]);
+  });
+
+  test("test_week_lane_uses_60_percent", async () => {
+    const repoId = seedPlanningRepo("orgA/core");
+    seedPlanningIssue({
+      repoId,
+      number: 1,
+      size: "md",
+      assignees: [planningUser("ann")],
+    });
+    setPlanItem({
+      org: "orgA",
+      name: "core",
+      issueNumber: 1,
+      weekStart: WEEK,
+    });
+
+    const plan = await weekPlan(WEEK);
+
+    expect(plan.weekStart).toBe(WEEK);
+    expect(plan.label).toBe("19–25 Oct 2026");
+    expect(plan.lanes).toHaveLength(1);
+    expect(plan.lanes[0]).toMatchObject({
+      maintainer: { login: "ann", weeklyMinutes: 600 },
+      capMinutes: 360,
+      committedMinutes: 240,
+      remainingMinutes: 120,
+      over: false,
+    });
+    expect(plan.lanes[0].issues.map((issue) => issue.number)).toEqual([1]);
+  });
+
+  test("test_unassigned_and_unestimated", async () => {
+    const repoId = seedPlanningRepo("orgA/core");
+    seedPlanningIssue({ repoId, number: 1, size: "md" });
+    seedPlanningIssue({ repoId, number: 2, size: null, status: "todo" });
+    setPlanItem({
+      org: "orgA",
+      name: "core",
+      issueNumber: 1,
+      weekStart: WEEK,
+    });
+
+    const plan = await weekPlan(WEEK);
+
+    expect(plan.unassigned.committedMinutes).toBe(240);
+    expect(plan.unassigned.issues.map((issue) => issue.number)).toEqual([1]);
+    expect(plan.lanes[0].committedMinutes).toBe(0);
+    expect(plan.unestimated.map((issue) => issue.number)).toEqual([2]);
+  });
+
+  test("inactive maintainers get no lane and their work is unassigned", async () => {
+    usePlanning([maintainer("ann", 600, false)]);
+    const repoId = seedPlanningRepo("orgA/core");
+    seedPlanningIssue({
+      repoId,
+      number: 1,
+      size: "md",
+      assignees: [planningUser("ann")],
+    });
+    setPlanItem({
+      org: "orgA",
+      name: "core",
+      issueNumber: 1,
+      weekStart: WEEK,
+    });
+
+    const plan = await weekPlan(WEEK);
+
+    expect(plan.lanes).toEqual([]);
+    expect(plan.unassigned.committedMinutes).toBe(240);
+  });
+
+  test("test_cycle_aggregates_two_weeks", async () => {
+    const repoId = seedPlanningRepo("orgA/core");
+    seedPlanningIssue({
+      repoId,
+      number: 1,
+      size: "md",
+      assignees: [planningUser("ann")],
+    });
+    seedPlanningIssue({
+      repoId,
+      number: 2,
+      size: "md",
+      assignees: [planningUser("ann")],
+    });
+    setPlanItem({
+      org: "orgA",
+      name: "core",
+      issueNumber: 1,
+      weekStart: "2026-10-19",
+    });
+    setPlanItem({
+      org: "orgA",
+      name: "core",
+      issueNumber: 2,
+      weekStart: "2026-10-26",
+    });
+
+    const plan = await cyclePlan(WEEK);
+
+    expect(plan).toMatchObject({
+      key: "2026-10-19",
+      start: "2026-10-19",
+      end: "2026-11-01",
+    });
+    expect(plan.weeks.map((week) => week.weekStart)).toEqual([
+      "2026-10-19",
+      "2026-10-26",
+    ]);
+    expect(plan.weeks.map((week) => week.lanes[0].committedMinutes)).toEqual([
+      240, 240,
+    ]);
+    expect(plan.lanes[0]).toMatchObject({
+      capMinutes: 720,
+      committedMinutes: 480,
+      remainingMinutes: 240,
+      over: false,
+    });
+  });
+
+  test("a week outside the planned set is empty", async () => {
+    const plan = await weekPlan("2026-11-02");
+
+    expect(plan.lanes).toHaveLength(1);
+    expect(plan.lanes[0]).toMatchObject({ capMinutes: 360, committedMinutes: 0 });
+    expect(plan.unassigned).toEqual({ committedMinutes: 0, issues: [] });
+    expect(plan.unestimated).toEqual([]);
+  });
+});
