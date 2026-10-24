@@ -5,12 +5,22 @@
 	import * as Dialog from '#lib/components/ui/dialog';
 	import * as Field from '#lib/components/ui/field';
 	import { Input } from '#lib/components/ui/input';
+	import * as NativeSelect from '#lib/components/ui/native-select';
 	import { Textarea } from '#lib/components/ui/textarea';
 	import { quickRecheckDates, toISODate } from '#lib/attention';
 	import { clockTick } from '#lib/client/clock.svelte';
 	import type { BlockPayload } from '#lib/client/issue-actions.svelte';
-	import type { BlockInfo } from '#lib/funnel-metadata';
+	import {
+		DELAY_REASONS,
+		type BlockInfo,
+		type DelayReason
+	} from '#lib/funnel-metadata';
 	import { cn } from '#lib/utils';
+	import {
+		canSubmitBlock,
+		delayReasonLabel,
+		isDelayReason
+	} from '#lib/components/issue/inspector-format';
 
 	/**
 	 * Structured block/unblock dialog (SPEC §5.1). Blocking records *why* an
@@ -39,6 +49,7 @@
 	let trying = $state('');
 	let recheck = $state('');
 	let note = $state('');
+	let reason = $state<DelayReason | ''>('');
 
 	// Reset each time the dialog (re)opens so a cancelled action never leaks
 	// stale fields into the next one. `initial` prefills a revise-in-place flow.
@@ -48,6 +59,7 @@
 			needs = initial?.needs ?? '';
 			trying = initial?.trying ?? '';
 			recheck = initial?.recheck ?? '';
+			reason = initial?.reason ?? '';
 			note = '';
 		}
 	});
@@ -55,7 +67,7 @@
 	const canConfirm = $derived(
 		!busy &&
 			(isBlock
-				? blocker.trim().length > 0 && needs.trim().length > 0
+				? canSubmitBlock({ blocker, needs, reason })
 				: note.trim().length > 0)
 	);
 
@@ -73,13 +85,15 @@
 	function confirm() {
 		if (!canConfirm) return;
 		if (isBlock) {
+			if (!canSubmitBlock({ blocker, needs, reason }) || !isDelayReason(reason)) return;
 			onconfirm({
 				kind: 'block',
 				info: {
 					blocker: blocker.trim(),
 					needs: needs.trim(),
 					trying: trying.trim(),
-					recheck: recheck.trim()
+					recheck: recheck.trim(),
+					reason
 				}
 			});
 		} else {
@@ -126,6 +140,18 @@
 						value={blocker}
 						oninput={(e) => (blocker = e.currentTarget.value)}
 					></Textarea>
+				</Field.Field>
+
+				<Field.Field>
+					<Field.Label for="block-reason">
+						Reason <span class="text-destructive font-normal">required</span>
+					</Field.Label>
+					<NativeSelect.Root id="block-reason" bind:value={reason}>
+						<NativeSelect.Option value="">Select a reason</NativeSelect.Option>
+						{#each DELAY_REASONS as value (value)}
+							<NativeSelect.Option {value}>{delayReasonLabel(value)}</NativeSelect.Option>
+						{/each}
+					</NativeSelect.Root>
 				</Field.Field>
 
 				<Field.Field>
