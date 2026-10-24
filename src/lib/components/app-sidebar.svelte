@@ -2,6 +2,7 @@
 	import { page } from "$app/state";
 	import AlarmClockIcon from "@lucide/svelte/icons/alarm-clock";
 	import BellRingIcon from "@lucide/svelte/icons/bell-ring";
+	import CalendarRangeIcon from "@lucide/svelte/icons/calendar-range";
 	import CircleDotIcon from "@lucide/svelte/icons/circle-dot";
 	import FunnelIcon from "@lucide/svelte/icons/funnel";
 	import InboxIcon from "@lucide/svelte/icons/inbox";
@@ -76,6 +77,7 @@
 	const inboxActive = $derived(viewOf(path) === "inbox");
 	const issuesActive = $derived(viewOf(path) === "issues" && !mine);
 	const boardActive = $derived(viewOf(path) === "board");
+	const planActive = $derived(path.startsWith("/plan"));
 	const milestonesActive = $derived(path.startsWith("/milestones"));
 	const attentionActive = $derived(path.startsWith("/attention"));
 	const notificationsActive = $derived(path.startsWith("/notifications"));
@@ -114,6 +116,7 @@
 	const workspace: NavLink[] = $derived([
 		{ href: "/issues", label: "Issues", icon: CircleDotIcon, active: issuesActive },
 		{ href: "/board", label: "Board", icon: KanbanIcon, active: boardActive },
+		{ href: "/plan", label: "Plan", icon: CalendarRangeIcon, active: planActive },
 		{
 			href: "/milestones",
 			label: "Milestones",

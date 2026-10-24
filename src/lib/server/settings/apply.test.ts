@@ -20,6 +20,13 @@ const BASE: SettingsInput = {
   board: { done_days: 7, wip_limits: {} },
   session: { idle_days: 21 },
   notifications: { enabled: true, native: true, new_intake: true },
+  planning: {
+    size_minutes: { sm: 120, md: 240, lg: 480 },
+    allocation_percent: 60,
+    cycle_weeks: 2,
+    cycle_anchor: "2024-01-01",
+    maintainers: [],
+  },
 };
 
 afterEach(() => {
@@ -82,5 +89,69 @@ describe("saveSettings", () => {
 
     expect(result).toEqual({ ok: true });
     expect(readSettings().intake).toEqual({});
+  });
+
+  test("applies a planning patch and round-trips the section", () => {
+    writeSettings(BASE);
+
+    const result = saveSettings({
+      planning: { ...BASE.planning, allocation_percent: 75 },
+    });
+
+    expect(result).toEqual({ ok: true });
+    expect(readSettings().planning).toEqual({
+      ...BASE.planning,
+      allocation_percent: 75,
+    });
+  });
+
+  test("rejects a partial planning patch and keeps the stored section", () => {
+    writeSettings({
+      ...BASE,
+      planning: { ...BASE.planning, cycle_anchor: "2025-01-06" },
+    });
+
+    // Sections merge whole; a planning payload must carry every key.
+    const result = saveSettings({ planning: { allocation_percent: 75 } });
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.issues.length).toBeGreaterThan(0);
+    expect(readSettings().planning.allocation_percent).toBe(60);
+    expect(readSettings().planning.cycle_anchor).toBe("2025-01-06");
+  });
+
+  test("rejects a duplicate maintainer roster on save", () => {
+    writeSettings(BASE);
+    const row = {
+      forge: "github",
+      instance: "github.com",
+      external_id: "7",
+      login: "ann",
+      weekly_minutes: 600,
+      active: true,
+    };
+
+    const result = saveSettings({
+      planning: {
+        ...BASE.planning,
+        maintainers: [row, { ...row, login: "bob" }],
+      },
+    });
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.message).toMatch(/unique/);
+    expect(readSettings().planning.maintainers).toEqual([]);
+  });
+
+  test("rejects a non-Monday cycle anchor", () => {
+    writeSettings(BASE);
+
+    const result = saveSettings({
+      planning: { ...BASE.planning, cycle_anchor: "2024-01-02" },
+    });
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.issues.length).toBeGreaterThan(0);
+    expect(readSettings().planning.cycle_anchor).toBe(BASE.planning.cycle_anchor);
   });
 });

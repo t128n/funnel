@@ -203,6 +203,30 @@ export const stateIssueWatch = sqliteTable(
 );
 
 // ---------------------------------------------------------------------------
+// State: the planning layer.
+// One row schedules one mirrored issue to one ISO Monday week. Keyed by
+// `org/name` + issue number rather than a FK to the disposable mirror, so a
+// plan item survives mirror pruning and `clearMirror`; GitHub remains
+// authoritative for the issue's title, size, assignees, state and milestone.
+// `week_start` is the Monday date in `YYYY-MM-DD` form.
+// ---------------------------------------------------------------------------
+export const statePlanItem = sqliteTable(
+  "state_plan_item",
+  {
+    org: text("org").notNull(),
+    name: text("name").notNull(),
+    issueNumber: integer("issue_number").notNull(),
+    weekStart: text("week_start").notNull(),
+    createdAt: integer("created_at").notNull(),
+    updatedAt: integer("updated_at").notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.org, t.name, t.issueNumber] }),
+    index("idx_state_plan_item_week").on(t.weekStart),
+  ],
+);
+
+// ---------------------------------------------------------------------------
 // Auth: Better Auth tables (SPEC 7, 8). Field names match Better Auth's
 // stock schema. Date columns use timestamp mode and `emailVerified`
 // boolean mode: the drizzle adapter passes Date/boolean objects, and

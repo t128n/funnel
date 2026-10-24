@@ -25,6 +25,13 @@ const BASE: SettingsInput = {
   board: { done_days: 14, wip_limits: {} },
   session: { idle_days: 30 },
   notifications: { enabled: true, native: true, new_intake: true },
+  planning: {
+    size_minutes: { sm: 120, md: 240, lg: 480 },
+    allocation_percent: 60,
+    cycle_weeks: 2,
+    cycle_anchor: "2024-01-01",
+    maintainers: [],
+  },
 };
 
 /** Write settings to the in-memory `state_setting` table. */
@@ -76,6 +83,13 @@ describe("loadFunnelConfig", () => {
       board: { done_days: 7, wip_limits: { "in-progress": 3 } },
       session: { idle_days: 1 },
       notifications: { enabled: true, native: true, new_intake: true },
+      planning: {
+        size_minutes: { sm: 120, md: 240, lg: 480 },
+        allocation_percent: 60,
+        cycle_weeks: 2,
+        cycle_anchor: "2024-01-01",
+        maintainers: [],
+      },
     });
   });
 
@@ -101,6 +115,65 @@ describe("loadFunnelConfig", () => {
       new_intake: true,
     });
     expect(config.intake).toEqual({});
+  });
+
+  test("test_planning_defaults_from_empty_store", async () => {
+    // No rows at all: the planning section must compose from per-key defaults.
+    const config = await loadFunnelConfig();
+
+    expect(config.planning).toEqual({
+      size_minutes: { sm: 120, md: 240, lg: 480 },
+      allocation_percent: 60,
+      cycle_weeks: 2,
+      cycle_anchor: "2024-01-01",
+      maintainers: [],
+    });
+  });
+
+  test("test_duplicate_maintainer_rejected", async () => {
+    const maintainer = (login: string) => ({
+      forge: "github",
+      instance: "github.com",
+      external_id: "7",
+      login,
+      weekly_minutes: 600,
+      active: true,
+    });
+    seed({
+      planning: {
+        ...BASE.planning,
+        maintainers: [maintainer("ann"), maintainer("bob")],
+      },
+    });
+
+    await expect(loadFunnelConfig()).rejects.toThrow(/unique|maintainer/i);
+  });
+
+  test("test_planning_loads_with_roster", async () => {
+    seed({
+      planning: {
+        size_minutes: { sm: 60, md: 180, lg: 420 },
+        allocation_percent: 75,
+        cycle_weeks: 4,
+        cycle_anchor: "2025-01-06",
+        maintainers: [
+          {
+            forge: "github",
+            instance: "github.com",
+            external_id: "7",
+            login: "ann",
+            weekly_minutes: 1800,
+            active: true,
+          },
+        ],
+      },
+    });
+
+    const config = await loadFunnelConfig();
+
+    expect(config.planning.allocation_percent).toBe(75);
+    expect(config.planning.cycle_anchor).toBe("2025-01-06");
+    expect(config.planning.maintainers).toHaveLength(1);
   });
 
   test("allows a fresh install with no repositories", async () => {

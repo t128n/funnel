@@ -15,6 +15,7 @@ import {
   type SettingsInput,
 } from "#lib/server/settings/store";
 import { clearMirror } from "#tests/mirror-helpers";
+import { TEST_CONFIG } from "#tests/test-config";
 import { forge } from "#/lib/server/forge/providers.server";
 import { deriveMetadata } from "./conflicts";
 import type {
@@ -49,6 +50,7 @@ const BASE_SETTINGS: SettingsInput = {
   board: { done_days: 14, wip_limits: {} },
   session: { idle_days: 30 },
   notifications: { enabled: true, native: true, new_intake: true },
+  planning: TEST_CONFIG.planning,
 };
 
 let repoId = 0;

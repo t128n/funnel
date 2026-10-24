@@ -20,6 +20,7 @@ import * as v from "valibot";
 import { deriveRepoShortcode } from "#lib/issue-ref";
 import {
   count,
+  planningInput,
   projectInput,
   readSettings,
   repoEntry,
@@ -122,6 +123,8 @@ export const configSchema = v.pipe(
       native: v.boolean("notifications.native must be a boolean"),
       new_intake: v.boolean("notifications.new_intake must be a boolean"),
     }),
+    /** Estimates, cycle shape and the maintainer roster (SPEC §1, §3). */
+    planning: planningInput,
   }),
   v.check(
     (config) =>
@@ -135,6 +138,13 @@ export const configSchema = v.pipe(
       config.repos.some((entry) => entry.repo === config.intake.default_repo),
     "intake.default_repo must be one of the configured repos",
   ),
+  v.check((config) => {
+    const keys = config.planning.maintainers.map(
+      (maintainer) =>
+        `${maintainer.forge}\u0000${maintainer.instance}\u0000${maintainer.external_id}`,
+    );
+    return new Set(keys).size === keys.length;
+  }, "planning.maintainers must be unique by (forge, instance, external_id)"),
 );
 
 export type FunnelConfig = v.InferOutput<typeof configSchema>;

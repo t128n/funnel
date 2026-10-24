@@ -23,6 +23,13 @@ export const TEST_CONFIG: FunnelConfig = {
   board: { done_days: 14, wip_limits: {} },
   session: { idle_days: 30 },
   notifications: { enabled: true, native: true, new_intake: true },
+  planning: {
+    size_minutes: { sm: 120, md: 240, lg: 480 },
+    allocation_percent: 60,
+    cycle_weeks: 2,
+    cycle_anchor: "2024-01-01",
+    maintainers: [],
+  },
 };
 
 /** A GitHub Enterprise config for exercising the dynamic host wiring. */

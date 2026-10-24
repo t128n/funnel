@@ -1,6 +1,6 @@
 # HTTP API
 
-Funnel exposes a public intake and health surface, a session-gated cockpit read surface, a per-user notification feed and watch API, GitHub-backed issue writes executed with the signed-in user's token, and Funnel-local work-note and attachment endpoints.
+Funnel exposes a public intake and health surface, a session-gated cockpit read surface, a per-user notification feed and watch API, GitHub-backed issue writes executed with the signed-in user's token, and Funnel-local work-note, attachment and plan endpoints.
 
 ## Conventions
 
@@ -98,7 +98,7 @@ Stream behaviour:
 - The first frames are `retry: 5000` and a `: connected` comment.
 - A heartbeat comment `: ping` is sent every 12,000 ms (`HEARTBEAT_MS`).
 - Each published `SyncEvent` is sent as `event: <type>` followed by `data: <JSON>`.
-- The browser client subscribes to `sync`, `issues`, `intake`, `settings` and `notifications`.
+- The browser client subscribes to `sync`, `issues`, `intake`, `settings`, `notifications` and `planning`.
 - The stream closes when the request is aborted.
 
 Event payloads:
@@ -109,6 +109,7 @@ Event payloads:
 | `intake` | `{ "type": "intake", "action": "created" \| "staged" \| "accepted" \| "dismissed" \| "duplicated", "id": "…", "repo"?: "owner/name", "number"?: 12 }` | A submission is staged or triaged. |
 | `settings` | `{ "type": "settings" }` | An instance-settings save is applied. |
 | `notifications` | `{ "type": "notifications" }` | At least one notification row was inserted. The signal carries no titles, people or user ids; each open tab fetches its own feed. |
+| `planning` | `{ "type": "planning" }` | A plan item was scheduled, moved or cleared. The payload carries no issue identity; open planners reload the affected horizons. |
 | `sync` | Generic `SyncEvent` shape | Part of the client-facing event vocabulary; no publisher in the current server modules emits this type. |
 
 The heartbeat is an SSE comment, not a named event.
@@ -384,6 +385,34 @@ The byte response carries:
 
 A missing row or a row whose file has disappeared returns `404 {"message":"Attachment not found"}`.
 
+### Planning
+
+Plan items are Funnel-local: they are never written to GitHub and are keyed by `org/name` plus issue number, so they survive mirror pruning and `clearMirror`. The issue's GitHub assignees, size and milestone remain the source of truth.
+
+| Method | Path | Minimum role | Success |
+| :--- | :--- | :--- | :--- |
+| `PUT` | `/api/repos/{owner}/{repo}/issues/{number}/plan` | `write` | `200 { "item": PlanItem }` |
+| `DELETE` | `/api/repos/{owner}/{repo}/issues/{number}/plan` | `write` | `200 { "cleared": true }` |
+
+The `PUT` body is:
+
+```json
+{ "week_start": "2026-10-19" }
+```
+
+`week_start` is the Monday of the target ISO week in `YYYY-MM-DD` form (UTC) and is the only accepted field. Scheduling requires an open, sized, mirrored issue. The server checks the affected maintainers' lanes after applying the candidate and rejects the write when any would exceed `floor(weekly_minutes * weeks * allocation_percent / 100)`. Moving an issue to another week frees its old week before the check, and re-scheduling to the same week is a no-op.
+
+`PlanItem` is `{ "org": string, "name": string, "number": number, "weekStart": "YYYY-MM-DD", "createdAt": number, "updatedAt": number }`.
+
+| Status | Body |
+| :--- | :--- |
+| `200` | `{ "item": PlanItem }`; scheduling is idempotent per week. |
+| `400` | `{ "message": "…", "issues"?: ["…"] }` for a malformed body or a week that is not a Monday, and for a closed, unestimated or unowned issue. |
+| `404` | `{ "message": "…" }` when the repository or issue is not mirrored. |
+| `409` | `{ "message": "…", "violations": [{ "login": string, "capMinutes": number, "committedMinutes": number, "excessMinutes": number }] }` when the candidate would exceed any affected maintainer's cap. Nothing is written. |
+
+`DELETE` is idempotent: clearing an issue with no plan item still returns `200 { "cleared": true }`. Every successful `PUT` or `DELETE` publishes a `planning` SSE event.
+
 ## Unknown API paths
 
 `/api/*` paths that do not match a more specific route return a JSON 404 for every method (`GET`, `POST`, `PUT`, `PATCH`, `DELETE`, `OPTIONS`, `HEAD`):
@@ -398,7 +427,7 @@ The response carries `Cache-Control: no-store`, so an API client that sends `Acc
 
 | Status | Typical cause |
 | :--- | :--- |
-| `200` | Successful read, update, label deletion, notification list or read-state update, work-note update or publish. |
+| `200` | Successful read, update, label deletion, notification list or read-state update, work-note update or publish, plan schedule or clear. |
 | `201` | Intake staging, issue/comment creation, label addition, work-note creation, attachment upload, milestone creation. |
 | `204` | Intake preflight, work-note deletion, attachment deletion. |
 | `304` | Passthrough read revalidated with `If-None-Match`. |
@@ -406,6 +435,7 @@ The response carries `Cache-Control: no-store`, so an API client that sends `Acc
 | `401` | No cockpit session. |
 | `403` | Session lacks the minimum role. |
 | `404` | Repo or issue not mirrored, unknown work note or attachment, unknown API path. |
+| `409` | A plan mutation would push a maintainer over capacity, or demoting the last administrator. |
 | `413` | Attachment exceeds the upload limit. |
 | `502` | User token unavailable, or an upstream transport failure without a status. |
 | `503` | Auth API while onboarding is incomplete, or readiness not achieved. |

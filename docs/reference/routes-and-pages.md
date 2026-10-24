@@ -65,6 +65,7 @@ All cockpit routes live under the `(app)` layout and require at least the `read`
 | `/notifications` | The signed-in viewer's notification feed, unread rows before read rows. | `read` | Newest first, limited to 100 rows. Opening an unread row marks it read; per-row and mark-all controls persist read state. The page also offers the per-browser notification opt-in when `notifications.native` is on. |
 | `/milestones` | Every mirrored milestone, grouped by repository, with progress and due dates. | `read` | GitHub scopes a milestone to one repository, so equal titles in two repositories are separate entries. |
 | `/milestones/{owner}/{repo}/{number}` | The issues attached to one repo-scoped milestone. | `read` | Returns `404` for an unknown repository or milestone. |
+| `/plan` | Time planner with week, cycle and milestone horizons. | `read` to view; `write` to schedule or remove | A week is its Monday date; the default horizon is the current week. Writer-only **Schedule issue** control; every planned issue links to its Inspector. |
 | `/settings` | Account landing: signed-in identity and sign-out. | `read` | Personal section. |
 | `/settings/appearance` | Theme and appearance controls. | `read` | Personal section. |
 | `/settings/features` | Per-browser feature-flag toggles. | `read` | Personal section; writes the `funnel:features` cookie. |
@@ -77,6 +78,7 @@ All cockpit routes live under the `(app)` layout and require at least the `read`
 | `/settings/github-app` | Current App metadata and install URL. | `admin` | `reset` action clears App credentials and returns to `/onboarding`. |
 | `/settings/sync` | History window and active/idle polling intervals. | `admin` | Shared settings `save` action. |
 | `/settings/session` | Session idle lifetime in days. | `admin` | Shared settings `save` action. |
+| `/settings/planning` | Size-to-time estimates, allocation percentage, cycle shape and the maintainer roster. | `admin` | Shared settings `save` action; `planning` payload with hours converted to minutes. |
 
 ### Inbox triage actions
 
@@ -92,7 +94,7 @@ All three require `write`. Accept and duplicate fail with `401` when no user tok
 
 ### Settings actions
 
-`/settings/repositories`, `/settings/projects`, `/settings/intake`, `/settings/board`, `/settings/notifications`, `/settings/sync` and `/settings/session` all use `saveSettingsAction`: a JSON `payload` form field is merged onto current settings, validated as one configuration, persisted in a transaction, and propagated through the `settings` SSE event and a sync-scheduler wake-up. Errors return `400` with a `message` and, for per-key validation failures, an `issues` array.
+`/settings/repositories`, `/settings/projects`, `/settings/intake`, `/settings/board`, `/settings/notifications`, `/settings/sync`, `/settings/session` and `/settings/planning` all use `saveSettingsAction`: a JSON `payload` form field is merged onto current settings, validated as one configuration, persisted in a transaction, and propagated through the `settings` SSE event and a sync-scheduler wake-up. Errors return `400` with a `message` and, for per-key validation failures, an `issues` array.
 
 `/settings/people` returns `400` for an invalid role, `404` for an unknown user, `409` when demoting the last administrator, `503` when auth is unconfigured and `502` when the auth provider rejects the change.
 
@@ -134,6 +136,7 @@ API routes are not under the `(app)` layout and enforce their own guards. Detail
 | `/api/repos/{owner}/{repo}/issues/{number}/work-notes/{id}` | PATCH, DELETE | `write` | Edit or delete a work note. |
 | `/api/repos/{owner}/{repo}/issues/{number}/work-notes/{id}/publish` | POST | `write` | Publish a note as a GitHub comment. |
 | `/api/repos/{owner}/{repo}/issues/{number}/attachments` | POST | `write` | Upload an attachment. |
+| `/api/repos/{owner}/{repo}/issues/{number}/plan` | PUT, DELETE | `write` | Schedule or clear the issue's plan item. |
 | `/api/attachments/{id}` | GET, DELETE | `read` / `write` | Download or delete an attachment. |
 | `/api/users/{username}` | GET | `read` | GitHub user lookup. |
 | `/api/*` (unmatched) | All methods | None | JSON `404` fallback. |
@@ -163,6 +166,7 @@ API routes are not under the `(app)` layout and enforce their own guards. Detail
 | `/notifications` | Personal notification feed. | `read` |
 | `/milestones` | Repo-scoped milestones and progress. | `read` |
 | `/milestones/{owner}/{repo}/{number}` | Issues attached to a milestone. | `read` |
+| `/plan` | Week, cycle and milestone planner. | `read`; scheduling `write` |
 | `/settings` | Account. | `read` |
 | `/settings/appearance` | Appearance. | `read` |
 | `/settings/features` | Feature flags. | `read` |
@@ -175,6 +179,7 @@ API routes are not under the `(app)` layout and enforce their own guards. Detail
 | `/settings/github-app` | GitHub App. | `admin` |
 | `/settings/sync` | Sync cadence. | `admin` |
 | `/settings/session` | Session lifetime. | `admin` |
+| `/settings/planning` | Estimates, allocation and maintainers. | `admin` |
 
 ## Error handling
 

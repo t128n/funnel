@@ -16,7 +16,14 @@ export interface FunnelEvent {
 }
 
 /** Event names the server publishes. */
-export const EVENT_TYPES = ["sync", "issues", "intake", "settings", "notifications"] as const;
+export const EVENT_TYPES = [
+  "sync",
+  "issues",
+  "intake",
+  "settings",
+  "notifications",
+  "planning",
+] as const;
 
 type EventListener = (event: FunnelEvent) => void;
 

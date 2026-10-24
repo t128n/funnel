@@ -6,6 +6,7 @@ import {
   writeSettings,
   type SettingsInput,
 } from "#lib/server/settings/store";
+import { TEST_CONFIG } from "#tests/test-config";
 import {
   createSubmission,
   deleteSubmission,
@@ -25,6 +26,7 @@ const BASE_SETTINGS: SettingsInput = {
   board: { done_days: 14, wip_limits: {} },
   session: { idle_days: 30 },
   notifications: { enabled: true, native: true, new_intake: true },
+  planning: TEST_CONFIG.planning,
 };
 
 // All test files share one in-memory DB, so clear the staging table per test.
