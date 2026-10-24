@@ -20,6 +20,13 @@ const BASE: SettingsInput = {
   board: { done_days: 7, wip_limits: {} },
   session: { idle_days: 21 },
   notifications: { enabled: true, native: true, new_intake: true },
+  planning: {
+    size_minutes: { sm: 120, md: 240, lg: 480 },
+    allocation_percent: 60,
+    cycle_weeks: 2,
+    cycle_anchor: "2024-01-01",
+    maintainers: [],
+  },
 };
 
 afterEach(() => {
@@ -82,5 +89,29 @@ describe("saveSettings", () => {
 
     expect(result).toEqual({ ok: true });
     expect(readSettings().intake).toEqual({});
+  });
+
+  test("merges a planning patch and keeps the other planning keys", () => {
+    writeSettings(BASE);
+
+    const result = saveSettings({
+      planning: { ...BASE.planning, allocation_percent: 75 },
+    });
+
+    expect(result).toEqual({ ok: true });
+    expect(readSettings().planning.allocation_percent).toBe(75);
+    expect(readSettings().planning.cycle_anchor).toBe(BASE.planning.cycle_anchor);
+  });
+
+  test("rejects a non-Monday cycle anchor", () => {
+    writeSettings(BASE);
+
+    const result = saveSettings({
+      planning: { ...BASE.planning, cycle_anchor: "2024-01-02" },
+    });
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.issues.length).toBeGreaterThan(0);
+    expect(readSettings().planning.cycle_anchor).toBe(BASE.planning.cycle_anchor);
   });
 });

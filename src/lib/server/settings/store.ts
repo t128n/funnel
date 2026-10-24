@@ -17,8 +17,9 @@
  * repository shortcodes, `intake.default_repo` membership) are enforced by
  * `configSchema` when the composed config is loaded.
  *
- * Lists (`repos`, `projects`) live under a single key as a JSON array; scalars
- * use one row each. `github.url` / `github.api_url` are *not* stored here: they
+ * Lists (`repos`, `projects`, `planning.maintainers`) live under a single key
+ * as a JSON array; scalars use one row each. `github.url` / `github.api_url`
+ * are *not* stored here: they
  * are deploy/bootstrap values read from the environment (see `src/env.ts`).
  */
 import { eq } from "drizzle-orm";
@@ -86,6 +87,112 @@ export const projectInput = v.union([
 export const WIP_STAGES = ["backlog", "todo", "in-progress", "in-review"] as const;
 
 // ---------------------------------------------------------------------------
+// Planning primitives
+// ---------------------------------------------------------------------------
+
+/** Funnel's estimate labels, in ascending order. */
+export const SIZE_KEYS = ["sm", "md", "lg"] as const;
+
+/** One estimate label. */
+export type SizeKey = (typeof SIZE_KEYS)[number];
+
+/** Minutes per size label, e.g. `{ sm: 120, md: 240, lg: 480 }`. */
+export type SizeMinutes = Record<SizeKey, number>;
+
+/** The instance-wide default estimate mapping (2h, 4h, 8h). */
+export const DEFAULT_SIZE_MINUTES: SizeMinutes = { sm: 120, md: 240, lg: 480 };
+
+/** Default share of a maintainer's net hours that planning may allocate. */
+export const DEFAULT_ALLOCATION_PERCENT = 60;
+
+/** Default length of one planning cycle, in weeks. */
+export const DEFAULT_CYCLE_WEEKS = 2;
+
+/** The Monday that anchors cycle numbering. */
+export const DEFAULT_CYCLE_ANCHOR = "2024-01-01";
+
+/**
+ * True for a real `YYYY-MM-DD` calendar date that falls on a Monday (UTC).
+ * Used to validate `planning.cycle_anchor` and, later, week identifiers.
+ */
+export function isMondayDate(value: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const [year, month, day] = value.split("-").map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  return (
+    date.getUTCFullYear() === year &&
+    date.getUTCMonth() === month - 1 &&
+    date.getUTCDate() === day &&
+    date.getUTCDay() === 1
+  );
+}
+
+/** Integer with an inclusive lower and upper bound. */
+const boundedInt = (label: string, min: number, max: number) =>
+  v.pipe(
+    v.number(`${label} must be a number`),
+    v.integer(`${label} must be an integer`),
+    v.minValue(min, `${label} must be >= ${min}`),
+    v.maxValue(max, `${label} must be <= ${max}`),
+  );
+
+const sizeMinutes = v.object({
+  sm: count("planning.size_minutes.sm"),
+  md: count("planning.size_minutes.md"),
+  lg: count("planning.size_minutes.lg"),
+});
+
+const allocationPercent = boundedInt("planning.allocation_percent", 1, 100);
+
+const cycleWeeks = boundedInt("planning.cycle_weeks", 1, 52);
+
+const cycleAnchor = v.pipe(
+  v.string("planning.cycle_anchor must be a string"),
+  v.regex(/^\d{4}-\d{2}-\d{2}$/, "planning.cycle_anchor must be YYYY-MM-DD"),
+  v.check(isMondayDate, "planning.cycle_anchor must be a Monday"),
+);
+
+/** One row of the maintainer roster: a mirrored forge person. */
+export const maintainerInput = v.object({
+  forge: v.pipe(
+    v.string("Maintainer forge must be a string"),
+    v.trim(),
+    v.nonEmpty("Maintainer forge must not be empty"),
+  ),
+  instance: v.pipe(
+    v.string("Maintainer instance must be a string"),
+    v.trim(),
+    v.nonEmpty("Maintainer instance must not be empty"),
+  ),
+  external_id: v.pipe(
+    v.string("Maintainer external_id must be a string"),
+    v.trim(),
+    v.nonEmpty("Maintainer external_id must not be empty"),
+  ),
+  login: v.pipe(
+    v.string("Maintainer login must be a string"),
+    v.trim(),
+    v.nonEmpty("Maintainer login must not be empty"),
+  ),
+  avatar_url: v.optional(v.nullable(v.string())),
+  weekly_minutes: count("Maintainer weekly_minutes"),
+  active: v.boolean("Maintainer active must be a boolean"),
+});
+
+export type MaintainerInput = v.InferOutput<typeof maintainerInput>;
+
+/** The planning section: estimates, cycle shape and the maintainer roster. */
+export const planningInput = v.object({
+  size_minutes: sizeMinutes,
+  allocation_percent: allocationPercent,
+  cycle_weeks: cycleWeeks,
+  cycle_anchor: cycleAnchor,
+  maintainers: v.array(maintainerInput),
+});
+
+export type PlanningInput = v.InferOutput<typeof planningInput>;
+
+// ---------------------------------------------------------------------------
 // Key registry
 // ---------------------------------------------------------------------------
 
@@ -127,6 +234,20 @@ const defs = {
     schema: v.boolean("notifications.new_intake must be a boolean"),
     default: true,
   },
+  "planning.size_minutes": {
+    schema: sizeMinutes,
+    default: DEFAULT_SIZE_MINUTES,
+  },
+  "planning.allocation_percent": {
+    schema: allocationPercent,
+    default: DEFAULT_ALLOCATION_PERCENT,
+  },
+  "planning.cycle_weeks": { schema: cycleWeeks, default: DEFAULT_CYCLE_WEEKS },
+  "planning.cycle_anchor": { schema: cycleAnchor, default: DEFAULT_CYCLE_ANCHOR },
+  "planning.maintainers": {
+    schema: v.array(maintainerInput),
+    default: [] as MaintainerInput[],
+  },
 } as const;
 
 /** A persisted setting key, e.g. `sync.history_days`. */
@@ -145,6 +266,13 @@ export interface Settings {
   board: { done_days: number; wip_limits: Record<string, number> };
   session: { idle_days: number };
   notifications: { enabled: boolean; native: boolean; new_intake: boolean };
+  planning: {
+    size_minutes: SizeMinutes;
+    allocation_percent: number;
+    cycle_weeks: number;
+    cycle_anchor: string;
+    maintainers: MaintainerInput[];
+  };
 }
 
 /** Raised when a write carries a value its key's schema rejects. */
@@ -180,6 +308,7 @@ export const settingsInputSchema = v.object({
     native: v.boolean("notifications.native must be a boolean"),
     new_intake: v.boolean("notifications.new_intake must be a boolean"),
   }),
+  planning: planningInput,
 });
 
 export type SettingsInput = v.InferOutput<typeof settingsInputSchema>;
@@ -263,6 +392,20 @@ export function readSettings(): Settings {
       native: readKey(rows, "notifications.native") as boolean,
       new_intake: readKey(rows, "notifications.new_intake") as boolean,
     },
+    planning: {
+      size_minutes: {
+        ...(readKey(rows, "planning.size_minutes") as SizeMinutes),
+      },
+      allocation_percent: readKey(
+        rows,
+        "planning.allocation_percent",
+      ) as number,
+      cycle_weeks: readKey(rows, "planning.cycle_weeks") as number,
+      cycle_anchor: readKey(rows, "planning.cycle_anchor") as string,
+      maintainers: (
+        readKey(rows, "planning.maintainers") as MaintainerInput[]
+      ).map((maintainer) => ({ ...maintainer })),
+    },
   };
 }
 
@@ -272,6 +415,15 @@ export function readSettings(): Settings {
 
 /** Flatten the nested payload into `key -> raw value` entries. */
 function toEntries(input: SettingsInput): [SettingKey, unknown][] {
+  // Tolerate callers that predate the planning section (test fixtures and
+  // direct store callers): absent means "write the defaults".
+  const planning = input.planning ?? {
+    size_minutes: DEFAULT_SIZE_MINUTES,
+    allocation_percent: DEFAULT_ALLOCATION_PERCENT,
+    cycle_weeks: DEFAULT_CYCLE_WEEKS,
+    cycle_anchor: DEFAULT_CYCLE_ANCHOR,
+    maintainers: [] as MaintainerInput[],
+  };
   return [
     ["repos", input.repos],
     ["projects", input.projects],
@@ -291,6 +443,11 @@ function toEntries(input: SettingsInput): [SettingKey, unknown][] {
     ["notifications.enabled", input.notifications.enabled],
     ["notifications.native", input.notifications.native],
     ["notifications.new_intake", input.notifications.new_intake],
+    ["planning.size_minutes", planning.size_minutes],
+    ["planning.allocation_percent", planning.allocation_percent],
+    ["planning.cycle_weeks", planning.cycle_weeks],
+    ["planning.cycle_anchor", planning.cycle_anchor],
+    ["planning.maintainers", planning.maintainers],
   ];
 }
 
