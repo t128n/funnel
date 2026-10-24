@@ -26,6 +26,14 @@ Definitions of the terms used across Funnel's reference documentation.
 
 **Milestone** — A GitHub milestone, mirrored per repository in `mirror_milestone`. GitHub scopes a milestone to exactly one repository, so Funnel never merges equal titles across repositories; an issue references its milestone by number. The cockpit offers a read-only Milestones view, a milestone filter and group-by dimension, and a set-or-clear picker that can lazily create a milestone in the issue's repository. See [Use milestones](../how-to/use/milestones.md).
 
+**Estimate** — The minutes a size label implies for planning. `planning.size_minutes` maps `sm`, `md` and `lg` to fixed integer minutes (default 2h, 4h and 8h) instance-wide. The value is derived from the issue's current size label on every read and never copied into a plan item, so changing either re-prices the plan. An issue without a size label is **unestimated** and cannot be scheduled. See [Configure estimates and weekly plans](../how-to/configure/planning.md).
+
+**Net hours** — A maintainer's contracted weekly hours minus recurring meetings, on-call and other fixed commitments. Funnel stores net hours as `weekly_minutes` in `planning.maintainers` and plans at most 60% of them by default; the rest is buffer for reviews, unplanned work and slack. The value is never called "gross hours". See [Configure estimates and weekly plans](../how-to/configure/planning.md).
+
+**Cycle** — A fixed number (`planning.cycle_weeks`, default 2) of contiguous Monday weeks counted from `planning.cycle_anchor` (default Monday `2024-01-01`). Its key is its first Monday, and it exposes its start, end and ordered week list. Weeks before the anchor floor to the first cycle. See [`calendar.ts`](../../src/lib/server/planning/calendar.ts).
+
+**Plan item** — A durable row in `state_plan_item` that schedules one open, sized issue into one Monday week, keyed by `(org, name, issue_number)` with no foreign key to the mirror. Plan items are never written to GitHub and survive mirror pruning and `clearMirror`; a plan item whose issue is closed or no longer mirrored frees its capacity. See [Database schema](./database-schema.md#state_plan_item).
+
 **Intake** — Funnel's public submission channel, available as the `/intake` form and `POST /api/intake`. Anonymous submissions are staged locally and nothing reaches GitHub until a triager accepts them. See [HTTP API](./http-api.md#public-surface).
 
 **Staging** — The `state_intake_submission` queue that holds pending intake submissions. Rows are hard-deleted on accept, dismiss or duplicate; there is no trash bin or archive. See [`staging.ts`](../../src/lib/server/intake/staging.ts).
@@ -56,7 +64,7 @@ Definitions of the terms used across Funnel's reference documentation.
 
 **Manifest flow** — GitHub's App Manifest Flow used during onboarding. Funnel posts a generated manifest to GitHub, receives a temporary conversion code at `/onboarding/callback`, exchanges it for App credentials, then installs the App and records the selected repositories. Credentials are stored encrypted in `state_github_app`. See [Routes and pages](./routes-and-pages.md#public-and-first-run-routes).
 
-**SSE** — Server-Sent Events. `GET /api/events` keeps a long-lived stream open for signed-in `read` users, sends a heartbeat comment every 12 seconds, and forwards named `sync`, `issues`, `intake`, `settings` and `notifications` events so open cockpits can refresh. See [HTTP API](./http-api.md#event-stream).
+**SSE** — Server-Sent Events. `GET /api/events` keeps a long-lived stream open for signed-in `read` users, sends a heartbeat comment every 12 seconds, and forwards named `sync`, `issues`, `intake`, `settings`, `notifications` and `planning` events so open cockpits can refresh. See [HTTP API](./http-api.md#event-stream).
 
 **Readiness** — The `/readyz` probe: it requires the database to be reachable and, when the migrations folder can be located, every committed migration to be applied before the instance reports `ready`. It returns `503` with a `starting` status until then, keeping traffic off a half-migrated instance. See [HTTP API](./http-api.md#health-and-readiness).
 
@@ -68,3 +76,4 @@ Definitions of the terms used across Funnel's reference documentation.
 - [Database schema](./database-schema.md)
 - [Routes and pages](./routes-and-pages.md)
 - [Feature flags](./feature-flags.md)
+- [Configure estimates and weekly plans](../how-to/configure/planning.md)

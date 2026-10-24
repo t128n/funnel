@@ -97,7 +97,24 @@ Normalised instance settings as JSON-encoded key/value rows. Lists (`repos`, `pr
 
 Primary key: `key`. Foreign keys: none. Indexes: none.
 
-Known keys: `repos`, `projects`, `intake.default_repo`, `sync.history_days`, `sync.poll_interval_active_seconds`, `sync.poll_interval_idle_seconds`, `board.done_days`, `board.wip_limits`, `session.idle_days`, `notifications.enabled`, `notifications.native`, `notifications.new_intake`. `github.url` and `github.api_url` are environment values and are not stored here. Missing, unparseable or invalid rows fall back to per-key defaults.
+Known keys: `repos`, `projects`, `intake.default_repo`, `sync.history_days`, `sync.poll_interval_active_seconds`, `sync.poll_interval_idle_seconds`, `board.done_days`, `board.wip_limits`, `session.idle_days`, `notifications.enabled`, `notifications.native`, `notifications.new_intake`, `planning.size_minutes`, `planning.allocation_percent`, `planning.cycle_weeks`, `planning.cycle_anchor`, `planning.maintainers`. `github.url` and `github.api_url` are environment values and are not stored here. Missing, unparseable or invalid rows fall back to per-key defaults.
+
+### `state_plan_item`
+
+One issue scheduled into one Monday week. Plan items are durable Funnel-owned state: they are never written to GitHub, and because identity is the `org/name` slug plus issue number rather than a mirror foreign key, they survive mirror pruning and `clearMirror`. Planned minutes are not stored — they are derived from the issue's current size label, so changing `planning.size_minutes` or the size label re-prices the item.
+
+| Column | Type | Constraints / notes |
+| :--- | :--- | :--- |
+| `org` | TEXT | Not null; repository owner, part of the key. |
+| `name` | TEXT | Not null; repository name, part of the key. |
+| `issue_number` | INTEGER | Not null; part of the key. |
+| `week_start` | TEXT | Not null; the Monday date of the planned week in `YYYY-MM-DD` form (UTC). |
+| `created_at` | INTEGER | Not null, Unix ms. |
+| `updated_at` | INTEGER | Not null, Unix ms. |
+
+Primary key: `(org, name, issue_number)`; one plan item per issue, so re-scheduling updates the existing row. Foreign keys: none; the mirror is disposable. Indexes:
+
+- `idx_state_plan_item_week` on `(week_start)` for week and cycle reads.
 
 ### `state_github_app`
 
@@ -475,6 +492,7 @@ Indexes:
 | Funnel account | `auth_user.id` | Text id; `email` is unique. |
 | GitHub account link | `auth_account.accountId` | Forge account id stored as text for `providerId = 'github'`; compared with `mirror_user.external_id`. |
 | Funnel-local issue state | `(org, name, issue_number)` | Work notes, attachments and issue watches; durable across mirror pruning. |
+| Plan item | `(org, name, issue_number)` | One scheduled week per issue in `state_plan_item`; never written to GitHub and durable across mirror pruning. |
 | Notification | `id` | UUID; scoped to one `auth_user.id` and de-duplicated by `dedupe_key`. |
 | Instance setting | `key` | Dotted path; JSON-encoded `value`. |
 | GitHub App | `id = 'default'` | Singleton row. |
@@ -497,7 +515,7 @@ Foreign keys declared in the schema:
 | `mirror_repo_assignee.user_id` | `mirror_user.id` | `CASCADE` |
 | `mirror_comment.author_id` | `mirror_user.id` | `SET NULL` |
 
-The composite child tables `mirror_thread_label` and `mirror_thread_assignee`, and the `repo_id`/`thread_number` columns on `mirror_comment`, carry no foreign key to `mirror_thread`. `mirror_thread.milestone_number` also has no foreign key to `mirror_milestone`: the milestone set is replaced wholesale on refresh, and a thread may briefly reference a number that has not been mirrored yet. The sync layer therefore deletes labels, assignees and comments explicitly before deleting a thread row (`deleteIssue` in `src/lib/server/sync/mirror.ts`). `state_work_note`, `state_attachment`, `state_notification` and `state_issue_watch` also carry no foreign key to the mirror: their author/uploader/recipient/actor identities are snapshots, and their issue identity is the durable `org/name` plus number.
+The composite child tables `mirror_thread_label` and `mirror_thread_assignee`, and the `repo_id`/`thread_number` columns on `mirror_comment`, carry no foreign key to `mirror_thread`. `mirror_thread.milestone_number` also has no foreign key to `mirror_milestone`: the milestone set is replaced wholesale on refresh, and a thread may briefly reference a number that has not been mirrored yet. The sync layer therefore deletes labels, assignees and comments explicitly before deleting a thread row (`deleteIssue` in `src/lib/server/sync/mirror.ts`). `state_work_note`, `state_attachment`, `state_notification`, `state_issue_watch` and `state_plan_item` also carry no foreign key to the mirror: their author/uploader/recipient/actor identities are snapshots, and their issue identity is the durable `org/name` plus number.
 
 ## Storage, pragmas and migrations
 

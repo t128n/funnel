@@ -1,6 +1,6 @@
 # The workflow model
 
-Funnel keeps most of its workflow state on GitHub itself, in a small reserved label vocabulary, and treats its own database as a disposable projection of those labels. The one exception is priority, which Funnel derives from the impact and urgency labels.
+Funnel keeps most of its workflow state on GitHub itself, in a small reserved label vocabulary, and treats its own database as a disposable projection of those labels. The exceptions are priority, which Funnel derives from the impact and urgency labels, and the time plan, which is entirely Funnel-owned.
 
 ## Labels are the source of truth
 
@@ -101,6 +101,16 @@ Two durable Funnel concepts deliberately do *not* map to GitHub labels:
 
 Both are keyed by `owner/name` plus issue number rather than a foreign key to the disposable `mirror_thread`, so they survive mirror pruning and a re-sync. Both also snapshot author identity so they still render after the mirror's user table is rebuilt. This is the mirror image of the label model: labels are GitHub-owned and Funnel-cached; notes and attachments are Funnel-owned and GitHub-invisible. Keeping them out of the label vocabulary is what stops an internal note from becoming a change that other tools react to, and what lets Funnel own durable data that GitHub's label API has no place for. Each surface can be hidden in the current browser through its feature flag; there is no instance-wide switch for either.
 
+## Planning sits beside the labels
+
+Time planning is the third kind of state, after GitHub-owned labels and Funnel-owned notes and attachments. A **plan item** in `state_plan_item` schedules one open, sized issue into one Monday week. It is keyed by `owner/name` plus issue number, so it survives mirror pruning and `clearMirror`, and it is never written to GitHub: the issue's assignees, size label and milestone stay authoritative, and the plan only records *when* Funnel intends the work to happen.
+
+Estimates come from the size label, not the plan row. `planning.size_minutes` maps `sm`, `md` and `lg` to minutes instance-wide, and planned hours are derived from the issue's current size on every read. That is why re-sizing an issue or changing the mapping re-prices every existing plan item without touching the rows, and why an unestimated issue cannot be scheduled at all.
+
+Capacity comes from people, not labels. Each maintainer in `planning.maintainers` has net weekly hours and an active flag. Net hours means contracted hours minus recurring meetings, on-call and other fixed commitments; Funnel plans at most 60% of that by default and leaves the rest as buffer. An issue's estimate is split across the active maintainers among its assignees, with the remainder going to the first one; if no assignee is configured the estimate lands in an unassigned bucket that has no cap.
+
+The cap is hard on plan mutations only. Scheduling checks the affected lanes after applying the candidate and rejects a write with `409` when any maintainer would exceed `floor(weekly_minutes * weeks * allocation_percent / 100)`. A later GitHub edit — a new assignee, a bigger size label — can still push a lane over; the planner then shows the over-cap state rather than silently rewriting the plan. This is the mirror-image of the label model's eventual consistency: GitHub remains the authority for the facts the plan consumes, while Funnel is the sole authority for the intent it records.
+
 ## Trade-offs: labels as state
 
 Treating labels as the workflow buys real things:
@@ -126,4 +136,5 @@ It costs:
 - [Reserved labels reference](../reference/reserved-labels.md) — the exact names, colours, and descriptions.
 - [Settings reference](../reference/settings.md) — `board.done_days`, projects, and repositories.
 - [Configure the board](../how-to/configure/board.md) — setting the Done window and Work-in-Progress limits.
+- [Configure estimates and weekly plans](../how-to/configure/planning.md) — size minutes, net hours, cycles and the 60% cap.
 - [UI/UX standards](../DESIGN.md) — how the board and streams present this model.
