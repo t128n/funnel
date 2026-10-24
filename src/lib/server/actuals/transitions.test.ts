@@ -6,7 +6,12 @@ import { stateIssueDelay, stateIssueEvent } from "#lib/server/db/schema";
 import { upsertRepo } from "#lib/server/sync/mirror";
 import { hydrateAndStore, type GraphqlFn } from "#lib/server/sync/hydrate";
 import { clearMirror } from "#tests/mirror-helpers";
-import { closeOpenDelays, listDelays, openDelay } from "./store";
+import {
+  closeOpenDelays,
+  createManualDelay,
+  listDelays,
+  openDelay,
+} from "./store";
 import type { DelayReason } from "./reasons";
 import type {
   IssueTransitionSnapshot,
@@ -173,6 +178,28 @@ describe("recordIssueTransitions", () => {
     expect(events()[0]).toMatchObject({ kind: "blocked", toValue: "false" });
     expect(delays()).toHaveLength(1);
     expect(delays()[0].endedAt).toBe(AT);
+  });
+
+  test("unblocking leaves manual delays open", () => {
+    openDelay({
+      org: ORG,
+      name: NAME,
+      issueNumber: ISSUE,
+      reason: "external",
+      startedAt: 0,
+    });
+    const manual = createManualDelay({
+      org: ORG,
+      name: NAME,
+      issueNumber: ISSUE,
+      reason: "info",
+      startedAt: 0,
+    });
+    record(snapshot({ blocked: true }), snapshot({ blocked: false }));
+
+    const rows = delays();
+    expect(rows.find((delay) => delay.source === "blocked")?.endedAt).toBe(AT);
+    expect(rows.find((delay) => delay.id === manual.id)?.endedAt).toBeNull();
   });
 
   test("test_close_closes_active_and_delays", () => {

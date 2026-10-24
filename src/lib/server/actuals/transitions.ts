@@ -147,7 +147,15 @@ export function recordIssueTransitions(
     return;
   }
   if (unblocked) {
-    closeOpenDelays(input.org, input.name, input.issueNumber, input.at);
+    // Removing the block closes only the automatic delay it opened; manual
+    // delays keep running until the user closes them.
+    closeOpenDelays(
+      input.org,
+      input.name,
+      input.issueNumber,
+      input.at,
+      "blocked",
+    );
   }
   const opensDelay =
     next.state !== "closed" && next.blocked && (reopened || !previous.blocked);
