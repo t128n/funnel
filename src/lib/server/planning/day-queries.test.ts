@@ -147,6 +147,19 @@ describe("day queries", () => {
     expect(candidates[2].minutes).toBe(480);
   });
 
+  test("orders same-priority candidates by issue number across repos", () => {
+    const repoA = seedPlanningRepo("orgA/core");
+    const repoB = seedPlanningRepo("orgB/core");
+    seedPlanningIssue({ repoId: repoA, number: 5, size: "md", priority: "P1" });
+    seedPlanningIssue({ repoId: repoB, number: 2, size: "md", priority: "P1" });
+    setPlanItem({ org: "orgA", name: "core", issueNumber: 5, weekStart: WEEK });
+    setPlanItem({ org: "orgB", name: "core", issueNumber: 2, weekStart: WEEK });
+
+    const candidates = listDayCandidates(USER, DATE);
+
+    expect(candidates.map((candidate) => candidate.issueNumber)).toEqual([2, 5]);
+  });
+
   test("test_candidates_any_day_of_the_week", () => {
     const repoId = seedPlanningRepo("orgA/core");
     seedPlanningIssue({ repoId, number: 1, size: "md", priority: "P2" });

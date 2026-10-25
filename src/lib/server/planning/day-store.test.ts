@@ -13,7 +13,9 @@ import {
 	listWindows,
 	revokeCalendarFeed,
 	rotateCalendarFeed,
+	writeAvailability,
 	writeWorkHours,
+	type WindowInput,
 } from "./day-store";
 import { findCalendarFeed } from "./day-queries";
 
@@ -102,6 +104,33 @@ describe("day store", () => {
     expect(listWindows(USER)).toEqual([school]);
     expect(listWindows("day_store_other")[0].label).toBe("Other");
     db.delete(authUser).where(eq(authUser.id, "day_store_other")).run();
+  });
+
+  test("writeAvailability commits hours and windows in one transaction", () => {
+    writeAvailability(USER, HOURS, [window()]);
+
+    expect(readWorkHours(USER)).toEqual(HOURS);
+    expect(listWindows(USER)).toEqual([window()]);
+  });
+
+  test("writeAvailability rolls back the hours when a window write fails", () => {
+    const bad = {
+      label: "Lunch",
+      weekday: 1,
+      date: null,
+      startMinute: 720,
+      get endMinute(): number {
+        throw new Error("window write failed");
+      },
+    };
+    const windows = bad as WindowInput;
+
+    expect(() => writeAvailability(USER, HOURS, [windows])).toThrow(
+      "window write failed",
+    );
+    // The hours insert happened first; the transaction must undo it.
+    expect(readWorkHours(USER)).toBeNull();
+    expect(listWindows(USER)).toEqual([]);
   });
 
   test("test_blocks_range", () => {

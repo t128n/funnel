@@ -142,9 +142,9 @@ export function listDayCandidates(
     )
     .orderBy(
       asc(mirrorThread.priorityRank),
+      asc(mirrorThread.number),
       asc(mirrorRepo.org),
       asc(mirrorRepo.name),
-      asc(mirrorThread.number),
     )
     .limit(DAY_CANDIDATE_LIMIT)
     .all();

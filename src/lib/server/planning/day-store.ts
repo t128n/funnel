@@ -153,6 +153,47 @@ export function replaceWindows(
   });
 }
 
+/**
+ * Replace the viewer's hours and every window they own in one transaction
+ * (SPEC §5). A failure while writing a window leaves the previous hours and
+ * windows untouched.
+ */
+export function writeAvailability(
+  userId: string,
+  hours: WorkHours,
+  windows: readonly WindowInput[],
+): void {
+  const now = Date.now();
+  db.transaction((tx) => {
+    tx.insert(stateWorkHours)
+      .values({ userId, ...hoursColumns(hours), createdAt: now, updatedAt: now })
+      .onConflictDoUpdate({
+        target: stateWorkHours.userId,
+        set: { ...hoursColumns(hours), updatedAt: now },
+      })
+      .run();
+
+    tx.delete(stateUnavailableWindow)
+      .where(eq(stateUnavailableWindow.userId, userId))
+      .run();
+    for (const window of windows) {
+      tx.insert(stateUnavailableWindow)
+        .values({
+          id: randomUUID(),
+          userId,
+          label: window.label,
+          weekday: window.weekday,
+          date: window.date,
+          startMinute: window.startMinute,
+          endMinute: window.endMinute,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+    }
+  });
+}
+
 /** The viewer's blocks on `[from, to]` (inclusive), ascending by start. */
 export function listDayBlocks(
   userId: string,
