@@ -13,6 +13,7 @@ import {
 	mergeRanges,
 	minutesInRanges,
 	normalizeWorkHours,
+	windowsForDate,
 } from "./availability";
 import type { DayWindow, WorkDefaultsInput, WorkHours } from "./availability";
 
@@ -118,6 +119,19 @@ describe("availability", () => {
 		expect(availableRanges(HOURS, "2026-10-26", [window({ date: "2026-10-27" })])).toEqual([
 			{ start: 540, end: 1020 },
 		]);
+	});
+
+	test("windowsForDate keeps only the recurring and one-off windows for that day", () => {
+		const monday = window({ label: "Lunch", weekday: 1, date: null });
+		const tuesday = window({ label: "School", weekday: 2, date: null });
+		const dated = window({ label: "Dentist", weekday: null, date: "2026-10-26" });
+		const otherDate = window({ label: "Elsewhere", weekday: null, date: "2026-10-27" });
+
+		expect(windowsForDate([monday, tuesday, dated, otherDate], "2026-10-26")).toEqual([
+			monday,
+			dated,
+		]);
+		expect(windowsForDate([monday], "2026-02-30")).toEqual([]);
 	});
 
 	test("test_buffer: reserves a rounded share of the available minutes", () => {

@@ -132,6 +132,16 @@ function appliesTo(window: DayWindow, date: string, weekday: number): boolean {
 	return false;
 }
 
+/** The unavailable windows that apply to `date`, in the input order. */
+export function windowsForDate(
+	windows: readonly DayWindow[],
+	date: string,
+): DayWindow[] {
+	if (!isDateISO(date)) return [];
+	const weekday = weekdayOf(date);
+	return windows.filter((window) => appliesTo(window, date, weekday));
+}
+
 /**
  * The work window on `date` minus every unavailable window that applies to
  * it. A non-work day yields no ranges.
@@ -147,9 +157,10 @@ export function availableRanges(
 	if (!hours.workDays.includes(weekday)) return [];
 
 	const cuts = mergeRanges(
-		windows
-			.filter((window) => appliesTo(window, date, weekday))
-			.map((window) => ({ start: window.startMinute, end: window.endMinute })),
+		windowsForDate(windows, date).map((window) => ({
+			start: window.startMinute,
+			end: window.endMinute,
+		})),
 	);
 
 	let ranges: MinuteRange[] = [{ start: hours.startMinute, end: hours.endMinute }];
