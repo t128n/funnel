@@ -52,6 +52,7 @@ describe("ALPEN day-planning documentation", () => {
     // All four are durable per-user rows and cascade with the account.
     expect(schema).toContain("idx_state_day_block_user_date");
     expect(schema).toContain("token_hash");
+    expect(schema).toContain("`token_hash` is unique");
     expect(schema).toContain("exactly one of");
   });
 
@@ -78,6 +79,25 @@ describe("ALPEN day-planning documentation", () => {
     // The raw token is returned once; only its hash and hint are stored.
     expect(api).toContain("shown once");
     expect(api).toContain("token_hash");
+  });
+
+  test("test_api_day_block_wire_shape", () => {
+    // The route and the day model both use camelCase block fields; the docs
+    // must not describe the snake_case columns instead.
+    expect(api).toContain('"startMinute": 540');
+    expect(api).toContain('"issueNumber": 12');
+    expect(api).toContain('"startMinute": number');
+    expect(api).toContain('"issueNumber"?: number');
+  });
+
+  test("test_personal_mutations_do_not_claim_planning_sse", () => {
+    const start = api.indexOf("### Availability, day plans and calendar feed");
+    const end = api.indexOf("### Epics and delays");
+    expect(start).toBeGreaterThan(-1);
+    expect(end).toBeGreaterThan(start);
+    expect(api.slice(start, end)).not.toContain(
+      "Every successful mutation publishes a `planning` SSE event",
+    );
   });
 
   test("test_glossary", () => {

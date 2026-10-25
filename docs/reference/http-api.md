@@ -471,15 +471,15 @@ Minutes are integers `0..1440` from local midnight, `start_minute < end_minute`,
 {
   "date": "2026-10-25",
   "blocks": [
-    { "start_minute": 540, "minutes": 120, "kind": "issue", "org": "acme", "name": "core", "issue_number": 12 },
-    { "start_minute": 660, "minutes": 60, "kind": "buffer" }
+    { "startMinute": 540, "minutes": 120, "kind": "issue", "org": "acme", "name": "core", "issueNumber": 12 },
+    { "startMinute": 660, "minutes": 60, "kind": "buffer" }
   ]
 }
 ```
 
 Blocks are validated by the day model: they are sorted by start, must not overlap (`Blocks overlap at HH:MM`), must be at least 5 minutes, must end by `1440`, and are limited to 40 per day. An `issue` block needs a ref that is still open and mirrored; a `buffer` block must not carry one. Blocks outside the working window are accepted — a manual plan may overrun and the UI flags it. The write replaces every block for that date.
 
-`DayBlock` is `{ "start_minute": number, "minutes": number, "kind": "issue" | "buffer", "org"?: string, "name"?: string, "issue_number"?: number }`.
+`DayBlock` is `{ "startMinute": number, "minutes": number, "kind": "issue" | "buffer", "org"?: string, "name"?: string, "issueNumber"?: number }`. The request and response use the day model's camelCase block fields, not the snake_case columns.
 
 `POST /api/me/day-plan/auto` takes only `{ "date": "YYYY-MM-DD" }`. It builds from the viewer's candidates in priority order, spends at most `availableMinutes - bufferMinutes`, emits explicit buffer blocks for leftover space of 15 minutes or more, and persists the result. A non-work day yields an empty array.
 
@@ -494,7 +494,7 @@ Responses:
 | `400` | `{ "message": "…", "issues"?: ["…"] }` for a bad timezone, `start_minute >= end_minute`, both `weekday` and `date` (or neither), an out-of-bounds minute or buffer, an empty label, a malformed or impossible date, an overlapping or oversized block, or an unknown/closed issue ref. |
 | `401` | No session. |
 
-Every successful mutation publishes a `planning` SSE event.
+These personal mutations do not publish a `planning` SSE event; the day page re-reads its own data after a save.
 
 ### Epics and delays
 

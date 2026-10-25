@@ -186,9 +186,7 @@ One tokenized read-only ICS feed per viewer. The raw token is never stored: only
 | `token_hint` | TEXT | Not null; the token's first eight characters, for display only. |
 | `created_at` | INTEGER | Not null, Unix ms. |
 
-Primary key: `user_id`. Foreign keys: `user_id` → `auth_user.id` on delete `CASCADE`. Indexes:
-
-- `uq_state_calendar_feed_token` unique on `(token_hash)`.
+Primary key: `user_id`. Foreign keys: `user_id` → `auth_user.id` on delete `CASCADE`. `token_hash` is unique, so one live feed row exists per token.
 
 ### `state_issue_event`
 
