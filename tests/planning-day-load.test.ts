@@ -19,7 +19,7 @@ import {
 } from "#lib/server/planning/day-store";
 import { localDateOf } from "#lib/time/zoned";
 import type { Role } from "#lib/roles";
-import { dayView, load as loadPlan } from "#/routes/(app)/plan/+page.server";
+import { _dayView, load as loadPlan } from "#/routes/(app)/plan/+page.server";
 import {
   removePlanningAuthUser,
   resetPlanning,
@@ -114,7 +114,7 @@ describe("day horizon", () => {
       bufferBlock(720, 90),
     ]);
 
-    const view = await dayView(USER, WEDNESDAY);
+    const view = await _dayView(USER, WEDNESDAY);
 
     expect(view.plannedMinutes).toBe(180);
     expect(view.bufferPlannedMinutes).toBe(90);
@@ -139,7 +139,7 @@ describe("day horizon", () => {
       at: Date.UTC(2026, 9, 23, 2),
     });
 
-    const view = await dayView(USER, "2026-10-23");
+    const view = await _dayView(USER, "2026-10-23");
 
     expect(view.review.rows).toHaveLength(1);
     expect(view.review.rows[0]?.actualMinutes).toBe(120);
@@ -147,7 +147,7 @@ describe("day horizon", () => {
   });
 
   test("test_sunday", async () => {
-    const view = await dayView(USER, SUNDAY);
+    const view = await _dayView(USER, SUNDAY);
 
     expect(view.weekday).toBe(7);
     expect(view.available).toEqual([]);
@@ -187,7 +187,7 @@ describe("day horizon", () => {
       },
     ]);
 
-    const view = await dayView(USER, WEDNESDAY);
+    const view = await _dayView(USER, WEDNESDAY);
 
     expect(view.windows.map((window) => window.label).sort()).toEqual([
       "Dentist",
@@ -196,11 +196,11 @@ describe("day horizon", () => {
   });
 
   test("test_feed_flag", async () => {
-    expect((await dayView(USER, WEDNESDAY)).feedEnabled).toBe(false);
+    expect((await _dayView(USER, WEDNESDAY)).feedEnabled).toBe(false);
 
     rotateCalendarFeed(USER);
 
-    expect((await dayView(USER, WEDNESDAY)).feedEnabled).toBe(true);
+    expect((await _dayView(USER, WEDNESDAY)).feedEnabled).toBe(true);
   });
 
   test("test_stored_hours_are_effective", async () => {
@@ -212,7 +212,7 @@ describe("day horizon", () => {
       bufferPercent: 25,
     });
 
-    const view = await dayView(USER, "2026-10-24");
+    const view = await _dayView(USER, "2026-10-24");
 
     expect(view.workHours.timezone).toBe("Europe/Berlin");
     expect(view.startMinute).toBe(480);

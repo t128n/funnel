@@ -187,7 +187,7 @@ function actualsForDay(
  * windows that apply, saved blocks, candidates, the clipped actual review and
  * whether a calendar feed token exists.
  */
-export async function dayView(userId: string, date: string): Promise<DayView> {
+export async function _dayView(userId: string, date: string): Promise<DayView> {
   const config = await getConfig();
   const hours = readWorkHours(userId) ?? hoursFromDefaults(config.planning.work_defaults);
   const windows = windowsForDate(listWindows(userId), date);
@@ -242,7 +242,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
     weekPlan(week),
     cyclePlan(cycle),
     milestonePlans(),
-    dayView(viewer.id, dayDate),
+    _dayView(viewer.id, dayDate),
   ] as const);
 
   const previous =
