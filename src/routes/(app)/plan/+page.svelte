@@ -55,6 +55,9 @@
 			: (data.cycle?.key ?? data.cyclePlan?.key ?? week)
 	);
 	const mayWrite = $derived(canWrite(data.user?.role));
+	// The day plan is personal: any signed-in viewer edits their own rows
+	// through `/api/me/*`, regardless of the workspace write role.
+	const mayPlanDay = $derived(data.user != null);
 	const allocationPercent = $derived(data.allocationPercent ?? 60);
 	const candidates = $derived(data.candidates ?? []);
 	const milestones = $derived(data.milestones ?? []);
@@ -295,7 +298,7 @@
 			{/if}
 		{:else if horizon === 'day'}
 			{#if data.dayView}
-				<DayPlan view={data.dayView} {mayWrite} />
+				<DayPlan view={data.dayView} mayWrite={mayPlanDay} />
 			{:else}
 				<Empty.Root class="border-0 py-10">
 					<Empty.Description>No day loaded.</Empty.Description>

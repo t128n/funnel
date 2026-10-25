@@ -21,7 +21,10 @@
 	 */
 	interface Props {
 		view: DayView;
-		/** Readers can look; writers can plan, edit and clear. */
+		/**
+		 * Day planning is personal state, so the parent enables this for any
+		 * signed-in viewer — not just the workspace `write` role.
+		 */
 		mayWrite?: boolean;
 	}
 

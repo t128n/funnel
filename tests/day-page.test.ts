@@ -29,6 +29,13 @@ describe("day tab", () => {
     expect(page).toContain("horizonHref('day', previous)");
     expect(page).toContain("horizonHref('day', next)");
   });
+
+  test("a read viewer can edit their own day", () => {
+    // `/api/me/*` is session-only, so day editing must not be gated on the
+    // workspace write role the week scheduler uses.
+    expect(page).toContain("const mayPlanDay = $derived(data.user != null)");
+    expect(page).toContain("mayWrite={mayPlanDay}");
+  });
 });
 
 describe("ALPEN component", () => {
