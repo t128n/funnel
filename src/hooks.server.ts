@@ -1,7 +1,16 @@
 import { building } from "$app/env";
+import { FUNNEL_DB } from "$app/env/private";
 import { redirect } from "@sveltejs/kit";
 import { svelteKitHandler } from "better-auth/svelte-kit";
-import { getAuth } from "#lib/server/auth/index";
+import {
+  getAuth,
+  resetAuthCache,
+  type Session,
+} from "#lib/server/auth/index";
+import { resetConfigCache } from "#lib/server/config";
+import { runMigrations } from "#lib/server/db/release";
+import { isDemoMode } from "#lib/server/demo/mode";
+import { getDemoAuth, seedDemoDatabase } from "#lib/server/demo/seed";
 import { provisionCanonicalLabels } from "#lib/server/github/labels";
 import { createLogger } from "#lib/server/log";
 import { scheduleReconciliation } from "#lib/server/sync/reconcile";
@@ -29,6 +38,19 @@ const httpLog = createLogger({ component: "http" });
  */
 export const init: ServerInit = async () => {
   if (building) return;
+
+  // Demo mode owns startup: migrate and seed the demo database, then skip the
+  // three GitHub-contacting steps below. A seed failure throws so a broken
+  // demo is visible instead of silently serving an empty cockpit.
+  if (isDemoMode()) {
+    runMigrations({ dbPath: FUNNEL_DB });
+    seedDemoDatabase();
+    resetConfigCache();
+    resetAuthCache();
+    log.info("demo ready");
+    return;
+  }
+
   const startedAt = Date.now();
   const report = await provisionCanonicalLabels();
   log.info(
@@ -66,6 +88,48 @@ function isOnboardingExempt(pathname: string): boolean {
   return lastSegment.includes(".");
 }
 
+/**
+ * The full Better Auth session shape for the seeded demo admin.
+ *
+ * Demo requests never resolve a cookie: the same admin is signed in on every
+ * request, which also means sign-out cannot end the demo session. The
+ * placeholders (`emailVerified`, audit dates, `ipAddress`, ...) satisfy the
+ * layout's session type; nothing reads them for authorization beyond `role`.
+ */
+function demoSession(): {
+  user: Session["user"];
+  session: Session["session"];
+} {
+  const seeded = getDemoAuth();
+  if (!seeded) throw new Error("Demo session requested before the seed ran");
+  const now = new Date();
+  const user = {
+    id: seeded.user.id,
+    name: seeded.user.name,
+    email: seeded.user.email,
+    emailVerified: true,
+    image: seeded.user.image,
+    createdAt: now,
+    updatedAt: now,
+    role: seeded.user.role,
+    banned: false,
+    banReason: null,
+    banExpires: null,
+  } as Session["user"];
+  const session = {
+    id: seeded.session.id,
+    token: seeded.session.token,
+    userId: seeded.session.userId,
+    expiresAt: new Date(seeded.session.expiresAt),
+    createdAt: now,
+    updatedAt: now,
+    ipAddress: null,
+    userAgent: null,
+    impersonatedBy: null,
+  } as Session["session"];
+  return { user, session };
+}
+
 export const handle: Handle = async ({ event, resolve }) => {
   if (building) return resolve(event);
 
@@ -75,9 +139,14 @@ export const handle: Handle = async ({ event, resolve }) => {
 
   // Populate `event.locals` once per request so `load` functions and actions
   // can read the session without re-resolving it. `getAuth()` is `null` until
-  // onboarding has created the GitHub App.
+  // onboarding has created the GitHub App. In demo mode the seeded admin is
+  // applied before (and instead of) the Better Auth lookup.
   const auth = await getAuth();
-  if (auth) {
+  if (isDemoMode()) {
+    const demo = demoSession();
+    event.locals.session = demo.session;
+    event.locals.user = demo.user;
+  } else if (auth) {
     const session = await auth.api.getSession({
       headers: event.request.headers,
     });

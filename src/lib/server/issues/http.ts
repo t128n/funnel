@@ -14,6 +14,7 @@ import {
 import { errorMessage } from "#lib/server/http/outcome";
 import { apiRole } from "#lib/server/http/session";
 import { createLogger } from "#lib/server/log";
+import { isDemoMode } from "#lib/server/demo/mode";
 import { refreshIssue } from "#lib/server/sync/worker";
 
 const log = createLogger({ component: "issues-api" });
@@ -79,6 +80,9 @@ export function scheduleRefresh(
   number: number,
   actorUserId?: string,
 ): void {
+  // Demo writes already landed in the mirror through `demoProvider`; a refresh
+  // would call GitHub for data that can never exist there.
+  if (isDemoMode()) return;
   void refreshIssue(owner, repo, number, actorUserId).catch((error) => {
     log.warn(
       { repo: `${owner}/${repo}`, number, err: errorMessage(error) },

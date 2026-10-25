@@ -15,6 +15,8 @@ import {
 	getGithubCredentials,
 	GithubAppUnconfiguredError,
 } from "#/lib/server/github/credentials";
+import { demoProvider } from "#lib/server/demo/provider";
+import { isDemoMode } from "#lib/server/demo/mode";
 
 export type { GitHubProvider, RepoRef, ThreadKind, ThreadRef };
 
@@ -109,6 +111,7 @@ export interface Forge {
 
 export const forge: Forge = {
 	appProvider(): Promise<GitHubProvider> {
+		if (isDemoMode()) return Promise.resolve(demoProvider());
 		return (appProviderPromise ??= createAppProvider().catch((error) => {
 			appProviderPromise = undefined;
 			throw error;
@@ -116,6 +119,7 @@ export const forge: Forge = {
 	},
 
 	installationProvider(id: number): Promise<GitHubProvider> {
+		if (isDemoMode()) return Promise.resolve(demoProvider());
 		const cached = installationProviders.get(id);
 		if (cached) return cached;
 		const created = createInstallationProvider(id);
@@ -129,11 +133,13 @@ export const forge: Forge = {
 	},
 
 	userProvider(token: string): GitHubProvider {
+		if (isDemoMode()) return demoProvider();
 		const { baseUrl, instance } = syncHosts();
 		return github({ baseUrl, instance, auth: { type: "token", token } });
 	},
 
 	async getInstallationId(owner: string, repo: string): Promise<number> {
+		if (isDemoMode()) return 1;
 		const key = `${owner.toLowerCase()}/${repo.toLowerCase()}`;
 		const cached = installationIds.get(key);
 		if (cached !== undefined) return cached;
