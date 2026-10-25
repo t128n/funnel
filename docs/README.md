@@ -117,11 +117,13 @@ Learning-oriented, with one path and expected results.
 - [Intake lifecycle](explanation/intake-lifecycle.md) — staging, accepting, dismissing, duplicating, and where history lives.
 - [Security model](explanation/security-model.md) — sessions, encrypted credentials, role enforcement, and user-token writes.
 - [Deployment model](explanation/deployment-model.md) — why Funnel is one long-lived process with local state.
-- [Design principles](explanation/design-principles.md) — the density, keyboard, and interaction standards behind the cockpit.
+- [Design principles](explanation/design-principles.md) — the register-first, text-state, density and keyboard standards behind the cockpit.
+- [Design language](explanation/design-language.md) — why Funnel adopted the Bugzilla language, with the before/after gallery.
 
 ## Project documents
 
-- [DESIGN.md](DESIGN.md) — the Linear-inspired UI/UX standards: tokens, layouts, keyboard behaviour, and interaction details.
+- [Design system baseline](plans/2026-10-25-design-system-baseline.md) — the cross-app principles, roles, typography, surface, accessibility and governance rules.
+- [DESIGN.md](DESIGN.md) — Funnel’s application profile of the baseline: records, status mapping, tokens, views and interaction details.
 - [scripts/README.md](../scripts/README.md) — the Windows intake helpers, icon generator, and their current status.
 
 ## Conventions

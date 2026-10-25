@@ -181,4 +181,4 @@ It costs:
 - [Why planning and actuals work this way](planning-and-actuals.md) — the three layers, the buffer, observed actuals and body-based epics.
 - [Track time and delays](../how-to/use/track-time-and-delays.md) — reading actual time and recording a delay.
 - [Manage epics](../how-to/use/epics.md) — marking an epic, adding children and reading rollups.
-- [UI/UX standards](../DESIGN.md) — how the board and streams present this model.
+- [Funnel UI design profile](../DESIGN.md) — how the register, board and streams present this model.

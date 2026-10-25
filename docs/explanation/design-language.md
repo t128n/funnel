@@ -177,3 +177,9 @@ bun scripts/screenshots/capture.ts --out /tmp/funnel-shots/out --cookie "$COOKIE
 
 Copy the `<view>-<light|dark>.png` files into `before/` or `after/` depending on which tree you captured.
 If only one surface moved, recapture that view; `docs/assets/design-pivot/README.md` maps files to pages.
+
+## Related
+
+- [Design system baseline](../plans/2026-10-25-design-system-baseline.md) — the cross-app rules this Funnel profile implements.
+- [Funnel application profile](../DESIGN.md) — the exact tokens, status mapping and surface rules for this app.
+- [Design principles](./design-principles.md) — the reasoning behind the baseline and the profile.
