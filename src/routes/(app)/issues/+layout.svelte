@@ -52,18 +52,18 @@
 
 <SplitView detailOpen={selected !== null}>
 	{#snippet feed()}
-		<div class="surface-shell bg-[var(--background)] flex min-h-0 flex-1 flex-col">
+		<div class="bg-background flex min-h-0 flex-1 flex-col">
 			<header
 				class="border-[color:var(--border)] flex min-h-11 shrink-0 flex-wrap items-center gap-2 border-b px-3 py-1.5 sm:py-0"
 			>
-				<h1 class="text-base font-semibold tracking-tight">Issues</h1>
-				<span class="mono text-muted-foreground text-xs">{issueFeed.total}</span>
+				<h1 class="text-xl font-semibold tracking-tight">Issues</h1>
+				<span class="text-muted-foreground text-xs">{issueFeed.total}</span>
 				<div
 					class="order-last w-full min-w-0 sm:order-none sm:mx-auto sm:w-auto sm:max-w-md sm:flex-1 sm:px-2"
 				>
 					<FeedSearch />
 				</div>
-				<div class="ml-auto flex shrink-0 items-center gap-1">
+				<div class="ml-auto flex shrink-0 items-center gap-2">
 					<ViewSegment />
 					<GroupByControl projects={data.projects} hasMilestones={data.options.milestones.length > 0} />
 					<FilterPopover options={data.options} allowNoStatus={false} showState />

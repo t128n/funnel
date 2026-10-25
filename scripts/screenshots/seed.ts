@@ -39,6 +39,52 @@ const SESSION_TOKEN = "screenshots-session-token";
 const MINUTE = 60_000;
 const HOUR = 60 * MINUTE;
 const DAY = 24 * HOUR;
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/** `YYYY-MM-DD` for `offsetDays` from today, in UTC (the demo's timezone). */
+function isoDateOffset(offsetDays: number): string {
+  const date = new Date(Date.now() + offsetDays * DAY_MS);
+  return date.toISOString().slice(0, 10);
+}
+
+/** The Monday of the current ISO week as `YYYY-MM-DD`. */
+function currentWeekStart(): string {
+  const now = new Date();
+  const date = new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
+  );
+  // `getUTCDay()` is 0 for Sunday, which belongs to the week that started six
+  // days earlier.
+  const weekday = date.getUTCDay();
+  date.setUTCDate(date.getUTCDate() + (weekday === 0 ? -6 : 1 - weekday));
+  return date.toISOString().slice(0, 10);
+}
+
+/**
+ * The blocked envelope `funnel-metadata.ts` reads: a YAML mapping inside the
+ * trailing `<!-- funnel_metadata -->` comment. Written here rather than
+ * imported because this script sits outside the Vite alias graph.
+ */
+function blockedEnvelope(info: {
+  blocker: string;
+  needs: string;
+  trying: string;
+  recheck: string;
+  reason: string;
+}): string {
+  return [
+    "<!-- funnel_metadata",
+    "blocked:",
+    "  is_blocked: true",
+    `  blocker: ${JSON.stringify(info.blocker)}`,
+    `  needs: ${JSON.stringify(info.needs)}`,
+    `  trying: ${JSON.stringify(info.trying)}`,
+    `  recheck: ${JSON.stringify(info.recheck)}`,
+    `  reason: ${JSON.stringify(info.reason)}`,
+    "-->",
+  ].join("\n");
+}
+
 
 export interface SeedOptions {
   dbPath: string;
@@ -177,15 +223,13 @@ const ISSUES: DemoIssue[] = [
       "",
       "Reproduced on Safari 18.2, macOS 15.2.",
       "",
-      "<!-- funnel_metadata",
-      "blocked:",
-      '  is_blocked: true',
-      '  blocker: "Safari key handling differs from the other engines"',
-      '  needs: "A decision on using the keydown capture phase"',
-      '  trying: "Logging the event order in a local build"',
-      '  recheck: "2026-10-27"',
-      '  reason: "dependency"',
-      "-->",
+      blockedEnvelope({
+        blocker: "Safari key handling differs from the other engines",
+        needs: "A decision on using the keydown capture phase",
+        trying: "Logging the event order in a local build",
+        recheck: isoDateOffset(2),
+        reason: "dependency",
+      }),
     ].join("\n"),
     state: "open",
     stateReason: null,
@@ -472,6 +516,64 @@ async function seedRows(sqlite: Database, secret: string): Promise<SeedResult> {
     ["intake.default_repo", JSON.stringify("acme/widgets"), now],
   );
 
+  // Planning defaults (the same values `src/lib/server/settings/store.ts`
+  // documents). The maintainer roster is what turns the week view into lanes;
+  // the rest keep capacity and the cycle horizon deterministic.
+  const planningSettings: [string, unknown][] = [
+    ["planning.size_minutes", { sm: 120, md: 240, lg: 480 }],
+    ["planning.allocation_percent", 60],
+    ["planning.cycle_weeks", 2],
+    ["planning.cycle_anchor", "2024-01-01"],
+    [
+      "planning.work_defaults",
+      {
+        timezone: "UTC",
+        start_minute: 540,
+        end_minute: 1020,
+        work_days: [1, 2, 3, 4, 5],
+        buffer_percent: 20,
+      },
+    ],
+    [
+      "planning.maintainers",
+      [
+        {
+          forge: "github",
+          instance: "github.com",
+          external_id: "9001",
+          login: "dana",
+          avatar_url: "",
+          weekly_minutes: 2400,
+          active: true,
+        },
+        {
+          forge: "github",
+          instance: "github.com",
+          external_id: "9002",
+          login: "mira",
+          avatar_url: "",
+          weekly_minutes: 2400,
+          active: true,
+        },
+        {
+          forge: "github",
+          instance: "github.com",
+          external_id: "9003",
+          login: "otto",
+          avatar_url: "",
+          weekly_minutes: 2400,
+          active: true,
+        },
+      ],
+    ],
+  ];
+  for (const [key, value] of planningSettings) {
+    run(
+      "INSERT INTO state_setting (key, value, updated_at) VALUES (?, ?, ?)",
+      [key, JSON.stringify(value), now],
+    );
+  }
+
   // --- Sign-in ----------------------------------------------------------
   // Better Auth stores timestamps in seconds and the admin role is what the
   // settings pages check; the account row lets the viewer resolve to dana.
@@ -692,6 +794,78 @@ async function seedRows(sqlite: Database, secret: string): Promise<SeedResult> {
       );
     });
   }
+
+  // --- Planning state ---------------------------------------------------
+  // Current ISO week (Monday) so the week view stays populated whenever the
+  // harness runs. Issues 1/2/3/6 are the sized, open work to schedule.
+  const weekStart = currentWeekStart();
+  for (const issueNumber of [1, 2, 3, 6]) {
+    run(
+      `INSERT INTO state_plan_item (
+         org, name, issue_number, week_start, created_at, updated_at
+       ) VALUES (?, ?, ?, ?, ?, ?)`,
+      [REPO.org, REPO.name, issueNumber, weekStart, now, now],
+    );
+  }
+
+  // A saved ALPEN day so the day horizon has actual blocks, not just
+  // candidates. The viewer is dana (UTC), matching the seeded work hours.
+  const today = isoDateOffset(0);
+  const dayBlocks = [
+    { id: "day-block-1", startMinute: 540, minutes: 240, issueNumber: 1 },
+    { id: "day-block-2", startMinute: 840, minutes: 120, issueNumber: 2 },
+  ];
+  for (const block of dayBlocks) {
+    run(
+      `INSERT INTO state_day_block (
+         id, user_id, date, start_minute, minutes, kind, org, name,
+         issue_number, created_at, updated_at
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        block.id,
+        "user-dana",
+        today,
+        block.startMinute,
+        block.minutes,
+        "issue",
+        REPO.org,
+        REPO.name,
+        block.issueNumber,
+        now,
+        now,
+      ],
+    );
+  }
+
+  // One durable work note so the issue page's Work notes panel is populated.
+  run(
+    `INSERT INTO state_work_note (
+       id, org, name, issue_number, author_external_id, author_forge,
+       author_instance, author_login, author_avatar_url, body, created_at,
+       updated_at
+     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      "work-note-1",
+      REPO.org,
+      REPO.name,
+      1,
+      "9001",
+      "github",
+      "github.com",
+      "dana",
+      "",
+      [
+        "## Repro notes",
+        "",
+        "- Safari 18.2 on macOS 15.2 drops the grid below 480px.",
+        "- 1024px is fine; the media query is the only difference.",
+        "",
+        "Next: confirm the `sm` breakpoint with the design tokens branch.",
+      ].join("\n"),
+      now - HOUR,
+      now - HOUR,
+    ],
+  );
 
   // The session cookie Better Auth expects: signed with the same secret the
   // server derives its HMAC key from. Only the name=value part is returned.

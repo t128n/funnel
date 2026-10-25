@@ -1,9 +1,10 @@
 <script lang="ts">
+	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
-	import SegmentedControl from '#lib/components/common/SegmentedControl.svelte';
 
 	/**
-	 * All / Mine segmented control for the Issues view.
+	 * All / Mine scope switch for the Issues view, rendered as pipe-separated
+	 * text links (Bugzilla chrome carries no bordered segments).
 	 *
 	 * "Mine" is not a separate route — it maps onto the `assignee=me` filter the
 	 * server already resolves to the signed-in viewer (SPEC §9.2). This control
@@ -24,10 +25,46 @@
 		return query ? `${page.url.pathname}?${query}` : page.url.pathname;
 	}
 
-	const items = $derived([
+	interface SegmentItem {
+		label: string;
+		href: string;
+		active: boolean;
+	}
+
+	const items = $derived<SegmentItem[]>([
 		{ label: 'All', href: href(false), active: !mineActive },
 		{ label: 'Mine', href: href(true), active: mineActive }
 	]);
+
+	/** Let modified clicks open a new tab; otherwise navigate without a reset. */
+	function select(event: MouseEvent, item: SegmentItem) {
+		if (
+			event.defaultPrevented ||
+			event.button !== 0 ||
+			event.metaKey ||
+			event.ctrlKey ||
+			event.shiftKey ||
+			event.altKey
+		) {
+			return;
+		}
+		event.preventDefault();
+		if (!item.active) void goto(item.href, { reset: false });
+	}
 </script>
 
-<SegmentedControl label="Issue view" {items} />
+<nav class="flex items-center gap-1.5 text-sm" aria-label="Issue view">
+	{#each items as item, index (item.label)}
+		{#if index > 0}
+			<span class="text-muted-foreground" aria-hidden="true">|</span>
+		{/if}
+		<a
+			href={item.href}
+			class={item.active ? 'link font-semibold' : 'text-muted-foreground hover:underline'}
+			aria-current={item.active ? 'page' : undefined}
+			onclick={(event) => select(event, item)}
+		>
+			{item.label}
+		</a>
+	{/each}
+</nav>

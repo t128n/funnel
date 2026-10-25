@@ -1,6 +1,6 @@
 # Screenshot harness
 
-Reproducible 1440×900 captures of the nine cockpit views, in light and dark,
+Reproducible 1440×900 captures of the ten cockpit views, in light and dark,
 against a throwaway database. Used for the before/after design gallery.
 
 Both scripts run under Bun outside Vite. They import only `bun:sqlite`,
@@ -20,6 +20,13 @@ COOKIE="$(bun scripts/screenshots/seed.ts --out /tmp/funnel-shots)"
 - Seeds one repo (`acme/widgets`), users dana/mira/otto, the canonical labels,
   one milestone, six issues (one closed, one blocked, one epic, one untriaged)
   and two markdown comments per issue.
+- Enriches the planning views: a maintainer roster with weekly capacity, the
+  default size map/allocation/cycle/work-hours settings, plan items for the
+  current ISO week (issues 1, 2, 3, 6), and two saved day blocks for today in
+  the viewer's UTC day.
+- Makes the blocked issue's re-check date two days out (computed at seed time,
+  never stale) so Attention shows an `in 2d` flag, and adds a work note by
+  dana on issue 1.
 - Seeds a GitHub App row, an admin user and a session, so the first-run gate and
   the auth gate are both satisfied.
 - Prints **only** the `better-auth.session_token=…` cookie on stdout. The path
@@ -68,8 +75,9 @@ bun scripts/screenshots/capture.ts \
 
 `--db` and `--secret` are accepted as flags for the self-starting path.
 
-Output is 18 PNGs named `<view>-<light|dark>.png`: `issues`, `issue`, `board`,
-`plan`, `epics`, `milestones`, `attention`, `inbox`, `settings-appearance`.
+Output is 20 PNGs named `<view>-<light|dark>.png`: `issues`, `issue`,
+`issue-activity`, `board`, `plan`, `epics`, `milestones`, `attention`, `inbox`,
+`settings-appearance`.
 The viewport is 1440×900 at `deviceScaleFactor: 2`, with
 `<html class="dark">` driven by `funnel:theme` and `prefers-color-scheme`
 emulated per theme.

@@ -123,13 +123,13 @@
 	description="Blocked issues grouped by re-check date, including those without one."
 />
 
-<div class="surface-shell bg-[var(--background)] flex min-h-0 min-w-0 flex-1 flex-col">
+<div class="bg-background flex min-h-0 min-w-0 flex-1 flex-col">
 	<header
 		class="border-[color:var(--border)] flex h-11 shrink-0 items-center gap-2 border-b px-3"
 	>
-		<h1 class="text-base font-semibold tracking-tight">Attention</h1>
+		<h1 class="text-xl font-semibold tracking-tight">Attention</h1>
 		<span class="sr-only">Blocked issues grouped by re-check date, including those without one.</span>
-		<div class="ml-auto flex shrink-0 items-center gap-1">
+		<div class="ml-auto flex shrink-0 items-center gap-2">
 			<ViewSegment />
 		</div>
 	</header>

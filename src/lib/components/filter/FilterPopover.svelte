@@ -1,11 +1,8 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
-	import { Badge } from '#lib/components/ui/badge';
-	import { Button, buttonVariants } from '#lib/components/ui/button';
 	import * as Popover from '#lib/components/ui/popover';
 	import MultiSelect from '#lib/components/common/MultiSelect.svelte';
-	import { cn } from '#lib/utils';
 	import { SIZE_OPTIONS, STATUS_OPTIONS } from '#lib/labels';
 	import { PRIORITY_SCALE } from '#lib/priority';
 	import type { FilterOptions } from '#lib/server/issues/types';
@@ -16,7 +13,6 @@
 		parseFilterParams,
 		type ClientFilter
 	} from '#lib/url-filter';
-	import FilterIcon from '@lucide/svelte/icons/filter';
 
 	/**
 	 * Compact, single-trigger filter control for the narrow feed column.
@@ -145,19 +141,8 @@
 </script>
 
 <Popover.Root bind:open>
-	<Popover.Trigger
-		class={cn(
-			buttonVariants({ variant: 'outline', size: 'sm' }),
-			count > 0 && 'border-primary text-foreground'
-		)}
-	>
-		<FilterIcon data-icon="inline-start" />
-		<span>Filter</span>
-		{#if count > 0}
-			<Badge variant="secondary" class="mono h-4 min-w-4 rounded-full px-1 text-[0.625rem]">
-				{count}
-			</Badge>
-		{/if}
+	<Popover.Trigger class="link text-sm">
+		Filter{#if count > 0} ({count}){/if}
 	</Popover.Trigger>
 
 	<Popover.Content align="end" class="w-65 gap-2 p-2" {onInteractOutside}>
@@ -166,22 +151,22 @@
 				Filters
 			</span>
 			{#if count > 0}
-				<Button variant="link" size="xs" onclick={clearAll}>Clear</Button>
+				<button type="button" class="link text-xs" onclick={clearAll}>Clear</button>
 			{/if}
 		</div>
 		{#if showState}
 			<div class="flex items-center justify-between">
 				<span class="text-muted-foreground text-xs">State</span>
-				<div class="border-[color:var(--border)] flex overflow-hidden rounded-md border">
-					{#each STATE_OPTIONS as option (option.value)}
+				<div class="flex items-center gap-1.5 text-sm">
+					{#each STATE_OPTIONS as option, index (option.value)}
+						{#if index > 0}
+							<span class="text-muted-foreground" aria-hidden="true">|</span>
+						{/if}
 						<button
 							type="button"
-							class={cn(
-								'px-2 py-0.5 text-xs transition-colors',
-								currentState === option.value
-									? 'bg-accent text-foreground'
-									: 'text-muted-foreground hover:bg-accent/60'
-							)}
+							class={currentState === option.value
+								? 'link font-semibold'
+								: 'text-muted-foreground hover:underline'}
 							aria-pressed={currentState === option.value}
 							onclick={() => setState(option.value)}
 						>

@@ -38,11 +38,17 @@ export const VIEWS = [
     path: "/issues/acme/widgets/1",
     ready: '[aria-label="Issue inspector"] h2',
   },
+  {
+    name: "issue-activity",
+    path: "/issues/acme/widgets/1",
+    ready: '[aria-label="Issue inspector"] h2',
+    scrollTo: "Activity",
+  },
   { name: "board", path: "/board", ready: "[data-board-card] h3" },
   {
     name: "plan",
     path: "/plan",
-    ready: '[data-testid="plan-lanes"] .text-sm.font-medium',
+    ready: '[data-testid="plan-lanes"]',
   },
   { name: "epics", path: "/epics", ready: 'a[href^="/epics/"]' },
   {
@@ -63,7 +69,7 @@ export const VIEWS = [
   {
     name: "settings-appearance",
     path: "/settings/appearance",
-    ready: 'input[name="theme"]',
+    ready: "h1, h2",
   },
 ] as const;
 
@@ -190,7 +196,7 @@ async function waitForView(
     );
   }
 
-  if (view.name === "issue") {
+  if (view.name === "issue" || view.name === "issue-activity") {
     try {
       await page.waitForFunction(
         () =>
@@ -205,6 +211,16 @@ async function waitForView(
         "View issue did not finish loading the issue detail (spinner still present)",
       );
     }
+  }
+
+  if ("scrollTo" in view && view.scrollTo) {
+    await page.evaluate((heading) => {
+      const target = [...document.querySelectorAll("h2")].find(
+        (node) => node.textContent?.trim() === heading,
+      );
+      target?.scrollIntoView({ block: "start" });
+    }, view.scrollTo);
+    await page.waitForTimeout(250);
   }
 }
 
@@ -281,7 +297,7 @@ export async function captureAll({
             });
             await waitForView(page, view);
             // Let the last hydration paint settle before the frame is taken.
-            await page.waitForTimeout(300);
+            await page.waitForTimeout(700);
             await page.evaluate(() => document.fonts.ready);
 
             const file = join(outDir, `${view.name}-${theme}.png`);
