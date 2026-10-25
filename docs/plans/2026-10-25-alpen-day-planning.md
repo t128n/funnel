@@ -92,7 +92,7 @@ critical path: T1 → T4 → T8 → T10 (10.6 min) · peak width 5 · predicted 
 **Model:** sonnet
 **Consumes:** `availableRanges` · `bufferMinutes` · `issueRefKey` (T1)
 **Produces:** `validateDayBlocks(input) -> DayBlockInput[]` · `autoDayPlan(input) -> DayBlockInput[]` · `dayReview(input) -> DayReview` · `DayBlock` · `DayBlockInput` · `DayCandidate` · `DayReview` · `DayBlockInputSet` · `AutoDayInput` · `DayReviewInput` · `DayBlockError`
-**Review Focus:** `test_overlap`: `[540,60]`,`[570,30]` → `DayBlockError("Blocks overlap at 09:30")`. `test_bounds_kinds`: `minutes:4`, end>1440, 41 blocks throw; issue without `org` throws; buffer with `org` throws. `test_sorted_copy`: ascending, input untouched. `test_auto_buffer`: 480/20% + two P1 240s → 300 issue + 180 buffer, second omitted. `test_auto_split`: window split 660–720, 300-min issue → `540+120`,`660+180`. `test_auto_priority`: P1, P2, null; non-work day → `[]`. `test_review`: planned 240/actual 300 → variance 60; buffer excluded.
+**Review Focus:** `test_overlap`: `[540,60]`,`[570,30]` → `DayBlockError("Blocks overlap at 09:30")`. `test_bounds_kinds`: `minutes:4`, end>1440, 41 blocks throw; issue without `org` throws; buffer with `org` throws. `test_sorted_copy`: ascending, input untouched. `test_auto_buffer`: 480/20% + a 300-min and a 240-min P1 → 300 issue + 180 buffer, second omitted. `test_auto_split`: window 660–720, 300-min issue → `540+120`,`720+180`. `test_auto_priority`: P1, P2, null; non-work day → `[]`. `test_review`: planned 240/actual 300 → variance 60; buffer excluded.
 
 ### T3 persistence and candidates · C5
 **Owns:** src/lib/server/db/schema.ts, drizzle/, src/lib/server/planning/{day-store,day-queries}.ts, src/lib/server/planning/{day-store,day-queries}.test.ts
@@ -191,4 +191,4 @@ critical path: T1 → T4 → T8 → T10 (10.6 min) · peak width 5 · predicted 
 - persistence+routes (HTTP service): protocol, encoding, state — token leakage, cross-user rows, replace semantics.
 - ICS (generator): file, encoding — multi-byte folding, CRLF, escaping, absolute times.
 - day UI (web UI): protocol via its API, encoding — overbooked day, non-work day, long titles.
-- **Probe entry:** call=availability.availableMinutes · run=bun test src/lib/planning · serve=src/routes/api/calendar/[token]/+server.ts
+- **Probe entry:** call=availability.availableMinutes · run=bun test src/lib/planning
