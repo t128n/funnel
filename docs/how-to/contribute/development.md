@@ -41,7 +41,7 @@ Instance configuration (repositories, projects, the intake default, sync cadence
 
 ## Demo mode
 
-`bun run dev:demo` is the supported way to explore Funnel without a GitHub App. It runs `scripts/dev.ts --demo`, which sets `FUNNEL_DEMO=1`, defaults `FUNNEL_DB` to `./data/demo.db`, `FUNNEL_UPLOAD_DIR` to `./data/demo-uploads`, and `FUNNEL_SECRET` to a clearly-labelled dev-only placeholder when they are unset, then starts Vite normally. Extra arguments are passed through to Vite (for example `bun run dev:demo --port 5174`).
+`bun run dev:demo` is the supported way to explore Funnel without a GitHub App. It runs `scripts/dev.ts --demo`, which sets `FUNNEL_DEMO=1`, defaults `FUNNEL_DB` to `./data/demo.db`, `FUNNEL_UPLOAD_DIR` to `./data/demo-uploads`, and `FUNNEL_SECRET` to a clearly-labelled dev-only placeholder when they are unset or blank (so a plain `cp .env.example .env` works), then starts Vite normally. Extra arguments are passed through to Vite (for example `bun run dev:demo --port 5174`).
 
 The first run applies migrations and seeds the database once. Later runs reuse it, so edits survive a dev-server restart. The seed creates:
 
