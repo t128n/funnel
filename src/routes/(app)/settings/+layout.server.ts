@@ -6,14 +6,15 @@ import type { LayoutServerLoad } from "./$types";
  *
  * Every section under `/settings` requires a session; the workspace and system
  * sections additionally require the `admin` role. Only the personal sections
- * (Account, Appearance, Features) are open to `read`/`write`. The nav filters
- * admin sections out by role, but this is the enforcement point: a direct URL
- * still gets a 403.
+ * (Account, Appearance, Features, Availability) are open to `read`/`write`.
+ * The nav filters admin sections out by role, but this is the enforcement
+ * point: a direct URL still gets a 403.
  */
 const PERSONAL_PATHS = new Set([
   "/settings",
   "/settings/appearance",
   "/settings/features",
+  "/settings/availability",
 ]);
 
 export const load: LayoutServerLoad = ({ locals, url }) => {

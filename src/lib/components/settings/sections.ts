@@ -8,6 +8,7 @@
  */
 import BellRingIcon from '@lucide/svelte/icons/bell-ring';
 import BotIcon from '@lucide/svelte/icons/bot';
+import CalendarClockIcon from '@lucide/svelte/icons/calendar-clock';
 import CalendarRangeIcon from '@lucide/svelte/icons/calendar-range';
 import CircleUserIcon from '@lucide/svelte/icons/circle-user';
 import FlagIcon from '@lucide/svelte/icons/flag';
@@ -61,7 +62,14 @@ export const settingsGroups: SettingsGroup[] = [
 		sections: [
 			{ id: 'overview', label: 'Account', href: '/settings', minRole: 'read', icon: CircleUserIcon },
 			{ id: 'appearance', label: 'Appearance', href: '/settings/appearance', minRole: 'read', icon: PaintbrushIcon },
-			{ id: 'features', label: 'Features', href: '/settings/features', minRole: 'read', icon: FlagIcon }
+			{ id: 'features', label: 'Features', href: '/settings/features', minRole: 'read', icon: FlagIcon },
+			{
+				id: 'availability',
+				label: 'Availability',
+				href: '/settings/availability',
+				minRole: 'read',
+				icon: CalendarClockIcon
+			}
 		]
 	},
 	{
