@@ -28,7 +28,7 @@ import { settingsGroups } from "#lib/components/settings/sections";
 import { load as loadSettingsLayout } from "#/routes/(app)/settings/+layout.server";
 import {
   load as loadAvailabilityPage,
-  loadAvailability,
+  _loadAvailability,
 } from "#/routes/(app)/settings/availability/+page.server";
 
 const USER = {
@@ -115,7 +115,7 @@ describe("availability access", () => {
 
 describe("availability load", () => {
   test("test_defaults", async () => {
-    const data = loadAvailability(USER.id);
+    const data = _loadAvailability(USER.id);
 
     expect(data.hours).toEqual(DEFAULT_WORK_HOURS);
     expect(data.windows).toEqual([]);
@@ -147,7 +147,7 @@ describe("availability load", () => {
       })
       .run();
 
-    expect(loadAvailability("never-saved").hours).toEqual(
+    expect(_loadAvailability("never-saved").hours).toEqual(
       hoursFromDefaults(workDefaults),
     );
   });
@@ -179,7 +179,7 @@ describe("availability load", () => {
     ]);
     rotateCalendarFeed(USER.id);
 
-    const data = loadAvailability(USER.id);
+    const data = _loadAvailability(USER.id);
 
     expect(data.hours).toEqual(hours);
     expect(data.windows).toHaveLength(2);
@@ -194,7 +194,7 @@ describe("availability load", () => {
 
   test("test_secret_once", () => {
     rotateCalendarFeed(USER.id);
-    const data = loadAvailability(USER.id);
+    const data = _loadAvailability(USER.id);
 
     // A load only ever carries the non-secret hint, never a token or a URL.
     expect(data.feed).toEqual({

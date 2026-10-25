@@ -37,7 +37,7 @@ export interface AvailabilityData {
  * Compose one viewer's availability. A stored `state_work_hours` row wins;
  * otherwise the admin `planning.work_defaults` supplies the hours.
  */
-export function loadAvailability(
+export function _loadAvailability(
   userId: string,
   workDefaults: WorkDefaultsInput = readSettings().planning.work_defaults,
 ): AvailabilityData {
@@ -51,5 +51,5 @@ export function loadAvailability(
 export const load: PageServerLoad = async ({ locals, url }) => {
   const user = requireUser(locals, url);
   const config = await getConfig();
-  return loadAvailability(user.id, config.planning.work_defaults);
+  return _loadAvailability(user.id, config.planning.work_defaults);
 };
