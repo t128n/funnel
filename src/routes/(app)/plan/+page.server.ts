@@ -27,6 +27,7 @@ import {
   clipMinutes,
   hoursFromDefaults,
   issueRefKey,
+  windowsForDate,
   type MinuteRange,
   type DayWindow,
   type WorkHours,
@@ -189,7 +190,7 @@ function actualsForDay(
 export async function dayView(userId: string, date: string): Promise<DayView> {
   const config = await getConfig();
   const hours = readWorkHours(userId) ?? hoursFromDefaults(config.planning.work_defaults);
-  const windows = listWindows(userId);
+  const windows = windowsForDate(listWindows(userId), date);
   const blocks = listDayBlocks(userId, date, date);
   const available = availableRanges(hours, date, windows);
   const availableCount = availableMinutes(hours, date, windows);

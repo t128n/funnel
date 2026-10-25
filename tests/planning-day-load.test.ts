@@ -13,6 +13,7 @@ import { resetConfigCache } from "#lib/server/config";
 import { cycleForWeek } from "#lib/server/planning/calendar";
 import {
   replaceDayBlocks,
+  replaceWindows,
   rotateCalendarFeed,
   writeWorkHours,
 } from "#lib/server/planning/day-store";
@@ -152,6 +153,46 @@ describe("day horizon", () => {
     expect(view.available).toEqual([]);
     expect(view.availableMinutes).toBe(0);
     expect(view.bufferMinutes).toBe(0);
+  });
+
+  test("returns only the windows that apply to the loaded day", async () => {
+    replaceWindows(USER, [
+      {
+        label: "Lunch",
+        weekday: 3,
+        date: null,
+        startMinute: 720,
+        endMinute: 780,
+      },
+      {
+        label: "Friday only",
+        weekday: 5,
+        date: null,
+        startMinute: 600,
+        endMinute: 660,
+      },
+      {
+        label: "Dentist",
+        weekday: null,
+        date: WEDNESDAY,
+        startMinute: 600,
+        endMinute: 660,
+      },
+      {
+        label: "Another day",
+        weekday: null,
+        date: "2026-10-22",
+        startMinute: 600,
+        endMinute: 660,
+      },
+    ]);
+
+    const view = await dayView(USER, WEDNESDAY);
+
+    expect(view.windows.map((window) => window.label).sort()).toEqual([
+      "Dentist",
+      "Lunch",
+    ]);
   });
 
   test("test_feed_flag", async () => {
