@@ -78,6 +78,26 @@ describe("seedDemoDatabase", () => {
     expect(count(stateSetting)).toBeGreaterThan(0);
   });
 
+  test("test_seed_keeps_edits", () => {
+    const threads = count(mirrorThread);
+    db.update(mirrorThread)
+      .set({ title: "Edited after the first seed" })
+      .run();
+
+    // The marker means a restart neither re-inserts rows nor overwrites edits.
+    expect(seedDemoDatabase({ now: NOW + 60_000 })).toEqual({ seeded: false });
+
+    expect(count(mirrorThread)).toBe(threads);
+    const titles = db
+      .select({ title: mirrorThread.title })
+      .from(mirrorThread)
+      .all()
+      .map((row) => row.title);
+    expect(titles.every((title) => title === "Edited after the first seed")).toBe(
+      true,
+    );
+  });
+
   test("test_identity", () => {
     const auth = getDemoAuth();
     expect(auth).not.toBeNull();
