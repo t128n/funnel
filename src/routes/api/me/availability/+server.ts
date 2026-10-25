@@ -19,8 +19,7 @@ import { isDateISO } from "#lib/time/zoned";
 import { apiSession } from "#lib/server/http/session";
 import { readJson } from "#lib/server/issues/http";
 import {
-  replaceWindows,
-  writeWorkHours,
+  writeAvailability,
   type WindowInput,
 } from "#lib/server/planning/day-store";
 
@@ -139,9 +138,9 @@ export const PUT: RequestHandler = async ({ request, locals }) => {
   const checked = validate(parsed.output);
   if (!checked.ok) return invalid(checked.issues);
 
-  writeWorkHours(userId, checked.value.hours);
-  replaceWindows(
+  writeAvailability(
     userId,
+    checked.value.hours,
     checked.value.windows as readonly WindowInput[],
   );
   return new Response(null, { status: 204 });
