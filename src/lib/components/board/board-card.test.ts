@@ -65,12 +65,19 @@ describe('bugzilla board cards', () => {
 describe('bugzilla board lanes', () => {
 	const column = readFileSync(new URL('./BoardColumn.svelte', import.meta.url), 'utf8');
 
+	/** True when some element's `class` attribute lists the exact token. */
+	function hasClassToken(markup: string, token: string): boolean {
+		return [...markup.matchAll(/class="([^"]*)"/g)].some((match) =>
+			match[1].split(/\s+/).includes(token)
+		);
+	}
+
 	test('lane header is a grey cell with a count and a hover link', () => {
 		expect(column).toContain('bg-[var(--muted)]');
-		expect(column).toContain('uppercase');
+		expect(hasClassToken(column, 'uppercase')).toBe(true);
 		expect(column).toContain('border-b border-border');
 		expect(column).toContain('+ New');
-		expect(column).toContain('link');
+		expect(hasClassToken(column, 'link')).toBe(true);
 	});
 
 	test('drop indicator is a 2px primary line', () => {
