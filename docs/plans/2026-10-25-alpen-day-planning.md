@@ -106,7 +106,7 @@ critical path: T1 → T4 → T8 → T10 (10.6 min) · peak width 5 · predicted 
 **Notes:** `bun run db:generate`, commit folder + snapshot; SHA-256 via `node:crypto`; candidates limit 50.
 
 ### T4 settings and admin UI · C4
-**Owns:** src/lib/server/settings/store.{ts,test.ts}, src/lib/server/config.{ts,test.ts}, src/lib/server/settings/apply.test.ts, tests/test-config.ts, src/routes/(app)/settings/planning/+page.svelte, tests/planning-page.test.ts
+**Owns:** src/lib/server/settings/store.{ts,test.ts}, src/lib/server/config.{ts,test.ts}, src/lib/server/settings/apply.test.ts, tests/test-config.ts, src/routes/*/settings/planning/+page.svelte, tests/planning-page.test.ts
 **Components:** 3
 **LOC owned:** 190
 **Tests:** fast
@@ -146,7 +146,7 @@ critical path: T1 → T4 → T8 → T10 (10.6 min) · peak width 5 · predicted 
 **Review Focus:** `test_escape`: `"a,b;c\\d\n"` → `"a\\,b\\;c\\\\d\\n"`. `test_fold`: 200-char line → ≤75 octets, unfolds identical. `test_utc`: `formatUtc(Date.UTC(2026,9,25,9,0))==="20261025T090000Z"`. `test_shape`: CRLF + VEVENT with UID/DTSTAMP/DTSTART/DTEND/SUMMARY/TRANSP:OPAQUE. `test_local_to_utc`: Berlin 09:00 on 2026-10-25 → `20261025T070000Z`. `test_route`: unknown 404; headers, `.ics` scope, no-session 200.
 
 ### T8 day horizon load · C4
-**Owns:** src/routes/(app)/plan/+page.server.ts, tests/planning-day-load.test.ts, tests/planning-helpers.ts
+**Owns:** src/routes/*/plan/+page.server.ts, tests/planning-day-load.test.ts, tests/planning-helpers.ts
 **Components:** 2
 **LOC owned:** 190
 **Tests:** fast
@@ -156,7 +156,7 @@ critical path: T1 → T4 → T8 → T10 (10.6 min) · peak width 5 · predicted 
 **Review Focus:** `test_day_param`: `?horizon=day&day=2026-10-25`; bad date → viewer-local today. `test_totals`: 120+60 issue + 90 buffer → `plannedMinutes:180`, `bufferPlannedMinutes:90`. `test_actuals_clipped`: an interval spanning midnight counts the overlap. `test_sunday`: `availableMinutes:0`. `test_feed_flag`: hint iff a token exists. `test_week_payload_unchanged`.
 
 ### T9 availability page · C4
-**Owns:** src/routes/(app)/settings/availability/{+page.server.ts,+page.svelte}, src/routes/(app)/settings/+layout.server.ts, src/lib/components/settings/sections.ts, tests/availability-page.test.ts
+**Owns:** src/routes/*/settings/availability/{+page.server.ts,+page.svelte}, src/routes/*/settings/+layout.server.ts, src/lib/components/settings/sections.ts, tests/availability-page.test.ts
 **Components:** 3
 **LOC owned:** 240
 **Tests:** fast
@@ -167,7 +167,7 @@ critical path: T1 → T4 → T8 → T10 (10.6 min) · peak width 5 · predicted 
 **Notes:** add to `PERSONAL_PATHS`; timezone `datalist`; copy via `navigator.clipboard`.
 
 ### T10 day UI · C5
-**Owns:** src/lib/components/plan/DayPlan.svelte, src/lib/components/plan/day-plan-request.{ts,test.ts}, src/routes/(app)/plan/+page.svelte, tests/day-page.test.ts
+**Owns:** src/lib/components/plan/DayPlan.svelte, src/lib/components/plan/day-plan-request.{ts,test.ts}, src/routes/*/plan/+page.svelte, tests/day-page.test.ts
 **Components:** 3
 **LOC owned:** 320
 **Tests:** fast
