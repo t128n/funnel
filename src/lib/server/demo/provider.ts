@@ -19,6 +19,7 @@ import type {
   CommentRef,
   Label,
   Milestone,
+  Repo,
   RepoRef,
   Thread,
   ThreadInput,
@@ -789,6 +790,22 @@ function buildProvider(): GitHubProvider {
     authKind: "token",
 
     urlFor,
+
+    repos: {
+      /** Repo metadata for the post-create milestone refresh and mirror reads. */
+      async get(ref: RepoRef): Promise<Repo> {
+        const repo = findRepo(ref.owner, ref.name);
+        return {
+          ref: toRepoRef(repo),
+          visibility: "private",
+          isFork: false,
+          isArchived: Boolean(repo.archived),
+          topics: [],
+          url: repo.url || webBase(repo.org, repo.name),
+          raw: repo,
+        };
+      },
+    },
 
     threads: {
       async get(ref: ThreadRef): Promise<Thread> {

@@ -201,6 +201,31 @@ describe("demoProvider", () => {
       .request("GET", "/repos/demo/funnel/unknown")
       .catch((error: unknown) => error);
     expect((unknown as { status?: number }).status).toBe(404);
+
+    // The single-issue read route (Inspector refresh) answers from the mirror.
+    const single = await provider.request<{ number: number; title: string }>(
+      "GET",
+      "/repos/demo/funnel/issues/1",
+    );
+    expect(single.data.number).toBe(1);
+    expect(single.data.title).toBe("Alpha crash");
+
+    const missingIssue = await provider
+      .request("GET", "/repos/demo/funnel/issues/99")
+      .catch((error: unknown) => error);
+    expect((missingIssue as { status?: number }).status).toBe(404);
+
+    // The milestone route refreshes its directory through `repos.get`.
+    const info = await provider.repos.get(repoRef(funnel));
+    expect(info.ref.owner).toBe("demo");
+    expect(info.ref.name).toBe("funnel");
+    expect(info.ref.externalId).toBe("1");
+    expect(info.isArchived).toBe(false);
+
+    const missingRepo = await provider
+      .repos.get({ ...repoRef(funnel), name: "absent" })
+      .catch((error: unknown) => error);
+    expect((missingRepo as { status?: number }).status).toBe(404);
   });
 
   test("test_labels", async () => {
@@ -234,6 +259,42 @@ describe("demoProvider", () => {
 
     await provider.threads.addLabels(ref(funnel, 1), ["docs"]);
     expect(getIssueLabels(funnel.id, 1)).toContain("docs");
+  });
+
+  test("test_labels_metadata_sync", async () => {
+    const provider = demoProvider();
+    const before = stored().updatedAt;
+
+    // A label replace through `update` must re-derive every cached group and
+    // bump updated_at, exactly like a sync would.
+    const updated = await provider.threads.update(ref(funnel, 1), {
+      labels: ["todo", "sm", "sev", "low", "blocked", "epic", "docs"],
+    });
+
+    expect(updated.labels.map((label) => label.name).sort()).toEqual(
+      ["blocked", "docs", "epic", "low", "sev", "sm", "todo"].sort(),
+    );
+    expect(getIssueLabels(funnel.id, 1).sort()).toEqual(
+      ["blocked", "docs", "epic", "low", "sev", "sm", "todo"].sort(),
+    );
+    expect(stored().status).toBe("todo");
+    expect(stored().impact).toBe(1);
+    expect(stored().urgency).toBe(3);
+    expect(stored().priority).toBe("P2");
+    expect(stored().size).toBe("sm");
+    expect(stored().blocked).toBe(1);
+    expect(stored().isEpic).toBe(1);
+    expect(stored().updatedAt).toBeGreaterThan(before);
+
+    // Clearing the groups puts every derived cache back to "unset".
+    await provider.threads.setLabels(ref(funnel, 1), ["frontend"]);
+    expect(stored().status).toBeNull();
+    expect(stored().impact).toBeNull();
+    expect(stored().urgency).toBeNull();
+    expect(stored().priority).toBeNull();
+    expect(stored().size).toBeNull();
+    expect(stored().blocked).toBe(0);
+    expect(stored().isEpic).toBe(0);
   });
 
   test("test_comment", async () => {
