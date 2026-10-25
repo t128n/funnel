@@ -1,8 +1,15 @@
+<script module lang="ts">
+	/**
+	 * Closed issues read as resolved history: their title is struck through and
+	 * their metadata drops to the muted colour. Pure so the row's one piece of
+	 * visual-state logic can be tested without mounting the component.
+	 */
+	export function isStruckThrough(state: string): boolean {
+		return state === 'closed';
+	}
+</script>
+
 <script lang="ts">
-	import Avatar from '#lib/components/common/Avatar.svelte';
-	import MetaTag from '#lib/components/common/MetaTag.svelte';
-	import PriorityBadge from '#lib/components/common/PriorityBadge.svelte';
-	import StatusIcon from '#lib/components/common/StatusIcon.svelte';
 	import * as Tooltip from '#lib/components/ui/tooltip/index.js';
 	import { selectIssue } from '#lib/client/selection.svelte';
 	import { timeAgo } from '#lib/client/clock.svelte';
@@ -11,44 +18,95 @@
 	import { isRetiredPriorityLabel } from '#lib/priority';
 	import type { IssueListItem } from '#lib/server/issues/types';
 	import { cn } from '#lib/utils';
-	import BanIcon from '@lucide/svelte/icons/ban';
 	import TriangleAlertIcon from '@lucide/svelte/icons/triangle-alert';
 	import type { GroupKey } from './grouping';
 
 	/**
-	 * Dense issue row shared by the Issues feed, the Inbox queue, and the board's
-	 * Backlog list. Lays out on the shared `.issue-grid` template so every column
-	 * holds its slot regardless of title length or missing metadata.
+	 * One row of the Bugzilla result table shared by the Issues feed, the Inbox
+	 * queue and the board's Backlog list. Lays out on the shared `.issue-grid`
+	 * template so every column holds its slot regardless of title length or
+	 * missing metadata. Metadata is plain text: a mono reference, a status flag,
+	 * `P1`–`P3`, the size letter, comma-separated labels, the updated time and
+	 * comma-separated assignee logins. No chips, badges, glyphs or avatars.
 	 */
 	interface Props {
 		issue: IssueListItem;
 		selected?: boolean;
 		/** `owner/name` → project key from instance settings. */
 		repoShortcodes?: Record<string, string>;
-		/** When grouped by status the section header carries it, so the row omits its glyph. */
+		/** When grouped by status the section header carries it, so the row omits its flag. */
 		groupedBy?: GroupKey | null;
+		/** Position in the flattened feed; odd positions take the zebra stripe. */
+		index?: number;
 	}
 
-	let { issue, selected = false, repoShortcodes = {}, groupedBy = null }: Props = $props();
+	let {
+		issue,
+		selected = false,
+		repoShortcodes = {},
+		groupedBy = null,
+		index = 0
+	}: Props = $props();
 
 	const ref = $derived(issueRef(issue.repo, issue.number, repoShortcodes));
-	const closed = $derived(issue.state === 'closed');
+	const closed = $derived(isStruckThrough(issue.state));
+	const striped = $derived(index % 2 === 1);
 	const title = $derived(issue.title.trim() || 'Untitled');
 	const untitled = $derived(issue.title.trim().length === 0);
 
-	/** Non-reserved labels only; reserved groups render as dedicated affordances. */
+	/** Non-reserved labels only; reserved groups render as dedicated columns. */
 	const labels = $derived(
 		issue.labels.filter(
 			(label) => !canonicalLabel(label) && !isRetiredPriorityLabel(label)
 		)
 	);
-	const visibleLabels = $derived(labels.slice(0, 2));
-	const extraLabels = $derived(Math.max(0, labels.length - visibleLabels.length));
+
+	const milestoneText = $derived(
+		issue.milestone
+			? issue.milestone.title || `${issue.milestone.repo}#${issue.milestone.number}`
+			: null
+	);
+	const labelText = $derived(
+		[milestoneText, ...labels].filter((value): value is string => Boolean(value)).join(', ')
+	);
 
 	const sizeText = $derived(
 		issue.size === 'sm' ? 'S' : issue.size === 'md' ? 'M' : issue.size === 'lg' ? 'L' : null
 	);
-	const sizeColor = $derived(issue.size ? (canonicalLabel(issue.size)?.color ?? null) : null);
+
+	/** Blocked wins the status slot: it is the one signal the row cannot drop. */
+	const statusWord = $derived(
+		issue.blocked
+			? 'blocked'
+			: closed
+				? 'closed'
+				: (issue.status?.replace(/-/g, ' ') ?? 'unconfirmed')
+	);
+
+	const statusClass = $derived(
+		closed
+			? 'flag-muted'
+			: issue.blocked
+				? 'flag-danger'
+				: issue.status === 'done'
+					? 'flag-success'
+					: issue.status === 'in-progress' || issue.status === 'in-review'
+						? 'flag-warning'
+						: 'flag-muted'
+	);
+
+	const priorityClass = $derived(
+		closed
+			? 'flag-muted'
+			: issue.priority === 'P1'
+				? 'flag-danger'
+				: issue.priority === 'P2'
+					? 'flag-warning'
+					: 'flag-muted'
+	);
+
+	const assigneeText = $derived(issue.assignees.map((person) => person.login).join(', '));
+
 	const showStatus = $derived(groupedBy !== 'status');
 
 	function select() {
@@ -58,11 +116,12 @@
 
 <div
 	class={cn(
-		'issue-grid group/row cursor-pointer border-b border-[color:var(--surface-divider)] px-2 py-1.5 select-none transition-colors duration-[120ms] last:border-b-0',
-		'hover:bg-[var(--surface-tag-bg)]',
-		'focus-visible:outline-[1.5px] focus-visible:outline-offset-[-2px] focus-visible:outline-[color:var(--surface-accent)]',
-		selected && 'bg-[var(--surface-card-hover)] shadow-[inset_2px_0_0_var(--surface-accent)]'
+		'issue-row issue-grid group/row cursor-pointer border-b border-border px-2 py-1.5 select-none transition-colors duration-[120ms]',
+		'focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ring',
+		closed && 'text-muted-foreground',
+		selected && 'is-selected'
 	)}
+	data-striped={striped}
 	role="button"
 	tabindex={0}
 	aria-current={selected ? 'true' : undefined}
@@ -75,22 +134,12 @@
 		}
 	}}
 >
-	<!-- Leading slot: blocked marker, else the status glyph (unless the section owns it). -->
-	<span class="flex items-center justify-center">
-		{#if issue.blocked}
-			<BanIcon class="text-destructive size-3.5" role="img" aria-label="Blocked" />
-		{:else if showStatus}
-			<StatusIcon
-				status={closed ? 'done' : issue.status}
-				label={closed ? 'Done' : (issue.status ?? 'No status')}
-			/>
-		{/if}
-	</span>
+	<span aria-hidden="true"></span>
 
 	<Tooltip.Root>
 		<Tooltip.Trigger>
 			{#snippet child({ props })}
-				<span {...props} class="mono text-muted-foreground min-w-0 truncate text-[11px]">
+				<span {...props} class="mono text-muted-foreground min-w-0 truncate text-xs">
 					{ref}
 				</span>
 			{/snippet}
@@ -98,12 +147,13 @@
 		<Tooltip.Content>{issue.repo}#{issue.number}</Tooltip.Content>
 	</Tooltip.Root>
 
-	<span class="flex min-w-0 items-center gap-1">
+	<span class="flex min-w-0 items-center gap-1.5">
 		<span
 			class={cn(
-				'min-w-0 truncate text-[13px]',
-				closed ? 'text-muted-foreground' : 'text-foreground',
-				untitled && 'text-muted-foreground italic'
+				'min-w-0 truncate text-sm',
+				closed || untitled ? 'text-muted-foreground' : 'text-foreground',
+				untitled && 'italic',
+				closed && 'line-through'
 			)}
 			title={title}
 		>
@@ -115,49 +165,58 @@
 				title="Conflicting reserved label or retired priority label on GitHub"
 			/>
 		{/if}
+		{#if showStatus || issue.blocked}
+			<span class={cn('flag shrink-0', statusClass)}>{statusWord}</span>
+		{/if}
 	</span>
 
 	<!-- Labels track (wide layouts only; hidden by `.issue-col-labels`). -->
-	<span class="issue-col-labels min-w-0 items-center gap-1 overflow-hidden">
-		{#if issue.milestone}
-			<MetaTag
-				label={issue.milestone.title || `${issue.milestone.repo}#${issue.milestone.number}`}
-				title={`Milestone: ${issue.milestone.title} (${issue.milestone.repo}#${issue.milestone.number})`}
-				class="shrink-0"
-			/>
-		{/if}
-		{#each visibleLabels as label (label)}
-			<MetaTag label={label} />
-		{/each}
-		{#if extraLabels > 0}
-			<span class="text-muted-foreground shrink-0 text-[11px]">+{extraLabels}</span>
-		{/if}
+	<span class="issue-col-labels min-w-0 items-center overflow-hidden">
+		<span class="flag flag-muted block truncate" title={labelText}>{labelText}</span>
 	</span>
 
 	<span class="flex items-center">
-		<PriorityBadge priority={issue.priority} />
+		{#if issue.priority}
+			<span class={cn('flag', priorityClass)}>{issue.priority}</span>
+		{/if}
 	</span>
 
 	<span class="flex items-center">
 		{#if sizeText}
-			<MetaTag label={sizeText} color={sizeColor} class="mono" title={`Size: ${issue.size}`} />
+			<span class="flag flag-muted" title={`Size: ${issue.size}`}>{sizeText}</span>
 		{/if}
 	</span>
 
 	<span
-		class="text-muted-foreground justify-self-end truncate text-[11px] tabular-nums"
+		class="text-muted-foreground justify-self-end truncate text-xs tabular-nums"
 		title={new Date(issue.updatedAt).toLocaleString()}
 	>
 		{timeAgo(issue.updatedAt)}
 	</span>
 
-	<span class="flex items-center justify-end">
-		{#if issue.assignees.length > 0}
-			<div class="flex items-center -space-x-1.5">
-				{#each issue.assignees.slice(0, 2) as person (person.externalId)}
-					<Avatar login={person.login} avatarUrl={person.avatarUrl} size={16} />
-				{/each}
-			</div>
+	<span class="flex min-w-0 items-center justify-end">
+		{#if assigneeText}
+			<span class="text-muted-foreground truncate text-xs" title={assigneeText}>
+				{assigneeText}
+			</span>
 		{/if}
 	</span>
 </div>
+
+<style>
+	.issue-row[data-striped='true'] {
+		background: color-mix(in srgb, var(--muted) 45%, transparent);
+	}
+
+	.issue-row:hover,
+	.issue-row[data-striped='true']:hover {
+		background: var(--accent);
+	}
+
+	/* Selection is a flat accent fill, never an inset accent bar. */
+	.issue-row.is-selected,
+	.issue-row.is-selected:hover {
+		background: var(--accent);
+		box-shadow: none;
+	}
+</style>

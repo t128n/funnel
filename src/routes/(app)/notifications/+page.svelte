@@ -145,9 +145,9 @@
 	description="Assignments, mentions, watched-issue changes, and new intake submissions."
 />
 
-<div class="surface-shell bg-[var(--surface-canvas)] flex min-h-0 min-w-0 flex-1 flex-col">
+<div class="surface-shell bg-[var(--background)] flex min-h-0 min-w-0 flex-1 flex-col">
 	<header
-		class="border-[color:var(--surface-divider)] flex h-11 shrink-0 items-center gap-2 border-b px-3"
+		class="border-[color:var(--border)] flex h-11 shrink-0 items-center gap-2 border-b px-3"
 	>
 		<h1 class="text-base font-semibold tracking-tight">Notifications</h1>
 		{#if unreadCount > 0}
@@ -172,7 +172,7 @@
 
 	{#if data.nativeNotifications}
 		<div
-			class="border-[color:var(--surface-divider)] bg-[var(--surface-tag-bg)] flex shrink-0 items-center gap-2 border-b px-3 py-2"
+			class="border-[color:var(--border)] bg-[var(--muted)] flex shrink-0 items-center gap-2 border-b px-3 py-2"
 		>
 			<BellRingIcon class="text-muted-foreground size-3.5 shrink-0" />
 			<p class="text-muted-foreground min-w-0 flex-1 text-xs">{nativeCopy}</p>
@@ -186,7 +186,7 @@
 		</div>
 	{:else}
 		<div
-			class="border-[color:var(--surface-divider)] flex shrink-0 items-center gap-2 border-b px-3 py-2"
+			class="border-[color:var(--border)] flex shrink-0 items-center gap-2 border-b px-3 py-2"
 		>
 			<BellRingIcon class="text-muted-foreground size-3.5 shrink-0" />
 			<p class="text-muted-foreground text-xs">
@@ -212,17 +212,17 @@
 				{#if group.items.length > 0}
 					<section aria-label={group.label}>
 						<div
-							class="bg-[var(--surface-canvas)] sticky top-0 z-20 flex items-center gap-1.5 border-b border-[color:var(--surface-divider)] px-3 py-1.5"
+							class="bg-[var(--background)] sticky top-0 z-20 flex items-center gap-1.5 border-b border-[color:var(--border)] px-3 py-1.5"
 						>
 							<h2 class="text-xs font-semibold">{group.label}</h2>
 							<span class="text-muted-foreground/50 text-xs" aria-hidden="true">·</span>
 							<span class="mono text-muted-foreground text-xs">{group.items.length}</span>
 						</div>
-						<ul class="divide-y divide-[color:var(--surface-divider)]" role="list">
+						<ul class="divide-y divide-[color:var(--border)]" role="list">
 							{#each group.items as item (item.id)}
 								<li
 									class={cn(
-										'group/row flex items-start gap-3 px-3 py-3 transition-colors hover:bg-[var(--surface-card-hover)]',
+										'group/row flex items-start gap-3 px-3 py-3 transition-colors hover:bg-[var(--accent)]',
 										item.readAt !== null && 'opacity-65'
 									)}
 								>
@@ -230,7 +230,7 @@
 										class={cn(
 											'mt-2 size-2 shrink-0 rounded-full',
 											item.readAt === null
-												? 'bg-[var(--surface-accent)]'
+												? 'bg-[var(--primary)]'
 												: 'bg-transparent'
 										)}
 										aria-hidden="true"
@@ -244,7 +244,7 @@
 										/>
 									{:else}
 										<span
-											class="bg-[var(--surface-tag-bg)] text-muted-foreground mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full"
+											class="bg-[var(--muted)] text-muted-foreground mt-0.5 flex size-6 shrink-0 items-center justify-center rounded"
 										>
 											<BellRingIcon class="size-3.5" />
 										</span>

@@ -123,9 +123,9 @@
 	description="Blocked issues grouped by re-check date, including those without one."
 />
 
-<div class="surface-shell bg-[var(--surface-canvas)] flex min-h-0 min-w-0 flex-1 flex-col">
+<div class="surface-shell bg-[var(--background)] flex min-h-0 min-w-0 flex-1 flex-col">
 	<header
-		class="border-[color:var(--surface-divider)] flex h-11 shrink-0 items-center gap-2 border-b px-3"
+		class="border-[color:var(--border)] flex h-11 shrink-0 items-center gap-2 border-b px-3"
 	>
 		<h1 class="text-base font-semibold tracking-tight">Attention</h1>
 		<span class="sr-only">Blocked issues grouped by re-check date, including those without one.</span>
@@ -148,13 +148,13 @@
 				{#if group.items.length > 0}
 					<section aria-label={group.label}>
 						<div
-							class="bg-[var(--surface-canvas)] sticky top-0 z-20 flex items-center gap-1.5 border-b border-[color:var(--surface-divider)] px-3 py-1.5"
+							class="bg-[var(--background)] sticky top-0 z-20 flex items-center gap-1.5 border-b border-[color:var(--border)] px-3 py-1.5"
 						>
 							<h2 class={cn('text-xs font-semibold', group.tone)}>{group.label}</h2>
 							<span class="text-muted-foreground/50 text-xs" aria-hidden="true">·</span>
 							<span class="mono text-muted-foreground text-xs">{group.items.length}</span>
 						</div>
-						<div class="divide-y divide-[color:var(--surface-divider)]" role="list">
+						<div class="divide-y divide-[color:var(--border)]" role="list">
 							{#each group.items as item (`${item.issue.repoId}:${item.issue.number}`)}
 								<AttentionRow
 									{item}

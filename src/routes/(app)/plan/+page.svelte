@@ -14,9 +14,6 @@
 	import type { DayView } from '#/routes/(app)/plan/+page.server';
 	import { formatMinutes } from '#lib/planning';
 	import { canWrite } from '#lib/roles';
-	import ChevronLeftIcon from '@lucide/svelte/icons/chevron-left';
-	import ChevronRightIcon from '@lucide/svelte/icons/chevron-right';
-	import PlusIcon from '@lucide/svelte/icons/plus';
 
 	/**
 	 * The three planning horizons over one loaded payload. The server owns
@@ -113,6 +110,14 @@
 			: horizon === 'day' ? horizonHref('day', next) : horizonHref(horizon, next)
 	);
 
+	/** Plain-text horizon row: `Week | Cycle | Milestone | Day`. */
+	const horizons = $derived([
+		{ key: 'week' as const, label: 'Week', href: horizonHref('week', week) },
+		{ key: 'cycle' as const, label: 'Cycle', href: horizonHref('cycle', cycleKey) },
+		{ key: 'milestone' as const, label: 'Milestone', href: horizonHref('milestone') },
+		{ key: 'day' as const, label: 'Day', href: horizonHref('day', data.dayView?.date) }
+	]);
+
 	function laneTotals(lanes: WeekPlan['lanes']): { committed: number; cap: number } {
 		return lanes.reduce(
 			(total, lane) => ({
@@ -145,69 +150,53 @@
 	description="Week, cycle and milestone capacity across the maintainer roster."
 />
 
-<div class="surface-shell bg-[var(--surface-canvas)] flex min-h-0 flex-1 flex-col overflow-y-auto">
-	<header
-		class="border-[color:var(--surface-divider)] flex min-h-11 shrink-0 flex-wrap items-center gap-2 border-b px-3 py-1.5"
-	>
-		<h1 class="me-1 text-base font-semibold tracking-tight">Plan</h1>
+<div class="bg-background flex min-h-0 flex-1 flex-col overflow-y-auto">
+	<header class="bug-chrome flex min-h-11 shrink-0 flex-wrap items-center gap-2 px-3 py-1.5">
+		<h1 class="me-1 text-lg font-semibold tracking-tight">Plan</h1>
 
-		<nav class="flex items-center gap-0.5" aria-label="Planning horizon">
-			<Button
-				variant={horizon === 'week' ? 'secondary' : 'ghost'}
-				size="sm"
-				href={horizonHref('week', week)}
-				aria-current={horizon === 'week' ? 'page' : undefined}
-			>
-				Week
-			</Button>
-			<Button
-				variant={horizon === 'cycle' ? 'secondary' : 'ghost'}
-				size="sm"
-				href={horizonHref('cycle', cycleKey)}
-				aria-current={horizon === 'cycle' ? 'page' : undefined}
-			>
-				Cycle
-			</Button>
-			<Button
-				variant={horizon === 'milestone' ? 'secondary' : 'ghost'}
-				size="sm"
-				href={horizonHref('milestone')}
-				aria-current={horizon === 'milestone' ? 'page' : undefined}
-			>
-				Milestone
-			</Button>
-			<Button
-				variant={horizon === 'day' ? 'secondary' : 'ghost'}
-				size="sm"
-				href={horizonHref('day', data.dayView?.date)}
-				aria-current={horizon === 'day' ? 'page' : undefined}
-			>
-				Day
-			</Button>
+		<nav class="flex flex-wrap items-center gap-1.5 text-xs" aria-label="Planning horizon">
+			{#each horizons as item, index (item.key)}
+				{#if index > 0}
+					<span class="text-muted-foreground" aria-hidden="true">|</span>
+				{/if}
+				<a
+					href={item.href}
+					class={horizon === item.key
+						? 'link font-semibold'
+						: 'text-muted-foreground hover:underline'}
+					aria-current={horizon === item.key ? 'page' : undefined}
+				>
+					{item.label}
+				</a>
+			{/each}
 		</nav>
 
 		{#if horizon !== 'milestone'}
-			<div class="flex items-center gap-0.5">
-				<Button
-					variant="ghost"
-					size="icon-sm"
-					disabled={previousHref === null}
-					href={previousHref ?? undefined}
-					aria-label="Previous period"
-					title="Previous period"
-				>
-					<ChevronLeftIcon />
-				</Button>
-				<Button
-					variant="ghost"
-					size="icon-sm"
-					disabled={nextHref === null}
-					href={nextHref ?? undefined}
-					aria-label="Next period"
-					title="Next period"
-				>
-					<ChevronRightIcon />
-				</Button>
+			<div class="flex items-center gap-2 text-xs">
+				{#if previousHref}
+					<a
+						class="text-muted-foreground hover:text-foreground"
+						href={previousHref}
+						aria-label="Previous period"
+						title="Previous period"
+					>
+						Previous
+					</a>
+				{:else}
+					<span class="text-muted-foreground opacity-50" aria-disabled="true">Previous</span>
+				{/if}
+				{#if nextHref}
+					<a
+						class="text-muted-foreground hover:text-foreground"
+						href={nextHref}
+						aria-label="Next period"
+						title="Next period"
+					>
+						Next
+					</a>
+				{:else}
+					<span class="text-muted-foreground opacity-50" aria-disabled="true">Next</span>
+				{/if}
 			</div>
 		{/if}
 
@@ -230,8 +219,7 @@
 				disabled={scheduleWeek.length === 0}
 				onclick={() => (dialogOpen = true)}
 			>
-				<PlusIcon />
-				Schedule issue
+				+ Schedule issue
 			</Button>
 		{/if}
 	</header>
@@ -256,7 +244,7 @@
 		{:else if horizon === 'cycle'}
 			{#if data.cyclePlan}
 				<section class="flex flex-col gap-2" aria-label="Per-week summaries" data-testid="week-summaries">
-					<h2 class="text-muted-foreground text-xs font-medium tracking-wider uppercase">
+					<h2 class="text-muted-foreground text-xs font-semibold tracking-wider uppercase">
 						Weeks in this cycle
 					</h2>
 					<div class="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
@@ -264,15 +252,15 @@
 							{@const totals = laneTotals(item.lanes)}
 							<a
 								href={horizonHref('week', item.weekStart)}
-								class="border-[color:var(--surface-divider)] hover:bg-[var(--surface-card-hover)] flex flex-col gap-1 rounded-lg border p-2.5 transition-colors"
+								class="hover:bg-muted flex flex-col gap-1 border border-[color:var(--border)] p-2.5 transition-colors"
 							>
-								<span class="text-xs font-medium">{item.label}</span>
-								<span class="text-muted-foreground flex items-center justify-between text-[11px] tabular-nums">
+								<span class="text-sm font-semibold">{item.label}</span>
+								<span class="text-muted-foreground mono flex items-center justify-between text-xs tabular-nums">
 									<span>{formatMinutes(totals.committed)} committed</span>
 									<span>{formatMinutes(totals.cap)} cap</span>
 								</span>
 								{#if item.unassigned.committedMinutes > 0}
-									<span class="text-muted-foreground text-[10px] tabular-nums">
+									<span class="text-muted-foreground mono text-xs tabular-nums">
 										{formatMinutes(item.unassigned.committedMinutes)} unassigned
 									</span>
 								{/if}

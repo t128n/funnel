@@ -32,7 +32,7 @@
 	<div class="flex flex-col gap-4" data-testid="milestone-plans">
 		{#each plans as plan (`${plan.repo}#${plan.number}`)}
 			<section
-				class="border-[color:var(--surface-divider)] flex flex-col gap-2 rounded-lg border p-3"
+				class="border-[color:var(--border)] flex flex-col gap-2 rounded border p-3"
 				data-milestone={`${plan.repo}#${plan.number}`}
 			>
 				<header class="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">

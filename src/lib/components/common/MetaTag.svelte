@@ -36,7 +36,7 @@
 			? 'border-[color-mix(in_srgb,var(--meta-color)_40%,transparent)] bg-[color-mix(in_srgb,var(--meta-color)_16%,transparent)] text-[color-mix(in_srgb,var(--meta-color)_82%,var(--foreground))]'
 			: tone === 'danger'
 				? 'border-destructive/20 bg-destructive/10 text-destructive/85'
-				: 'border-[color:var(--surface-tag-border)] bg-[var(--surface-tag-bg)] text-muted-foreground',
+				: 'border-[color:var(--border)] bg-[var(--muted)] text-muted-foreground',
 		className
 	)}
 	style={cssColor ? `--meta-color: ${cssColor}` : undefined}

@@ -1,5 +1,4 @@
 <script lang="ts">
-	import ChevronRightIcon from '@lucide/svelte/icons/chevron-right';
 	import * as Collapsible from '#lib/components/ui/collapsible';
 	import * as Sidebar from '#lib/components/ui/sidebar/index.js';
 	import { cn } from '#lib/utils.js';
@@ -11,8 +10,11 @@
 	 * `collapsible={false}` for a static heading (e.g. the settings nav, whose
 	 * groups are small).
 	 *
+	 * Bugzilla chrome: the heading is 11px/600 uppercase muted text above a 1px
+	 * rule, with a plain `+`/`−` toggle marker instead of a chevron icon.
+	 *
 	 * In the icon rail (and the mobile sheet) the body always stays mounted, so
-	 * a collapsed section never strands its icons in the rail.
+	 * a collapsed section never strands its links in the rail.
 	 */
 	interface Props {
 		/** Section heading; omit for an unlabeled block. */
@@ -40,6 +42,9 @@
 	const canCollapse = $derived(collapsible && !!label);
 	const forceOpen = $derived(sidebar.isMobile || sidebar.state === 'collapsed');
 	const open = $derived(!canCollapse || !collapsed || forceOpen);
+
+	const headingClass =
+		'group-data-[collapsible=icon]:hidden flex h-7 w-full shrink-0 items-center gap-1.5 border-t border-[color:var(--border)] px-2 text-xs font-semibold tracking-wider uppercase';
 </script>
 
 <Sidebar.Group class={cn('gap-1', className)}>
@@ -53,17 +58,18 @@
 		{#if label}
 			{#if canCollapse}
 				<Collapsible.Trigger
-					class="group text-muted-foreground/70 hover:text-muted-foreground focus-visible:ring-sidebar-ring group-data-[collapsible=icon]:hidden flex h-7 w-full shrink-0 items-center gap-1 rounded-md px-2 text-[11px] font-medium tracking-wider uppercase transition-colors outline-hidden focus-visible:ring-2"
+					class={cn(
+						headingClass,
+						'text-muted-foreground hover:text-foreground focus-visible:ring-sidebar-ring transition-colors outline-hidden focus-visible:ring-2'
+					)}
 				>
-					<ChevronRightIcon
-						class="size-3.5 shrink-0 transition-transform duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] group-data-[state=open]:rotate-90"
-					/>
+					<span class="w-2 shrink-0 text-center font-mono" aria-hidden="true">
+						{open ? '−' : '+'}
+					</span>
 					<span class="truncate">{label}</span>
 				</Collapsible.Trigger>
 			{:else}
-				<div
-					class="text-muted-foreground/70 group-data-[collapsible=icon]:hidden flex h-7 w-full shrink-0 items-center px-2 text-[11px] font-medium tracking-wider uppercase"
-				>
+				<div class={cn(headingClass, 'text-muted-foreground')}>
 					<span class="truncate">{label}</span>
 				</div>
 			{/if}

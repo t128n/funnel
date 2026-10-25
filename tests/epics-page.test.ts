@@ -404,7 +404,7 @@ describe("epic child mutations", () => {
 describe("epics navigation and access", () => {
   test("test_sidebar_epics_active", () => {
     const sidebar = source("src/lib/components/app-sidebar.svelte");
-    expect(sidebar).toContain("LayersIcon");
+    expect(sidebar).toContain('label: "Epics"');
     expect(sidebar).toContain('{ href: "/epics", label: "Epics"');
     expect(sidebar).toContain(
       'const epicsActive = $derived(path.startsWith("/epics"));',

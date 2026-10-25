@@ -18,8 +18,8 @@
 	description={data.milestone.description || undefined}
 />
 
-<div class="surface-shell bg-[var(--surface-canvas)] flex min-h-0 flex-1 flex-col">
-	<header class="border-[color:var(--surface-divider)] flex flex-col gap-2 border-b px-3 py-2">
+<div class="surface-shell bg-[var(--background)] flex min-h-0 flex-1 flex-col">
+	<header class="border-[color:var(--border)] flex flex-col gap-2 border-b px-3 py-2">
 		<div class="flex min-w-0 items-center gap-2">
 			<a
 				href="/milestones"

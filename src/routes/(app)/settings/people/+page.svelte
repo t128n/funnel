@@ -38,7 +38,7 @@
 
 	<Card.Root>
 		<Card.Content class="pt-6">
-			<ul class="flex flex-col divide-y divide-[color:var(--surface-divider)]">
+			<ul class="flex flex-col divide-y divide-[color:var(--border)]">
 				{#each data.users as user (user.id)}
 					<li class="flex flex-wrap items-center gap-3 py-3 first:pt-0 last:pb-0">
 						<Avatar.Root class="size-9 shrink-0 rounded-lg">

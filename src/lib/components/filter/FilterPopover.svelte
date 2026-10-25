@@ -172,7 +172,7 @@
 		{#if showState}
 			<div class="flex items-center justify-between">
 				<span class="text-muted-foreground text-xs">State</span>
-				<div class="border-[color:var(--surface-divider)] flex overflow-hidden rounded-md border">
+				<div class="border-[color:var(--border)] flex overflow-hidden rounded-md border">
 					{#each STATE_OPTIONS as option (option.value)}
 						<button
 							type="button"

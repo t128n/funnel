@@ -1,160 +1,140 @@
-DESIGN.md: Linear-Inspired UI/UX Standards
-This document establishes the design principles, structural rules, and component patterns required to deliver high-polish, high-density, keyboard-friendly interfaces. Follow these specifications directly during initial implementation to avoid layout regressions and refactoring.
+# DESIGN.md: Bugzilla UI/UX Standards
 
-1. Core Principles
-   High Information Density Without Clutter: Density is achieved through strict tabular alignment, consistent row heights, and low visual noise—never by cramming multi-line blocks into small spaces.
+Funnel's interface follows modern Bugzilla (bugzilla.mozilla.org): table-first,
+text-first and data-honest. These rules are binding for every surface. Apply
+them while building, not as a later cleanup pass.
 
-Rigid Grids Over Variable Stacks: Data views (lists, tables, feeds) must align columns across rows. Elements must never shift dynamically based on content length.
+## 1. Core philosophy
 
-Subtle Surfaces Over Heavy Outlines: Contrast is achieved via layered background tones and faint, translucent borders (rgba(255, 255, 255, 0.05–0.08)), not thick solid borders or colorful card shells.
+**Density over whitespace.** Information earns its place. Tight rows, tabular
+alignment and short paddings beat decorative breathing room.
 
-Zero Visual Redundancy: Do not duplicate data. If a view or column header specifies a state (e.g., status, project), do not repeat that state icon or name inside every child card.
+**Function over polish.** A control should look like a control. No glass, no
+gradients, no tinted card shells. A border and a label are usually enough.
 
-2. Global Token Specifications (Dark Mode)
-   Elevation & Surfaces
-   Canvas / Base Background: #0d0e11 or #111215
+**Everything linkable.** Every entity has a URL. Bug numbers, products,
+milestones and comments are links, not spans with click handlers that cannot be
+opened in a new tab.
 
-Card / Row Surface (Resting): #18191d
+**Transparency.** Show the real data and its state — status, resolution,
+severity, who wrote what and when. Do not soften or hide inconvenient values.
 
-Card / Row Surface (Hover): #1e2025
+## 2. Colour
 
-Divider & Border (Resting): 1px solid rgba(255, 255, 255, 0.06)
+One accent only: `#0060df` in light, `#8cb4ff` in dark. Links are underlined in
+`--primary`. Structural contrast comes from 1px `--border` rules, never from
+translucent tone or gradients.
 
-Border (Interactive/Hover): 1px solid rgba(255, 255, 255, 0.14)
+| Token                | Light     | Dark      | Use                              |
+| -------------------- | --------- | --------- | -------------------------------- |
+| `--background`       | `#ffffff` | `#1c1b22` | Page canvas                      |
+| `--foreground`       | `#15141a` | `#fbfbfe` | Body text                        |
+| `--card`             | `#ffffff` | `#2b2a33` | Panels, comments                 |
+| `--popover`          | `#ffffff` | `#2b2a33` | Menus, dialogs                   |
+| `--muted`            | `#f0f0f4` | `#2b2a33` | Header cells, button fill        |
+| `--muted-foreground` | `#5b5b66` | `#bfbfc9` | Labels, secondary meta           |
+| `--border`           | `#cfcfd8` | `#52525e` | Every structural edge            |
+| `--input`            | `#b1b1bd` | `#6f6f7b` | Field outlines                   |
+| `--primary`          | `#0060df` | `#8cb4ff` | Links, primary action, selection |
+| `--accent`           | `#e0eaff` | `#3a3944` | Selected row fill                |
+| `--destructive`      | `#d70022` | `#ff6a75` | Errors, blockers                 |
+| `--success`          | `#058b00` | `#3fe1b0` | Done, fixed                      |
+| `--warning`          | `#a47f00` | `#ffd567` | Pending, review, in progress     |
+| `--sidebar`          | `#f9f9fb` | `#23222a` | Sidebar canvas                   |
+| `--comment-header`   | `#f0f0f4` | `#2b2a33` | Comment header bar               |
+| `--comment-reporter` | `#fffbe6` | `#2e2b22` | Reporter comment tint            |
+| `--radius`           | `0.25rem` | `0.25rem` | Cards and popovers only          |
 
-Active Focus Ring: outline: 1.5px solid #5e6ad2 (offset: 2px)
+Semantics: green = done/fixed, red = blocker/severity, amber =
+in-progress/review/pending, grey = backlog/closed/minor. Colour goes on the
+token, not on the row or the border.
 
-Typography
-Font Family: Clean sans-serif (Inter, system UI font); monospace for IDs, sizing tokens, and dates.
+## 3. Typography
 
-Row/Card Titles: 13px or 14px, font-weight: 500, high contrast (#f3f4f6).
+System sans for prose and UI. Monospace for IDs, flags, dates and comment
+bodies: `ui-monospace, "SFMono-Regular", "Cascadia Mono", "Liberation Mono",
+Menlo, Consolas, monospace`.
 
-Identifiers & Secondary Meta: 11px or 12px, font-weight: 400, muted contrast (#9ca3af / rgba(255, 255, 255, 0.45)).
+| Name  | Size | Use                                  |
+| ----- | ---- | ------------------------------------ |
+| `2xs` | 10px | Counts only — the micro floor        |
+| `xs`  | 11px | Table headers, labels, meta          |
+| `sm`  | 13px | Body copy, table cells, comments     |
+| `base` | 14px | Default form text                    |
+| `lg`  | 15px | Section headings                     |
+| `xl`  | 17px | Page titles                          |
+| `2xl` | 20px | Rare hero figures                    |
 
-Badges & Pills: 10px or 11px, font-weight: 500 to 600, uppercase or capital case.
+Page title 17px/600. Table headers 11px/600 uppercase. Meta 11px. Comment
+bodies mono 13px/1.55. Nothing below 11px except counts at 10px; no arbitrary
+`text-[9px]` values.
 
-Priority & Urgency Tokens
-Always use a fixed 16x16px container with a 1.5px minimum stroke. Inactive bars must remain visible in a muted tone to preserve the scale.
+## 4. Shape
 
-Urgent: Icon: Alert/Exclamation. Color: #f87171 (text-red-400, bg-red-500/10)
+- Radius `0` for cells, inputs, buttons and selects. `4px` for cards and
+  popovers. Nothing above 8px.
+- Every structural edge is a real 1px `var(--border)`. Rows are carried by
+  1px rules and zebra striping, not by shadow or translucent tone.
+- Shadows appear only on popovers and dialogs.
+- Buttons look native: 1px border, `--muted` fill, 2px radius. The primary
+  action is a `--primary` fill.
 
-High (3 bars): Color: #fb923c (text-orange-400)
+## 5. Chrome
 
-Medium (2 bars): Color: #facc15 (text-amber-400)
+Sidebar kept, de-iconised: text links only. Section labels are 11px/600
+uppercase. An active item is 600 weight in `--primary` with a 3px left rule.
+Counts render as `(3)`.
 
-Low (1 bar): Color: #94a3b8 (text-slate-400)
+A footer nav repeats the primary sections as pipe-separated text links with
+`Funnel 0.0.1` on the right. The mobile sheet trigger stays reachable below
+`md`.
 
-None (0 bars): Color: rgba(255, 255, 255, 0.2) (faint dotted outline or empty container)
+## 6. Issue page
 
-Size / Estimate Badges
-Use monospace, uppercase text with translucent background fills:
+Title: `Bug 1 – Widget grid collapses below 480px (IN PROGRESS)` at 17px/600.
+A missing status renders `UNCONFIRMED`.
 
-XS / S: bg: rgba(56, 189, 248, 0.1), border: rgba(56, 189, 248, 0.25), text: #38bdf8
+Then a metadata table: right-aligned 11px/600 muted labels, 13px values, 1px
+rules, no pills. Rows: Status, Resolution, Product/Component, Milestone,
+Priority, Severity, Size, Assignee, Reporter, Labels, Blocked, Watching, CC.
+Values stay click-to-edit but render as plain text.
 
-M: bg: rgba(251, 191, 36, 0.1), border: rgba(251, 191, 36, 0.25), text: #fbbf24
+Then description and attachments. Then comments: `#c1` anchor, grey header bar
+(author, time, `reply`), mono body, reporter tint. Internal notes get an amber
+left rule and an `Internal` flag. The composer is a plain textarea with
+`Save Changes`.
 
-L / XL: bg: rgba(168, 85, 247, 0.1), border: rgba(168, 85, 247, 0.25), text: #c084fc
+## 7. Lists
 
-3. View Patterns & Guidelines
-   A. Kanban Board View
-   Card Anatomy
-   Plaintext
-   ┌──────────────────────────────────────────────┐
-   │ FIT-2 │ <- 11-12px muted text (prefix + number)
-   │ HTTP Route Intake Submission │ <- 13-14px primary text, max 2 lines
-   │ │
-   │ [Priority] [Size] [Labels...] [Avatar] │ <- 18px fixed-height metadata tray
-   └──────────────────────────────────────────────┘
-   Do
-   Eliminate outer column frames and heavy column border boxes. Columns should be open vertical tracks with subtle headers.
+11px uppercase header on `--muted`, zebra rows, 1px rules. Closed rows are
+struck through and muted. Severity colour appears only on the P/sev token:
+priority is derived and displayed `P1`–`P3`, severity as `blocker` / `major` /
+`minor`. Footer: `N bugs · Edit Search`.
 
-Show the column + action button only when hovering over the column header.
+## 8. Board and plan
 
-Truncate long issue titles after 2 lines with text-overflow: ellipsis.
+Bordered lanes with a grey header cell (name + count). Cards: 1px border, mono
+ref, title, plain token row. Drag stays, but tilt and shadow are replaced by a
+2px `--primary` insertion line. Plan lanes reuse the board header cell; day
+blocks become bordered rows.
 
-Anchor assignee avatars to the bottom-right via margin-left: auto.
+## 9. Accepted distance
 
-Keep cards at a uniform minimum height so empty metadata does not collapse the card shape.
+Bugzilla has no kanban, calendar or live updates. Board and plan keep their
+function and lose the decorative chrome. The sidebar is kept against Bugzilla's
+top nav (a product decision), offset by the footer nav. Priority stays derived.
 
-Don't (Anti-Patterns)
-Never display status icons inside board cards. The column header already defines status.
+## 10. Adding a surface
 
-Never display full repository paths (e.g., #2 funnel-issue-tracker). Always normalize to short project identifiers (e.g., FIT-2).
-
-Never leave cards floating without fixed metadata trays. Floating single letters or loose badges disrupt vertical rhythm.
-
-B. List View
-Grid Layout
-Do not rely on bare Flexbox with auto widths for list items. Implement a strict columnar CSS Grid per row:
-
-CSS
-.list-row {
-display: grid;
-grid-template-columns:
-24px /* Status Icon _/
-72px /_ Identifier (FIT-XXX) _/
-minmax(200px, 1fr) /_ Title (truncated single line) _/
-auto /_ Tags / Labels container _/
-24px /_ Priority Target _/
-32px /_ Estimate / Size _/
-72px /_ Timestamp (Right-aligned) _/
-24px; /_ Assignee Avatar */
-align-items: center;
-gap: 12px;
-height: 40px;
-padding: 0 12px;
-border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-}
-Do
-Enforce single-line titles with white-space: nowrap; overflow: hidden; text-overflow: ellipsis;.
-
-Render a subtle fallback placeholder (e.g., Untitled) if an issue lacks a title.
-
-Provide an active hover state across the entire row surface (rgba(255, 255, 255, 0.03)).
-
-Group list items by default (e.g., by status, priority, or milestone) using collapsible section headers.
-
-Don't (Anti-Patterns)
-Never let metadata float dynamically based on title length. Missing or short titles must never shift subsequent columns to the left.
-
-Never duplicate segmented filter buttons (e.g., displaying All | Mine adjacent to Open | Closed | All). Keep filtering consolidated into clean, dedicated controls.
-
-Never let label text overflow abruptly without proper truncation bounds or counter badges (e.g., avoid good first i...).
-
-C. Attention / Triage View
-Do
-Flatten triage items into dense, single-row tracks (h-11 or h-12).
-
-Anchor urgency indicators (e.g., Today, Overdue, in 2d) near the front of the row or inside a fixed metadata column.
-
-Apply urgency colors strictly to text and badge surfaces (e.g., amber-400 text with 10% opacity fill), leaving row borders neutral.
-
-Show triage action buttons on row hover (e.g., Snooze, Mark Done, Change Priority).
-
-Keep sidebar notification counts strictly synchronized with items requiring immediate action (e.g., overdue and due today only).
-
-Don't (Anti-Patterns)
-Never wrap single triage items in full-width, multi-line bordered blocks.
-
-Never paint full-width colored borders (e.g., solid yellow bounding boxes around "Due Today" cards).
-
-Never duplicate issue titles or status metadata across multiple lines within the same triage entry.
-
-4. Interaction & Micro-UX Standards
-   Keyboard-First Navigation:
-
-Global shortcut access (C = New issue, / = Search, X = Select row, Esc = Clear selection).
-
-Arrow key traversal (↑ / ↓ between rows/cards; ← / → between Kanban columns).
-
-Drag-and-Drop States:
-
-Cursor must switch to grabbing during active drag.
-
-Dragged cards must receive a subtle tilt (transform: rotate(2deg) scale(1.02)) and elevated drop shadow (box-shadow: 0 12px 28px rgba(0, 0, 0, 0.5)).
-
-Show a discrete, 2px colored insertion line between cards rather than violently reshuffling columns during hover.
-
-Target Sizes:
-
-Interactive metadata icons (priority, status toggle, size) must have a minimum clickable hit-box of 24x24px with a subtle hover highlight.
+- Structure chrome and nav bars with `.bug-chrome`; give it a 1px `--border`
+  edge and no radius.
+- Render tabular data with `.bug-table` — 11px uppercase header, zebra rows,
+  1px rules.
+- Render label/value pairs with `.bug-meta` — right-aligned muted labels, flat
+  values, no pills.
+- Render discussion with `.bug-comment` — grey header bar and mono body.
+- Render status, severity and internal markers with `.flag`; colour the token,
+  never the row.
+- Use `.link` for in-prose links: `--primary` with an underline.
+- Do not introduce `--surface-*` tokens, radii above 4px on chrome, or body
+  text below 13px. Check the dark theme before calling the surface done.

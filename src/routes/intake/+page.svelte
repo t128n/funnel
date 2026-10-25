@@ -229,15 +229,15 @@
 />
 
 <main
-	class="surface-shell bg-[color:var(--surface-canvas)] flex min-h-svh items-center justify-center p-4 sm:p-6"
+	class="surface-shell bg-[color:var(--background)] flex min-h-svh items-center justify-center p-4 sm:p-6"
 	aria-labelledby="submit-heading"
 >
 	<div class="w-full max-w-2xl">
 		<div
-			class="bg-[color:var(--surface-card)] border-[color:var(--surface-border)] overflow-hidden rounded-lg border shadow-sm dark:shadow-none"
+			class="bg-[color:var(--card)] border-[color:var(--border)] overflow-hidden rounded border shadow-sm dark:shadow-none"
 		>
 			<header
-				class="border-[color:var(--surface-divider)] flex h-11 items-center gap-2 border-b px-4"
+				class="border-[color:var(--border)] flex h-11 items-center gap-2 border-b px-4"
 			>
 				<span
 					class="bg-primary text-primary-foreground inline-flex size-5 shrink-0 items-center justify-center rounded-md"
@@ -264,7 +264,7 @@
 						aria-label="Copy deeplink"
 						disabled={!hasContent}
 						onclick={copyDeeplink}
-						class="focus-visible:outline-[color:var(--surface-accent)] focus-visible:ring-0 focus-visible:outline focus-visible:outline-[1.5px] focus-visible:outline-offset-2"
+						class="focus-visible:outline-[color:var(--primary)] focus-visible:ring-0 focus-visible:outline focus-visible:outline-[1.5px] focus-visible:outline-offset-2"
 					>
 						{#if copied}
 							<CheckIcon class="size-3.5" />
@@ -303,11 +303,11 @@
 					</div>
 				</div>
 				<footer
-					class="border-[color:var(--surface-divider)] flex items-center justify-end border-t px-4 py-3"
+					class="border-[color:var(--border)] flex items-center justify-end border-t px-4 py-3"
 				>
 					<Button
 						href="/intake"
-						class="focus-visible:outline-[color:var(--surface-accent)] focus-visible:ring-0 focus-visible:outline focus-visible:outline-[1.5px] focus-visible:outline-offset-2"
+						class="focus-visible:outline-[color:var(--primary)] focus-visible:ring-0 focus-visible:outline focus-visible:outline-[1.5px] focus-visible:outline-offset-2"
 					>
 						Submit another
 					</Button>
@@ -331,13 +331,13 @@
 				>
 					{#if showPrefillStrip}
 						<div
-							class="border-[color:var(--surface-divider)] text-muted-foreground flex h-8 items-center gap-1.5 border-b px-4 text-xs dark:text-[#9ca3af]"
+							class="border-[color:var(--border)] text-muted-foreground flex h-8 items-center gap-1.5 border-b px-4 text-xs dark:text-[#9ca3af]"
 						>
 							<LinkIcon class="size-3 shrink-0" aria-hidden="true" />
 							<span>Prefilled from link</span>
 							<a
 								href="/intake"
-								class="hover:text-foreground focus-visible:outline-[color:var(--surface-accent)] ml-auto rounded px-1.5 py-1 underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-[1.5px] focus-visible:outline-offset-2 dark:hover:text-[#f3f4f6]"
+								class="hover:text-foreground focus-visible:outline-[color:var(--primary)] ml-auto rounded px-1.5 py-1 underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-[1.5px] focus-visible:outline-offset-2 dark:hover:text-[#f3f4f6]"
 							>
 								Clear
 							</a>
@@ -373,7 +373,7 @@
 								aria-errormessage={form?.error ? 'submit-error' : undefined}
 								onkeydown={onTitleKeydown}
 								oninput={markDirty}
-								class="[@media(hover:hover)]:hover:bg-[color:var(--surface-card-hover)] focus-visible:outline-[color:var(--surface-accent)] h-auto rounded-md border-transparent bg-transparent px-2 py-1.5 text-lg font-medium tracking-tight shadow-none transition-colors duration-150 ease-out placeholder:text-muted-foreground focus-visible:border-transparent focus-visible:ring-0 focus-visible:outline focus-visible:outline-[1.5px] focus-visible:outline-offset-2 md:text-lg dark:bg-transparent dark:text-[#f3f4f6] dark:placeholder:text-[#6b6e76] {showCounter
+								class="[@media(hover:hover)]:hover:bg-[color:var(--accent)] focus-visible:outline-[color:var(--primary)] h-auto rounded-md border-transparent bg-transparent px-2 py-1.5 text-lg font-medium tracking-tight shadow-none transition-colors duration-150 ease-out placeholder:text-muted-foreground focus-visible:border-transparent focus-visible:ring-0 focus-visible:outline focus-visible:outline-[1.5px] focus-visible:outline-offset-2 md:text-lg dark:bg-transparent dark:text-[#f3f4f6] dark:placeholder:text-[#6b6e76] {showCounter
 									? 'pr-16'
 									: ''}"
 							/>
@@ -397,20 +397,20 @@
 								maxlength={INTAKE_BODY_MAX}
 								placeholder="Add a description…"
 								oninput={markDirty}
-								class="focus-visible:outline-[color:var(--surface-accent)] min-h-44 resize-none rounded-md border-transparent bg-transparent px-2 py-2 text-base leading-relaxed shadow-none transition-colors duration-150 ease-out placeholder:text-muted-foreground focus-visible:border-transparent focus-visible:ring-0 focus-visible:outline focus-visible:outline-[1.5px] focus-visible:outline-offset-2 md:text-sm dark:bg-transparent dark:text-[#d4d6db] dark:placeholder:text-[#6b6e76]"
+								class="focus-visible:outline-[color:var(--primary)] min-h-44 resize-none rounded-md border-transparent bg-transparent px-2 py-2 text-base leading-relaxed shadow-none transition-colors duration-150 ease-out placeholder:text-muted-foreground focus-visible:border-transparent focus-visible:ring-0 focus-visible:outline focus-visible:outline-[1.5px] focus-visible:outline-offset-2 md:text-sm dark:bg-transparent dark:text-[#d4d6db] dark:placeholder:text-[#6b6e76]"
 							></Textarea>
 						</div>
 					</div>
 
 					<footer
-						class="border-[color:var(--surface-divider)] flex flex-wrap items-center justify-between gap-2 border-t px-3 py-2 sm:px-4"
+						class="border-[color:var(--border)] flex flex-wrap items-center justify-between gap-2 border-t px-3 py-2 sm:px-4"
 					>
 						<!--
 							The SingleSelect is JavaScript-only; the hidden input keeps the
 							source in the payload for the no-JS path (where it stays empty).
 						-->
 						<div
-							class="flex min-w-0 items-center [&_[data-slot=select-trigger]]:focus-visible:ring-0 [&_[data-slot=select-trigger]]:focus-visible:outline [&_[data-slot=select-trigger]]:focus-visible:outline-[1.5px] [&_[data-slot=select-trigger]]:focus-visible:outline-offset-2 [&_[data-slot=select-trigger]]:focus-visible:outline-[color:var(--surface-accent)]"
+							class="flex min-w-0 items-center [&_[data-slot=select-trigger]]:focus-visible:ring-0 [&_[data-slot=select-trigger]]:focus-visible:outline [&_[data-slot=select-trigger]]:focus-visible:outline-[1.5px] [&_[data-slot=select-trigger]]:focus-visible:outline-offset-2 [&_[data-slot=select-trigger]]:focus-visible:outline-[color:var(--primary)]"
 						>
 							<input type="hidden" name="source" value={source} />
 							<SingleSelect
@@ -441,7 +441,7 @@
 								disabled={submitting}
 								aria-busy={submitting}
 								aria-keyshortcuts="Meta+Enter Control+Enter"
-								class="focus-visible:outline-[color:var(--surface-accent)] active:scale-[0.98] focus-visible:ring-0 focus-visible:outline focus-visible:outline-[1.5px] focus-visible:outline-offset-2"
+								class="focus-visible:outline-[color:var(--primary)] active:scale-[0.98] focus-visible:ring-0 focus-visible:outline focus-visible:outline-[1.5px] focus-visible:outline-offset-2"
 							>
 								Submit
 								<span class="inline-flex h-4 w-7 items-center justify-center">
@@ -466,7 +466,7 @@
 		<p class="text-muted-foreground mt-4 text-center text-[11px] dark:text-[#9ca3af]">
 			Funnel v{__APP_VERSION__}. <a
 				href="/login"
-				class="hover:text-foreground focus-visible:outline-[color:var(--surface-accent)] rounded underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-[1.5px] focus-visible:outline-offset-2 dark:hover:text-[#f3f4f6]"
+				class="hover:text-foreground focus-visible:outline-[color:var(--primary)] rounded underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-[1.5px] focus-visible:outline-offset-2 dark:hover:text-[#f3f4f6]"
 			>
 				Login
 			</a>

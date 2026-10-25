@@ -28,7 +28,7 @@
 		'inline-flex size-[18px] shrink-0 items-center justify-center rounded-[4px] border',
 		color
 			? 'border-[color-mix(in_srgb,var(--priority-color)_45%,transparent)] bg-[color-mix(in_srgb,var(--priority-color)_16%,transparent)]'
-			: 'border-[color:var(--surface-tag-border)] bg-[var(--surface-tag-bg)]',
+			: 'border-[color:var(--border)] bg-[var(--muted)]',
 		className
 	)}
 	style={color ? `--priority-color: ${color}` : undefined}

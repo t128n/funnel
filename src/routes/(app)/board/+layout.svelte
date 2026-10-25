@@ -88,10 +88,10 @@
 	description="Issues arranged by workflow status."
 />
 
-<div class="surface-shell bg-[var(--surface-canvas)] relative flex min-h-0 min-w-0 flex-1">
+<div class="surface-shell bg-[var(--background)] relative flex min-h-0 min-w-0 flex-1">
 	<div class="flex min-h-0 min-w-0 flex-1 flex-col">
 		<header
-			class="border-[color:var(--surface-divider)] flex min-h-11 shrink-0 flex-wrap items-center gap-2 border-b px-3 py-1.5 sm:py-0"
+			class="border-[color:var(--border)] flex min-h-11 shrink-0 flex-wrap items-center gap-2 border-b px-3 py-1.5 sm:py-0"
 		>
 			<h1 class="text-base font-semibold tracking-tight">Board</h1>
 			<span class="mono text-muted-foreground text-xs">{total}</span>

@@ -1,20 +1,18 @@
 <script lang="ts">
-	import Avatar from '#lib/components/common/Avatar.svelte';
-	import { Button } from '#lib/components/ui/button';
 	import * as Empty from '#lib/components/ui/empty';
 	import type { PlanningIssue } from '#lib/server/planning/queries';
 	import type { PlanLane, PlanUnassigned } from '#lib/server/planning/plans';
 	import { issuePath } from '#lib/issue-url';
 	import { formatMinutes } from '#lib/planning';
-	import { cn } from '#lib/utils';
-	import XIcon from '@lucide/svelte/icons/x';
 	import CapacityBar from './CapacityBar.svelte';
 
 	/**
-	 * Maintainer lanes for one week or cycle. Each lane leads with the person,
-	 * then committed / cap and the 60% allocation marker. Work with no active
+	 * Maintainer lanes for one week or cycle. Each lane is a 1px-bordered
+	 * column with a grey header cell: the person's login on the left and the
+	 * committed/cap totals as plain text on the right. Work with no active
 	 * maintainer sits in an unassigned bucket; unestimated issues are listed
-	 * separately because they contribute no committed minutes.
+	 * separately because they contribute no committed minutes. Empty lanes keep
+	 * their header and fixed height so the column stays legible.
 	 */
 	interface Props {
 		lanes: PlanLane[];
@@ -56,31 +54,36 @@
 	{:else}
 		{#each lanes as lane (lane.maintainer.externalId)}
 			<section
-				class="border-[color:var(--surface-divider)] flex flex-col gap-1.5 rounded-lg border p-3"
+				class="flex min-h-28 flex-col border border-[color:var(--border)]"
 				data-lane={lane.maintainer.login}
 			>
-				<div class="flex min-w-0 items-center gap-2">
-					<Avatar
-						login={lane.maintainer.login}
-						avatarUrl={lane.maintainer.avatarUrl}
-						size={20}
-					/>
-					<a
-						class="focus-visible:ring-ring/50 min-w-0 truncate rounded text-sm font-medium outline-none hover:underline focus-visible:ring-2"
-						href={`https://github.com/${lane.maintainer.login}`}
-						target="_blank"
-						rel="noreferrer"
-					>
-						@{lane.maintainer.login}
-					</a>
-					<span class="text-muted-foreground shrink-0 text-[11px] tabular-nums">
-						{formatMinutes(lane.maintainer.weeklyMinutes)} net
+				<div class="bug-table-head flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
+					<span class="flex min-w-0 items-baseline gap-2">
+						<a
+							class="link focus-visible:ring-ring/50 min-w-0 truncate outline-none focus-visible:ring-2"
+							href={`https://github.com/${lane.maintainer.login}`}
+							target="_blank"
+							rel="noreferrer"
+						>
+							@{lane.maintainer.login}
+						</a>
+						<span class="flag flag-muted shrink-0">
+							{formatMinutes(lane.maintainer.weeklyMinutes)} net
+						</span>
 					</span>
-					{#if lane.over}
-						<span class="text-destructive ms-auto shrink-0 text-[11px] font-medium">over</span>
-					{/if}
+					<span class="flex shrink-0 items-baseline gap-2 text-xs">
+						<span class="mono tabular-nums">
+							{formatMinutes(lane.committedMinutes)} committed · {formatMinutes(lane.capMinutes)} cap
+						</span>
+						{#if lane.over}
+							<span class="flag flag-danger">over</span>
+						{/if}
+					</span>
+				</div>
+
+				<div class="border-b border-[color:var(--border)] px-2 py-1.5">
 					<CapacityBar
-						class={cn('ms-auto w-full max-w-64', lane.over && 'shrink-0')}
+						class="max-w-64"
 						committedMinutes={lane.committedMinutes}
 						capMinutes={lane.capMinutes}
 						{allocationPercent}
@@ -88,9 +91,9 @@
 				</div>
 
 				{#if lane.issues.length === 0}
-					<p class="text-muted-foreground ps-7 text-[11px]">No planned issues.</p>
+					<p class="text-muted-foreground px-2 py-2 text-xs">No planned issues.</p>
 				{:else}
-					<ul class="flex flex-col gap-0.5 ps-7">
+					<ul class="flex flex-col">
 						{#each lane.issues as issue (issueKey(issue))}
 							{@render issueRow(issue)}
 						{/each}
@@ -101,19 +104,19 @@
 	{/if}
 
 	<section
-		class="border-[color:var(--surface-divider)] flex flex-col gap-1.5 rounded-lg border border-dashed p-3"
+		class="flex min-h-24 flex-col border border-[color:var(--border)]"
 		data-testid="unassigned"
 	>
-		<div class="flex min-w-0 items-center gap-2">
-			<span class="text-sm font-medium">Unassigned</span>
-			<span class="text-muted-foreground text-[11px] tabular-nums">
+		<div class="bug-table-head flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
+			<span class="min-w-0 truncate">Unassigned</span>
+			<span class="mono shrink-0 text-xs tabular-nums">
 				{formatMinutes(unassigned.committedMinutes)} committed · no active maintainer
 			</span>
 		</div>
 		{#if unassigned.issues.length === 0}
-			<p class="text-muted-foreground ps-1 text-[11px]">No unassigned work.</p>
+			<p class="text-muted-foreground px-2 py-2 text-xs">No unassigned work.</p>
 		{:else}
-			<ul class="flex flex-col gap-0.5">
+			<ul class="flex flex-col">
 				{#each unassigned.issues as issue (issueKey(issue))}
 					{@render issueRow(issue)}
 				{/each}
@@ -123,16 +126,16 @@
 
 	{#if unestimated.length > 0}
 		<section
-			class="border-[color:var(--surface-divider)] flex flex-col gap-1.5 rounded-lg border border-dashed p-3"
+			class="flex min-h-24 flex-col border border-[color:var(--border)]"
 			data-testid="unestimated"
 		>
-			<div class="flex min-w-0 items-center gap-2">
-				<span class="text-sm font-medium">Unestimated</span>
-				<span class="text-muted-foreground text-[11px]">
+			<div class="bug-table-head flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
+				<span class="min-w-0 truncate">Unestimated</span>
+				<span class="text-muted-foreground shrink-0 text-xs">
 					Add a size label to schedule these.
 				</span>
 			</div>
-			<ul class="flex flex-col gap-0.5">
+			<ul class="flex flex-col">
 				{#each unestimated as issue (issueKey(issue))}
 					{@render issueRow(issue)}
 				{/each}
@@ -142,27 +145,28 @@
 </div>
 
 {#snippet issueRow(issue: PlanningIssue)}
-	<li class="group/issue flex min-w-0 items-center gap-2 rounded px-1 py-0.5">
+	<li
+		class="group/issue flex min-w-0 items-baseline gap-2 border-b border-[color:var(--border)] px-2 py-1 last:border-b-0"
+	>
 		<a
-			class="focus-visible:ring-ring/50 min-w-0 flex-1 truncate rounded text-xs outline-none hover:underline focus-visible:ring-2"
+			class="focus-visible:ring-ring/50 flex min-w-0 flex-1 items-baseline gap-2 outline-none focus-visible:ring-2"
 			href={issuePath('issues', issue.repo, issue.number)}
 		>
-			<span class="text-muted-foreground me-1.5 tabular-nums">{issue.repo}#{issue.number}</span>
-			{issue.title}
+			<span class="flag flag-muted shrink-0">{issue.repo}#{issue.number}</span>
+			<span class="min-w-0 truncate text-sm">{issue.title}</span>
 		</a>
-		<span class="text-muted-foreground shrink-0 text-[10px]">{sizeLabel(issue.size)}</span>
+		<span class="flag flag-muted shrink-0">{sizeLabel(issue.size)}</span>
 		{#if mayWrite && onremove}
-			<Button
-				variant="ghost"
-				size="icon-xs"
-				class="opacity-0 group-hover/issue:opacity-100 focus-visible:opacity-100"
+			<button
+				type="button"
+				class="text-muted-foreground hover:text-destructive shrink-0 text-2xs opacity-0 group-hover/issue:opacity-100 focus-visible:opacity-100"
 				disabled={removing === issueKey(issue)}
 				title="Remove from plan"
 				aria-label={`Remove ${issue.repo}#${issue.number} from the plan`}
 				onclick={() => onremove?.(issue)}
 			>
-				<XIcon />
-			</Button>
+				Remove
+			</button>
 		{/if}
 	</li>
 {/snippet}

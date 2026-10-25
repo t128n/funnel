@@ -64,9 +64,9 @@
 		description={`Epic ${epic.ref} with ${epic.childCount} children and time rollups.`}
 	/>
 
-	<div class="surface-shell bg-[var(--surface-canvas)] flex min-h-0 flex-1 flex-col overflow-y-auto">
+	<div class="surface-shell bg-[var(--background)] flex min-h-0 flex-1 flex-col overflow-y-auto">
 		<header
-			class="border-[color:var(--surface-divider)] flex flex-col gap-2 border-b px-3 py-2"
+			class="border-[color:var(--border)] flex flex-col gap-2 border-b px-3 py-2"
 		>
 			<div class="flex min-w-0 flex-wrap items-center gap-2">
 				<a href="/epics" class="text-muted-foreground hover:text-foreground shrink-0 text-xs">

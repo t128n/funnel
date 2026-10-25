@@ -20,6 +20,10 @@
 	 * asks it for the next page. Callers that already hold a plain array (the
 	 * board's Backlog view, a milestone page) can pass `issues` instead; those
 	 * views render the same rows without pagination.
+	 *
+	 * The footer carries the filtered total. The plan's `Edit Search` link is
+	 * omitted here: the filter UI lives in the route header and this component
+	 * receives no handler for it, so inventing one would fork that control.
 	 */
 	export interface IssueListProps {
 		/** Paginated source of truth (Issues feed). */
@@ -69,6 +73,9 @@
 		)
 	);
 
+	/** Filtered total, not the loaded window: the footer reports the result set. */
+	const count = $derived(feed ? feed.total : issues.length);
+
 	let scroller: HTMLDivElement | undefined = $state();
 	let handle: VirtualizerHandle | undefined = $state();
 
@@ -117,7 +124,7 @@
 				onscroll={maybeLoadMore}
 				onresize={maybeLoadMore}
 			>
-				{#snippet children(row)}
+				{#snippet children(row, index)}
 					{#if row.kind === 'group'}
 						<IssueGroupHeader
 							label={row.label}
@@ -131,6 +138,7 @@
 							{repoShortcodes}
 							selected={isSelected(row.item)}
 							groupedBy={groupBy}
+							{index}
 						/>
 					{/if}
 				{/snippet}
@@ -151,14 +159,10 @@
 				</div>
 			{/if}
 		</div>
+		<div
+			class="bug-chrome-footer text-muted-foreground flex shrink-0 items-center px-3 py-1 text-xs"
+		>
+			<span>{count} bugs</span>
+		</div>
 	</div>
 {/if}
-
-<style>
-	/* Virtua wraps every row in its own element, so a row is always the
-	   `:last-child`; restore the divider that `IssueRow`'s `last:border-b-0`
-	   would otherwise remove. */
-	.issue-feed-scroller :global(.issue-grid:last-child) {
-		border-bottom-width: 1px;
-	}
-</style>

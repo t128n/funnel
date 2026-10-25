@@ -1,17 +1,22 @@
 <script lang="ts">
 	import { barPercent, formatMinutes } from '#lib/planning';
 	import type { EpicSummary } from '#lib/server/epics/queries';
-	import ChevronRightIcon from '@lucide/svelte/icons/chevron-right';
 
 	/**
-	 * Epic cards in the order `listEpics` returns them: open before closed.
+	 * Epic rows in the order `listEpics` returns them: open before closed.
 	 * Progress, estimate, actual and delay are rollups over resolved children.
+	 *
+	 * Each row is a Bugzilla result-table row: mono reference, 13px title,
+	 * `.flag` state and plain mono numbers. Zebra stripes and 1px rules replace
+	 * the old card border, radius and hover lift.
 	 */
 	interface Props {
 		epics: EpicSummary[];
 	}
 
 	let { epics }: Props = $props();
+
+	const GRID = 'grid grid-cols-[minmax(0,1fr)_5rem_4rem_4.5rem_4.5rem_4.5rem] items-center gap-2';
 
 	function href(epic: EpicSummary): string {
 		const slash = epic.repo.indexOf('/');
@@ -25,50 +30,68 @@
 	}
 </script>
 
-<div class="flex flex-col gap-2" data-testid="epic-list">
+<div class="border border-border" data-testid="epic-list">
+	<div class={`bug-table-head ${GRID}`} aria-hidden="true">
+		<span>Epic</span>
+		<span>Status</span>
+		<span class="text-end">Progress</span>
+		<span class="text-end">Estimate</span>
+		<span class="text-end">Actual</span>
+		<span class="text-end">Delay</span>
+	</div>
+
 	{#each epics as epic (epic.ref)}
-		<a
-			href={href(epic)}
-			class="border-[color:var(--surface-divider)] hover:bg-[var(--surface-card-hover)] group flex flex-col gap-2 rounded-lg border p-3 transition-colors"
-		>
-			<div class="flex min-w-0 items-center gap-2">
-				<span class="min-w-0 flex-1 truncate text-sm font-medium">{epic.title || 'Untitled epic'}</span>
-				{#if epic.state === 'closed'}
-					<span class="text-muted-foreground shrink-0 text-[11px]">closed</span>
-				{/if}
+		<a href={href(epic)} class={`epic-row group/row border-b border-border px-2 py-1.5 last:border-b-0 ${GRID}`}>
+			<span class="flex min-w-0 flex-col">
+				<span class="min-w-0 truncate text-sm">
+					<span class="mono text-muted-foreground me-2 text-xs">{epic.repo}#{epic.number}</span>
+					<span class="text-foreground">{epic.title || 'Untitled epic'}</span>
+				</span>
 				{#if epic.milestone}
-					<span class="text-muted-foreground shrink-0 text-[11px]" title="Milestone">
+					<span class="text-muted-foreground truncate text-xs" title="Milestone">
 						{epic.milestone.title}
 						{#if epic.milestone.dueOn !== null}
 							· {dueLabel(epic.milestone.dueOn)}
 						{/if}
 					</span>
 				{/if}
-				<ChevronRightIcon
-					class="text-muted-foreground size-3.5 shrink-0 transition-transform group-hover:translate-x-0.5"
-				/>
-			</div>
+			</span>
 
-			<div class="flex items-center gap-2">
-				<span class="text-muted-foreground shrink-0 text-[11px] tabular-nums">
-					{epic.repo}#{epic.number}
-				</span>
-				<span class="bg-[var(--surface-tag-bg)] h-1.5 min-w-0 flex-1 overflow-hidden rounded-full">
-					<span
-						class="block h-full rounded-full bg-[var(--surface-accent)]"
-						style={`width: ${barPercent(epic.closedChildCount, epic.childCount)}%`}
-					></span>
-				</span>
-				<span class="text-muted-foreground shrink-0 text-[11px] tabular-nums">
-					{epic.closedChildCount}/{epic.childCount}
-				</span>
-			</div>
+			<span class={epic.state === 'closed' ? 'flag flag-muted' : 'flag flag-warning'}>
+				{epic.state === 'closed' ? 'closed' : 'open'}
+			</span>
 
-			<div class="text-muted-foreground flex flex-wrap items-center gap-3 text-[11px] tabular-nums">
-				<span>{formatMinutes(epic.estimateMinutes)} estimate</span>
-				<span>{formatMinutes(epic.actualMinutes)} actual</span>
-				<span>{formatMinutes(epic.delayMinutes)} delay</span>
-			</div>
+			<span
+				class="mono text-muted-foreground text-end text-xs whitespace-nowrap"
+				title={`${barPercent(epic.closedChildCount, epic.childCount)}% complete`}
+			>
+				{epic.closedChildCount}/{epic.childCount}
+			</span>
+			<span class="mono text-end text-xs whitespace-nowrap">
+				{formatMinutes(epic.estimateMinutes)}
+			</span>
+			<span class="mono text-end text-xs whitespace-nowrap">
+				{formatMinutes(epic.actualMinutes)}
+			</span>
+			<span class="mono text-end text-xs whitespace-nowrap">
+				{formatMinutes(epic.delayMinutes)}
+			</span>
 		</a>
 	{/each}
 </div>
+
+<style>
+	.epic-row {
+		color: var(--foreground);
+		transition: background-color 120ms;
+	}
+
+	.epic-row:nth-of-type(even) {
+		background: color-mix(in srgb, var(--muted) 45%, transparent);
+	}
+
+	.epic-row:hover,
+	.epic-row:nth-of-type(even):hover {
+		background: var(--accent);
+	}
+</style>

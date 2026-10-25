@@ -1,3 +1,12 @@
+<script module lang="ts">
+	/**
+	 * Bugzilla comment anchor for a zero-based timeline index: `#c1` first.
+	 */
+	export function commentNumber(index: number): string {
+		return `#c${index + 1}`;
+	}
+</script>
+
 <script lang="ts">
 	import Avatar from '#lib/components/common/Avatar.svelte';
 	import * as Bubble from '#lib/components/ui/bubble';
@@ -15,10 +24,11 @@
 
 	/**
 	 * The issue activity timeline: GitHub comments and internal work notes,
-	 * merged in chronological order. Comments are the public channel and render
-	 * as before (divider-separated rows, or chat bubbles when `bubbles`); work
-	 * notes are Funnel-local and render with a lock/"Internal" treatment, plus
-	 * edit/delete/publish actions for their author.
+	 * merged in chronological order. Compact mode is the Bugzilla thread —
+	 * numbered `#cN` anchors over a grey header bar and a mono body; `bubbles`
+	 * keeps the chat-style rendering. Work notes are Funnel-local and render
+	 * with an amber internal rule, plus edit/delete/publish actions for their
+	 * author.
 	 */
 	interface Props {
 		comments: RenderedComment[];
@@ -28,10 +38,14 @@
 		filter?: 'all' | 'comments' | 'notes';
 		/** GitHub login of the signed-in viewer; enables note authoring actions. */
 		viewerLogin?: string | null;
+		/** Login of the issue reporter; tints their comments in compact mode. */
+		reporterLogin?: string | null;
 		/** Hide edit/publish/delete affordances (RBAC `read`). */
 		readonly?: boolean;
 		/** `note:<id>` while a note mutation is in flight. */
 		busyId?: string | null;
+		/** Focus the composer for this entry (compact mode reply link). */
+		onreply?: (id: string) => void;
 		onedit: (id: string, body: string) => void;
 		ondelete: (id: string) => void;
 		onpublish: (id: string) => void;
@@ -43,8 +57,10 @@
 		bubbles = false,
 		filter = 'all',
 		viewerLogin = null,
+		reporterLogin = null,
 		readonly = false,
 		busyId = null,
+		onreply,
 		onedit,
 		ondelete,
 		onpublish
@@ -84,6 +100,10 @@
 		onedit(id, body);
 		editingId = null;
 		draft = '';
+	}
+
+	function entryId(entry: Entry): string {
+		return entry.kind === 'comment' ? entry.comment.externalId : entry.note.id;
 	}
 </script>
 
@@ -132,7 +152,7 @@
 								<strong class="text-foreground font-medium">
 									{entry.note.author?.login ?? 'ghost'}
 								</strong>
-								<span class="text-amber-400/80 inline-flex items-center gap-1">
+								<span class="text-warning inline-flex items-center gap-1">
 									<LockIcon class="size-3" />
 									Internal note
 								</span>
@@ -148,58 +168,78 @@
 		{/each}
 	</ul>
 {:else}
-	<ul class="flex flex-col">
-		{#each entries as entry (entry.kind === 'comment' ? `c${entry.comment.externalId}` : entry.note.id)}
-			<li
-				class={cn(
-					'border-border flex gap-2.5 border-t py-3 first:border-t-0 first:pt-0 last:pb-0',
-					entry.kind === 'note' && 'bg-amber-400/[0.04] -mx-2 rounded-md px-2'
-				)}
-			>
-				<Avatar
-					login={(entry.kind === 'comment' ? entry.comment.author : entry.note.author)?.login ??
-						'ghost'}
-					avatarUrl={(entry.kind === 'comment'
-						? entry.comment.author
-						: entry.note.author
-					)?.avatarUrl}
-					size={22}
-				/>
-				<div class="flex min-w-0 flex-1 flex-col gap-1">
-					<div class="flex items-baseline gap-2 text-xs">
-						<strong class="font-medium">
-							{(entry.kind === 'comment' ? entry.comment.author : entry.note.author)?.login ??
-								'ghost'}
-						</strong>
-						{#if entry.kind === 'note'}
-							<span class="text-amber-400 inline-flex items-center gap-1 font-medium">
-								<LockIcon class="size-3" />
-								Internal
-							</span>
-						{/if}
-						<span
-							class="text-muted-foreground"
-							title={absoluteTime(
-								entry.kind === 'comment' ? entry.comment.createdAt : entry.note.createdAt
-							)}
-						>
-							{timeAgo(entry.kind === 'comment' ? entry.comment.createdAt : entry.note.createdAt)}
-						</span>
-					</div>
-					{#if entry.kind === 'comment'}
-						<div class="markdown text-foreground text-sm">{@html entry.comment.bodyHtml}</div>
-					{:else}
-						{@render noteBody(entry.note, false)}
+	<div class="flex flex-col gap-3">
+		{#each entries as entry, index (entry.kind === 'comment' ? `c${entry.comment.externalId}` : entry.note.id)}
+			{@const author = entry.kind === 'comment' ? entry.comment.author : entry.note.author}
+			{@const at = entry.kind === 'comment' ? entry.comment.createdAt : entry.note.createdAt}
+			{@const tone =
+				entry.kind === 'note'
+					? 'note'
+					: reporterLogin && author?.login === reporterLogin
+						? 'reporter'
+						: undefined}
+			<article class={cn('bug-comment', entry.kind === 'note' && 'is-internal')} data-index={index} data-tone={tone}>
+				<header class="bug-comment-head">
+					<a
+						id={`c${index + 1}`}
+						href={`#c${index + 1}`}
+						class="mono link font-semibold">{commentNumber(index)}</a
+					>
+					<strong class="font-semibold">{author?.login ?? 'ghost'}</strong>
+					{#if entry.kind === 'note'}
+						<span class="flag flag-warning">Internal</span>
 					{/if}
-				</div>
-			</li>
+					<span class="text-muted-foreground" title={absoluteTime(at)}>{timeAgo(at)}</span>
+					{#if onreply}
+						<button type="button" class="link" onclick={() => onreply(entryId(entry))}>
+							reply
+						</button>
+					{/if}
+					{#if entry.kind === 'note' && !readonly && viewerLogin && entry.note.author?.login === viewerLogin}
+						<span class="ml-auto flex items-center gap-2">
+							<button
+								type="button"
+								class="link disabled:pointer-events-none disabled:opacity-50"
+								disabled={busyId === `note:${entry.note.id}`}
+								title="Edit note"
+								onclick={() => startEdit(entry.note)}
+							>
+								Edit
+							</button>
+							<button
+								type="button"
+								class="link disabled:pointer-events-none disabled:opacity-50"
+								title="Publish to GitHub as a comment (removes the note)"
+								disabled={busyId === `note:${entry.note.id}`}
+								onclick={() => onpublish(entry.note.id)}
+							>
+								Publish
+							</button>
+							<button
+								type="button"
+								class="link disabled:pointer-events-none disabled:opacity-50"
+								title="Delete note"
+								disabled={busyId === `note:${entry.note.id}`}
+								onclick={() => ondelete(entry.note.id)}
+							>
+								Delete
+							</button>
+						</span>
+					{/if}
+				</header>
+				{#if entry.kind === 'comment'}
+					<div class="bug-comment-body markdown">{@html entry.comment.bodyHtml}</div>
+				{:else}
+					{@render noteBody(entry.note, false)}
+				{/if}
+			</article>
 		{/each}
-	</ul>
+	</div>
 {/if}
 
 {#snippet noteBody(note: RenderedWorkNote, bubbled: boolean)}
 	{#if editingId === note.id}
-		<div class="flex flex-col gap-2">
+		<div class="flex flex-col gap-2 p-2">
 			<Textarea
 				rows={3}
 				value={draft}
@@ -224,47 +264,55 @@
 			class={cn(
 				'flex flex-col gap-2',
 				bubbled
-					? 'border-amber-400/30 bg-amber-400/[0.06] rounded-lg border px-3 py-2'
+					? 'border-warning/30 bg-warning/[0.06] rounded-lg border px-3 py-2'
 					: 'contents'
 			)}
 		>
-			<div class="markdown text-foreground text-sm">{@html note.bodyHtml}</div>
-			<div class="text-muted-foreground flex items-center gap-2 text-[11px]">
-				{#if !readonly && viewerLogin && note.author?.login === viewerLogin}
-					<div class="ml-auto flex items-center gap-0.5">
-						<Button
-							variant="ghost"
-							size="icon-xs"
-							title="Edit note"
-							aria-label="Edit note"
-							disabled={busyId === `note:${note.id}`}
-							onclick={() => startEdit(note)}
-						>
-							<PencilIcon />
-						</Button>
-						<Button
-							variant="ghost"
-							size="icon-xs"
-							title="Publish to GitHub as a comment (removes the note)"
-							aria-label="Publish note to GitHub"
-							disabled={busyId === `note:${note.id}`}
-							onclick={() => onpublish(note.id)}
-						>
-							<SendIcon />
-						</Button>
-						<Button
-							variant="ghost"
-							size="icon-xs"
-							title="Delete note"
-							aria-label="Delete note"
-							disabled={busyId === `note:${note.id}`}
-							onclick={() => ondelete(note.id)}
-						>
-							<TrashIcon />
-						</Button>
-					</div>
-				{/if}
+			<div
+				class={bubbled
+					? 'markdown text-foreground text-sm'
+					: 'bug-comment-body markdown px-2 py-2'}
+			>
+				{@html note.bodyHtml}
 			</div>
+			{#if bubbled}
+				<div class="text-muted-foreground flex items-center gap-2 text-[11px]">
+					{#if !readonly && viewerLogin && note.author?.login === viewerLogin}
+						<div class="ml-auto flex items-center gap-0.5">
+							<Button
+								variant="ghost"
+								size="icon-xs"
+								title="Edit note"
+								aria-label="Edit note"
+								disabled={busyId === `note:${note.id}`}
+								onclick={() => startEdit(note)}
+							>
+								<PencilIcon />
+							</Button>
+							<Button
+								variant="ghost"
+								size="icon-xs"
+								title="Publish to GitHub as a comment (removes the note)"
+								aria-label="Publish note to GitHub"
+								disabled={busyId === `note:${note.id}`}
+								onclick={() => onpublish(note.id)}
+							>
+								<SendIcon />
+							</Button>
+							<Button
+								variant="ghost"
+								size="icon-xs"
+								title="Delete note"
+								aria-label="Delete note"
+								disabled={busyId === `note:${note.id}`}
+								onclick={() => ondelete(note.id)}
+							>
+								<TrashIcon />
+							</Button>
+						</div>
+					{/if}
+				</div>
+			{/if}
 		</div>
 	{/if}
 {/snippet}

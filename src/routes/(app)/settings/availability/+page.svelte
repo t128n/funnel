@@ -245,7 +245,7 @@
 				<div class="flex flex-wrap gap-2">
 					{#each WEEKDAYS as day (day.value)}
 						<label
-							class="flex items-center gap-1.5 rounded-md border border-[color:var(--surface-divider)] px-2 py-1 text-xs"
+							class="flex items-center gap-1.5 rounded-md border border-[color:var(--border)] px-2 py-1 text-xs"
 						>
 							<input
 								type="checkbox"
@@ -273,7 +273,7 @@
 			{#if windows.length === 0}
 				<p class="text-muted-foreground text-xs">No blocked windows yet.</p>
 			{:else}
-				<ul class="flex flex-col divide-y divide-[color:var(--surface-divider)]">
+				<ul class="flex flex-col divide-y divide-[color:var(--border)]">
 					{#each windows as window (window.key)}
 						<li class="flex flex-wrap items-end gap-2 py-3 first:pt-0 last:pb-0">
 							<Field.Field class="min-w-40 flex-1">

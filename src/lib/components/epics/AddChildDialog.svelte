@@ -126,7 +126,7 @@
 				<p class="text-muted-foreground py-3 text-xs">No issue matches “{query}”.</p>
 			{:else}
 				<ul
-					class="border-[color:var(--surface-divider)] max-h-64 overflow-y-auto rounded-lg border"
+					class="border-[color:var(--border)] max-h-64 overflow-y-auto rounded border"
 					aria-label="Epic candidates"
 				>
 					{#each filtered as candidate (candidate.ref)}
@@ -134,10 +134,10 @@
 							<button
 								type="button"
 								class={cn(
-									'focus-visible:ring-ring/50 flex w-full min-w-0 items-center gap-2 border-b border-[color:var(--surface-divider)] px-2.5 py-1.5 text-start text-xs outline-none last:border-b-0 focus-visible:ring-2',
+									'focus-visible:ring-ring/50 flex w-full min-w-0 items-center gap-2 border-b border-[color:var(--border)] px-2.5 py-1.5 text-start text-xs outline-none last:border-b-0 focus-visible:ring-2',
 									selectedRef === candidate.ref
-										? 'bg-[var(--surface-card-hover)]'
-										: 'hover:bg-[var(--surface-card-hover)]'
+										? 'bg-[var(--accent)]'
+										: 'hover:bg-[var(--accent)]'
 								)}
 								aria-pressed={selectedRef === candidate.ref}
 								onclick={() => {

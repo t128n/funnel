@@ -3,22 +3,25 @@
 	import { cn } from '#lib/utils.js';
 
 	/**
-	 * One sidebar destination: leading icon, label, optional count badge.
+	 * One sidebar destination: a plain text link and an optional count.
 	 *
-	 * The active state is a single pill (`data-active` on the menu button) plus
-	 * a tinted icon — never a second indicator. Every row carries an icon so the
-	 * sidebar scans as icons + labels rather than a bare text list.
+	 * Bugzilla chrome carries no icons. The active item is weight + colour + a
+	 * 3px left rule (styled by `Sidebar.MenuButton`), never a filled row. Counts
+	 * are plain `(3)` text in `--muted-foreground`, never a pill or badge.
+	 *
+	 * In the icon rail the label is replaced by a one-letter monogram so the
+	 * collapsed sidebar stays scannable; the tooltip still names the item.
 	 */
 	interface Props {
 		href: string;
 		label: string;
-		// Lucide icon components are not typed as `Component` yet.
+		/** Accepted for the settings nav, which still passes one; never rendered. */
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		icon?: any;
 		active?: boolean;
-		/** Count rendered in the trailing badge; hidden when zero or absent. */
+		/** Count rendered as plain `(3)`; hidden when zero or absent. */
 		badge?: number;
-		/** Destructive styling for time-sensitive alerts (Attention). */
+		/** Accepted for callers; counts are always muted text. */
 		tone?: 'neutral' | 'destructive';
 		class?: string;
 	}
@@ -26,31 +29,35 @@
 	let {
 		href,
 		label,
-		icon,
+		icon: _icon,
 		active = false,
 		badge = 0,
-		tone = 'neutral',
+		tone: _tone = 'neutral',
 		class: className
 	}: Props = $props();
+
+	const monogram = $derived(label.slice(0, 1).toUpperCase() || '?');
 </script>
 
 <Sidebar.MenuItem>
-	<Sidebar.MenuButton
-		isActive={active}
-		tooltipContent={label}
-		class={cn(className, active && '[&_svg]:text-sidebar-primary')}
-	>
+	<Sidebar.MenuButton isActive={active} tooltipContent={label} class={cn('ps-2', className)}>
 		{#snippet child({ props })}
-			{@const Icon = icon}
 			<a href={href} aria-current={active ? 'page' : undefined} {...props}>
-				{#if Icon}<Icon />{/if}
-				<span>{label}</span>
+				<span class="group-data-[collapsible=icon]:hidden truncate">{label}</span>
+				<span
+					aria-hidden="true"
+					class="group-data-[collapsible=icon]:inline-flex hidden justify-center text-xs font-semibold"
+				>
+					{monogram}
+				</span>
+				{#if badge > 0}
+					<span
+						class="text-muted-foreground group-data-[collapsible=icon]:hidden ms-auto shrink-0 tabular-nums"
+					>
+						({badge})
+					</span>
+				{/if}
 			</a>
 		{/snippet}
 	</Sidebar.MenuButton>
-	{#if badge > 0}
-		<Sidebar.MenuBadge class={tone === 'destructive' ? 'bg-destructive text-white' : undefined}>
-			{badge}
-		</Sidebar.MenuBadge>
-	{/if}
 </Sidebar.MenuItem>
