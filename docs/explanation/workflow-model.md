@@ -178,6 +178,7 @@ It costs:
 - [Configure the board](../how-to/configure/board.md) — setting the Done window and Work-in-Progress limits.
 - [Configure estimates and weekly plans](../how-to/configure/planning.md) — size minutes, net hours, cycles and the 60% cap.
 - [Plan your day](../how-to/plan/plan-your-day.md) — working hours, the ALPEN day view, the buffer and the Outlook feed.
+- [Why planning and actuals work this way](planning-and-actuals.md) — the three layers, the buffer, observed actuals and body-based epics.
 - [Track time and delays](../how-to/use/track-time-and-delays.md) — reading actual time and recording a delay.
 - [Manage epics](../how-to/use/epics.md) — marking an epic, adding children and reading rollups.
 - [UI/UX standards](../DESIGN.md) — how the board and streams present this model.

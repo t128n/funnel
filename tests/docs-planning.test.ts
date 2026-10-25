@@ -25,6 +25,8 @@ const api = read("docs/reference/http-api.md");
 const glossary = read("docs/reference/glossary.md");
 const workflow = read("docs/explanation/workflow-model.md");
 const howTo = read("docs/how-to/configure/planning.md");
+const planHowTo = read("docs/how-to/use/plan-work.md");
+const reference = read("docs/reference/planning-and-time.md");
 const index = read("docs/README.md");
 
 describe("planning documentation", () => {
@@ -91,9 +93,9 @@ describe("planning documentation", () => {
     // `cycleForWeek` floors pre-anchor weeks into negative cycles; it does not
     // clamp them to the anchor's cycle (see calendar.test.ts).
     expect(glossary).toContain("negative cycles");
-    expect(howTo).toContain("negative cycles");
+    expect(reference).toContain("negative cycles");
     expect(settings).toContain("negative cycles");
-    for (const doc of [glossary, howTo, settings]) {
+    for (const doc of [glossary, reference, settings]) {
       expect(doc).not.toContain("floor to the first cycle");
       expect(doc).not.toContain("rather than producing negative cycle numbers");
     }
@@ -113,8 +115,8 @@ describe("planning documentation", () => {
   });
 
   test("test_how_to_documents_the_unowned_rejection", () => {
-    expect(howTo).toContain("active, configured maintainer");
-    expect(howTo).toContain("unconfigured or inactive people is rejected with `400`");
+    expect(planHowTo).toContain("active and configured");
+    expect(planHowTo).toContain("rejected with `400`");
   });
 
   test("test_workflow_model_qualifies_the_unassigned_bucket", () => {
@@ -125,13 +127,13 @@ describe("planning documentation", () => {
   test("test_net_hours_hint_is_verbatim", () => {
     const hint =
       "Enter net hours: contracted weekly hours minus recurring meetings, on-call, and other fixed commitments. Funnel plans at most 60% of this; the rest is buffer.";
-    expect(howTo).toContain(hint);
+    expect(reference).toContain(hint);
   });
 
   test("test_how_to_covers_estimates_and_schedule", () => {
-    expect(howTo).toContain("planning.size_minutes");
-    expect(howTo).toContain("weekly_minutes");
-    expect(howTo).toContain("409");
+    expect(reference).toContain("planning.size_minutes");
+    expect(reference).toContain("weekly_minutes");
+    expect(planHowTo).toContain("409");
   });
 
   test("test_how_to_is_linked_from_index", () => {

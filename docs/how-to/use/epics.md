@@ -2,6 +2,8 @@
 
 An epic groups related issues under one container so you can see progress and time across the whole body of work. This guide explains how to mark an epic, manage its children, and read the rollups.
 
+![The epics list with progress, estimate, actual and delay rollups](../../assets/screenshots/epics-list.png)
+
 ## What an epic is
 
 An epic is an ordinary issue carrying the reserved `epic` label. It has a normal status, priority, size and assignees, and it can be blocked like any other issue. The label is orthogonal: it does not change the stage or add a board column.
@@ -57,6 +59,8 @@ The epic detail page shows:
 
 Children are resolved by parsing the epic body on every read. A child that is missing, pruned or no longer mirrored is skipped from the rollups and shown as unavailable rather than breaking the page. The rollups use the same estimate mapping and actual/delay calculators as the Inspector, so an epic's totals match the sum of its visible children.
 
+![The epic detail page with rollup cards and the child table](../../assets/screenshots/epic-detail.png)
+
 ## Access
 
 Every signed-in user with `read` can view `/epics` and the detail page. Marking or removing the epic label, and adding or removing children, require `write`. Read-only viewers see the badge, links and rollups without the edit controls.
@@ -65,6 +69,9 @@ Every signed-in user with `read` can view `/epics` and the detail page. Marking 
 
 - [Track time and delays](track-time-and-delays.md) — how child actual time is measured.
 - [Create and edit issues](create-and-edit-issues.md) — editing labels and properties.
+- [Plan a cycle and track it](../../tutorials/plan-and-track-a-cycle.md) — a guided first run.
+- [Planning and time reference](../../reference/planning-and-time.md) — the exact metadata format and contracts.
+- [Why planning and actuals work this way](../../explanation/planning-and-actuals.md) — why children live in the body.
 - [Reserved labels](../../reference/reserved-labels.md) — the `epic` label and its group.
 - [HTTP API](../../reference/http-api.md#epics-and-delays) — the epic endpoints.
-- [The workflow model](../../explanation/workflow-model.md#epics-are-containers-in-the-body) — why children live in the body.
+- [The workflow model](../../explanation/workflow-model.md#epics-are-containers-in-the-body) — where epics sit next to labels.

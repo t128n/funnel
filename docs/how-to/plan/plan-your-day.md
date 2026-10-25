@@ -2,11 +2,11 @@
 
 Use the Day horizon of `/plan` to turn the week's plan into a timed day, using your own working hours and unavailable windows. The day view is called **ALPEN**: Aufgaben (candidates), Länge (length), Puffer (buffer), Entscheiden (decide) and Nachkontrolle (review).
 
-![The Day view with its five ALPEN chips, timed blocks, buffer, candidate list and review](../../images/alpen-day.png)
+![The Day view with its five ALPEN chips, timed blocks, buffer, candidate list and review](../../assets/screenshots/plan-day.png)
 
 The Day tab sits next to the existing week, cycle and milestone horizons; the week plan still decides *what* is scheduled, and the day only decides *when*.
 
-![Week, cycle, milestone and day horizons in the planner](../../images/alpen-plan-horizons.png)
+![Week, cycle, milestone and day horizons in the planner](../../assets/screenshots/plan-week.png)
 
 Your availability and day plan are personal. Any signed-in viewer can edit their own rows; the `/api/me/*` routes need a session and never a `write` role, and they touch only the caller's data. Admin defaults in `planning.work_defaults` apply until you save your own hours.
 
@@ -25,7 +25,7 @@ Your availability and day plan are personal. Any signed-in viewer can edit their
 
 Windows subtract from the work window; overlapping windows count once. An absent per-viewer row uses the admin defaults, so the page opens prefilled with them.
 
-![Availability: working hours, blocked windows and the calendar feed](../../images/alpen-availability.png)
+![Availability: working hours, blocked windows and the calendar feed](../../assets/screenshots/settings-availability.png)
 
 ## Plan a day
 
