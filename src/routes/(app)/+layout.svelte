@@ -2,8 +2,8 @@
 	import { onMount, tick } from 'svelte';
 	import { goto, refreshAll } from '$app/navigation';
 	import { createHotkeys, getAppHotkeys } from '@tanstack/svelte-hotkeys';
-	import BellIcon from '@lucide/svelte/icons/bell';
 	import AppSidebar from '#lib/components/app-sidebar.svelte';
+	import FooterNav from '#lib/components/nav/footer-nav.svelte';
 	import * as Sidebar from '#lib/components/ui/sidebar/index.js';
 	import { actionableCount, classifyAttention, toISODate } from '#lib/attention';
 	import { connectEvents, type FunnelEvent } from '#lib/client/events';
@@ -174,21 +174,16 @@
 				<span class="text-muted-foreground text-sm font-medium">funnel</span>
 				<a
 					href="/attention"
-					class="text-muted-foreground hover:text-foreground focus-visible:ring-ring/50 relative ml-auto inline-flex size-8 items-center justify-center rounded outline-none focus-visible:ring-1"
+					class="hover:underline focus-visible:ring-ring/50 ms-auto rounded-none text-xs outline-none focus-visible:ring-1"
 					aria-label={dueCount > 0 ? `Attention: ${dueCount} due` : 'Attention'}
 				>
-					<BellIcon class="size-4" />
-					{#if dueCount > 0}
-						<span
-							class="bg-destructive text-white absolute end-0.5 top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[0.625rem] font-medium"
-						>
-							{dueCount}
-						</span>
-					{/if}
+					Attention{#if dueCount > 0}<span class="text-muted-foreground"> ({dueCount})</span>{/if}
 				</a>
 			</div>
 
 			{@render children()}
+
+			<FooterNav version={__APP_VERSION__} />
 		</Sidebar.Inset>
 	</div>
 </Sidebar.Provider>

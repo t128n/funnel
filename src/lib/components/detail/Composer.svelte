@@ -4,18 +4,14 @@
 	import { Button } from '#lib/components/ui/button';
 	import * as InputGroup from '#lib/components/ui/input-group';
 	import * as Kbd from '#lib/components/ui/kbd';
-	import * as ToggleGroup from '#lib/components/ui/toggle-group/index.js';
-	import ArrowUpIcon from '@lucide/svelte/icons/arrow-up';
-	import PaperclipIcon from '@lucide/svelte/icons/paperclip';
 
 	/**
-	 * The embedded action composer: a bordered container holding an auto-growing
-	 * textarea with its submit and attachment affordances nested in the bottom
-	 * row, instead of a bare full-width textarea beside a stray button.
+	 * The embedded action composer: a plain bordered textarea with text-link
+	 * submit, attachment and channel affordances in the bottom row.
 	 *
 	 * With `showModeToggle` it doubles as the issue's Comment / Work note
 	 * switch; the parent owns which mutation `onsubmit` performs. `onattach`
-	 * enables the paperclip (files are handed back to the parent to upload).
+	 * enables the attach link (files are handed back to the parent to upload).
 	 *
 	 * ⌘/Ctrl+Enter submits. `value` is bindable so the parent owns the draft.
 	 */
@@ -31,7 +27,7 @@
 		mode?: 'comment' | 'note';
 		/** Render the Comment / Work note switch. */
 		showModeToggle?: boolean;
-		/** Enables the paperclip; receives the picked files. */
+		/** Enables the attach link; receives the picked files. */
 		onattach?: (files: File[]) => void;
 		onsubmit: () => void;
 	}
@@ -76,10 +72,10 @@
 </script>
 
 <InputGroup.Root
-	class="surface-shell h-auto flex-col rounded-lg border-[color:var(--surface-border)] bg-[var(--surface-tag-bg)] dark:bg-[var(--surface-tag-bg)] transition-[border-color,background-color] duration-150 ease-out hover:border-[color:var(--surface-border-hover)] has-[[data-slot=input-group-control]:focus-visible]:border-[color:var(--surface-border-hover)] has-[[data-slot=input-group-control]:focus-visible]:ring-0 has-[[data-slot=input-group-control]:focus-visible]:outline has-[[data-slot=input-group-control]:focus-visible]:outline-[1.5px] has-[[data-slot=input-group-control]:focus-visible]:outline-offset-2 has-[[data-slot=input-group-control]:focus-visible]:outline-[color:var(--surface-accent)]"
+	class="border-border bg-background hover:border-input has-[[data-slot=input-group-control]:focus-visible]:border-primary h-auto flex-col rounded-none border transition-colors duration-150 ease-out has-[[data-slot=input-group-control]:focus-visible]:ring-0"
 >
 	<InputGroup.Textarea
-		class="min-h-16 px-3 py-2.5 text-[13px] leading-relaxed dark:text-[#d4d6db]"
+		class="min-h-16 px-3 py-2.5 text-[13px] leading-relaxed"
 		placeholder={effectivePlaceholder}
 		value={value}
 		oninput={(event) => (value = event.currentTarget.value)}
@@ -88,20 +84,18 @@
 		aria-label={effectiveLabel}
 	></InputGroup.Textarea>
 
-	<InputGroup.Addon align="block-end" class="cursor-default justify-between gap-1 px-2 pt-1 pb-2">
-		<div class="flex items-center gap-1">
-			<Button
-				variant="ghost"
-				size="icon-sm"
-				class="transition-[transform,background-color] duration-150 ease-out active:scale-[0.96]"
+	<InputGroup.Addon align="block-end" class="cursor-default justify-between gap-3 px-2 pt-1 pb-2">
+		<div class="flex items-center gap-2">
+			<button
+				type="button"
+				class="link text-xs disabled:pointer-events-none disabled:opacity-50 disabled:no-underline"
 				disabled={!onattach}
-				title={onattach ? 'Attach files' : 'Attachments coming soon'}
-				aria-label="Attach files"
+				title={onattach ? 'Attach file' : 'Attachments coming soon'}
 				tabindex={onattach ? undefined : -1}
 				onclick={() => fileInput?.click()}
 			>
-				<PaperclipIcon />
-			</Button>
+				Attach file
+			</button>
 			{#if onattach}
 				<input
 					bind:this={fileInput}
@@ -114,21 +108,30 @@
 				/>
 			{/if}
 		</div>
-		<div class="flex items-center gap-2">
+		<div class="flex items-center gap-3">
 			{#if showModeToggle}
-				<ToggleGroup.Root
-					type="single"
-					size="sm"
-					variant="outline"
-					value={mode}
-					onValueChange={(next) => {
-						if (next === 'comment' || next === 'note') mode = next;
-					}}
-					aria-label="Submission channel"
-				>
-					<ToggleGroup.Item value="comment">Comment</ToggleGroup.Item>
-					<ToggleGroup.Item value="note">Note</ToggleGroup.Item>
-				</ToggleGroup.Root>
+				<div class="flex items-center gap-2" role="group" aria-label="Submission channel">
+					<button
+						type="button"
+						class="flag"
+						class:font-semibold={mode === 'comment'}
+						class:flag-muted={mode !== 'comment'}
+						aria-pressed={mode === 'comment'}
+						onclick={() => (mode = 'comment')}
+					>
+						Comment
+					</button>
+					<button
+						type="button"
+						class="flag"
+						class:font-semibold={mode === 'note'}
+						class:flag-muted={mode !== 'note'}
+						aria-pressed={mode === 'note'}
+						onclick={() => (mode = 'note')}
+					>
+						Note
+					</button>
+				</div>
 			{:else}
 				<Kbd.Root
 					class="text-muted-foreground hidden h-auto min-w-0 rounded-none bg-transparent px-0 font-sans text-[11px] font-normal sm:inline-flex"
@@ -139,8 +142,8 @@
 			{/if}
 			<Button
 				variant={canSubmit ? 'default' : 'ghost'}
-				size="icon-sm"
-				class="transition-[background-color,color,transform] duration-150 ease-out active:scale-[0.96]"
+				size="sm"
+				class="rounded-none"
 				onclick={onsubmit}
 				disabled={!canSubmit}
 				title={effectiveLabel}
@@ -148,9 +151,8 @@
 			>
 				{#if busy}
 					<Spinner size={13} />
-				{:else}
-					<ArrowUpIcon />
 				{/if}
+				Save Changes
 			</Button>
 		</div>
 	</InputGroup.Addon>

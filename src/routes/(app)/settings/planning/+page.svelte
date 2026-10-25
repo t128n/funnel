@@ -214,7 +214,7 @@
 				<div class="flex flex-wrap gap-2">
 					{#each WORKDAYS as day (day.value)}
 						<label
-							class="flex items-center gap-1.5 rounded-md border border-[color:var(--surface-divider)] px-2 py-1 text-xs"
+							class="flex items-center gap-1.5 rounded-md border border-[color:var(--border)] px-2 py-1 text-xs"
 						>
 							<input
 								type="checkbox"
@@ -249,7 +249,7 @@
 					No maintainers yet. Add someone from the candidates below.
 				</p>
 			{:else}
-				<ul class="flex flex-col divide-y divide-[color:var(--surface-divider)]">
+				<ul class="flex flex-col divide-y divide-[color:var(--border)]">
 					{#each roster as row, index (`${row.forge}:${row.instance}:${row.external_id}`)}
 						<li class="flex flex-wrap items-center gap-3 py-3 first:pt-0 last:pb-0">
 							<Avatar.Root class="size-8 shrink-0 rounded-lg">
@@ -305,7 +305,7 @@
 					Every assignable user is already on the roster.
 				</p>
 			{:else}
-				<ul class="flex flex-col divide-y divide-[color:var(--surface-divider)]">
+				<ul class="flex flex-col divide-y divide-[color:var(--border)]">
 					{#each available as candidate (`${candidate.forge}:${candidate.instance}:${candidate.externalId}`)}
 						<li class="flex items-center gap-3 py-2 first:pt-0 last:pb-0">
 							<Avatar.Root class="size-7 shrink-0 rounded-lg">

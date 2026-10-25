@@ -2,9 +2,7 @@
 	import { page } from '$app/state';
 	import { onDestroy, tick, untrack } from 'svelte';
 	import { toast } from 'svelte-sonner';
-	import Avatar from '#lib/components/common/Avatar.svelte';
 	import MultiSelect from '#lib/components/common/MultiSelect.svelte';
-	import { selectTriggerClass } from '#lib/components/common/select-trigger';
 	import SingleSelect from '#lib/components/common/SingleSelect.svelte';
 	import Spinner from '#lib/components/common/Spinner.svelte';
 	import BlockActionDialog from '#lib/components/board/BlockActionDialog.svelte';
@@ -12,6 +10,7 @@
 	import DetailShell from '#lib/components/detail/DetailShell.svelte';
 	import ActivityTimeline from '#lib/components/issue/ActivityTimeline.svelte';
 	import AttachmentDropbox from '#lib/components/issue/AttachmentDropbox.svelte';
+	import { resolutionFor, severityWord, statusToken } from '#lib/components/issue/bug-vocabulary';
 	import DelayList from '#lib/components/issue/DelayList.svelte';
 	import EpicProperty from '#lib/components/issue/EpicProperty.svelte';
 	import IssueActionDialog from '#lib/components/issue/IssueActionDialog.svelte';
@@ -65,8 +64,7 @@
 	import {
 		SIZE_OPTIONS,
 		STATUS_OPTIONS,
-		canonicalLabel,
-		labelTint
+		canonicalLabel
 	} from '#lib/labels';
 	import {
 		derivePriorityOrNull,
@@ -87,15 +85,7 @@
 		UserRef
 	} from '#lib/server/issues/types';
 	import { cn } from '#lib/utils';
-	import CircleDashedIcon from '@lucide/svelte/icons/circle-dashed';
 	import BanIcon from '@lucide/svelte/icons/ban';
-	import CheckIcon from '@lucide/svelte/icons/check';
-	import CircleUserIcon from '@lucide/svelte/icons/circle-user';
-	import CopyIcon from '@lucide/svelte/icons/copy';
-	import ExternalLinkIcon from '@lucide/svelte/icons/external-link';
-	import EyeIcon from '@lucide/svelte/icons/eye';
-	import RulerIcon from '@lucide/svelte/icons/ruler';
-	import TagIcon from '@lucide/svelte/icons/tag';
 	import XIcon from '@lucide/svelte/icons/x';
 
 	interface Props {
@@ -156,6 +146,8 @@
 
 	/** Pane root, so Mod+A can be scoped to this issue instead of the page. */
 	let paneEl = $state<HTMLElement | null>(null);
+	/** The metadata table; anchors the pickers behind the plain-text values. */
+	let metaEl = $state<HTMLElement | null>(null);
 	/** The title heading; the start of a Mod+A thread selection. */
 	let titleEl = $state<HTMLElement | null>(null);
 	/** The Activity section; the end of a Mod+A thread selection. */
@@ -203,7 +195,7 @@
 			: null
 	);
 
-	/** Done is the closed state; the pill surfaces it beside the open statuses. */
+	/** Done is the closed state; the picker surfaces it beside the open statuses. */
 	const closed = $derived(issue?.state === 'closed');
 	const statusOptions = [
 		...STATUS_OPTIONS,
@@ -217,13 +209,30 @@
 	const milestoneValue = $derived(issue?.milestone ?? null);
 	const milestoneOptions = $derived(detail?.milestoneOptions ?? []);
 
-	/** Done has no canonical label, so tint its pill explicitly. */
-	const statusTint = $derived(
-		closed ? 'color: var(--syntax-constant)' : labelTint(issue?.status ?? null)
+	/** Plain-text tokens rendered by the metadata table. */
+	const statusDisplay = $derived(issue ? statusToken(issue.status, issue.state) : '—');
+	const resolutionDisplay = $derived(resolutionFor(issue?.stateReason ?? null));
+	const severityDisplay = $derived(severityWord(impactValue));
+	const priorityTone = $derived(
+		priorityValue === 'P1'
+			? 'flag flag-danger'
+			: priorityValue === 'P2'
+				? 'flag flag-warning'
+				: 'flag flag-muted'
+	);
+	const severityTone = $derived(
+		impactValue === 1
+			? 'flag flag-danger'
+			: impactValue === 2
+				? 'flag flag-warning'
+				: 'flag flag-muted'
+	);
+	const sizeDisplay = $derived(
+		SIZE_OPTIONS.find((option) => option.value === sizeValue)?.label ?? '—'
 	);
 
 	const assigneeLogins = $derived(issue?.assignees.map((a) => a.login) ?? []);
-	const assignees = $derived(issue?.assignees ?? []);
+	const assigneeDisplay = $derived(assigneeLogins.join(', '));
 	const assigneeOptions = $derived(detail?.assigneeOptions ?? []);
 	const selectedLabels = $derived(
 		(issue?.labels ?? []).filter(
@@ -496,6 +505,34 @@
 		return window.getSelection()?.isCollapsed ?? true;
 	}
 
+	/** A metadata field whose picker is mounted invisibly behind its value. */
+	type MetaPicker = 'status' | 'priority' | 'size' | 'milestone' | 'assignee' | 'labels';
+
+	/**
+	 * Open the picker anchored to a metadata value. The pickers stay mounted so
+	 * their popovers and mutations are unchanged; the plain-text value is just
+	 * the visible trigger.
+	 */
+	function openPicker(field: MetaPicker) {
+		const trigger = metaEl?.querySelector<HTMLElement>(
+			`[data-picker="${field}"] [data-slot="popover-trigger"], [data-picker="${field}"] [data-slot="select-trigger"]`
+		);
+		if (!trigger) return;
+		if (trigger.dataset.slot === 'select-trigger') {
+			// bits-ui's Select opens on pointerdown rather than click.
+			trigger.dispatchEvent(
+				new PointerEvent('pointerdown', {
+					bubbles: true,
+					cancelable: true,
+					button: 0,
+					pointerType: 'mouse'
+				})
+			);
+			return;
+		}
+		trigger.click();
+	}
+
 	function startTitleEdit() {
 		if (!mayWrite || !issue) return;
 		title = issue.title;
@@ -568,6 +605,25 @@
 		copied = true;
 		clearTimeout(copyTimeout);
 		copyTimeout = setTimeout(() => (copied = false), 2000);
+	}
+
+	/**
+	 * Focus the footer composer from a comment's reply link. `Composer` owns the
+	 * textarea and exposes no ref, so reach it by its intended id first and fall
+	 * back to the group control inside this pane.
+	 */
+	function focusComposer() {
+		const byId = document.getElementById('issue-composer');
+		const field =
+			byId instanceof HTMLTextAreaElement
+				? byId
+				: paneEl?.querySelector<HTMLTextAreaElement>(
+						'[data-slot="input-group-control"]'
+					) ?? null;
+		if (!field) return;
+		field.focus();
+		const end = field.value.length;
+		field.setSelectionRange(end, end);
 	}
 
 	async function saveBody() {
@@ -919,8 +975,10 @@
 						workNotes={detail.workNotes}
 						filter="notes"
 						viewerLogin={viewerLogin}
+						reporterLogin={detail.issue.author?.login ?? null}
 						readonly={!mayWrite}
 						busyId={noteBusy}
+						onreply={() => focusComposer()}
 						onedit={editWorkNote}
 						ondelete={removeWorkNote}
 						onpublish={publishNote}
@@ -992,7 +1050,7 @@
 							bind:this={titleEl}
 							class={cn(
 								'text-foreground -ml-1 h-auto min-w-0 flex-1 rounded-sm px-1 text-xl leading-tight font-semibold tracking-tight md:text-xl',
-								mayWrite && 'hover:bg-accent/50 cursor-text'
+								mayWrite && 'hover:bg-[var(--accent)] cursor-text'
 							)}
 							tabindex={mayWrite ? 0 : undefined}
 							role={mayWrite ? 'button' : undefined}
@@ -1005,7 +1063,8 @@
 								}
 							}}
 						>
-							{title}
+							Bug {number} – {title}
+							<span class="text-muted-foreground">(<span class="flag">{statusDisplay}</span>)</span>
 						</h2>
 					{/if}
 				</div>
@@ -1030,30 +1089,6 @@
 			</div>
 		</div>
 		<div class="flex shrink-0 items-center gap-1">
-			<Button
-				variant="ghost"
-				size="icon-sm"
-				title={copied ? 'Copied' : 'Copy issue as Markdown'}
-				aria-label="Copy issue as Markdown"
-				disabled={!issue}
-				onclick={() => void copyThread()}
-			>
-				{#if copied}
-					<CheckIcon />
-				{:else}
-					<CopyIcon />
-				{/if}
-			</Button>
-			<Button
-				variant="ghost"
-				size="icon-sm"
-				href={githubLink}
-				target="_blank"
-				rel="noreferrer"
-				title="Open on GitHub"
-			>
-				<ExternalLinkIcon />
-			</Button>
 			<Button variant="ghost" size="icon-sm" title="Close inspector" onclick={onclose}>
 				<XIcon />
 			</Button>
@@ -1080,6 +1115,290 @@
 			</Alert.Root>
 		{/if}
 
+		<section bind:this={metaEl} class="flex flex-col" aria-label="Issue properties">
+			<dl class="bug-meta">
+				<div class="bug-meta-row contents">
+					<dt class="bug-meta-label">Status</dt>
+					<dd class="bug-meta-value">
+						<div class="relative min-w-0">
+							<button
+								type="button"
+								class="text-foreground hover:text-primary text-left disabled:opacity-60"
+								disabled={busy === 'status' || !mayWrite}
+								title="Change status"
+								onclick={() => openPicker('status')}
+							>
+								<span class="flag">{statusDisplay}</span>
+							</button>
+							<div
+								class="pointer-events-none invisible absolute top-0 left-0"
+								data-picker="status"
+							>
+								<SingleSelect
+									label="No status"
+									options={statusOptions}
+									value={statusValue}
+									onselect={setStatus}
+									disabled={busy === 'status' || !mayWrite}
+								/>
+							</div>
+						</div>
+					</dd>
+				</div>
+
+				<div class="bug-meta-row contents">
+					<dt class="bug-meta-label">Resolution</dt>
+					<dd class="bug-meta-value">{resolutionDisplay}</dd>
+				</div>
+
+				<div class="bug-meta-row contents">
+					<dt class="bug-meta-label">Product/Component</dt>
+					<dd class="bug-meta-value"><span class="mono">{repo}</span></dd>
+				</div>
+
+				<div class="bug-meta-row contents">
+					<dt class="bug-meta-label">Milestone</dt>
+					<dd class="bug-meta-value">
+						<div class="relative min-w-0">
+							<button
+								type="button"
+								class="text-foreground hover:text-primary text-left disabled:opacity-60"
+								disabled={busy === 'milestone' || !mayWrite}
+								title="Change milestone"
+								onclick={() => openPicker('milestone')}
+							>
+								{milestoneValue?.title ?? '—'}
+							</button>
+							<div
+								class="pointer-events-none invisible absolute top-0 left-0"
+								data-picker="milestone"
+							>
+								<MilestonePicker
+									{repo}
+									value={milestoneValue}
+									options={milestoneOptions}
+									disabled={busy === 'milestone' || !mayWrite}
+									onselect={(milestone) => void setMilestone(milestone)}
+								/>
+							</div>
+						</div>
+					</dd>
+				</div>
+
+				<div class="bug-meta-row contents">
+					<dt class="bug-meta-label">Priority</dt>
+					<dd class="bug-meta-value">
+						<div class="relative min-w-0">
+							<button
+								type="button"
+								class="hover:text-primary text-left disabled:opacity-60"
+								disabled={!mayWrite || busy === 'priority'}
+								title="Change priority"
+								onclick={() => openPicker('priority')}
+							>
+								<span class={priorityTone}>{priorityValue ?? '—'}</span>
+							</button>
+							<div
+								class="pointer-events-none invisible absolute top-0 left-0"
+								data-picker="priority"
+							>
+								<PriorityPicker
+									impact={impactValue}
+									urgency={urgencyValue}
+									priority={priorityValue}
+									disabled={!mayWrite || busy === 'priority'}
+									oncommit={commitPriorityAxis}
+									onclear={clearPriority}
+								/>
+							</div>
+						</div>
+					</dd>
+				</div>
+
+				<div class="bug-meta-row contents">
+					<dt class="bug-meta-label">Severity</dt>
+					<dd class="bug-meta-value">
+						<button
+							type="button"
+							class="hover:text-primary text-left disabled:opacity-60"
+							disabled={!mayWrite || busy === 'priority'}
+							title="Change severity"
+							onclick={() => openPicker('priority')}
+						>
+							<span class={severityTone}>{severityDisplay}</span>
+						</button>
+					</dd>
+				</div>
+
+				<div class="bug-meta-row contents">
+					<dt class="bug-meta-label">Size</dt>
+					<dd class="bug-meta-value">
+						<div class="relative min-w-0">
+							<button
+								type="button"
+								class="text-foreground hover:text-primary text-left disabled:opacity-60"
+								disabled={busy === 'size' || !mayWrite}
+								title="Change size"
+								onclick={() => openPicker('size')}
+							>
+								<span class="mono">{sizeDisplay}</span>
+							</button>
+							<div
+								class="pointer-events-none invisible absolute top-0 left-0"
+								data-picker="size"
+							>
+								<SingleSelect
+									label="No size"
+									options={SIZE_OPTIONS}
+									value={sizeValue}
+									onselect={setSize}
+									allowClear
+									disabled={busy === 'size' || !mayWrite}
+								/>
+							</div>
+						</div>
+					</dd>
+				</div>
+
+				<div class="bug-meta-row contents">
+					<dt class="bug-meta-label">Assignee</dt>
+					<dd class="bug-meta-value">
+						<div class="relative min-w-0">
+							<button
+								type="button"
+								class="text-foreground hover:text-primary text-left disabled:opacity-60"
+								disabled={busy === 'assignees' || !mayWrite}
+								title="Change assignee"
+								onclick={() => openPicker('assignee')}
+							>
+								{assigneeDisplay.length > 0 ? assigneeDisplay : 'Unassigned'}
+							</button>
+							<div
+								class="pointer-events-none invisible absolute top-0 left-0"
+								data-picker="assignee"
+							>
+								<MultiSelect
+									hideCount
+									label="Assignee"
+									placeholder="Unassigned"
+									display="selection"
+									options={assigneeOptions.map((u) => ({ value: u.login, label: u.login }))}
+									selected={assigneeLogins}
+									onselect={setAssignees}
+									disabled={busy === 'assignees' || !mayWrite}
+								/>
+							</div>
+						</div>
+					</dd>
+				</div>
+
+				<div class="bug-meta-row contents">
+					<dt class="bug-meta-label">Reporter</dt>
+					<dd class="bug-meta-value">{issue.author?.login ?? '—'}</dd>
+				</div>
+
+				<div class="bug-meta-row contents">
+					<dt class="bug-meta-label">Labels</dt>
+					<dd class="bug-meta-value">
+						<div class="relative min-w-0">
+							<button
+								type="button"
+								class="hover:text-primary text-left disabled:opacity-60"
+								disabled={busy === 'labels' || !mayWrite}
+								title="Change labels"
+								onclick={() => openPicker('labels')}
+							>
+								{#if selectedLabels.length === 0}
+									<span class="text-muted-foreground">—</span>
+								{:else}
+									{#each selectedLabels as label, index (label)}<span class="flag">{label}</span>{#if index < selectedLabels.length - 1}<span class="text-muted-foreground">, </span>{/if}{/each}
+								{/if}
+							</button>
+							<div
+								class="pointer-events-none invisible absolute top-0 left-0"
+								data-picker="labels"
+							>
+								<MultiSelect
+									hideCount
+									label="Labels"
+									placeholder="No labels"
+									display="selection"
+									options={labelOptions}
+									selected={selectedLabels}
+									onselect={setLabels}
+									disabled={busy === 'labels' || !mayWrite}
+								/>
+							</div>
+						</div>
+					</dd>
+				</div>
+
+				<div class="bug-meta-row contents">
+					<dt class="bug-meta-label">Parent epic</dt>
+					<dd class="bug-meta-value">
+						<EpicProperty
+							issue={detail.issue}
+							parent={detail.epic}
+							{repo}
+							{number}
+							{mayWrite}
+						/>
+					</dd>
+				</div>
+
+				<div class="bug-meta-row contents">
+					<dt class="bug-meta-label">Blocked</dt>
+					<dd class="bug-meta-value">
+						<button
+							type="button"
+							class="text-foreground hover:text-primary text-left disabled:opacity-60"
+							disabled={busy === 'blocked' || !canEdit || !mayWrite}
+							title="Blocked flag"
+							aria-pressed={issue.blocked}
+							onclick={() => openBlockDialog(issue.blocked ? 'unblock' : 'block')}
+						>
+							{issue.blocked ? 'Yes' : 'No'}
+						</button>
+					</dd>
+				</div>
+
+				<div class="bug-meta-row contents">
+					<dt class="bug-meta-label">Watching</dt>
+					<dd class="bug-meta-value">{watching ? 'Yes' : 'No'}</dd>
+				</div>
+
+				<div class="bug-meta-row contents">
+					<dt class="bug-meta-label">CC</dt>
+					<dd class="bug-meta-value">{assigneeDisplay.length > 0 ? assigneeDisplay : '—'}</dd>
+				</div>
+			</dl>
+
+			<div class="border-border flex flex-wrap items-center gap-x-4 gap-y-1 border-b py-2 text-xs">
+				<button
+					type="button"
+					class="link text-left disabled:no-underline disabled:opacity-60"
+					disabled={watchBusy || !canEdit}
+					aria-pressed={watching}
+					onclick={() => void toggleWatch()}
+				>
+					{#if watchBusy}
+						<Spinner size={12} />
+					{:else}
+						{watching ? 'Unwatch' : 'Watch'}
+					{/if}
+				</button>
+				<button
+					type="button"
+					class="link text-left"
+					title={copied ? 'Copied' : 'Copy issue as Markdown'}
+					onclick={() => void copyThread()}
+				>
+					{copied ? 'Copied' : 'Copy as Markdown'}
+				</button>
+				<a class="link" href={githubLink} target="_blank" rel="noreferrer">Open on GitHub</a>
+			</div>
+		</section>
+
 		<section class="flex flex-col" aria-label="Description">
 			{#if editingBody}
 				<Textarea
@@ -1104,8 +1423,8 @@
 				<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 				<div
 					class={cn(
-						'-mx-2 min-h-12 px-2 py-1 text-sm leading-relaxed text-foreground',
-						mayWrite && 'hover:bg-accent/40 cursor-text transition-colors',
+						'min-h-12 py-1 text-sm leading-relaxed text-foreground',
+						mayWrite && 'hover:bg-[var(--accent)] cursor-text',
 						bodyHtml !== null && 'markdown',
 						bodyHtml === null && 'plain-text'
 					)}
@@ -1129,136 +1448,6 @@
 					{/if}
 				</div>
 			{/if}
-		</section>
-
-		<section class="flex flex-wrap items-center gap-1.5 select-none" aria-label="Issue properties">
-			<button
-				class={selectTriggerClass(
-					'pill',
-					cn(
-						'gap-1.5',
-						issue?.blocked &&
-							'border-destructive/40 bg-destructive/10 text-destructive hover:bg-destructive/20'
-					)
-				)}
-				onclick={() => openBlockDialog(issue?.blocked ? 'unblock' : 'block')}
-				disabled={busy === 'blocked' || !canEdit || !mayWrite}
-				title="Blocked flag"
-				aria-pressed={issue?.blocked ?? false}
-			>
-				<BanIcon class="size-3.5" />
-				Blocked
-			</button>
-
-			<button
-				class={selectTriggerClass(
-					'pill',
-					cn(
-						'gap-1.5',
-						watching && 'text-foreground border-[color:var(--surface-accent)]'
-					)
-				)}
-				onclick={() => void toggleWatch()}
-				disabled={watchBusy || !canEdit}
-				title={watching ? 'Stop watching this issue' : 'Watch this issue'}
-				aria-pressed={watching}
-			>
-				{#if watchBusy}
-					<Spinner size={12} />
-				{:else}
-					<EyeIcon class="size-3.5" />
-				{/if}
-				{watching ? 'Watching' : 'Watch'}
-			</button>
-
-			<SingleSelect
-				variant="pill"
-				label="No status"
-				options={statusOptions}
-				value={statusValue}
-				onselect={setStatus}
-				disabled={busy === 'status' || !mayWrite}
-			>
-				{#snippet icon()}
-					<CircleDashedIcon class="size-3.5" style={statusTint} />
-				{/snippet}
-			</SingleSelect>
-
-			<PriorityPicker
-				impact={impactValue}
-				urgency={urgencyValue}
-				priority={priorityValue}
-				disabled={!mayWrite || busy === 'priority'}
-				oncommit={commitPriorityAxis}
-				onclear={clearPriority}
-			/>
-
-			<SingleSelect
-				variant="pill"
-				label="No size"
-				options={SIZE_OPTIONS}
-				value={sizeValue}
-				onselect={setSize}
-				allowClear
-				disabled={busy === 'size' || !mayWrite}
-			>
-				{#snippet icon()}
-					<RulerIcon class="size-3.5" style={labelTint(sizeValue)} />
-				{/snippet}
-			</SingleSelect>
-
-			<MilestonePicker
-				{repo}
-				value={milestoneValue}
-				options={milestoneOptions}
-				disabled={busy === 'milestone' || !mayWrite}
-				onselect={(milestone) => void setMilestone(milestone)}
-			/>
-
-			<MultiSelect
-				variant="pill"
-				hideCount
-				label="Assignee"
-				placeholder="Unassigned"
-				display="selection"
-				options={assigneeOptions.map((u) => ({ value: u.login, label: u.login }))}
-				selected={assigneeLogins}
-				onselect={setAssignees}
-				disabled={busy === 'assignees' || !mayWrite}
-			>
-				{#snippet icon()}
-					{@const first = assignees[0]}
-					{#if first}
-						<Avatar login={first.login} avatarUrl={first.avatarUrl} size={16} />
-					{:else}
-						<CircleUserIcon class="size-3.5" />
-					{/if}
-				{/snippet}
-			</MultiSelect>
-
-			<MultiSelect
-				variant="pill"
-				hideCount
-				label="Labels"
-				placeholder="No labels"
-				display="selection"
-				options={labelOptions}
-				selected={selectedLabels}
-				onselect={setLabels}
-				disabled={busy === 'labels' || !mayWrite}
-			>
-				{#snippet icon()}
-					<TagIcon class="size-3.5" />
-				{/snippet}
-			</MultiSelect>
-
-			<EpicProperty
-				issue={detail.issue}
-				parent={detail.epic}
-				{repo}
-				{number}
-				mayWrite={mayWrite}
-			/>
 		</section>
 
 		<IssueTimeCard time={detail.time} />
@@ -1336,7 +1525,9 @@
 					workNotes={[]}
 					filter="comments"
 					bubbles={commentBubbles}
+					reporterLogin={detail.issue.author?.login ?? null}
 					readonly={!mayWrite}
+					onreply={() => focusComposer()}
 					onedit={editWorkNote}
 					ondelete={removeWorkNote}
 					onpublish={publishNote}

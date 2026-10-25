@@ -2,14 +2,14 @@
 	import { tick } from 'svelte';
 	import { Virtualizer, type VirtualizerHandle } from 'virtua/svelte';
 	import BoardCard from './BoardCard.svelte';
-	import StatusIcon from '#lib/components/common/StatusIcon.svelte';
 	import { droppableLane, type LaneHandlers } from './dnd';
 	import type { IssueListItem, UserRef } from '#lib/server/issues/types';
 	import { cn } from '#lib/utils';
-	import PlusIcon from '@lucide/svelte/icons/plus';
 
 	/**
-	 * One workflow lane.
+	 * One workflow lane, drawn as a Bugzilla frame: a 1px border around a flat
+	 * card-coloured body with a grey header cell (uppercase lane name left,
+	 * `(count)` right, `+ New` revealed on hover).
 	 *
 	 * The lane is its own scroll container (the header stays fixed) and the
 	 * cards inside it are virtualized with Virtua, so a 500-card lane mounts
@@ -148,41 +148,39 @@
 </script>
 
 <section
-	class="group/column flex min-h-0 w-[19rem] shrink-0 flex-col overflow-hidden border-l border-[color:var(--surface-divider)] px-3 first:border-l-0 first:pl-0"
+	class="group/column flex min-h-0 w-[19rem] shrink-0 flex-col overflow-hidden border border-[color:var(--border)] bg-[var(--card)] shadow-none"
 	aria-label={label}
 	data-board-column={statusKey}
 	title={isDone && doneDays !== undefined ? `Issues closed in the last ${doneDays} days` : undefined}
 >
-	<!-- Fixed header: the lane's scroll happens below this row. -->
-	<header class="flex h-8 shrink-0 items-center gap-1.5">
-		<StatusIcon status={isDone ? 'done' : statusKey} class="size-4" />
-		<span class="text-[13px] font-semibold tracking-tight">{label}</span>
-		<span
-			class={cn(
-				'mono text-muted-foreground text-[13px]',
-				overLimit && 'text-warning font-medium'
-			)}
-			title={limit !== undefined ? `${total} of ${limit} (WIP limit)` : undefined}
-		>
-			{total}{limit !== undefined ? ` / ${limit}` : ''}
+	<!-- Fixed header cell: the lane's scroll happens below this grey bar. -->
+	<header class="flex h-7 shrink-0 items-center gap-2 border-b border-border bg-[var(--muted)] px-2">
+		<span class="min-w-0 flex-1 truncate text-xs font-semibold tracking-wide uppercase">
+			{label}
 		</span>
 		{#if !isDone && !readonly}
 			<a
 				href="/intake"
-				class="text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:ring-ring/50 ml-auto inline-flex size-6 items-center justify-center rounded opacity-100 outline-none transition-opacity focus-visible:ring-1 md:opacity-0 md:group-hover/column:opacity-100 md:group-focus-within/column:opacity-100"
+				class="link shrink-0 text-xs opacity-100 transition-opacity md:opacity-0 md:group-hover/column:opacity-100 md:group-focus-within/column:opacity-100"
 				title="New issue"
 				aria-label={`New issue in ${label}`}
 			>
-				<PlusIcon class="size-3.5" />
+				+ New
 			</a>
 		{/if}
+		<span
+			class={cn('mono text-muted-foreground shrink-0 text-xs', overLimit && 'text-warning font-medium')}
+			title={limit !== undefined ? `${total} of ${limit} (WIP limit)` : undefined}
+		>
+			({total}{limit !== undefined ? ` / ${limit}` : ''})
+		</span>
 	</header>
 
 	<!-- The lane's own scroller. Virtua measures the cards inside it; the drop
 	     target and auto-scroll attach here so dragging works while scrolled. -->
 	<div
 		bind:this={scroller}
-		class="relative min-h-0 flex-1 overflow-y-auto overscroll-contain pt-1 pb-2"
+		class="relative min-h-0 flex-1 overflow-y-auto overscroll-contain px-2 pt-2 pb-2"
 		use:droppableLane={laneHandlers}
 		onscroll={handleScroll}
 	>
@@ -210,7 +208,7 @@
 
 		{#if empty}
 			<div
-				class="text-muted-foreground/60 pointer-events-none absolute inset-x-0 top-0 flex items-start justify-center pt-6 text-xs"
+				class="text-muted-foreground pointer-events-none absolute inset-x-0 top-0 flex items-start justify-center pt-6 text-xs"
 			>
 				No issues
 			</div>
@@ -218,7 +216,7 @@
 
 		{#if indicatorTop !== null}
 			<div
-				class="bg-[var(--surface-accent)] pointer-events-none absolute inset-x-0 z-10 h-0.5 rounded-full"
+				class="bg-primary pointer-events-none absolute inset-x-0 z-10 h-0.5"
 				style:top={`${indicatorTop}px`}
 				aria-hidden="true"
 				data-board-drop-indicator
@@ -236,7 +234,7 @@
 				<span class="min-w-0 truncate">{error}</span>
 				<button
 					type="button"
-					class="text-foreground hover:bg-accent focus-visible:ring-ring/50 shrink-0 rounded px-1.5 py-0.5 font-medium underline-offset-2 outline-none hover:underline focus-visible:ring-1"
+					class="text-foreground hover:bg-accent focus-visible:ring-ring/50 shrink-0 rounded-[2px] px-1.5 py-0.5 font-medium underline-offset-2 outline-none hover:underline focus-visible:ring-1"
 					onclick={onLoadMore}
 					disabled={loading}
 				>

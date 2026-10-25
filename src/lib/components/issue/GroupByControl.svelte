@@ -1,9 +1,7 @@
 <script lang="ts">
 	import { getGroupBy, setGroupBy } from '#lib/client/list-prefs.svelte';
-	import { buttonVariants } from '#lib/components/ui/button';
 	import * as DropdownMenu from '#lib/components/ui/dropdown-menu/index.js';
 	import type { GroupKey, ProjectOption } from '#lib/components/issue/grouping';
-	import Rows3Icon from '@lucide/svelte/icons/rows-3';
 
 	interface Props {
 		/** Configured project indicators; the Project option hides when empty. */
@@ -33,10 +31,7 @@
 </script>
 
 <DropdownMenu.Root>
-	<DropdownMenu.Trigger class={buttonVariants({ variant: 'outline', size: 'sm' })}>
-		<Rows3Icon data-icon="inline-start" />
-		<span>Group</span>
-	</DropdownMenu.Trigger>
+	<DropdownMenu.Trigger class="link text-sm">Group</DropdownMenu.Trigger>
 	<DropdownMenu.Content align="end" class="w-44">
 		<DropdownMenu.Label>Group by</DropdownMenu.Label>
 		<DropdownMenu.RadioGroup

@@ -156,7 +156,7 @@
 				value={localImpact ?? 0}
 				{disabled}
 				aria-label="Impact"
-				style="accent-color: var(--surface-accent)"
+				style="accent-color: var(--primary)"
 				class="w-full"
 				oninput={(event) => onAxisInput('impact', event)}
 				onchange={() => void commit('impact')}
@@ -183,7 +183,7 @@
 				value={localUrgency ?? 0}
 				{disabled}
 				aria-label="Urgency"
-				style="accent-color: var(--surface-accent)"
+				style="accent-color: var(--primary)"
 				class="w-full"
 				oninput={(event) => onAxisInput('urgency', event)}
 				onchange={() => void commit('urgency')}

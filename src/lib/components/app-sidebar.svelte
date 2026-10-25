@@ -1,19 +1,6 @@
 <script lang="ts">
 	import { page } from "$app/state";
-	import AlarmClockIcon from "@lucide/svelte/icons/alarm-clock";
-	import BellRingIcon from "@lucide/svelte/icons/bell-ring";
-	import CalendarRangeIcon from "@lucide/svelte/icons/calendar-range";
-	import CircleDotIcon from "@lucide/svelte/icons/circle-dot";
-	import FunnelIcon from "@lucide/svelte/icons/funnel";
-	import InboxIcon from "@lucide/svelte/icons/inbox";
-	import KanbanIcon from "@lucide/svelte/icons/kanban";
-	import LayersIcon from "@lucide/svelte/icons/layers";
-	import MilestoneIcon from "@lucide/svelte/icons/milestone";
-	import PlusIcon from "@lucide/svelte/icons/plus";
-	import SearchIcon from "@lucide/svelte/icons/search";
-	import UserIcon from "@lucide/svelte/icons/user";
 	import type { ComponentProps } from "svelte";
-	import { Button } from "#lib/components/ui/button/index.js";
 	import * as Sidebar from "#lib/components/ui/sidebar/index.js";
 	import NavItem from "#lib/components/nav/nav-item.svelte";
 	import NavSection from "#lib/components/nav/nav-section.svelte";
@@ -22,25 +9,25 @@
 	import { viewOf } from "#lib/issue-url";
 	import NavUser from "./nav-user.svelte";
 
-	/** One sidebar destination, shared shape for both scoped blocks. */
+	/**
+	 * One sidebar destination, shared shape for both scoped blocks.
+	 *
+	 * Bugzilla chrome: text only, no icon components.
+	 */
 	interface NavLink {
 		href: string;
 		label: string;
-		// Lucide icon components are not typed as `Component` yet.
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		icon: any;
 		active: boolean;
 		badge?: number;
-		tone?: "neutral" | "destructive";
 	}
 
 	interface Props extends ComponentProps<typeof Sidebar.Root> {
 		user: { id: string; name: string; email: string; image: string | null; role: Role };
-		/** Count of overdue + due-today re-checks, for the Attention badge (never unscheduled rows). */
+		/** Count of overdue + due-today re-checks, for the Attention count (never unscheduled rows). */
 		dueCount?: number;
-		/** Pending submissions + untriaged issues, for the Inbox badge. */
+		/** Pending submissions + untriaged issues, for the Inbox count. */
 		inboxCount?: number;
-		/** The viewer's unread notifications, for the Notifications badge. */
+		/** The viewer's unread notifications, for the Notifications count. */
 		unreadNotifications?: number;
 		/** Focus the shared search; wired to the global `Mod+K` / `/`. */
 		onSearch?: () => void;
@@ -62,7 +49,7 @@
 
 	const path = $derived(page.url.pathname);
 	// The layout load owns the count. The prop lets a parent pass it explicitly;
-	// otherwise read the same field from the shared page data, so the badge still
+	// otherwise read the same field from the shared page data, so the count still
 	// updates after `invalidateAll()` without a second data path.
 	const unread = $derived(
 		unreadNotifications ??
@@ -89,87 +76,59 @@
 
 	// Personal, daily touchpoints — unlabeled because they are universal.
 	const personal: NavLink[] = $derived([
-		{
-			href: "/inbox",
-			label: "Inbox",
-			icon: InboxIcon,
-			active: inboxActive,
-			badge: inboxCount
-		},
-		{ href: "/issues?assignee=me", label: "My Issues", icon: UserIcon, active: mine },
-		{
-			href: "/notifications",
-			label: "Notifications",
-			icon: BellRingIcon,
-			active: notificationsActive,
-			badge: unread
-		},
-		{
-			href: "/attention",
-			label: "Attention",
-			icon: AlarmClockIcon,
-			active: attentionActive,
-			badge: dueCount,
-			tone: "destructive"
-		}
+		{ href: "/inbox", label: "Inbox", active: inboxActive, badge: inboxCount },
+		{ href: "/issues?assignee=me", label: "My Issues", active: mine },
+		{ href: "/notifications", label: "Notifications", active: notificationsActive, badge: unread },
+		{ href: "/attention", label: "Attention", active: attentionActive, badge: dueCount }
 	]);
 
 	// Organisational scope: the shared issue streams.
 	const workspace: NavLink[] = $derived([
-		{ href: "/issues", label: "Issues", icon: CircleDotIcon, active: issuesActive },
-		{ href: "/board", label: "Board", icon: KanbanIcon, active: boardActive },
-		{ href: "/plan", label: "Plan", icon: CalendarRangeIcon, active: planActive },
-		{ href: "/epics", label: "Epics", icon: LayersIcon, active: epicsActive },
-		{
-			href: "/milestones",
-			label: "Milestones",
-			icon: MilestoneIcon,
-			active: milestonesActive
-		}
+		{ href: "/issues", label: "Issues", active: issuesActive },
+		{ href: "/board", label: "Board", active: boardActive },
+		{ href: "/plan", label: "Plan", active: planActive },
+		{ href: "/epics", label: "Epics", active: epicsActive },
+		{ href: "/milestones", label: "Milestones", active: milestonesActive }
 	]);
 </script>
 
 <Sidebar.Root bind:ref {collapsible} {...restProps}>
-	<Sidebar.Header class="flex-row items-center gap-1">
-		<Sidebar.Menu class="min-w-0 flex-1">
+	<Sidebar.Header class="flex-col gap-1 border-b border-[color:var(--border)]">
+		<Sidebar.Menu class="min-w-0">
 			<Sidebar.MenuItem>
 				<Sidebar.MenuButton size="lg" tooltipContent="funnel">
 					{#snippet child({ props })}
 						<a href="/" {...props}>
-							<div
-								class="flex aspect-square size-8 items-center justify-center rounded-lg bg-foreground text-background"
+							<span class="group-data-[collapsible=icon]:hidden truncate font-semibold tracking-tight">
+								funnel
+							</span>
+							<span
+								aria-hidden="true"
+								class="group-data-[collapsible=icon]:inline hidden font-semibold tracking-tight"
 							>
-								<FunnelIcon class="size-4" />
-							</div>
-							<span class="truncate font-medium">funnel</span>
+								f
+							</span>
 						</a>
 					{/snippet}
 				</Sidebar.MenuButton>
 			</Sidebar.MenuItem>
 		</Sidebar.Menu>
 
-		<!-- Global primary actions stay pinned top-right (Fitts' law) and mirror
-		     the `Mod+K` / `C` shortcuts the shell already registers. -->
-		<div class="group-data-[collapsible=icon]:hidden flex shrink-0 items-center gap-0.5">
-			<Button
-				variant="ghost"
-				size="icon-sm"
-				title="Search"
-				aria-label="Search issues"
-				onclick={() => onSearch?.()}
-			>
-				<SearchIcon />
-			</Button>
-			<Button
-				variant="ghost"
-				size="icon-sm"
+		<!-- Global primary actions mirror the `Mod+K` / `C` shortcuts. Text
+		     links, not icon buttons; a read viewer sees muted text. -->
+		<div class="group-data-[collapsible=icon]:hidden flex items-center gap-3 px-2 text-xs">
+			<button
+				type="button"
+				class="{mayWrite ? 'text-foreground hover:underline' : 'text-muted-foreground cursor-default'}"
 				title={mayWrite ? "New issue" : "New issue (requires write access)"}
-				aria-label="New issue"
 				disabled={!mayWrite}
 				onclick={() => mayWrite && onNewIssue?.()}
 			>
-				<PlusIcon />
-			</Button>
+				New Issue
+			</button>
+			<button type="button" class="text-foreground hover:underline" onclick={() => onSearch?.()}>
+				Search
+			</button>
 		</div>
 	</Sidebar.Header>
 
@@ -184,7 +143,6 @@
 			label="Workspace"
 			collapsed={workspaceCollapsed}
 			onToggle={toggleWorkspace}
-			class="border-t border-[color:var(--sidebar-border)]"
 		>
 			{#each workspace as item (item.href)}
 				<NavItem {...item} />

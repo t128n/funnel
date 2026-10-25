@@ -1,11 +1,11 @@
 <script lang="ts">
 	import { page } from '$app/state';
+	import { goto } from '$app/navigation';
 	import { untrack } from 'svelte';
 	import { createHotkeys, getAppHotkeys } from '@tanstack/svelte-hotkeys';
 	import BlockActionDialog from '#lib/components/board/BlockActionDialog.svelte';
 	import BoardShortcuts from '#lib/components/board/BoardShortcuts.svelte';
 	import StatusBoard from '#lib/components/board/StatusBoard.svelte';
-	import SegmentedControl from '#lib/components/common/SegmentedControl.svelte';
 	import FeedSearch from '#lib/components/filter/FeedSearch.svelte';
 	import FilterPopover from '#lib/components/filter/FilterPopover.svelte';
 	import ViewSegment from '#lib/components/filter/ViewSegment.svelte';
@@ -49,7 +49,13 @@
 		boardFeed.sync(data.board);
 	});
 
-	const viewItems = $derived([
+	interface ViewItem {
+		label: string;
+		href: string;
+		active: boolean;
+	}
+
+	const viewItems = $derived<ViewItem[]>([
 		{ label: 'Board', href: viewHref(false), active: !backlogView },
 		{ label: 'Backlog', href: viewHref(true), active: backlogView }
 	]);
@@ -62,6 +68,22 @@
 		else params.delete('view');
 		const query = params.toString();
 		return query ? `${page.url.pathname}?${query}` : page.url.pathname;
+	}
+
+	/** Let modified clicks open a new tab; otherwise navigate without a reset. */
+	function selectView(event: MouseEvent, item: ViewItem) {
+		if (
+			event.defaultPrevented ||
+			event.button !== 0 ||
+			event.metaKey ||
+			event.ctrlKey ||
+			event.shiftKey ||
+			event.altKey
+		) {
+			return;
+		}
+		event.preventDefault();
+		if (!item.active) void goto(item.href, { reset: false });
 	}
 
 	// Drop overlays once the authoritative board reflects them. Reconcile from
@@ -88,18 +110,32 @@
 	description="Issues arranged by workflow status."
 />
 
-<div class="surface-shell bg-[var(--surface-canvas)] relative flex min-h-0 min-w-0 flex-1">
+<div class="bg-background relative flex min-h-0 min-w-0 flex-1">
 	<div class="flex min-h-0 min-w-0 flex-1 flex-col">
 		<header
-			class="border-[color:var(--surface-divider)] flex min-h-11 shrink-0 flex-wrap items-center gap-2 border-b px-3 py-1.5 sm:py-0"
+			class="border-[color:var(--border)] flex min-h-11 shrink-0 flex-wrap items-center gap-2 border-b px-3 py-1.5 sm:py-0"
 		>
-			<h1 class="text-base font-semibold tracking-tight">Board</h1>
-			<span class="mono text-muted-foreground text-xs">{total}</span>
+			<h1 class="text-xl font-semibold tracking-tight">Board</h1>
+			<span class="text-muted-foreground text-xs">{total}</span>
 			<div class="order-last w-full min-w-0 sm:order-none sm:mx-auto sm:w-auto sm:max-w-md sm:flex-1 sm:px-2">
 				<FeedSearch />
 			</div>
-			<div class="ml-auto flex shrink-0 items-center gap-1">
-				<SegmentedControl label="Board view" items={viewItems} />
+			<div class="ml-auto flex shrink-0 items-center gap-2">
+				<nav class="flex items-center gap-1.5 text-sm" aria-label="Board view">
+					{#each viewItems as item, index (item.label)}
+						{#if index > 0}
+							<span class="text-muted-foreground" aria-hidden="true">|</span>
+						{/if}
+						<a
+							href={item.href}
+							class={item.active ? 'link font-semibold' : 'text-muted-foreground hover:underline'}
+							aria-current={item.active ? 'page' : undefined}
+							onclick={(event) => selectView(event, item)}
+						>
+							{item.label}
+						</a>
+					{/each}
+				</nav>
 				<ViewSegment />
 				<FilterPopover options={data.options} />
 				{#if !backlogView}

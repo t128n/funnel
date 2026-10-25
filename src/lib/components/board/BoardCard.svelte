@@ -1,7 +1,23 @@
+<script module lang="ts">
+	/**
+	 * Compact text for a card's priority and size tokens: `P1 · S`, omitting
+	 * whichever part is absent. Pure so it can be tested without mounting.
+	 */
+	export function cardToken(priority: string | null, size: string | null): string {
+		const sizeLetter = size
+			? (size.trim() === 'sm'
+				? 'S'
+				: size.trim() === 'md'
+					? 'M'
+					: size.trim() === 'lg'
+						? 'L'
+						: size.trim().toUpperCase())
+			: null;
+		return [priority?.trim() || null, sizeLetter].filter(Boolean).join(' · ');
+	}
+</script>
+
 <script lang="ts">
-	import Avatar from '#lib/components/common/Avatar.svelte';
-	import MetaTag from '#lib/components/common/MetaTag.svelte';
-	import StatusIcon from '#lib/components/common/StatusIcon.svelte';
 	import * as DropdownMenu from '#lib/components/ui/dropdown-menu/index.js';
 	import * as Tooltip from '#lib/components/ui/tooltip/index.js';
 	import {
@@ -23,8 +39,7 @@
 	import { selectIssue } from '#lib/client/selection.svelte';
 	import { issueRef } from '#lib/issue-ref';
 	import { canonicalLabel, STATUS_OPTIONS } from '#lib/labels';
-	import { isRetiredPriorityLabel } from '#lib/priority';
-	import { priorityMeta } from '#lib/priority';
+	import { isRetiredPriorityLabel, priorityMeta } from '#lib/priority';
 	import type { IssueListItem, UserRef } from '#lib/server/issues/types';
 	import { cn } from '#lib/utils';
 	import { cardData, draggableCard } from './dnd';
@@ -37,20 +52,16 @@
 	import UserPlusIcon from '@lucide/svelte/icons/user-plus';
 
 	/**
-	 * One draggable board card, laid out as a fixed-slot stack (SPEC §9.3) rather
-	 * than a content-driven flow, so scanning a lane keeps every field in place:
+	 * One draggable board card in the Bugzilla idiom: a flat bordered article
+	 * with a mono reference, a clamped title and a plain token row. There are no
+	 * chips, glyphs or avatars — priority, size, labels and assignees read as
+	 * text, the same way the issue list does. The column already carries the
+	 * workflow status, so the card only marks a blocked issue.
 	 *
-	 * - **Head** — a blocked marker only when flagged (the column already carries
-	 *   the workflow status, so unblocked cards keep their reference flush left),
-	 *   the reference + repo, and a right gutter reserved for the hover tray.
-	 * - **Title** — the dominant line; the reserved-label conflict marker rides
-	 *   beside it, mirroring the issue list.
-	 * - **Metadata grid** — priority, size, labels, and assignees each own a
-	 *   column. The fixed priority/size/assignee slots keep those fields aligned
-	 *   down a lane, while the optional label track flexes between them instead of
-	 *   pushing the size tag around. Priority reads as a tinted `P1`–`P3` pill so
-	 *   its meaning is legible without a column header (the list gets that context
-	 *   from `IssueListHeader`).
+	 * - **Head** — the blocked marker (when flagged) and the mono reference,
+	 *   with a right gutter reserved for the hover tray.
+	 * - **Title** — 13px, two lines; closed cards strike it through.
+	 * - **Tokens** — `P1`–`P3`, size, comma-separated labels, assignee logins.
 	 */
 	interface Props {
 		issue: IssueListItem;
@@ -89,26 +100,36 @@
 	const shortRepo = $derived(issue.repo.split('/')[1] ?? issue.repo);
 
 	/** Non-reserved labels only; reserved groups render as dedicated affordances. */
-	const labels = $derived(issue.labels.filter(
-		(label) => !canonicalLabel(label) && !isRetiredPriorityLabel(label)
-	));
-	const visibleLabels = $derived(labels.slice(0, 2));
-	const extraLabels = $derived(Math.max(0, labels.length - visibleLabels.length));
+	const labels = $derived(
+		issue.labels.filter(
+			(label) => !canonicalLabel(label) && !isRetiredPriorityLabel(label)
+		)
+	);
+	const labelText = $derived(labels.join(', '));
 
 	const sizeText = $derived(
 		issue.size === 'sm' ? 'S' : issue.size === 'md' ? 'M' : issue.size === 'lg' ? 'L' : null
 	);
-	const sizeColor = $derived(issue.size ? (canonicalLabel(issue.size)?.color ?? null) : null);
 
 	/** Priority reads as text on a card: `P1`/`P2`/`P3`. */
 	const priorityDisplay = $derived(priorityMeta(issue.priority));
 	const priorityLabel = $derived(priorityDisplay?.value ?? null);
-	const priorityColor = $derived(priorityDisplay?.color ?? null);
 	const priorityTitle = $derived(
 		priorityDisplay
 			? `Priority ${priorityDisplay.value} · ${priorityDisplay.name}`
 			: 'No priority'
 	);
+	const priorityClass = $derived(
+		closed
+			? 'flag-muted'
+			: priorityLabel === 'P1'
+				? 'flag-danger'
+				: priorityLabel === 'P2'
+					? 'flag-warning'
+					: 'flag-muted'
+	);
+
+	const assigneeText = $derived(issue.assignees.map((person) => person.login).join(', '));
 
 	const stage = $derived(closed ? 'done' : (issue.status ?? ''));
 	const stageOptions = $derived([
@@ -152,12 +173,15 @@
 	}
 </script>
 
-<div
+<!-- The card itself is the interactive open/drag target; `<article>` is required
+     by the Bugzilla card layout, so the role is intentional. -->
+<!-- svelte-ignore a11y_no_noninteractive_element_to_interactive_role -->
+<article
 	class={cn(
-		'board-card group/card relative flex flex-col rounded-md border p-2.5 transition-colors',
-		'border-[color:var(--surface-border)] bg-[var(--surface-card)]',
-		'hover:border-[color:var(--surface-border-hover)] hover:bg-[var(--surface-card-hover)] hover:shadow-[0_4px_12px_rgba(0,0,0,0.4)]',
-		'focus-visible:outline-[1.5px] focus-visible:outline-offset-1 focus-visible:outline-[color:var(--surface-accent)]',
+		'board-card group/card relative flex flex-col border-[color:var(--border)] bg-[var(--card)] p-2 transition-colors',
+		'rounded-none shadow-none',
+		'hover:border-[color:var(--muted-foreground)]',
+		'focus-visible:outline-[1.5px] focus-visible:outline-offset-1 focus-visible:outline-[color:var(--primary)]',
 		!readonly && 'cursor-grab active:cursor-grabbing',
 		dragging && 'opacity-50'
 	)}
@@ -177,26 +201,24 @@
 	onfocusin={() => setFocusedCard(key)}
 	onfocusout={onFocusOut}
 >
-	<!-- Head: blocked marker only when flagged, reference, reserved tray gutter. -->
-	<div class="flex min-w-0 items-center gap-2 pr-12">
+	<!-- Head: blocked marker only when flagged, mono reference, reserved tray gutter. -->
+	<div class="flex min-w-0 items-center gap-1.5 pr-12">
 		{#if issue.blocked}
 			<BanIcon class="text-destructive size-3.5 shrink-0" role="img" aria-label="Blocked" />
 		{/if}
-		<div class="flex min-w-0 flex-1 items-center gap-2">
-			<Tooltip.Root>
-				<Tooltip.Trigger>
-					{#snippet child({ props })}
-						<span {...props} class="mono text-muted-foreground shrink-0 text-[11px]">
-							{ref}
-						</span>
-					{/snippet}
-				</Tooltip.Trigger>
-				<Tooltip.Content>{issue.repo}#{issue.number}</Tooltip.Content>
-			</Tooltip.Root>
-			{#if showRepo}
-				<span class="text-muted-foreground/70 truncate text-[11px]">{shortRepo}</span>
-			{/if}
-		</div>
+		<Tooltip.Root>
+			<Tooltip.Trigger>
+				{#snippet child({ props })}
+					<span {...props} class="mono text-muted-foreground shrink-0 text-xs">
+						{ref}
+					</span>
+				{/snippet}
+			</Tooltip.Trigger>
+			<Tooltip.Content>{issue.repo}#{issue.number}</Tooltip.Content>
+		</Tooltip.Root>
+		{#if showRepo}
+			<span class="text-muted-foreground truncate text-xs">{shortRepo}</span>
+		{/if}
 	</div>
 
 	<div
@@ -205,7 +227,7 @@
 		{#if canAssign}
 			<button
 				type="button"
-				class="text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:ring-ring/50 inline-flex size-5 items-center justify-center rounded outline-none focus-visible:ring-1"
+				class="text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:ring-ring/50 inline-flex size-5 items-center justify-center rounded-none outline-none focus-visible:ring-1"
 				title="Assign to me"
 				aria-label="Assign to me"
 				onclick={() => void assignToMe(issue, viewer!)}
@@ -215,7 +237,7 @@
 		{/if}
 		<DropdownMenu.Root bind:open={menuOpen}>
 			<DropdownMenu.Trigger
-				class="text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:ring-ring/50 inline-flex size-5 items-center justify-center rounded outline-none focus-visible:ring-1"
+				class="text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:ring-ring/50 inline-flex size-5 items-center justify-center rounded-none outline-none focus-visible:ring-1"
 			>
 				<EllipsisIcon class="size-3.5" />
 				<span class="sr-only">Issue actions</span>
@@ -227,8 +249,7 @@
 					onValueChange={(value) => void moveToStatus(issue, value)}
 				>
 					{#each stageOptions as option (option.value)}
-						<DropdownMenu.RadioItem value={option.value} class="gap-2">
-							<StatusIcon status={option.value} />
+						<DropdownMenu.RadioItem value={option.value}>
 							<span class="flex-1 truncate">{option.label}</span>
 						</DropdownMenu.RadioItem>
 					{/each}
@@ -264,8 +285,13 @@
 		</DropdownMenu.Root>
 	</div>
 
-	<h3 class="mt-1.5 flex min-h-[2.7em] items-start gap-1 text-[13px] leading-[1.35] font-medium">
-		<span class={cn('line-clamp-2 min-w-0', closed ? 'text-muted-foreground' : 'text-foreground')}>
+	<h3 class="mt-1 flex items-start gap-1 text-sm leading-[1.35] font-medium">
+		<span
+			class={cn(
+				'line-clamp-2 min-w-0 break-words',
+				closed ? 'text-muted-foreground line-through' : 'text-foreground'
+			)}
+		>
 			{issue.title}
 		</span>
 		{#if issue.labelConflict}
@@ -276,45 +302,24 @@
 		{/if}
 	</h3>
 
-	<!-- Metadata grid: priority | size | labels | assignees. Fixed leading and
-	     trailing columns keep those fields aligned down a lane; the optional
-	     label track flexes between them instead of displacing size. -->
-	<div class="mt-2 grid grid-cols-[32px_24px_minmax(0,1fr)_36px] items-center gap-1.5">
-		<span
-			class="inline-flex w-8 items-center justify-center"
-			title={priorityTitle}
-			aria-label={priorityTitle}
-		>
-			{#if priorityLabel}
-				<MetaTag label={priorityLabel} color={priorityColor} title={priorityTitle} />
-			{:else}
-				<span class="text-muted-foreground/50 text-[11px] leading-none">—</span>
-			{/if}
-		</span>
-
-		<span class="flex items-center justify-center">
-			{#if sizeText}
-				<MetaTag label={sizeText} color={sizeColor} class="mono" title={`Size: ${issue.size}`} />
-			{/if}
-		</span>
-
-		<span class="flex min-w-0 items-center gap-1 overflow-hidden">
-			{#each visibleLabels as label (label)}
-				<MetaTag label={label} />
-			{/each}
-			{#if extraLabels > 0}
-				<span class="text-muted-foreground shrink-0 text-[11px]">+{extraLabels}</span>
-			{/if}
-		</span>
-
-		<span class="flex items-center justify-end">
-			{#if issue.assignees.length > 0}
-				<div class="flex items-center -space-x-1.5">
-					{#each issue.assignees.slice(0, 3) as person (person.externalId)}
-						<Avatar login={person.login} avatarUrl={person.avatarUrl} size={16} />
-					{/each}
-				</div>
-			{/if}
-		</span>
+	<!-- Token row: priority, size, labels, then assignee logins at the far right. -->
+	<div class="mt-1.5 flex min-w-0 items-baseline gap-x-1.5">
+		{#if priorityLabel}
+			<span class={cn('flag shrink-0', priorityClass)} title={priorityTitle}>{priorityLabel}</span>
+		{/if}
+		{#if sizeText}
+			<span class="flag flag-muted shrink-0" title={`Size: ${issue.size}`}>{sizeText}</span>
+		{/if}
+		{#if labelText}
+			<span class="flag flag-muted min-w-0 truncate" title={labelText}>{labelText}</span>
+		{/if}
+		{#if assigneeText}
+			<span
+				class="ml-auto min-w-0 max-w-[45%] shrink-0 truncate text-right text-xs text-[color:var(--muted-foreground)]"
+				title={assigneeText}
+			>
+				{assigneeText}
+			</span>
+		{/if}
 	</div>
-</div>
+</article>

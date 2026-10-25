@@ -19,9 +19,9 @@
 	description="Epics with child progress and estimate, actual and delay rollups."
 />
 
-<div class="surface-shell bg-[var(--surface-canvas)] flex min-h-0 flex-1 flex-col overflow-y-auto">
+<div class="surface-shell bg-[var(--background)] flex min-h-0 flex-1 flex-col overflow-y-auto">
 	<header
-		class="border-[color:var(--surface-divider)] flex min-h-11 shrink-0 items-center gap-2 border-b px-3"
+		class="border-[color:var(--border)] flex min-h-11 shrink-0 items-center gap-2 border-b px-3"
 	>
 		<h1 class="text-base font-semibold tracking-tight">Epics</h1>
 		<span class="text-muted-foreground text-xs tabular-nums">

@@ -37,7 +37,7 @@
 			? 'bg-destructive'
 			: tone === 'near'
 				? 'bg-amber-500'
-				: 'bg-[var(--surface-accent)]'
+				: 'bg-[var(--primary)]'
 	);
 </script>
 
@@ -53,7 +53,7 @@
 {:else}
 	<span class={cn('flex min-w-0 items-center gap-2', className)}>
 		<span
-			class="bg-[var(--surface-tag-bg)] relative h-1.5 min-w-0 flex-1 overflow-hidden rounded-full"
+			class="bg-[var(--muted)] relative h-1.5 min-w-0 flex-1 overflow-hidden rounded-full"
 			role="progressbar"
 			aria-label={`${formatMinutes(committedMinutes)} of ${formatMinutes(capMinutes)} committed`}
 			aria-valuemin={0}

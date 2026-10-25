@@ -18,7 +18,7 @@
 
 <div class="grid gap-2 sm:grid-cols-2 lg:grid-cols-4" data-testid="epic-rollups">
 	<section
-		class="border-[color:var(--surface-divider)] flex flex-col gap-1.5 rounded-lg border p-3"
+		class="border-[color:var(--border)] flex flex-col gap-1.5 rounded border p-3"
 		aria-label="Progress"
 	>
 		<span class="text-muted-foreground text-[11px] font-medium tracking-wider uppercase">
@@ -27,16 +27,16 @@
 		<span class="text-sm font-semibold tabular-nums">
 			{summary.closedChildCount}/{summary.childCount} closed
 		</span>
-		<span class="bg-[var(--surface-tag-bg)] h-1.5 w-full overflow-hidden rounded-full">
+		<span class="bg-[var(--muted)] h-1.5 w-full overflow-hidden rounded-full">
 			<span
-				class="block h-full rounded-full bg-[var(--surface-accent)]"
+				class="block h-full rounded-full bg-[var(--primary)]"
 				style={`width: ${percent}%`}
 			></span>
 		</span>
 	</section>
 
 	<section
-		class="border-[color:var(--surface-divider)] flex flex-col gap-1 rounded-lg border p-3"
+		class="border-[color:var(--border)] flex flex-col gap-1 rounded border p-3"
 		aria-label="Estimate"
 	>
 		<span class="text-muted-foreground text-[11px] font-medium tracking-wider uppercase">
@@ -46,7 +46,7 @@
 	</section>
 
 	<section
-		class="border-[color:var(--surface-divider)] flex flex-col gap-1 rounded-lg border p-3"
+		class="border-[color:var(--border)] flex flex-col gap-1 rounded border p-3"
 		aria-label="Actual time"
 	>
 		<span class="text-muted-foreground text-[11px] font-medium tracking-wider uppercase">
@@ -56,7 +56,7 @@
 	</section>
 
 	<section
-		class="border-[color:var(--surface-divider)] flex flex-col gap-1 rounded-lg border p-3"
+		class="border-[color:var(--border)] flex flex-col gap-1 rounded border p-3"
 		aria-label="Delay time"
 	>
 		<span class="text-muted-foreground text-[11px] font-medium tracking-wider uppercase">
