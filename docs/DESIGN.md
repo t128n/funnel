@@ -1,8 +1,10 @@
-# DESIGN.md: Bugzilla UI/UX Standards
+# DESIGN.md: Funnel application profile — Bugzilla UI/UX standards
+
+Funnel adopts the shared [design system baseline](plans/2026-10-25-design-system-baseline.md). The baseline fixes structure, surface, state and behaviour for every web app; this document is Funnel's application profile. It narrows the baseline to an issue cockpit and never relaxes it. Where the two disagree, the baseline wins and this profile is corrected.
 
 Funnel's interface follows modern Bugzilla (bugzilla.mozilla.org): table-first,
-text-first and data-honest. These rules are binding for every surface. Apply
-them while building, not as a later cleanup pass.
+text-first and data-honest. These rules are binding for every Funnel surface.
+Apply them while building, not as a later cleanup pass.
 
 ## 1. Core philosophy
 

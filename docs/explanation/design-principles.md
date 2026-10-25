@@ -1,92 +1,97 @@
 # Design principles
 
-Funnel's interface standards exist to make a dense issue cockpit scannable, stable and fast to operate, rather than merely tidy.
+Funnel's interface exists to make a dense issue cockpit scannable, stable and fast to operate. Those goals are not local taste: Funnel applies a shared [design system baseline](../plans/2026-10-25-design-system-baseline.md), and [`docs/DESIGN.md`](../DESIGN.md) is the application profile that binds the baseline to Funnel's records, vocabulary and views.
 
-## A standards document, not a mood board
+This page explains the thinking behind that profile. It is not the rulebook; the baseline and the profile are normative. Read this page to understand *why* the rules are shaped the way they are, and read the profile when you need the exact value, mapping or constraint.
 
-[`docs/DESIGN.md`](../DESIGN.md) is deliberately short and prescriptive. It is organised in four parts: core principles, global tokens, view patterns, and interaction standards. It does not describe a brand or a visual mood; it describes the rules that keep a data-heavy interface from drifting into inconsistency as features are added.
+## One baseline, one application profile
 
-That structure is itself a design decision. The core principles explain the intent — density without clutter, rigid grids, subtle surfaces, zero redundancy. The token section fixes the vocabulary (surfaces, type sizes, priority and size colours). The view patterns translate the vocabulary into board, list and triage layouts. The interaction section covers keyboard navigation, drag feedback and hit targets. Read top to bottom, it moves from *why* to *what* to *how*; read as a reference, each section can be applied independently.
+The baseline settles the questions every app would otherwise answer differently: what a record is, how density is achieved, when colour is allowed, how state is displayed, what accessibility floor applies, and how exceptions are governed. It is deliberately app-agnostic. It fixes meaning and constraints, not a component catalogue.
 
-The standards are written for implementation. They name concrete row heights, grid tracks and colour values because vague advice such as "make it clean and modern" does not survive contact with a real data set. The cockpit components follow the same approach: `IssueRow.svelte` shares one grid template with its sticky header, `BoardCard.svelte` uses a fixed-slot stack, and `AttentionRow.svelte` is a flattened single line. The design document is the argument; the components are the working example.
+Funnel supplies the missing specifics in its application profile: issues are the records, the register is the primary view, the board is a secondary projection, and the status vocabulary maps to fixed semantic roles. The split matters because it prevents two failure modes. A baseline that hard-codes one app's vocabulary becomes a theme rather than a system. An app that invents its own rules drifts the moment a new view is added.
 
-## Density comes from alignment, not compression
+The profile is therefore specific but not independent. It may narrow a baseline rule; it may not relax one. When the two disagree, the baseline wins and the profile is corrected.
 
-"High information density without clutter" is the first principle, and the qualifier is the important part. Density is achieved by fitting more *usable* rows on screen, not by shrinking text until it becomes unreadable or by stacking unrelated facts into the same space. The list view uses a fixed row rhythm and a small number of predictable columns. The board gives every card the same anatomy. The triage view reduces a blocked issue to one line with a fixed trailing metadata tray.
+## Records over cards
 
-The practical result is that a user can scan a hundred issues without re-learning the layout on every row. Alignment does the work that whitespace would otherwise do in a less dense design: the eye follows columns, not borders. The standards are also honest about the cost. Titles are single-line in the list and truncated at two lines on cards; labels beyond the first two collapse into a `+N` counter; some metadata disappears entirely at narrow widths. Density is bought with truncation and disclosure, not with ambiguity.
+The issue register is the product. Work is read in rows and columns: identifier, title, status, priority, labels, size, update time and assignee. The register is a table, not a collection of framed cards, because comparison is the job. A row that lines up with its neighbours lets the eye move down a column instead of re-learning a layout.
 
-The opinion behind this is that a cockpit is a tool for repeated use, not a marketing page. A first-time visitor may need a moment to learn the columns; a daily user should never need to hunt for the priority, the identifier or the assignee.
+Two consequences follow. First, the header and every row share one column geometry, so a short title or a missing field cannot shift the columns. Second, a record must be intelligible on its own. Status, priority and identifier belong to the record, not only to a column header or a group heading.
 
-## Rigid grids keep the eye still
+The board is where this principle is easiest to get wrong. It is a spatial projection of the same records, useful for seeing movement between stages — not a separate card system. Lanes are open tracks of flat, row-like records with the same field anatomy as the register. A card still writes its status in text even when the lane already names the state, because a record that loses its identity when detached from its container is a card, not a record. Cards remain for navigation, unstructured summaries and empty states.
 
-The second principle — rigid grids over variable stacks — is the mechanical foundation of the first. Data views must align columns across rows, and elements must not shift because a title is short or a field is missing. The list is implemented as a CSS grid with reserved slots for status, identifier, title, labels, priority, size, updated time and assignee. The same `.issue-grid` is used by the sticky header, so the header and every row stay in lock-step. A container query switches the compact and wide templates, revealing the labels track only when there is room; it does not let individual rows reflow.
+## Text before colour
 
-The board applies the same idea vertically and horizontally. Columns are open tracks — a divider and padding, not a heavy framed card — so the lane itself is the structure. Cards reserve fixed slots for priority, size and assignee, while the optional label track flexes between them instead of pushing the size badge around. A card with no priority still reserves the priority slot, which is why the column stays readable rather than collapsing into a ragged left edge.
+State is written first. A status badge must be readable without colour, which is why Funnel renders words — Backlog, To Do, In Progress, In Review, Done, Blocked — and treats the role colour as support. Priority follows the same rule: `P1`, `P2` or `P3` in text, with danger, warning or neutral tinting the text rather than replacing it.
 
-The anti-pattern the standard rejects is the content-driven flex row: it looks acceptable with sample data and becomes a different layout on every real issue. Rigid grids cost some flexibility for unusual content, but they buy positional memory. After a day of use, the user knows where to look without reading the row.
+This is an accessibility requirement and a comprehension one. Colour-only meaning excludes colour-blind users, fails in monochrome screenshots, and collapses when a theme changes. Written state survives all three. It also makes the vocabulary explicit: "Done" is a better label than a green dot, and "Blocked" is a better label than red.
 
-## Subtle surfaces, loud signals
+Colour is correspondingly narrow. It is reserved for state, links, focus and destructive actions, with one accent. Tags, categories and free-form labels are monochrome. GitHub label colours remain in the mirror as data; they never drive the interface, because imported colour is not Funnel's semantic vocabulary.
 
-Contrast is created with layered background tones and faint translucent borders, not with thick outlines or colourful card shells. The token layer in `src/lib/styles/global.css` mirrors this: a canvas tone, a resting card tone, a hover tone, and border/divider values derived from the foreground at low opacity. The standard's dark-mode values are the canonical example — `#0d0e11`, `#18191d`, `#1e2025` and borders around 6–8% white — and the same semantic tokens carry into the light theme.
+## Flat surfaces, truthful hierarchy
 
-The reason is hierarchy. When every card has a border, the borders compete with the content and the interface starts to look like a wireframe. When surfaces differ only slightly, emphasis can be reserved for things that actually need attention: an overdue marker, a priority colour, a conflict warning, a focus ring. The attention view follows this rule literally: urgency is a narrow leading stripe and a tinted pill, never a full-width coloured box. The row border stays neutral so the eye is drawn to the signal, not the container.
+Separation comes from 1px rules, background tints and spacing. Surfaces are white or tinted. Records, lists and chrome carry no shadows, gradients, translucency, glass or large radii. An overlay may use one soft shadow when the dimmed backdrop is not enough to separate it.
 
-Subtlety is not the same as low contrast. Text contrast, focus rings and hit areas still have to meet accessibility expectations. The standard's focus ring — a visible accent outline with an offset — is part of the same system: quiet surfaces make the one loud state, focus, unambiguous.
+The reason is hierarchy. Shadows imply layers that do not exist: a row hovering above a table is not a different level of the system, it is the same row with a pointer over it. When containers carry elevation, they compete with the content, and emphasis has to escalate to stay visible. Flat surfaces leave one loud state — focus — and a small set of semantic colours with nothing to outshout.
 
-## Zero visual redundancy
+Flatness is also honest about interaction. Hover changes a tint or a border; it does not lift, scale or move anything. Overlays are separated by a border and a dimmed backdrop. Selection is a tint and an accent edge. All three are visible in a screenshot, legible at low contrast and stable under `prefers-reduced-motion`.
 
-The fourth principle is the one most often violated by issue trackers: do not repeat data. If a column header already says "In Progress", every card in that column does not need a status icon. If a row is grouped under a status section, the row does not need to repeat the status glyph. If a reserved label is rendered as a dedicated priority or size affordance, it should not also appear as a generic tag. If the project shortcode is `FIT`, the card should say `FIT-12`, not the full `owner/repository` path.
+## Density from spacing
 
-The implementation encodes these rules rather than leaving them to taste. `BoardCard.svelte` filters canonical labels out of the generic label list and does not render a status icon. `IssueRow.svelte` hides the status glyph when the list is grouped by status. Both slice non-reserved labels to two and show a counter for the rest. The repository context is a shortcode resolved from settings, with the full path available in a tooltip where it is genuinely needed.
+Maximum density is the default, but density is bought with spacing, row height and column width — not with smaller type. Body text has a floor of 12px, dense secondary cells may use 11px, and non-essential metadata may use 10px. Nothing goes below that.
 
-Redundancy is not only ugly; it consumes the scarcest resource in a dense view, which is attention. Every repeated fact is another thing to skip. The trade-off is that the interface relies on context: a card removed from its column, or a row removed from its group, carries less self-description. That is acceptable because the cockpit's views are designed to preserve context, and because the detail inspector exists for the cases where the full picture is needed.
+The register's discipline is what makes the density usable. Rows share a fixed rhythm, titles truncate by rule, labels beyond the visible count collapse into a counter, and missing values are shown as an explicit dash. A user scans a hundred issues without re-learning the layout on each one. The cost is disclosure: some detail waits for a tooltip, the inspector or the detail record, and the profile says so rather than pretending the row shows everything.
 
-## Priority and size are scan anchors
+Density is bounded by accessibility. If a tighter row would reduce contrast, shrink a target below the floor or hide focus, it is not denser — it is broken. The profile makes that ordering explicit: accessibility yields to nothing.
 
-Priority and size get their own visual language because they are the two fields a user scans before reading a title. The standard fixes a small container, a minimum stroke weight and a scale that remains visible even at zero: an unprioritised issue shows a placeholder rather than nothing, so the column geometry survives. Size uses monospace, uppercase text with translucent fills, which makes `S`, `M` and `L` legible at a glance and visually distinct from labels.
+## Native and keyboard-first
 
-The components make a deliberate distinction between contexts. The compact priority glyph is icon-only with a 1.5px stroke, because a list row already has a priority column header to explain it. The framed `PriorityBadge` reserves an 18px target so the slot does not collapse when priority is absent. On a board card, priority is rendered as a tinted `P1`–`P3` pill, because there is no column header in the card's metadata tray to give a bare glyph meaning. Same data, different affordance, chosen by context rather than by decoration.
+Controls behave like browser controls. Native selects, inputs, checkboxes, radios and buttons are preferred; custom controls must match native semantics and keyboard behaviour, or they are replaced. This is not conservatism for its own sake. Native controls carry platform conventions, assistive-technology support and keyboard behaviour that a custom widget has to re-earn.
 
-This is a small example of the larger principle: the visual system is allowed to vary by view when the informational context changes. Consistency does not mean every field looks identical everywhere; it means the same field means the same thing and occupies a predictable place.
+Keyboard access is a first-class navigation mode, not a fallback. Global shortcuts cover search, new issue, the sidebar and settings; the board adds roving focus and status changes; rows respond to `Enter` and `Space`. Bindings are declared once, so hint text and behaviour cannot drift, and the full map lives in [Use the keyboard](../how-to/use/keyboard.md).
 
-## Three views, three rhythms
+Keyboard-first shapes layout as much as behaviour. Rows must be focusable as rows rather than as a chain of tiny controls, the board needs a single tab stop with arrow traversal, and focus must be clearly visible on quiet surfaces. Hover is an enhancement throughout: every action it reveals is also reachable by keyboard and visible on focus.
 
-The standards describe three view patterns because the cockpit supports three kinds of work.
+## No decorative motion
 
-**Board.** The board is for moving work through stages. It uses open vertical tracks, a column header that carries the status and count, a hover-revealed add action, and cards with a uniform minimum height. The column header owns the status, so the card does not repeat it. WIP limits are shown as a count and can turn the count into a warning; the Done column is bounded by the configured retention window. The board is the most spatial view, and the standard protects its rhythm: no fixed metadata tray, no floating badges, no column frames that turn lanes into nested boxes.
+Motion exists only to explain a change or preserve spatial continuity. A drop location is shown with an insertion line; a theme change does not animate the page; rows do not fade in, and hovering does not move them. `prefers-reduced-motion` is respected, and motion never delays work.
 
-**List.** The list is for scanning and comparing. It is the strictest grid: a compact row height, a sticky header, single-line titles, truncation with ellipsis, and group sections that can carry status or priority so the rows do not repeat them. The list is also the shared row used by the Inbox queue and the board's Backlog list, so a user moving between surfaces does not have to relearn the anatomy. Filtering is consolidated into dedicated controls rather than duplicated segmented buttons, because duplicated controls create two sources of truth for the same state.
+The restraint follows from the rest of the system. If hierarchy is carried by rules, tints and alignment, animation has no structural job left. Pressing it into service as polish would make a fast tool feel slower and would create a second, less reliable way to understand state.
 
-**Triage.** The attention view is for deciding what needs action now. It flattens each blocked issue into an `h-11` row, puts urgency at the front, keeps the row border neutral, and reveals triage actions on hover. The standard explicitly forbids wrapping a single triage item in a full-width, multi-line bordered block: the queue's value is the number of items visible and the speed of the next decision. The implementation adds a quiet leading stripe and a tinted urgency pill, which is the same idea expressed with the token system.
+## Light first, dark equal
 
-The three rhythms are different on purpose. Making the board as dense as the list would hide the spatial relationships that make a board useful; making the list as spacious as the board would defeat scanning; making triage look like either would slow down the queue. The design document's value is that it states these differences instead of letting each new view invent its own compromise.
+Light is the canonical theme and gets the exact palette. Dark is a fully supported derivation with the same roles and hierarchy, not a separate design and not an afterthought. Neither theme may be the only one that is checked.
 
-## Keyboard-first interaction
+The profile fixes the light values; the dark theme reuses the same semantic roles with contrast-adjusted values. Status must remain readable in both, focus must remain visible in both, and no surface may depend on a tint that disappears when the theme flips. Theme choice is a user setting, not a statement about which mode the product is designed for.
 
-The standard treats keyboard access as a first-class navigation mode, not an accessibility afterthought. The shared hotkey catalogue declares bindings without callbacks, so the app shell, hint components and tests all read the same definitions. Global bindings cover search (`Mod+K` and `/`), new issue (`C`), the sidebar (`Mod+B`) and settings (`Mod+,`); the board adds selecting or opening a focused card (`X`) and changing its status (`S`). The board also adds roving focus and arrow traversal: up and down within a lane, left and right between lanes, with the card opening on a separate action. Rows respond to `Enter` and `Space`.
+## Accessibility is the floor
 
-Modifier-based hints appear while the relevant modifier is held, so the shortcuts are discoverable without permanently occupying space. Because bindings are defined once and can be customised through the hotkey provider, the hint text and the actual behaviour cannot drift apart. The full key map is documented in [Use the keyboard](../how-to/use/keyboard.md).
+WCAG 2.2 AA is the minimum, alongside full keyboard operation and reduced-motion support. Contrast, focus visibility, target size and readable text are not negotiable against density. Tables need headers and accessible names, fields need persistent labels, and status is never colour-only.
 
-The keyboard-first stance shapes layout as much as behaviour. Focus states must be visible on quiet surfaces; rows must be focusable as rows, not as a chain of tiny controls; the board must have a roving tab stop rather than putting every card in the tab order. A design that only works with a mouse would fail the standard even if it looked correct.
+The floor is stated as a floor because accessibility is easy to treat as a review gate that can be waived late. In this system it constrains the earlier decisions: it is why type has a minimum, why metadata is monochrome plus text, why custom controls are rare, and why density has a hard stop.
 
-## Drag states and target sizes
+## Full mobile parity
 
-Drag and drop is the board's primary mutation gesture, so the standard treats its feedback as part of the interaction contract. The cursor changes to grabbing during a drag, the dragged card is visually lifted, and the drop location is shown as a thin insertion line rather than by violently reshuffling the lane. The implementation follows that intent with `active:cursor-grabbing` and an accent-coloured insertion bar where the card will land; the library animates the surrounding cards with a short flip instead of a jump.
+Every view and action works on mobile. The layout may change — horizontal scroll with a sticky key column, stacked key-value rows, drill-down to the full record — but the information and actions do not. Cards are not the mobile fallback for a register, and nothing is hidden because the viewport is narrow.
 
-The same section fixes a minimum 24×24px hit area for interactive metadata icons. That number is not cosmetic: priority, status and size controls are small visual targets by design, and a dense layout makes it tempting to make them smaller still. Reserving a larger invisible target keeps the visual density without making the controls frustrating to use, especially on touch devices.
+Parity is a design constraint, not a responsive afterthought. It keeps the register honest: if a column cannot survive a narrow screen, the record probably depends too much on its container. It also keeps the shell honest, since settings, the attention queue, the board and the shortcuts must remain reachable at mobile widths.
 
-These details matter because drag and keyboard are where a dense interface most easily becomes hostile. A misplaced drop or a tiny target turns a fast triage action into a correction. The standard spends its interaction budget on predictable feedback rather than on decorative motion.
+## Explicit state and governance
 
-## What the standards trade away
+Every user-visible change has a named action, an actor and an audit trail. Background work may exist, but its effects are visible and attributable. Silent mutation of issues, settings or state is a defect.
 
-The design system is opinionated, and the opinions have costs. Rigid grids and truncation hide long titles and extra labels until a tooltip or the inspector. Subtle surfaces can make a low-contrast monitor feel washed out, and the dark-mode defaults are not a universal solution. Keyboard-first navigation assumes a user who will invest in learning the keys; the hints help, but they do not remove the learning curve. The three view rhythms mean a user must understand which view is for which job.
+The same posture governs the design system itself. The baseline is a contract; exceptions require a written rule, reason, scope, owner and review date, and they are listed in the application profile. New roles, type sizes, colours or geometry need a baseline revision, not a local decision. That is slower than inventing a one-off style, and it is the point: the system stays legible because its deviations are legible too.
 
-Those costs are accepted because the cockpit is used repeatedly by the same small team, not visited once by a stranger. Positional memory, low visual noise and fast keyboard actions compound over a working day. The standards are there to stop each new feature from trading those gains for a locally prettier screen. The result is not minimalism for its own sake; it is a deliberate allocation of attention to the work.
+## What the profile trades away
+
+The system is opinionated and the opinions have costs. Truncation and disclosure hide long titles and extra labels until a tooltip or the inspector. Flat surfaces can feel plain on a first visit, and they leave little room for visual flourish. Keyboard-first navigation assumes a user who will invest in learning the keys; hints lower the curve but do not remove it. Mobile parity constrains layout choices that a desktop-only design would take for granted.
+
+These costs are accepted because the cockpit is used repeatedly by the same small team, not visited once by a stranger. Positional memory, low visual noise and fast keyboard actions compound over a working day. The baseline and the profile exist to stop each new feature from trading those gains for a locally prettier screen.
 
 ## Related
 
-- [The design standards](../DESIGN.md) — the full token, view and interaction specification.
+- [Funnel design system — application profile](../DESIGN.md) — records, status mapping, views and exceptions.
+- [Design system baseline](../plans/2026-10-25-design-system-baseline.md) — the parent principles and normative rules.
 - [Use the keyboard](../how-to/use/keyboard.md) — the complete shortcut map and navigation model.
+- [Workflow model](./workflow-model.md) — status, priority, size, blocking and Done as separate concepts.
 - [Architecture](./architecture.md) — the read path and event flow that keep these views current.
-- [Sync and mirror](./sync-and-mirror.md) — why the cockpit can be briefly stale, and how it converges.
