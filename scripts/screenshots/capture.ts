@@ -17,20 +17,54 @@ import { existsSync, mkdirSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { chromium, type BrowserContext } from "playwright";
+import { chromium, type BrowserContext, type Page } from "playwright";
 import { DEFAULT_SECRET } from "./seed";
 
-/** The nine views captured for the design gallery. */
+/**
+ * The nine views captured for the design gallery.
+ *
+ * `ready` is the hydration contract: a selector that only exists once the
+ * client-side data view has painted. Without it the capture can frame a
+ * loading spinner or a bare table header on a cold context.
+ */
 export const VIEWS = [
-  { name: "issues", path: "/issues" },
-  { name: "issue", path: "/issues/acme/widgets/1" },
-  { name: "board", path: "/board" },
-  { name: "plan", path: "/plan" },
-  { name: "epics", path: "/epics" },
-  { name: "milestones", path: "/milestones" },
-  { name: "attention", path: "/attention" },
-  { name: "inbox", path: "/inbox" },
-  { name: "settings-appearance", path: "/settings/appearance" },
+  {
+    name: "issues",
+    path: "/issues",
+    ready: "div.issue-grid:not(.sticky)",
+  },
+  {
+    name: "issue",
+    path: "/issues/acme/widgets/1",
+    ready: '[aria-label="Issue inspector"] h2',
+  },
+  { name: "board", path: "/board", ready: "[data-board-card] h3" },
+  {
+    name: "plan",
+    path: "/plan",
+    ready: '[data-testid="plan-lanes"] .text-sm.font-medium',
+  },
+  { name: "epics", path: "/epics", ready: 'a[href^="/epics/"]' },
+  {
+    name: "milestones",
+    path: "/milestones",
+    ready: 'a[href^="/milestones/"]',
+  },
+  {
+    name: "attention",
+    path: "/attention",
+    ready: 'a[href^="/issues/acme/"]',
+  },
+  {
+    name: "inbox",
+    path: "/inbox",
+    ready: "div.issue-grid:not(.sticky)",
+  },
+  {
+    name: "settings-appearance",
+    path: "/settings/appearance",
+    ready: 'input[name="theme"]',
+  },
 ] as const;
 
 export type CaptureTheme = "light" | "dark";
@@ -137,6 +171,43 @@ function startServer(): ChildProcess {
   return child;
 }
 
+/**
+ * Wait for a view's hydration contract, then (for the issue detail) for the
+ * client-side fetch to replace the spinner with the metadata table.
+ *
+ * A selector that never appears is a harness failure, not a blank screenshot:
+ * the error names the view so a broken contract is obvious.
+ */
+async function waitForView(
+  page: Page,
+  view: (typeof VIEWS)[number],
+): Promise<void> {
+  try {
+    await page.waitForSelector(view.ready, { timeout: 30_000 });
+  } catch {
+    throw new Error(
+      `View ${view.name} did not become ready: ${view.ready} never appeared`,
+    );
+  }
+
+  if (view.name === "issue") {
+    try {
+      await page.waitForFunction(
+        () =>
+          document
+            .querySelector('[aria-label="Issue inspector"]')
+            ?.querySelector('[aria-label="Loading issue"]') === null,
+        undefined,
+        { timeout: 30_000 },
+      );
+    } catch {
+      throw new Error(
+        "View issue did not finish loading the issue detail (spinner still present)",
+      );
+    }
+  }
+}
+
 /** Build one theme's browser context with the cookie and theme preset. */
 async function createContext(
   browser: Awaited<ReturnType<typeof chromium.launch>>,
@@ -208,10 +279,9 @@ export async function captureAll({
               waitUntil: "load",
               timeout: 120_000,
             });
-            // Client-side feeds (and the issue detail fetch) hydrate after the
-            // load event; give them a beat without waiting on the SSE stream,
-            // which never goes idle.
-            await page.waitForTimeout(1_200);
+            await waitForView(page, view);
+            // Let the last hydration paint settle before the frame is taken.
+            await page.waitForTimeout(300);
             await page.evaluate(() => document.fonts.ready);
 
             const file = join(outDir, `${view.name}-${theme}.png`);

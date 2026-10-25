@@ -101,7 +101,10 @@ environment concerns, not settings in these scripts.
 
 - The cookie is URL-encoded once by `better-call`; pass it through verbatim
   (quoted) and do not encode it again.
-- `capture.ts` waits for the `load` event plus a short settle, because the data
-  feeds hydrate client-side and the SSE stream never reaches network idle.
+- `capture.ts` waits for each view's `ready` selector — a hydrated row or
+  heading — then 300 ms for paint. The issue detail additionally waits for its
+  client-side fetch to replace the spinner. A selector that never appears
+  throws with the view name instead of screenshotting an empty frame; the SSE
+  stream never reaches network idle, so `load` plus readiness is used instead.
 - The seeded timestamps are epoch milliseconds; Better Auth's own tables use
   seconds, matching the server schema.
