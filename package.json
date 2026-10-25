@@ -9,6 +9,7 @@
 	},
 	"scripts": {
 		"dev": "bun --bun vite dev",
+		"dev:demo": "bun scripts/dev.ts --demo",
 		"build": "bun --bun vite build",
 		"preview": "bun --bun vite preview",
 		"start": "bun ./build/index.js",

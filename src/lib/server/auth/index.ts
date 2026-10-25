@@ -12,6 +12,7 @@ import {
 } from "#lib/server/db/schema";
 import { getGithubCredentials } from "#lib/server/github/credentials";
 import { readSettings } from "#lib/server/settings/store";
+import { isDemoMode } from "#lib/server/demo/mode";
 import { roles } from "./access";
 // SPEC section 11: `session.idle_days` (default 30), read from instance
 // settings. Better Auth builds its options once per build, so a change made
@@ -172,6 +173,9 @@ export async function getSession(request: Request) {
  * `forge.userProvider(await getUserAccessToken(userId))`.
  */
 export async function getUserAccessToken(userId: string): Promise<string> {
+  // Demo requests always act as the seeded admin; the local provider never
+  // needs a real token and no Better Auth account row is consulted.
+  if (isDemoMode()) return "demo-token";
   const auth = await getAuth();
   if (!auth) throw new Error("No GitHub App configured");
   const [account] = await db

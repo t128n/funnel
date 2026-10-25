@@ -39,6 +39,29 @@ bun run dev        # bun --bun vite dev, serves on http://localhost:5173
 
 Instance configuration (repositories, projects, the intake default, sync cadence, board behaviour, session lifetime) lives in the SQLite database and is edited from **Settings** after signing in — not in the environment.
 
+## Demo mode
+
+`bun run dev:demo` is the supported way to explore Funnel without a GitHub App. It runs `scripts/dev.ts --demo`, which sets `FUNNEL_DEMO=1`, defaults `FUNNEL_DB` to `./data/demo.db`, `FUNNEL_UPLOAD_DIR` to `./data/demo-uploads`, and `FUNNEL_SECRET` to a clearly-labelled dev-only placeholder when they are unset or blank (so a plain `cp .env.example .env` works), then starts Vite normally. Extra arguments are passed through to Vite (for example `bun run dev:demo --port 5174`).
+
+The first run applies migrations and seeds the database once. Later runs reuse it, so edits survive a dev-server restart. The seed creates:
+
+- a signed-in admin (`Riley Demo`, role `admin`) and a fake GitHub App, so onboarding never appears;
+- the repositories `demo/funnel` (`FUN`) and `demo/platform` (`PLT`), five people, labels and milestones;
+- over twenty issues across untriaged, backlog, todo, in-progress, in-review and closed, including three blocked issues with overdue/today/upcoming recheck dates and an epic with children;
+- pending intake submissions, unread notifications, work notes, current and next-week plan items, delay history and work hours.
+
+Every view — board, inbox, issue list and inspector, planning, notifications, epics and actual-time cards — renders from that data. Issue writes (labels, comments, create, close, milestones) are emulated in the same SQLite tables; nothing calls GitHub. The request session is always the seeded admin, so signing out cannot end the demo session.
+
+To reset, stop the server and delete the demo database (its WAL and SHM files included); the next run re-seeds:
+
+```sh
+rm -f data/demo.db data/demo.db-shm data/demo.db-wal
+```
+
+`bun run dev` remains the real-integration path: no seed, no fake session, and the normal GitHub App onboarding flow.
+
+> Demo mode is development-only. `FUNNEL_DEMO` is ignored by production builds, and there is no `--demo` flag on the packaged executable. Do not use the demo secret or database for a real instance.
+
 ## Type-check
 
 ```sh

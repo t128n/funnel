@@ -110,6 +110,7 @@ It reads `FUNNEL_URL`, `FUNNEL_HOTKEY`, and `FUNNEL_SOURCE`, logs to `%LOCALAPPD
 | `funnel` / `funnel.exe` | `runStandalone()` | Yes | Applied on every normal boot and by `--migrate` |
 | `bun run start` | None; starts `build/index.js` directly | No | Not applied |
 | `bun run dev` | Vite development server | No | Not applied |
+| `bun run dev:demo` | Vite development server with the seeded demo database | No | Applied by the demo startup seed |
 | `bun run release` | `scripts/release.ts` | No | Applied, then exits |
 
 ## Related
