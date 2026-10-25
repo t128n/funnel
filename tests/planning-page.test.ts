@@ -11,7 +11,10 @@ import { readFileSync } from "node:fs";
 import { cycleForWeek } from "#lib/server/planning/calendar";
 import { getConfig, resetConfigCache } from "#lib/server/config";
 import { saveSettings } from "#lib/server/settings/apply";
-import { clearSettings } from "#lib/server/settings/store";
+import {
+  clearSettings,
+  DEFAULT_WORK_DEFAULTS,
+} from "#lib/server/settings/store";
 import type { Role } from "#lib/roles";
 import * as planRoute from "#/routes/(app)/plan/+page.server";
 import { load as loadSettingsLayout } from "#/routes/(app)/settings/+layout.server";
@@ -60,6 +63,13 @@ const PLANNING_PAYLOAD = {
     allocation_percent: 55,
     cycle_weeks: 3,
     cycle_anchor: "2024-01-01",
+    work_defaults: {
+      timezone: "Europe/Berlin",
+      start_minute: 480,
+      end_minute: 960,
+      work_days: [1, 2, 3, 4, 5, 6],
+      buffer_percent: 25,
+    },
     maintainers: [
       {
         forge: "github",
@@ -111,6 +121,7 @@ describe("planning settings load", () => {
     expect(data.planning.allocation_percent).toBe(60);
     expect(data.planning.maintainers).toEqual([]);
     expect(data.planning.size_minutes).toEqual({ sm: 120, md: 240, lg: 480 });
+    expect(data.planning.work_defaults).toEqual(DEFAULT_WORK_DEFAULTS);
     expect(data.candidates).toEqual([]);
   });
 
@@ -143,6 +154,9 @@ describe("planning settings load", () => {
     expect(config.board.done_days).toBe(30);
     expect(config.planning.size_minutes.sm).toBe(90);
     expect(config.planning.allocation_percent).toBe(55);
+    expect(config.planning.work_defaults).toEqual(
+      PLANNING_PAYLOAD.planning.work_defaults,
+    );
     expect(config.planning.maintainers[0]?.weekly_minutes).toBe(450);
   });
 });
@@ -270,5 +284,33 @@ describe("planning navigation and copy", () => {
     // …and the posted payload converts the edited hours back to minutes.
     expect(page).toContain("hoursToMinutes(sizeSm ?? 0)");
     expect(page).toContain("hoursToMinutes(row.hours ?? 0)");
+  });
+
+  test("test_work_defaults_inputs", () => {
+    const page = source("src/routes/(app)/settings/planning/+page.svelte");
+
+    // The admin card uses the shared clock helpers for its two time fields.
+    expect(page).toContain("from '#lib/time/zoned'");
+    expect(page).toContain("formatClock(workDefaults.start_minute)");
+    expect(page).toContain("parseClock(startTime)");
+    expect(page.match(/type="time"/g)?.length).toBe(2);
+    expect(page).toContain("bind:value={timezone}");
+    expect(page).toContain("WORKDAYS");
+    for (const label of ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]) {
+      expect(page).toContain(label);
+    }
+    // The buffer field is bounded to the spec's 0..90 percent.
+    expect(page).toContain('max="90"');
+    expect(page).toContain("min=\"0\"");
+  });
+
+  test("test_work_defaults_form_payload", () => {
+    const page = source("src/routes/(app)/settings/planning/+page.svelte");
+
+    expect(page).toContain("work_defaults:");
+    expect(page).toContain("start_minute: parseClock(startTime)");
+    expect(page).toContain("end_minute: parseClock(endTime)");
+    expect(page).toContain("work_days:");
+    expect(page).toContain("buffer_percent:");
   });
 });

@@ -8,6 +8,7 @@
 	import SettingsForm from '#lib/components/settings/settings-form.svelte';
 	import type { SettingsFormResult } from '#lib/components/settings/sections';
 	import { hoursToMinutes, minutesToHours } from '#lib/planning';
+	import { formatClock, parseClock } from '#lib/time/zoned';
 	import type { PageProps } from './$types';
 
 	let { data, form }: PageProps = $props();
@@ -25,6 +26,18 @@
 
 	const planning = untrack(() => data.planning);
 	const candidates = untrack(() => data.candidates);
+	const workDefaults = untrack(() => planning.work_defaults);
+
+	/** ISO weekdays offered as work-day toggles, Monday first. */
+	const WORKDAYS = [
+		{ value: 1, label: 'Mon' },
+		{ value: 2, label: 'Tue' },
+		{ value: 3, label: 'Wed' },
+		{ value: 4, label: 'Thu' },
+		{ value: 5, label: 'Fri' },
+		{ value: 6, label: 'Sat' },
+		{ value: 7, label: 'Sun' }
+	] as const;
 
 	let sizeSm = $state<number | null>(minutesToHours(planning.size_minutes.sm));
 	let sizeMd = $state<number | null>(minutesToHours(planning.size_minutes.md));
@@ -32,6 +45,11 @@
 	let allocationPercent = $state<number | null>(planning.allocation_percent);
 	let cycleWeeks = $state<number | null>(planning.cycle_weeks);
 	let cycleAnchor = $state(planning.cycle_anchor);
+	let timezone = $state(workDefaults.timezone);
+	let startTime = $state(formatClock(workDefaults.start_minute));
+	let endTime = $state(formatClock(workDefaults.end_minute));
+	let workDays = $state<number[]>([...workDefaults.work_days]);
+	let bufferPercent = $state<number | null>(workDefaults.buffer_percent);
 	let roster = $state<RosterRow[]>(
 		untrack(() =>
 			planning.maintainers.map((maintainer) => ({
@@ -62,6 +80,13 @@
 				allocation_percent: allocationPercent ?? 60,
 				cycle_weeks: cycleWeeks ?? 2,
 				cycle_anchor: cycleAnchor,
+				work_defaults: {
+					timezone,
+					start_minute: parseClock(startTime) ?? workDefaults.start_minute,
+					end_minute: parseClock(endTime) ?? workDefaults.end_minute,
+					work_days: [...workDays].sort((a, b) => a - b),
+					buffer_percent: bufferPercent ?? 20
+				},
 				maintainers: roster.map((row) => ({
 					forge: row.forge,
 					instance: row.instance,
@@ -146,6 +171,63 @@
 					<Field.Description>Must be a Monday; anchors the cycle numbering.</Field.Description>
 				</Field.Field>
 			</div>
+		</Card.Content>
+	</Card.Root>
+
+	<Card.Root>
+		<Card.Header>
+			<Card.Title>Working hours</Card.Title>
+			<Card.Description>
+				The default day window for every viewer without personal availability, and the prefill for
+				Settings → Availability.
+			</Card.Description>
+		</Card.Header>
+		<Card.Content class="flex flex-col gap-4">
+			<div class="grid gap-4 sm:grid-cols-2">
+				<Field.Field>
+					<Field.Label>Timezone</Field.Label>
+					<Input bind:value={timezone} placeholder="Europe/Berlin" />
+					<Field.Description>An IANA zone, such as Europe/Berlin or UTC.</Field.Description>
+				</Field.Field>
+				<Field.Field>
+					<Field.Label>Buffer (%)</Field.Label>
+					<Input type="number" min="0" max="90" bind:value={bufferPercent} />
+					<Field.Description>The share of the work window reserved for slack (0–90).</Field.Description>
+				</Field.Field>
+			</div>
+
+			<div class="grid gap-4 sm:grid-cols-2">
+				<Field.Field>
+					<Field.Label>Start time</Field.Label>
+					<Input type="time" bind:value={startTime} />
+					<Field.Description>Local wall time the working day starts.</Field.Description>
+				</Field.Field>
+				<Field.Field>
+					<Field.Label>End time</Field.Label>
+					<Input type="time" bind:value={endTime} />
+					<Field.Description>Local wall time the working day ends.</Field.Description>
+				</Field.Field>
+			</div>
+
+			<Field.Field>
+				<Field.Label>Work days</Field.Label>
+				<div class="flex flex-wrap gap-2">
+					{#each WORKDAYS as day (day.value)}
+						<label
+							class="flex items-center gap-1.5 rounded-md border border-[color:var(--surface-divider)] px-2 py-1 text-xs"
+						>
+							<input
+								type="checkbox"
+								class="size-3.5 accent-foreground"
+								value={day.value}
+								bind:group={workDays}
+							/>
+							{day.label}
+						</label>
+					{/each}
+				</div>
+				<Field.Description>At least one ISO weekday, Monday through Sunday.</Field.Description>
+			</Field.Field>
 		</Card.Content>
 	</Card.Root>
 
