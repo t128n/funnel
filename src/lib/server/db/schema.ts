@@ -292,6 +292,93 @@ export const stateIssueDelay = sqliteTable(
 );
 
 // ---------------------------------------------------------------------------
+// State: ALPEN day planning (SPEC §3).
+//
+// All four tables are per-viewer durable state keyed by `auth_user.id` with
+// `ON DELETE CASCADE`. They never reference the disposable mirror: an issue is
+// identified by `org/name` + issue number, exactly like `state_plan_item`.
+// Minutes are integers from local midnight (`0..1440`); dates are
+// `YYYY-MM-DD`.
+// ---------------------------------------------------------------------------
+
+/** Per-viewer working hours. Absent row = the admin `planning.work_defaults`. */
+export const stateWorkHours = sqliteTable("state_work_hours", {
+  userId: text("user_id")
+    .primaryKey()
+    .references(() => authUser.id, { onDelete: "cascade" }),
+  timezone: text("timezone").notNull(),
+  startMinute: integer("start_minute").notNull(),
+  endMinute: integer("end_minute").notNull(),
+  /** ISO weekdays, Monday 1 … Sunday 7. */
+  workDays: text("work_days", { mode: "json" })
+    .$type<number[]>()
+    .notNull(),
+  bufferPercent: integer("buffer_percent").notNull(),
+  createdAt: integer("created_at").notNull(),
+  updatedAt: integer("updated_at").notNull(),
+});
+
+/**
+ * One recurring (`weekday`) or one-off (`date`) blocked window. Exactly one of
+ * the two is set; the API validates that before writing.
+ */
+export const stateUnavailableWindow = sqliteTable(
+  "state_unavailable_window",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => authUser.id, { onDelete: "cascade" }),
+    label: text("label").notNull(),
+    /** ISO weekday 1–7 for a recurring window, else null. */
+    weekday: integer("weekday"),
+    /** `YYYY-MM-DD` for a one-off window, else null. */
+    date: text("date"),
+    startMinute: integer("start_minute").notNull(),
+    endMinute: integer("end_minute").notNull(),
+    createdAt: integer("created_at").notNull(),
+    updatedAt: integer("updated_at").notNull(),
+  },
+  (t) => [index("idx_state_unavailable_window_user").on(t.userId)],
+);
+
+/** One timed block on one local day. `issue` rows carry a ref; buffer rows do not. */
+export const stateDayBlock = sqliteTable(
+  "state_day_block",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => authUser.id, { onDelete: "cascade" }),
+    date: text("date").notNull(),
+    startMinute: integer("start_minute").notNull(),
+    minutes: integer("minutes").notNull(),
+    /** `issue` | `buffer`. */
+    kind: text("kind").notNull(),
+    org: text("org"),
+    name: text("name"),
+    issueNumber: integer("issue_number"),
+    createdAt: integer("created_at").notNull(),
+    updatedAt: integer("updated_at").notNull(),
+  },
+  (t) => [index("idx_state_day_block_user_date").on(t.userId, t.date)],
+);
+
+/**
+ * The tokenized read-only ICS feed. Only the SHA-256 hex hash and the first 8
+ * characters of the token are stored: the raw secret is shown once, and
+ * rotating replaces the row so the previous URL stops resolving.
+ */
+export const stateCalendarFeed = sqliteTable("state_calendar_feed", {
+  userId: text("user_id")
+    .primaryKey()
+    .references(() => authUser.id, { onDelete: "cascade" }),
+  tokenHash: text("token_hash").notNull().unique(),
+  tokenHint: text("token_hint").notNull(),
+  createdAt: integer("created_at").notNull(),
+});
+
+// ---------------------------------------------------------------------------
 // Auth: Better Auth tables (SPEC 7, 8). Field names match Better Auth's
 // stock schema. Date columns use timestamp mode and `emailVerified`
 // boolean mode: the drizzle adapter passes Date/boolean objects, and
