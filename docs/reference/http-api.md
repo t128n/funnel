@@ -1,6 +1,6 @@
 # HTTP API
 
-Funnel exposes a public intake and health surface, a session-gated cockpit read surface, a per-user notification feed and watch API, GitHub-backed issue writes executed with the signed-in user's token, and Funnel-local work-note, attachment, plan, epic-membership and delay endpoints.
+Funnel exposes a public intake and health surface, a session-gated cockpit read surface, a per-user notification feed and watch API, GitHub-backed issue writes executed with the signed-in user's token, Funnel-local work-note, attachment, plan, epic-membership and delay endpoints, personal availability and day-plan routes under `/api/me/*`, and a public tokenized ICS calendar feed.
 
 ## Conventions
 
@@ -69,6 +69,25 @@ The preflight response carries the same CORS headers but no `Cache-Control`. The
 | Committed migrations are not all applied | `503` | `{ "status": "starting", "reason": "migrations pending", "applied": <n>, "expected": <m> }` |
 
 `expected` is `null` when the migrations folder cannot be located; readiness then depends only on the migrations table being present. Both health routes are ungated.
+
+### Calendar feed
+
+`GET /api/calendar/{token}.ics` serves one viewer's read-only ICS calendar. It requires no session: possession of the token is the capability, so the URL is a secret. Rotating or revoking the token makes the old URL return `404` immediately.
+
+| Method | Path | Success | Purpose |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/api/calendar/{token}.ics` | `200`, `text/calendar` | The viewer's issue blocks, buffer blocks and unavailable windows as an RFC 5545 calendar. |
+
+The token is 32 random bytes encoded as base64url, 43 characters long; the trailing `.ics` is optional for lookup and is stripped before hashing. Only the SHA-256 hex hash and the first eight characters are stored, so the raw token is shown once when it is created and cannot be retrieved later.
+
+| Header | Value |
+| :--- | :--- |
+| `Content-Type` | `text/calendar; charset=utf-8` |
+| `Content-Disposition` | `inline; filename="funnel.ics"` |
+| `Cache-Control` | `private, max-age=300` |
+| `X-Robots-Tag` | `noindex, nofollow` |
+
+The feed window is today − 7 days through today + 42 days in the viewer's timezone. Each event is `TRANSP:OPAQUE`, uses a UTC `DTSTART`/`DTEND`, and has a `UID` of `<table>-<id>@funnel`; issue events carry `FUNNEL-<number> <title>` as the summary and the issue URL as the description, buffer blocks are summarised `Buffer`, and unavailable windows use their label. Lines use CRLF and are folded at 75 octets. An unknown, rotated or malformed token returns `404`.
 
 ## Authentication surface
 
@@ -416,6 +435,67 @@ The `PUT` body is:
 
 `DELETE` is idempotent: clearing an issue with no plan item still returns `200 { "cleared": true }`. Every successful `PUT` or `DELETE` publishes a `planning` SSE event.
 
+### Availability, day plans and calendar feed
+
+These self-service routes are personal: they require a session (`apiSession`) but never the `write` role, and each one reads or writes only the caller's rows. A `read` viewer can therefore manage their own working hours, day plan and calendar feed. Working hours resolve from the viewer's `state_work_hours` row, then from `planning.work_defaults`.
+
+| Method | Path | Success | Purpose |
+| :--- | :--- | :--- | :--- |
+| `PUT` | `/api/me/availability` | `204`, no body | Replace the viewer's working hours and unavailable windows in one transaction. |
+| `POST` | `/api/me/calendar-feed` | `200 { "token": string, "url": string, "hint": string, "createdAt": number }` | Create or rotate the viewer's ICS feed token. |
+| `DELETE` | `/api/me/calendar-feed` | `204`, no body | Revoke the viewer's feed token; idempotent. |
+| `PUT` | `/api/me/day-plan` | `200 { "blocks": DayBlock[] }` | Validate and replace the viewer's blocks for one local date. |
+| `POST` | `/api/me/day-plan/auto` | `200 { "blocks": DayBlock[] }` | Auto-plan one date, persist the result and return it. |
+
+`PUT /api/me/availability` takes:
+
+```json
+{
+  "timezone": "Europe/Berlin",
+  "start_minute": 540,
+  "end_minute": 1020,
+  "work_days": [1, 2, 3, 4, 5],
+  "buffer_percent": 20,
+  "windows": [
+    { "label": "Lunch", "weekday": 1, "date": null, "start_minute": 720, "end_minute": 780 },
+    { "label": "Dentist", "weekday": null, "date": "2026-11-03", "start_minute": 600, "end_minute": 660 }
+  ]
+}
+```
+
+Minutes are integers `0..1440` from local midnight, `start_minute < end_minute`, `work_days` is a non-empty set of ISO weekdays `1..7` and `buffer_percent` is `0..90`. Each window has a non-empty label of at most 60 characters and exactly one of `weekday` or `date`. The whole payload is replaced, so omitting a window deletes it.
+
+`PUT /api/me/day-plan` takes:
+
+```json
+{
+  "date": "2026-10-25",
+  "blocks": [
+    { "start_minute": 540, "minutes": 120, "kind": "issue", "org": "acme", "name": "core", "issue_number": 12 },
+    { "start_minute": 660, "minutes": 60, "kind": "buffer" }
+  ]
+}
+```
+
+Blocks are validated by the day model: they are sorted by start, must not overlap (`Blocks overlap at HH:MM`), must be at least 5 minutes, must end by `1440`, and are limited to 40 per day. An `issue` block needs a ref that is still open and mirrored; a `buffer` block must not carry one. Blocks outside the working window are accepted — a manual plan may overrun and the UI flags it. The write replaces every block for that date.
+
+`DayBlock` is `{ "start_minute": number, "minutes": number, "kind": "issue" | "buffer", "org"?: string, "name"?: string, "issue_number"?: number }`.
+
+`POST /api/me/day-plan/auto` takes only `{ "date": "YYYY-MM-DD" }`. It builds from the viewer's candidates in priority order, spends at most `availableMinutes - bufferMinutes`, emits explicit buffer blocks for leftover space of 15 minutes or more, and persists the result. A non-work day yields an empty array.
+
+The calendar feed response is the only place the raw feed token ever appears. `url` is `<origin>/api/calendar/<token>.ics`; `hint` is the token's first eight characters. Only the token's SHA-256 hash is stored in `state_calendar_feed.token_hash`, so a second `POST` rotates the row and the first URL stops working. There is no expiry: a link stays valid until it is regenerated or revoked.
+
+Responses:
+
+| Status | Body |
+| :--- | :--- |
+| `204` | Availability save and feed revoke. |
+| `200` | `{ "token", "url", "hint", "createdAt" }` for feed creation; `{ "blocks": DayBlock[] }` for day-plan saves and auto-plan. |
+| `400` | `{ "message": "…", "issues"?: ["…"] }` for a bad timezone, `start_minute >= end_minute`, both `weekday` and `date` (or neither), an out-of-bounds minute or buffer, an empty label, a malformed or impossible date, an overlapping or oversized block, or an unknown/closed issue ref. |
+| `401` | No session. |
+
+Every successful mutation publishes a `planning` SSE event.
+
 ### Epics and delays
 
 Epic membership has two halves. The `epic` label marks the container and is an ordinary GitHub label edit; the ordered child list lives in the epic issue's trailing `<!-- funnel_metadata -->` envelope and is rewritten through the signed-in user's token. Delays are Funnel-local durable rows. Every route in this section requires `write`, and every successful write publishes an `issues` SSE event for the affected issue.
@@ -482,12 +562,12 @@ The response carries `Cache-Control: no-store`, so an API client that sends `Acc
 | :--- | :--- |
 | `200` | Successful read, update, label deletion, notification list or read-state update, work-note update or publish, plan schedule or clear, epic label or children update, delay update. |
 | `201` | Intake staging, issue/comment creation, label addition, work-note creation, attachment upload, milestone creation, delay creation. |
-| `204` | Intake preflight, work-note deletion, attachment deletion, manual delay deletion. |
+| `204` | Intake preflight, work-note deletion, attachment deletion, manual delay deletion, availability save or calendar-feed revoke. |
 | `304` | Passthrough read revalidated with `If-None-Match`. |
-| `400` | Malformed JSON, schema validation failure, invalid issue number, unconfigured repository, empty patch. |
+| `400` | Malformed JSON, schema validation failure, invalid issue number, unconfigured repository, empty patch, invalid availability or day-plan payload. |
 | `401` | No cockpit session. |
 | `403` | Session lacks the minimum role, or a manual-delay route targets an automatic blocked row. |
-| `404` | Repo or issue not mirrored, unknown work note, attachment or delay, unknown API path. |
+| `404` | Repo or issue not mirrored, unknown work note, attachment, delay or calendar-feed token, unknown API path. |
 | `409` | A plan mutation would push a maintainer over capacity, an epic child is already in another epic, or demoting the last administrator. |
 | `413` | Attachment exceeds the upload limit. |
 | `502` | User token unavailable, or an upstream transport failure without a status. |
@@ -503,6 +583,7 @@ Upstream GitHub 4xx statuses (for example `422`) keep that status. Write errors 
 | Notification feed and watch routes | Not set explicitly. |
 | GitHub passthrough reads | `private, max-age=15, must-revalidate` |
 | Attachment bytes | `private, max-age=0, must-revalidate` |
+| Calendar feed | `private, max-age=300` |
 | Event stream | `no-cache, no-transform` |
 | Unknown API path | `no-store` |
 | Health and readiness | Not set explicitly. |
