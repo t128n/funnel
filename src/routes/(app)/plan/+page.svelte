@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { invalidateAll } from '$app/navigation';
 	import PageHead from '#lib/components/common/PageHead.svelte';
+	import DayPlan from '#lib/components/plan/DayPlan.svelte';
 	import MilestonePlans from '#lib/components/plan/MilestonePlans.svelte';
 	import PlanLanes from '#lib/components/plan/PlanLanes.svelte';
 	import ScheduleDialog from '#lib/components/plan/ScheduleDialog.svelte';
@@ -10,6 +11,7 @@
 	import type { MilestonePlan } from '#lib/server/planning/milestones';
 	import type { PlanningIssue } from '#lib/server/planning/queries';
 	import type { CyclePlan, WeekPlan } from '#lib/server/planning/plans';
+	import type { DayView } from '#/routes/(app)/plan/+page.server';
 	import { formatMinutes } from '#lib/planning';
 	import { canWrite } from '#lib/roles';
 	import ChevronLeftIcon from '@lucide/svelte/icons/chevron-left';
@@ -32,6 +34,7 @@
 		milestones?: MilestonePlan[];
 		candidates?: PlanningIssue[];
 		allocationPercent?: number;
+		dayView?: DayView | null;
 		user?: { role?: unknown } | null;
 	}
 
@@ -41,7 +44,9 @@
 	let removing = $state<string | null>(null);
 
 	const horizon = $derived(
-		data.horizon === 'cycle' || data.horizon === 'milestone' ? data.horizon : 'week'
+		data.horizon === 'cycle' || data.horizon === 'milestone' || data.horizon === 'day'
+			? data.horizon
+			: 'week'
 	);
 	const week = $derived(data.week ?? data.weekPlan?.weekStart ?? '');
 	const cycleKey = $derived(
@@ -61,10 +66,12 @@
 		)
 	);
 
-	function horizonHref(next: 'week' | 'cycle' | 'milestone', value?: string): string {
+	function horizonHref(next: 'week' | 'cycle' | 'milestone' | 'day', value?: string): string {
+		// Week, cycle and day links carry their own cursor; day is `/plan?horizon=day&day=…`.
 		const params = new URLSearchParams({ horizon: next });
 		if (next === 'week' && value) params.set('week', value);
 		if (next === 'cycle' && value) params.set('cycle', value);
+		if (next === 'day' && value) params.set('day', value);
 		return `/plan?${params.toString()}`;
 	}
 
@@ -89,6 +96,18 @@
 		horizon === 'milestone'
 			? null
 			: navValue(data.next, horizon === 'cycle' ? 'cycle' : 'week')
+	);
+	const previousHref = $derived(
+		previous === null
+			? null
+			: horizon === 'day'
+				? horizonHref('day', previous)
+				: horizonHref(horizon, previous)
+	);
+	const nextHref = $derived(
+		next === null
+			? null
+			: horizon === 'day' ? horizonHref('day', next) : horizonHref(horizon, next)
 	);
 
 	function laneTotals(lanes: WeekPlan['lanes']): { committed: number; cap: number } {
@@ -154,6 +173,14 @@
 			>
 				Milestone
 			</Button>
+			<Button
+				variant={horizon === 'day' ? 'secondary' : 'ghost'}
+				size="sm"
+				href={horizonHref('day', data.dayView?.date)}
+				aria-current={horizon === 'day' ? 'page' : undefined}
+			>
+				Day
+			</Button>
 		</nav>
 
 		{#if horizon !== 'milestone'}
@@ -161,8 +188,8 @@
 				<Button
 					variant="ghost"
 					size="icon-sm"
-					disabled={previous === null}
-					href={previous === null ? undefined : horizonHref(horizon, previous)}
+					disabled={previousHref === null}
+					href={previousHref ?? undefined}
 					aria-label="Previous period"
 					title="Previous period"
 				>
@@ -171,8 +198,8 @@
 				<Button
 					variant="ghost"
 					size="icon-sm"
-					disabled={next === null}
-					href={next === null ? undefined : horizonHref(horizon, next)}
+					disabled={nextHref === null}
+					href={nextHref ?? undefined}
 					aria-label="Next period"
 					title="Next period"
 				>
@@ -186,12 +213,14 @@
 				{data.weekPlan?.label ?? week}
 			{:else if horizon === 'cycle'}
 				{data.cyclePlan ? `${data.cyclePlan.start} → ${data.cyclePlan.end}` : cycleKey}
+			{:else if horizon === 'day'}
+				{data.dayView?.label ?? 'Day'}
 			{:else}
 				Open milestones with open issues
 			{/if}
 		</span>
 
-		{#if mayWrite && horizon !== 'milestone'}
+		{#if mayWrite && horizon !== 'milestone' && horizon !== 'day'}
 			<Button
 				size="sm"
 				class="ms-auto"
@@ -262,6 +291,14 @@
 			{:else}
 				<Empty.Root class="border-0 py-10">
 					<Empty.Description>No cycle loaded.</Empty.Description>
+				</Empty.Root>
+			{/if}
+		{:else if horizon === 'day'}
+			{#if data.dayView}
+				<DayPlan view={data.dayView} {mayWrite} />
+			{:else}
+				<Empty.Root class="border-0 py-10">
+					<Empty.Description>No day loaded.</Empty.Description>
 				</Empty.Root>
 			{/if}
 		{:else}
