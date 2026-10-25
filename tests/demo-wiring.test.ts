@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { getUserAccessToken } from "#lib/server/auth/index";
+import { runMigrations } from "#lib/server/db/release";
 import { scheduleRefresh } from "#lib/server/issues/http";
 import { devEnvironment } from "../scripts/dev";
 
@@ -46,6 +48,33 @@ describe("demo refresh", () => {
     scheduleRefresh("demo", "funnel", 1);
     await new Promise((resolve) => setTimeout(resolve, 20));
     expect(calls).toBe(0);
+  });
+});
+
+describe("demo migrations", () => {
+  test("test_demo_migrations_folder", () => {
+    const folder = join(process.cwd(), "drizzle");
+
+    // A fresh in-memory database applies every committed migration. This is the
+    // work the dev server's startup hook has to do before the first request.
+    const report = runMigrations({
+      dbPath: ":memory:",
+      migrationsFolder: folder,
+    });
+    expect(report.migrationsFolder).toBe(folder);
+    expect(report.after).toBeGreaterThan(0);
+    expect(report.applied).toBe(report.after);
+
+    // The hook must pass the folder explicitly. Under Vite SSR `import.meta.dir`
+    // is undefined, so `resolveMigrationsFolder()`'s default probe throws
+    // ERR_INVALID_ARG_TYPE and every request answers 500.
+    const source = readFileSync(
+      join(process.cwd(), "src/hooks.server.ts"),
+      "utf8",
+    );
+    expect(source).toMatch(
+      /migrationsFolder:\s*join\(process\.cwd\(\),\s*"drizzle"\)/,
+    );
   });
 });
 

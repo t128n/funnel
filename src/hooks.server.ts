@@ -1,3 +1,4 @@
+import { join } from "node:path";
 import { building } from "$app/env";
 import { FUNNEL_DB } from "$app/env/private";
 import { redirect } from "@sveltejs/kit";
@@ -43,7 +44,13 @@ export const init: ServerInit = async () => {
   // three GitHub-contacting steps below. A seed failure throws so a broken
   // demo is visible instead of silently serving an empty cockpit.
   if (isDemoMode()) {
-    runMigrations({ dbPath: FUNNEL_DB });
+    // Pass the folder explicitly: `resolveMigrationsFolder()` probes
+    // `import.meta.dir`, which Vite's SSR transform leaves undefined, so the
+    // default would throw before the first request is served.
+    runMigrations({
+      dbPath: FUNNEL_DB,
+      migrationsFolder: join(process.cwd(), "drizzle"),
+    });
     seedDemoDatabase();
     resetConfigCache();
     resetAuthCache();
