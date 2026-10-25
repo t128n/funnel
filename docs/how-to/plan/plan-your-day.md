@@ -2,6 +2,12 @@
 
 Use the Day horizon of `/plan` to turn the week's plan into a timed day, using your own working hours and unavailable windows. The day view is called **ALPEN**: Aufgaben (candidates), Länge (length), Puffer (buffer), Entscheiden (decide) and Nachkontrolle (review).
 
+![The Day view with its five ALPEN chips, timed blocks, buffer, candidate list and review](../../images/alpen-day.png)
+
+The Day tab sits next to the existing week, cycle and milestone horizons; the week plan still decides *what* is scheduled, and the day only decides *when*.
+
+![Week, cycle, milestone and day horizons in the planner](../../images/alpen-plan-horizons.png)
+
 Your availability and day plan are personal. Any signed-in viewer can edit their own rows; the `/api/me/*` routes need a session and never a `write` role, and they touch only the caller's data. Admin defaults in `planning.work_defaults` apply until you save your own hours.
 
 ## Set your working hours
@@ -18,6 +24,8 @@ Your availability and day plan are personal. Any signed-in viewer can edit their
 7. Select **Save changes**.
 
 Windows subtract from the work window; overlapping windows count once. An absent per-viewer row uses the admin defaults, so the page opens prefilled with them.
+
+![Availability: working hours, blocked windows and the calendar feed](../../images/alpen-availability.png)
 
 ## Plan a day
 
@@ -47,7 +55,7 @@ The calendar feed is a read-only ICS file for one viewer. Anyone holding the URL
 1. Open **Settings → Availability** and use the create-link action for the calendar feed.
 2. Copy the URL now. It is shown once and looks like `https://funnel.example.com/api/calendar/<token>.ics`; only a hash and an eight-character hint are stored, so Funnel cannot show it again.
 3. In Outlook, choose **Add calendar → Subscribe from web** (or **From internet**), paste the URL, name the calendar, and confirm.
-4. Outlook polls the URL; Funnel caches the response for five minutes. The feed covers today − 7 days through today + 42 days in your timezone and contains issue blocks, buffer blocks and unavailable windows as opaque all-day-aware events.
+4. Outlook polls the URL; Funnel caches the response for five minutes. The feed covers today − 7 days through today + 42 days in your timezone and contains timed issue blocks, buffer blocks and unavailable windows, all marked busy.
 
 If you lose the URL, regenerate it rather than sharing the old one.
 
@@ -60,7 +68,7 @@ If you lose the URL, regenerate it rather than sharing the old one.
 
 Day blocks are local minutes from midnight, so they follow your wall clock across a daylight saving change rather than shifting with UTC. When converting a block to an instant:
 
-- A wall time inside a spring-forward gap clamps forward to the first valid instant.
+- A wall time inside a spring-forward gap shifts forward by the gap length, so `02:30` becomes `03:30`.
 - An ambiguous fall-back wall time resolves to the earlier instant.
 
 The ICS feed always writes `DTSTART` and `DTEND` in UTC, so Outlook shows the block at the intended local time.

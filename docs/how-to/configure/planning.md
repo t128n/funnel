@@ -24,6 +24,20 @@ The mapping is instance-wide. Changing it re-prices every existing plan item at 
 
 An issue without a size label is **unestimated**. Unestimated issues cannot be scheduled; the planner lists them separately so they can be sized from the Inspector first.
 
+## Working hours defaults
+
+`planning.work_defaults` is the instance fallback for the ALPEN day view: every viewer without a personal row in **Settings → Availability** is planned inside this window, and the page opens prefilled with it.
+
+| Field | Default | Validation |
+| :--- | :--- | :--- |
+| `timezone` | `"UTC"` | A real IANA zone |
+| `start_minute` | `540` (09:00) | `0..1440`, before `end_minute` |
+| `end_minute` | `1020` (17:00) | `0..1440`, after `start_minute` |
+| `work_days` | `[1,2,3,4,5]` | unique ISO weekdays `1..7`, at least one |
+| `buffer_percent` | `20` | `0..90` |
+
+![The working-hours defaults card in Settings → Planning](../../images/alpen-planning-defaults.png)
+
 ## Net hours
 
 A maintainer is a mirrored forge person in `planning.maintainers` with a `weekly_minutes` value and an `active` flag. Enter availability in decimal hours; Funnel stores integer minutes.
