@@ -19,6 +19,8 @@ Tracking starts when Funnel first observes an issue. The migration establishes b
 
 Open an issue's Inspector to see its time block:
 
+![The Inspector time card, delay list and epic membership](../../assets/screenshots/inspector-time.png)
+
 | Field | Meaning |
 | :--- | :--- |
 | **Actual** | Union of open `in-progress` and `in-review` intervals. |
@@ -49,6 +51,8 @@ The reason is stored in the issue's `funnel_metadata` block. An older blocked is
 
 Automatic delays are read-only in the Inspector: change them by unblocking or updating the block, not by editing the delay row.
 
+![A blocked issue with a structured dependency reason and an automatic delay](../../assets/screenshots/inspector-blocked.png)
+
 ## Record a manual delay
 
 Manual delays cover waits that are not represented by the `blocked` flag. They are local-only and never touch GitHub.
@@ -77,6 +81,8 @@ A successful write publishes an `issues` event so open Inspectors refresh.
 
 - [Manage epics](epics.md) — rollups across related issues.
 - [Close, reopen and block](close-reopen-block.md) — the `blocked` flag and structured blocker fields.
+- [Planning and time reference](../../reference/planning-and-time.md) — exact actual-time and delay rules.
+- [Why planning and actuals work this way](../../explanation/planning-and-actuals.md) — why tracking starts at deployment.
 - [HTTP API](../../reference/http-api.md#epics-and-delays) — the delay endpoints.
-- [The workflow model](../../explanation/workflow-model.md#actual-time-is-observed-not-reconstructed) — why time starts at deployment.
-- [Glossary](../../reference/glossary.md) — Actual time and Delay.
+- [The workflow model](../../explanation/workflow-model.md#actual-time-is-observed-not-reconstructed) — where this sits next to labels.
+- [Glossary](../../reference/glossary.md) — actual time and delay.
