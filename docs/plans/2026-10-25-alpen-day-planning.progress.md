@@ -1,0 +1,59 @@
+- start 679aae10fd817a6ad2010e76ea8ce696fa5c496a
+- tests fast passed=0 failed=1 skipped=0 seconds=0.0
+- tests fast passed=0 failed=1 skipped=0 seconds=0.0
+- tests fast passed=1 failed=0 skipped=0 seconds=0.3
+- unblocked: dispatched T0 T1 T3 T11 at 02:25:10; waiting on fixes: none
+- tests fast passed=0 failed=1 skipped=0 seconds=0.3
+- tests fast passed=0 failed=1 skipped=0 seconds=0.2
+- tests fast passed=1 failed=0 skipped=0 seconds=0.3
+- Ruling: DST gap shifts the wall time forward by the gap length (02:30 -> 03:30), matching T1 tests; spec §1 reworded - cost if wrong: an hour's offset twice a year
+- tests fast passed=0 failed=1 skipped=0 seconds=0.3
+- tests fast passed=1 failed=0 skipped=0 seconds=0.4
+- tests fast passed=1 failed=0 skipped=0 seconds=0.3
+- tests fast passed=1 failed=0 skipped=0 seconds=0.3
+- commit T1 bf27b6c5ed clock, DST and availability
+- commit T3 892a2c9169 persistence and candidates
+- commit T11 cb7906f0ec documentation
+- commit T0 84e8127a2c Wave 0 skeleton
+- tests fast passed=0 failed=1 skipped=0 seconds=0.2
+- tests fast passed=1 failed=0 skipped=0 seconds=0.2
+- tests fast passed=1 failed=0 skipped=0 seconds=0.2
+- commit T2 ace83123c6 day model
+- commit T7 ca01167acd ICS feed
+- tests fast passed=0 failed=1 skipped=0 seconds=0.2
+- tests fast passed=1 failed=0 skipped=0 seconds=0.5
+- tests fast passed=0 failed=1 skipped=0 seconds=0.4
+- tests fast passed=1 failed=0 skipped=0 seconds=0.7
+- tests fast passed=0 failed=1 skipped=0 seconds=0.3
+- tests fast passed=1 failed=0 skipped=0 seconds=0.6
+- commit T4 78264895b6 settings and admin UI
+- commit T6 39ee3ea298 day-plan API
+- tests fast passed=1 failed=0 skipped=0 seconds=0.3
+- tests fast passed=0 failed=1 skipped=0 seconds=0.2
+- tests fast passed=0 failed=1 skipped=0 seconds=0.3
+- tests fast passed=1 failed=0 skipped=0 seconds=0.7
+- tests fast passed=0 failed=1 skipped=0 seconds=0.3
+- tests fast passed=1 failed=0 skipped=0 seconds=0.7
+- tests fast passed=1 failed=0 skipped=0 seconds=0.5
+- commit T5 518ca4d943 self-service API
+- commit T7 4fc9aa6cf1 ICS feed
+- commit T8 09417c9360 day horizon load
+- tests fast passed=0 failed=1 skipped=0 seconds=0.3
+- tests fast passed=1 failed=0 skipped=0 seconds=0.3
+- tests fast passed=1 failed=0 skipped=0 seconds=0.3
+- commit T9 ff5892c814 availability page
+- tests fast passed=0 failed=1 skipped=0 seconds=0.2
+- tests fast passed=1 failed=0 skipped=0 seconds=0.2
+- tests fast passed=1 failed=0 skipped=0 seconds=0.3
+- commit T10 1d5ad7e5dc day UI
+- tests full passed=1 failed=0 skipped=0 seconds=8.9
+- tests fast passed=1 failed=0 skipped=0 seconds=0.8
+- tests fast passed=1 failed=0 skipped=0 seconds=0.7
+- tests fast passed=1 failed=0 skipped=0 seconds=0.8
+- commit T1 27a933c055 clock, DST and availability
+- commit T3 895bacb667 persistence and candidates
+- commit T5 bc994c53ba self-service API
+- commit T8 d0d3acee8c day horizon load
+- commit T10 41bc876bb3 day UI
+- commit T11 287891475c documentation
+- tests full passed=1 failed=0 skipped=0 seconds=7.7

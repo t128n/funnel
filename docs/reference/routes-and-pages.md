@@ -24,7 +24,7 @@ Once an App exists, the gate disappears and the normal route guards apply.
 - `requireRole` returns `403` for an authenticated visitor below the minimum role.
 - `requireAdmin` is `requireRole(..., "admin")`.
 - Every `(app)` page load runs the layout guard in `src/routes/(app)/+layout.server.ts`, which calls `requireUser`. The baseline minimum for every cockpit page is therefore `read`; individual layouts add stricter roles.
-- The settings layout enforces the section role. Only `/settings`, `/settings/appearance` and `/settings/features` are personal (`read`); every other `/settings/*` path requires `admin`, including direct URL entry.
+- The settings layout enforces the section role. Only `/settings`, `/settings/appearance`, `/settings/features` and `/settings/availability` are personal (`read`); every other `/settings/*` path requires `admin`, including direct URL entry.
 - Form actions re-check the session and role because SvelteKit layout loads do not run for actions. The shared settings action returns `401` without a session and `403` without `admin`.
 - Public routes are `/`, `/intake`, `/login`, `/onboarding/*`, `/healthz`, `/readyz`, `/api/intake` and `/api/auth/*`. Of these, `/healthz`, `/readyz`, `/onboarding/*` and `/api/auth/*` are also first-run-gate exemptions; the others become reachable once an App exists.
 
@@ -65,12 +65,13 @@ All cockpit routes live under the `(app)` layout and require at least the `read`
 | `/notifications` | The signed-in viewer's notification feed, unread rows before read rows. | `read` | Newest first, limited to 100 rows. Opening an unread row marks it read; per-row and mark-all controls persist read state. The page also offers the per-browser notification opt-in when `notifications.native` is on. |
 | `/milestones` | Every mirrored milestone, grouped by repository, with progress and due dates. | `read` | GitHub scopes a milestone to one repository, so equal titles in two repositories are separate entries. |
 | `/milestones/{owner}/{repo}/{number}` | The issues attached to one repo-scoped milestone. | `read` | Returns `404` for an unknown repository or milestone. |
-| `/plan` | Time planner with week, cycle and milestone horizons. | `read` to view; `write` to schedule or remove | A week is its Monday date; the default horizon is the current week. Writer-only **Schedule issue** control; every planned issue links to its Inspector. |
+| `/plan` | Time planner with week, cycle, milestone and day horizons. | `read` to view; `write` to schedule or remove | A week is its Monday date; the default horizon is the current week. `/plan?horizon=day&day=YYYY-MM-DD` adds the ALPEN day view: an hour grid, candidates, planned-versus-actual review and auto-plan. A malformed day falls back to the viewer's local today; previous/next shift by one day. The day's own blocks are saved through `/api/me/day-plan`, so any signed-in viewer may edit their own day. Writer-only **Schedule issue** control on the week horizons; every planned issue links to its Inspector. |
 | `/epics` | Every issue carrying the `epic` label, open before closed, with progress and estimate/actual/delay rollups. | `read` | An epic is a normal issue with the `epic` label; its children are parsed from the body's `funnel_metadata` envelope. |
 | `/epics/{owner}/{repo}/{number}` | One epic: header, rollup cards and the ordered child table. | `read` to view; `write` to add or remove children | Writers add a child from open issues not already in another epic. Malformed params return `404`. |
 | `/settings` | Account landing: signed-in identity and sign-out. | `read` | Personal section. |
 | `/settings/appearance` | Theme and appearance controls. | `read` | Personal section. |
 | `/settings/features` | Per-browser feature-flag toggles. | `read` | Personal section; writes the `funnel:features` cookie. |
+| `/settings/availability` | Working hours, unavailable windows and the personal calendar feed. | `read` | Personal section. Posts to `/api/me/availability` and `/api/me/calendar-feed`; the feed URL is rendered only from the create/regenerate response, never from the page load. |
 | `/settings/repositories` | GitHub host and configured repositories. | `admin` | Shared settings `save` action. |
 | `/settings/projects` | Label-to-project mappings used by project grouping. | `admin` | Shared settings `save` action. |
 | `/settings/intake` | Default repository for accepted intake submissions. | `admin` | Shared settings `save` action. |
@@ -98,6 +99,8 @@ All three require `write`. Accept and duplicate fail with `401` when no user tok
 
 `/settings/repositories`, `/settings/projects`, `/settings/intake`, `/settings/board`, `/settings/notifications`, `/settings/sync`, `/settings/session` and `/settings/planning` all use `saveSettingsAction`: a JSON `payload` form field is merged onto current settings, validated as one configuration, persisted in a transaction, and propagated through the `settings` SSE event and a sync-scheduler wake-up. Errors return `400` with a `message` and, for per-key validation failures, an `issues` array.
 
+`/settings/availability` is the personal exception. It does not use `saveSettingsAction`; it calls `PUT /api/me/availability` and the calendar-feed routes, which require a session but no `write` role, and it changes only the signed-in viewer's rows.
+
 `/settings/people` returns `400` for an invalid role, `404` for an unknown user, `409` when demoting the last administrator, `503` when auth is unconfigured and `502` when the auth provider rejects the change.
 
 ## Detail routes
@@ -122,6 +125,11 @@ API routes are not under the `(app)` layout and enforce their own guards. Detail
 | `/api/intake` | POST, OPTIONS | None | Public intake staging. |
 | `/api/auth/*` | GET, POST | Better Auth rules | Sign-in, OAuth callback, session, sign-out and admin endpoints. |
 | `/api/events` | GET | `read` | Server-Sent Events stream. |
+| `/api/me/availability` | PUT | Session only | Replace the viewer's working hours and unavailable windows. |
+| `/api/me/calendar-feed` | POST, DELETE | Session only | Create or rotate, or revoke, the viewer's private ICS feed. |
+| `/api/me/day-plan` | PUT | Session only | Replace the viewer's day plan for one date. |
+| `/api/me/day-plan/auto` | POST | Session only | Auto-plan and persist one day. |
+| `/api/calendar/{token}.ics` | GET | None | Public read-only ICS calendar feed for one token. |
 | `/api/notifications` | GET, POST | `read` | The viewer's notification feed and read-state updates. |
 | `/api/mirror/issues/{owner}/{repo}/{number}/watch` | GET, PUT, DELETE | `read` | Whether the viewer watches an issue; start or stop watching. |
 | `/api/mirror/issues/{owner}/{repo}` | GET | `read` | Mirrored issue options. |
@@ -172,12 +180,13 @@ API routes are not under the `(app)` layout and enforce their own guards. Detail
 | `/notifications` | Personal notification feed. | `read` |
 | `/milestones` | Repo-scoped milestones and progress. | `read` |
 | `/milestones/{owner}/{repo}/{number}` | Issues attached to a milestone. | `read` |
-| `/plan` | Week, cycle and milestone planner. | `read`; scheduling `write` |
+| `/plan` | Week, cycle, milestone and day planner. | `read`; scheduling `write` |
 | `/epics` | Epics with progress and time rollups. | `read` |
 | `/epics/{owner}/{repo}/{number}` | One epic and its children. | `read`; children `write` |
 | `/settings` | Account. | `read` |
 | `/settings/appearance` | Appearance. | `read` |
 | `/settings/features` | Feature flags. | `read` |
+| `/settings/availability` | Working hours, windows and calendar feed. | `read` |
 | `/settings/repositories` | Repositories. | `admin` |
 | `/settings/projects` | Projects. | `admin` |
 | `/settings/intake` | Intake default. | `admin` |

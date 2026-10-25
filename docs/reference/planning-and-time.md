@@ -11,6 +11,7 @@ This page describes the facts behind `/plan`, actual time, delays and epics. It 
 | `planning.cycle_weeks` | Integer | `2` | `1`–`52`. | Number of contiguous weeks in a cycle. |
 | `planning.cycle_anchor` | String `YYYY-MM-DD` | `2024-01-01` | Must be a real Monday. | First Monday of the cycle numbering. |
 | `planning.maintainers` | Array of maintainer objects | `[]` | Unique `(forge, instance, external_id)`; `weekly_minutes` integer `0`–`10080`; `active` boolean. | People whose net hours make up capacity. |
+| `planning.work_defaults` | Object | `{ "timezone": "UTC", "start_minute": 540, "end_minute": 1020, "work_days": [1,2,3,4,5], "buffer_percent": 20 }` | Real IANA zone; `0 ≤ start_minute < end_minute ≤ 1440`; unique `work_days` in `1..7`, at least one; `buffer_percent` `0..90`. | Fallback working hours for the ALPEN day view. |
 
 A maintainer object has `forge`, `instance`, `external_id`, `login`, `avatar_url`, `weekly_minutes` and `active`. Hours are entered in decimal and stored as integer minutes.
 
@@ -49,6 +50,38 @@ cap = floor(weekly_minutes × weeks × allocation_percent / 100)
 - If no assignee matches, the issue's full estimate is in the **Unassigned** bucket, which has no cap.
 - A lane is over when committed minutes exceed its cap. A maintainer with `weekly_minutes: 0` has zero usable capacity.
 - Only plan mutations are blocked by the cap. A later GitHub edit can push a lane over; the planner displays it.
+
+## Day planning
+
+The **Day** horizon at `/plan?horizon=day&day=YYYY-MM-DD` narrows one local day. It is called **ALPEN**: Aufgaben (candidates), Länge (length), Puffer (buffer), Entscheiden (decide) and Nachkontrolle (review).
+
+- Candidates are the open, sized issues planned into the Monday week of the date that are assigned to the viewer or unassigned, ordered P1 → P3 → unprioritized, then issue number.
+- A day block is timed local minutes from midnight (`0..1440`); `kind` is `issue` (with `org`, `name`, `issue_number`) or `buffer` (no issue).
+- Working hours come from the viewer's `state_work_hours` row; without one, `planning.work_defaults` applies.
+- Unavailable windows are recurring (`weekday`, ISO `1..7`) or one-off (`date`), and subtract from the work window.
+- `buffer_percent` is a share of the available minutes. Auto-plan spends at most `available − buffer` and emits the leftover as `buffer` blocks; a manual plan may exceed the window and is flagged.
+- Review compares each issue's planned minutes with its actual minutes clipped to the viewer's local day.
+
+![The Day view](../../assets/screenshots/plan-day.png)
+
+| Table | Key | Purpose |
+| :--- | :--- | :--- |
+| `state_work_hours` | `user_id` | Timezone, work window, work days and buffer percentage. |
+| `state_unavailable_window` | text `id`, index `user_id` | Recurring or one-off blocked windows. |
+| `state_day_block` | text `id`, index `(user_id, date)` | Timed issue and buffer blocks. |
+| `state_calendar_feed` | `user_id` | SHA-256 token hash and eight-character hint. |
+
+The personal endpoints need a session and never a `write` role; each touches only the caller's rows.
+
+| Method | Path | Body | Success |
+| :--- | :--- | :--- | :--- |
+| `PUT` | `/api/me/availability` | `{ timezone, start_minute, end_minute, work_days, buffer_percent, windows }` | `204` |
+| `PUT` | `/api/me/day-plan` | `{ date, blocks }` | `200 { blocks }` |
+| `POST` | `/api/me/day-plan/auto` | `{ date }` | `200 { blocks }` |
+| `POST` | `/api/me/calendar-feed` | — | `200 { token, url, hint, createdAt }` |
+| `DELETE` | `/api/me/calendar-feed` | — | `204` |
+
+`GET /api/calendar/{token}.ics` is public and read-only; the token is the capability. Only its hash and hint are stored, the URL is shown once, and regenerating or revoking invalidates it immediately.
 
 ## Actual time
 

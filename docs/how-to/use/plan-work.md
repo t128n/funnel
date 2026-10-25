@@ -11,6 +11,7 @@ Open **Plan** in the workspace sidebar. The page opens on the current week.
 - **Week** shows one Monday week. Use it when you are levelling work inside a cycle.
 - **Cycle** aggregates the configured number of weeks and adds a per-week breakdown.
 - **Milestone** is read-only capacity for open GitHub milestones with open issues.
+- **Day** is the ALPEN view for one local date: the same planned issues, placed into timed blocks with a buffer. See [Plan your day](../plan/plan-your-day.md).
 
 Use the arrows beside the period to move backwards or forwards. The URL carries the period, so you can bookmark or share it.
 

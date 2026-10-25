@@ -24,6 +24,12 @@
  */
 import { eq } from "drizzle-orm";
 import * as v from "valibot";
+import {
+  DEFAULT_WORK_HOURS,
+  defaultsFromHours,
+  type WorkDefaultsInput,
+} from "#lib/planning/availability";
+import { isValidTimeZone } from "#lib/time/zoned";
 import { db } from "#lib/server/db/index";
 import { stateSetting } from "#lib/server/db/schema";
 import { createLogger } from "#lib/server/log";
@@ -152,6 +158,43 @@ const cycleAnchor = v.pipe(
   v.check(isMondayDate, "planning.cycle_anchor must be a Monday"),
 );
 
+/** The admin default working hours, in the persisted snake_case shape. */
+export const DEFAULT_WORK_DEFAULTS: WorkDefaultsInput = defaultsFromHours(DEFAULT_WORK_HOURS);
+
+/**
+ * The persisted `planning.work_defaults` shape. Validated like a per-viewer
+ * hours row: a real IANA zone, a non-empty ordered work window, unique ISO
+ * weekdays and a buffer in `0..90`.
+ */
+export const workDefaultsInput = v.object({
+  timezone: v.pipe(
+    v.string("planning.work_defaults.timezone must be a string"),
+    v.trim(),
+    v.nonEmpty("planning.work_defaults.timezone must not be empty"),
+    v.check(isValidTimeZone, "planning.work_defaults.timezone must be a valid IANA timezone"),
+  ),
+  start_minute: boundedInt("planning.work_defaults.start_minute", 0, 1440),
+  end_minute: boundedInt("planning.work_defaults.end_minute", 0, 1440),
+  work_days: v.pipe(
+    v.array(boundedInt("planning.work_defaults.work_days", 1, 7)),
+    v.minLength(1, "planning.work_defaults.work_days must not be empty"),
+    v.check(
+      (days) => new Set(days).size === days.length,
+      "planning.work_defaults.work_days must not contain duplicates",
+    ),
+  ),
+  buffer_percent: boundedInt("planning.work_defaults.buffer_percent", 0, 90),
+});
+
+/** Working hours plus the cross-field `start < end` rule. */
+const workDefaults = v.pipe(
+  workDefaultsInput,
+  v.check(
+    (input) => input.start_minute < input.end_minute,
+    "planning.work_defaults.start_minute must be less than end_minute",
+  ),
+);
+
 /** One row of the maintainer roster: a mirrored forge person. */
 export const maintainerInput = v.object({
   forge: v.pipe(
@@ -181,12 +224,13 @@ export const maintainerInput = v.object({
 
 export type MaintainerInput = v.InferOutput<typeof maintainerInput>;
 
-/** The planning section: estimates, cycle shape and the maintainer roster. */
+/** The planning section: estimates, cycle shape, work defaults and the roster. */
 export const planningInput = v.object({
   size_minutes: sizeMinutes,
   allocation_percent: allocationPercent,
   cycle_weeks: cycleWeeks,
   cycle_anchor: cycleAnchor,
+  work_defaults: workDefaults,
   maintainers: v.array(maintainerInput),
 });
 
@@ -244,6 +288,10 @@ const defs = {
   },
   "planning.cycle_weeks": { schema: cycleWeeks, default: DEFAULT_CYCLE_WEEKS },
   "planning.cycle_anchor": { schema: cycleAnchor, default: DEFAULT_CYCLE_ANCHOR },
+  "planning.work_defaults": {
+    schema: workDefaults,
+    default: DEFAULT_WORK_DEFAULTS,
+  },
   "planning.maintainers": {
     schema: v.array(maintainerInput),
     default: [] as MaintainerInput[],
@@ -271,6 +319,7 @@ export interface Settings {
     allocation_percent: number;
     cycle_weeks: number;
     cycle_anchor: string;
+    work_defaults: WorkDefaultsInput;
     maintainers: MaintainerInput[];
   };
 }
@@ -360,6 +409,11 @@ function readKey(rows: Map<string, string>, key: SettingKey): unknown {
   return result.output;
 }
 
+/** Copy work defaults so a caller cannot mutate the registry default. */
+function cloneWorkDefaults(input: WorkDefaultsInput): WorkDefaultsInput {
+  return { ...input, work_days: [...input.work_days] };
+}
+
 /** Read and compose every persisted setting, applying per-key defaults. */
 export function readSettings(): Settings {
   const rows = readRows();
@@ -402,6 +456,9 @@ export function readSettings(): Settings {
       ) as number,
       cycle_weeks: readKey(rows, "planning.cycle_weeks") as number,
       cycle_anchor: readKey(rows, "planning.cycle_anchor") as string,
+      work_defaults: cloneWorkDefaults(
+        readKey(rows, "planning.work_defaults") as WorkDefaultsInput,
+      ),
       maintainers: (
         readKey(rows, "planning.maintainers") as MaintainerInput[]
       ).map((maintainer) => ({ ...maintainer })),
@@ -422,6 +479,7 @@ function toEntries(input: SettingsInput): [SettingKey, unknown][] {
     allocation_percent: DEFAULT_ALLOCATION_PERCENT,
     cycle_weeks: DEFAULT_CYCLE_WEEKS,
     cycle_anchor: DEFAULT_CYCLE_ANCHOR,
+    work_defaults: DEFAULT_WORK_DEFAULTS,
     maintainers: [] as MaintainerInput[],
   };
   return [
@@ -447,6 +505,7 @@ function toEntries(input: SettingsInput): [SettingKey, unknown][] {
     ["planning.allocation_percent", planning.allocation_percent],
     ["planning.cycle_weeks", planning.cycle_weeks],
     ["planning.cycle_anchor", planning.cycle_anchor],
+    ["planning.work_defaults", planning.work_defaults],
     ["planning.maintainers", planning.maintainers],
   ];
 }

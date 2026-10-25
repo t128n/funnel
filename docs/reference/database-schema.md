@@ -97,7 +97,7 @@ Normalised instance settings as JSON-encoded key/value rows. Lists (`repos`, `pr
 
 Primary key: `key`. Foreign keys: none. Indexes: none.
 
-Known keys: `repos`, `projects`, `intake.default_repo`, `sync.history_days`, `sync.poll_interval_active_seconds`, `sync.poll_interval_idle_seconds`, `board.done_days`, `board.wip_limits`, `session.idle_days`, `notifications.enabled`, `notifications.native`, `notifications.new_intake`, `planning.size_minutes`, `planning.allocation_percent`, `planning.cycle_weeks`, `planning.cycle_anchor`, `planning.maintainers`. `github.url` and `github.api_url` are environment values and are not stored here. Missing, unparseable or invalid rows fall back to per-key defaults.
+Known keys: `repos`, `projects`, `intake.default_repo`, `sync.history_days`, `sync.poll_interval_active_seconds`, `sync.poll_interval_idle_seconds`, `board.done_days`, `board.wip_limits`, `session.idle_days`, `notifications.enabled`, `notifications.native`, `notifications.new_intake`, `planning.size_minutes`, `planning.allocation_percent`, `planning.cycle_weeks`, `planning.cycle_anchor`, `planning.maintainers`, `planning.work_defaults`. `github.url` and `github.api_url` are environment values and are not stored here. Missing, unparseable or invalid rows fall back to per-key defaults.
 
 ### `state_plan_item`
 
@@ -115,6 +115,78 @@ One issue scheduled into one Monday week. Plan items are durable Funnel-owned st
 Primary key: `(org, name, issue_number)`; one plan item per issue, so re-scheduling updates the existing row. Foreign keys: none; the mirror is disposable. Indexes:
 
 - `idx_state_plan_item_week` on `(week_start)` for week and cycle reads.
+
+### `state_work_hours`
+
+One viewer's working hours for ALPEN day planning. A missing row means the viewer inherits `planning.work_defaults`; writing a row overrides them for that viewer only.
+
+| Column | Type | Constraints / notes |
+| :--- | :--- | :--- |
+| `user_id` | TEXT | Primary key; the viewer's `auth_user.id`, `ON DELETE CASCADE`. |
+| `timezone` | TEXT | Not null; a valid IANA zone name such as `Europe/Berlin`. |
+| `start_minute` | INTEGER | Not null; local minutes from midnight, `0..1439`. |
+| `end_minute` | INTEGER | Not null; local minutes from midnight, greater than `start_minute` and at most `1440`. |
+| `work_days` | TEXT | Not null; JSON array of ISO weekday integers `1..7`, non-empty and duplicate-free. |
+| `buffer_percent` | INTEGER | Not null; `0..90`. |
+| `created_at` | INTEGER | Not null, Unix ms. |
+| `updated_at` | INTEGER | Not null, Unix ms. |
+
+Primary key: `user_id`. Foreign keys: `user_id` → `auth_user.id` on delete `CASCADE`. Indexes: none beyond the primary key.
+
+### `state_unavailable_window`
+
+Recurring or one-off blocked windows that subtract from a viewer's work window. A window is either weekly (`weekday`) or dated (`date`), never both.
+
+| Column | Type | Constraints / notes |
+| :--- | :--- | :--- |
+| `id` | TEXT | Primary key; UUID. |
+| `user_id` | TEXT | Not null; the viewer's `auth_user.id`, `ON DELETE CASCADE`. |
+| `label` | TEXT | Not null; at most 60 characters, such as `Lunch`. |
+| `weekday` | INTEGER | Nullable; ISO weekday `1..7` for a recurring window. |
+| `date` | TEXT | Nullable; a real `YYYY-MM-DD` for a one-off window. |
+| `start_minute` | INTEGER | Not null; `0..1439`. |
+| `end_minute` | INTEGER | Not null; greater than `start_minute` and at most `1440`. |
+| `created_at` | INTEGER | Not null, Unix ms. |
+| `updated_at` | INTEGER | Not null, Unix ms. |
+
+Primary key: `id`. Foreign keys: `user_id` → `auth_user.id` on delete `CASCADE`. Exactly one of `weekday` and `date` is set; a check applies at validation. Indexes:
+
+- `idx_state_unavailable_window_user` on `(user_id)`.
+
+### `state_day_block`
+
+One timed block in one viewer's day plan. Blocks are local minutes from midnight rather than instants, so they follow the viewer's wall clock across DST. An `issue` block names an issue by `org/name` plus number; a `buffer` block reserves slack and carries no issue. Manual plans may overrun the work window; only auto-plan enforces hours and buffer.
+
+| Column | Type | Constraints / notes |
+| :--- | :--- | :--- |
+| `id` | TEXT | Primary key; UUID. |
+| `user_id` | TEXT | Not null; the viewer's `auth_user.id`, `ON DELETE CASCADE`. |
+| `date` | TEXT | Not null; real `YYYY-MM-DD` in the viewer's timezone. |
+| `start_minute` | INTEGER | Not null; local minutes from midnight, `0..1439`. |
+| `minutes` | INTEGER | Not null; at least `5`, and `start_minute + minutes <= 1440`. |
+| `kind` | TEXT | Not null; `issue` or `buffer`. |
+| `org` | TEXT | Nullable; set only for `issue` blocks. |
+| `name` | TEXT | Nullable; set only for `issue` blocks. |
+| `issue_number` | INTEGER | Nullable; set only for `issue` blocks. |
+| `created_at` | INTEGER | Not null, Unix ms. |
+| `updated_at` | INTEGER | Not null, Unix ms. |
+
+Primary key: `id`. Foreign keys: `user_id` → `auth_user.id` on delete `CASCADE`. `org`, `name` and `issue_number` are all set for an `issue` block and all null for a `buffer` block. The issue is identified by its durable slug, so a block survives mirror pruning. Indexes:
+
+- `idx_state_day_block_user_date` on `(user_id, date)`.
+
+### `state_calendar_feed`
+
+One tokenized read-only ICS feed per viewer. The raw token is never stored: only its SHA-256 hex hash and the first eight characters as a hint. Creating a new feed rotates the row and invalidates the previous URL.
+
+| Column | Type | Constraints / notes |
+| :--- | :--- | :--- |
+| `user_id` | TEXT | Primary key; the viewer's `auth_user.id`, `ON DELETE CASCADE`. |
+| `token_hash` | TEXT | Not null; SHA-256 hex of the 43-character base64url token. |
+| `token_hint` | TEXT | Not null; the token's first eight characters, for display only. |
+| `created_at` | INTEGER | Not null, Unix ms. |
+
+Primary key: `user_id`. Foreign keys: `user_id` → `auth_user.id` on delete `CASCADE`. `token_hash` is unique, so one live feed row exists per token.
 
 ### `state_issue_event`
 
@@ -539,6 +611,10 @@ Indexes:
 | GitHub account link | `auth_account.accountId` | Forge account id stored as text for `providerId = 'github'`; compared with `mirror_user.external_id`. |
 | Funnel-local issue state | `(org, name, issue_number)` | Work notes, attachments and issue watches; durable across mirror pruning. |
 | Plan item | `(org, name, issue_number)` | One scheduled week per issue in `state_plan_item`; never written to GitHub and durable across mirror pruning. |
+| Working hours | `user_id` | Primary key of `state_work_hours`; one row per viewer, cascading with `auth_user.id`. |
+| Unavailable window | `id` | UUID; scoped to one viewer, with exactly one of `weekday` and `date` set. |
+| Day block | `id` | UUID; scoped to one viewer and one `date`, with local `start_minute` and `minutes`. |
+| Calendar feed | `user_id` | Primary key of `state_calendar_feed`; the URL token is stored only as a SHA-256 hash. |
 | Issue event | `id` | UUID; the observed issue is `(org, name, issue_number)` and rows are ordered by `at`. |
 | Issue delay | `id` | UUID; the delayed issue is `(org, name, issue_number)` and open rows have `ended_at IS NULL`. |
 | Notification | `id` | UUID; scoped to one `auth_user.id` and de-duplicated by `dedupe_key`. |
@@ -553,6 +629,10 @@ Foreign keys declared in the schema:
 | :--- | :--- | :--- |
 | `auth_session.userId` | `auth_user.id` | `CASCADE` |
 | `auth_account.userId` | `auth_user.id` | `CASCADE` |
+| `state_work_hours.user_id` | `auth_user.id` | `CASCADE` |
+| `state_unavailable_window.user_id` | `auth_user.id` | `CASCADE` |
+| `state_day_block.user_id` | `auth_user.id` | `CASCADE` |
+| `state_calendar_feed.user_id` | `auth_user.id` | `CASCADE` |
 | `mirror_thread.repo_id` | `mirror_repo.id` | `CASCADE` |
 | `mirror_thread.author_id` | `mirror_user.id` | `SET NULL` |
 | `mirror_milestone.repo_id` | `mirror_repo.id` | `CASCADE` |
@@ -563,7 +643,7 @@ Foreign keys declared in the schema:
 | `mirror_repo_assignee.user_id` | `mirror_user.id` | `CASCADE` |
 | `mirror_comment.author_id` | `mirror_user.id` | `SET NULL` |
 
-The composite child tables `mirror_thread_label` and `mirror_thread_assignee`, and the `repo_id`/`thread_number` columns on `mirror_comment`, carry no foreign key to `mirror_thread`. `mirror_thread.milestone_number` also has no foreign key to `mirror_milestone`: the milestone set is replaced wholesale on refresh, and a thread may briefly reference a number that has not been mirrored yet. The sync layer therefore deletes labels, assignees and comments explicitly before deleting a thread row (`deleteIssue` in `src/lib/server/sync/mirror.ts`). `state_work_note`, `state_attachment`, `state_notification`, `state_issue_watch`, `state_plan_item`, `state_issue_event` and `state_issue_delay` also carry no foreign key to the mirror: their author/uploader/recipient/actor identities are snapshots, and their issue identity is the durable `org/name` plus number.
+The composite child tables `mirror_thread_label` and `mirror_thread_assignee`, and the `repo_id`/`thread_number` columns on `mirror_comment`, carry no foreign key to `mirror_thread`. `mirror_thread.milestone_number` also has no foreign key to `mirror_milestone`: the milestone set is replaced wholesale on refresh, and a thread may briefly reference a number that has not been mirrored yet. The sync layer therefore deletes labels, assignees and comments explicitly before deleting a thread row (`deleteIssue` in `src/lib/server/sync/mirror.ts`). `state_work_note`, `state_attachment`, `state_notification`, `state_issue_watch`, `state_plan_item`, `state_issue_event`, `state_issue_delay`, `state_work_hours`, `state_unavailable_window`, `state_day_block` and `state_calendar_feed` also carry no foreign key to the mirror: their author/uploader/recipient/actor identities are snapshots, and their issue identity is the durable `org/name` plus number. The four day-planning tables reference `auth_user.id` directly with `ON DELETE CASCADE`, so deleting an account removes that viewer's hours, windows, blocks and feed token.
 
 ## Storage, pragmas and migrations
 

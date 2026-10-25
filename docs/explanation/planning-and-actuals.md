@@ -26,6 +26,12 @@ A hard cap on plan mutations makes the buffer real. Without it, a planner become
 
 The cap is deliberately not retroactive. GitHub remains authoritative for assignees and size, so a later edit can push a lane over. Funnel shows that state instead of rewriting the plan or blocking a GitHub edit it does not own. This is the same eventual-consistency trade-off as the rest of the mirror.
 
+## Days narrow the week
+
+A plan item records intent at week granularity; it does not say which hour. The **ALPEN** day view narrows one local day without becoming a second backlog: its candidates are the same open, sized issues from the Monday week, and a `state_day_block` is a timed placement of one of them. Working hours and blocked windows are personal, with `planning.work_defaults` as the instance fallback.
+
+The buffer is emitted as explicit `buffer` blocks rather than subtracted at read time, so the reserved slack is visible on the grid and survives a manual edit. Auto-plan spends at most `available − buffer`; a manual plan may overrun the window and the UI flags it. Funnel enforces hours only when it is the one choosing the blocks. The [calendar feed](../how-to/plan/plan-your-day.md#subscribe-outlook-to-the-calendar-feed) is a read-only projection of the same blocks, so nothing flows back from Outlook.
+
 ## Actual time is observed, not reconstructed
 
 Actual time is the union of open intervals whose status is `in-progress` or `in-review`. Both count because review is still time the team is carrying; the distinction between coding and waiting is useful, but neither is idle.
