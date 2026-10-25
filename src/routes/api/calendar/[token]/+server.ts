@@ -5,6 +5,8 @@
  * the capability. Unknown, revoked or rotated tokens are a bare `404`, and the
  * response is never framed as JSON so Outlook can subscribe directly.
  */
+import { hoursFromDefaults } from "#lib/planning/availability";
+import { getConfig } from "#lib/server/config";
 import { addDaysISO, localDateOf } from "#lib/time/zoned";
 import { buildCalendar, buildFeedEvents } from "#lib/server/calendar/ics";
 import {
@@ -29,13 +31,17 @@ const HEADERS = {
   "X-Robots-Tag": "noindex, nofollow",
 };
 
-export const GET: RequestHandler = ({ params }) => {
+export const GET: RequestHandler = async ({ params }) => {
   const owner = findCalendarFeed(params.token);
   if (!owner) return new Response("Not found", { status: 404 });
 
   const now = Date.now();
-  const hours = readWorkHours(owner.userId);
-  const timezone = hours?.timezone ?? "UTC";
+  const stored = readWorkHours(owner.userId);
+  // A viewer who minted a token before saving hours is interpreted in the
+  // admin's configured zone, not UTC.
+  const hours =
+    stored ?? hoursFromDefaults((await getConfig()).planning.work_defaults);
+  const timezone = hours.timezone;
   const today = localDateOf(now, timezone);
   const blocks = listDayBlocks(
     owner.userId,

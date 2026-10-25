@@ -4,10 +4,18 @@
  * No session, no role guard: the URL itself is the capability. A missing,
  * unknown or rotated token is a plain 404 with no calendar body.
  */
-import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  setSystemTime,
+  test,
+} from "bun:test";
 import { eq } from "drizzle-orm";
 import { localDateOf } from "#lib/time/zoned";
 import type { WorkHours } from "#lib/planning/availability";
+import { resetConfigCache, setConfig } from "#lib/server/config";
 import { db } from "#lib/server/db/index";
 import { authUser } from "#lib/server/db/schema";
 import {
@@ -18,6 +26,7 @@ import {
   writeWorkHours,
 } from "#lib/server/planning/day-store";
 import { resetPlanning, seedPlanningIssue, seedPlanningRepo } from "#tests/planning-helpers";
+import { TEST_CONFIG } from "#tests/test-config";
 import { GET } from "#/routes/api/calendar/[token]/+server";
 
 const USER = "feed_user";
@@ -95,6 +104,8 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  setSystemTime();
+  resetConfigCache();
   revokeCalendarFeed(USER);
   revokeCalendarFeed(UTC_USER);
   db.delete(authUser).where(eq(authUser.id, USER)).run();
@@ -149,9 +160,24 @@ describe("GET /api/calendar/[token]", () => {
     expect((await call(token)).status).toBe(200);
   });
 
-  test("no stored hours falls back to UTC", async () => {
+  test("no stored hours uses the admin work defaults", async () => {
+    setConfig({
+      ...TEST_CONFIG,
+      planning: {
+        ...TEST_CONFIG.planning,
+        work_defaults: {
+          timezone: "Europe/Berlin",
+          start_minute: 540,
+          end_minute: 1020,
+          work_days: [1, 2, 3, 4, 5],
+          buffer_percent: 20,
+        },
+      },
+    });
+    setSystemTime(new Date(Date.UTC(2026, 9, 25, 12, 0)));
+
     const utcToken = rotateCalendarFeed(UTC_USER).token;
-    replaceDayBlocks(UTC_USER, localDateOf(Date.now(), "UTC"), [
+    replaceDayBlocks(UTC_USER, "2026-10-24", [
       {
         startMinute: 540,
         minutes: 60,
@@ -164,6 +190,9 @@ describe("GET /api/calendar/[token]", () => {
 
     const res = await call(utcToken);
     expect(res.status).toBe(200);
-    expect(await res.text()).toContain("SUMMARY:FUNNEL-12 Write the feed");
+    const body = await res.text();
+    expect(body).toContain("SUMMARY:FUNNEL-12 Write the feed");
+    // Berlin 09:00 on 2026-10-24 is CEST, so 07:00Z — not the UTC fallback.
+    expect(body).toContain("DTSTART:20261024T070000Z");
   });
 });

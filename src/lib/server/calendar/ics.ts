@@ -8,6 +8,7 @@
  * windows over `today - 7` … `today + 42` in the viewer's timezone.
  */
 import {
+  DEFAULT_WORK_HOURS,
   issueRefKey,
   type DayWindow,
   type WorkHours,
@@ -51,16 +52,10 @@ export interface FeedInput {
 }
 
 /**
- * Used when a viewer minted a token before saving any working hours: UTC, all
- * day, every weekday. There is no durable row to read, so the feed still works.
+ * Defensive default when the pure generator is called without hours. The route
+ * always resolves real hours from the viewer row or the instance defaults.
  */
-const FALLBACK_HOURS: WorkHours = {
-  timezone: "UTC",
-  startMinute: 0,
-  endMinute: 1440,
-  workDays: [1, 2, 3, 4, 5, 6, 7],
-  bufferPercent: 0,
-};
+const FALLBACK_HOURS: WorkHours = DEFAULT_WORK_HOURS;
 
 /** Escape an RFC 5545 TEXT value: `\`, `;`, `,` and line breaks. */
 export function escapeText(value: string): string {
