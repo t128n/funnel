@@ -1,22 +1,33 @@
 <script lang="ts" module>
+	import { cn, type WithElementRef } from "#lib/utils.js";
+	import type { HTMLAttributes } from "svelte/elements";
+
 	export type BubbleVariant = "default" | "muted";
 
-	const variantClass: Record<BubbleVariant, string> = {
+	const bubbleSurface: Record<BubbleVariant, string> = {
 		default: "",
 		muted:
 			"*:data-[slot=bubble-content]:bg-muted *:data-[slot=bubble-content]:text-foreground"
 	};
 
-	/** Flat bubble variants: a bordered card box, or the muted counterpart. */
-	export function bubbleVariants(variant: BubbleVariant = "default"): string {
-		return variantClass[variant];
+	/**
+	 * Flat bubble variants: a bordered card box, or the muted counterpart.
+	 *
+	 * Returns the whole class set, like the other variant helpers, so a caller
+	 * that renders its own bubble element still gets the geometry.
+	 */
+	export function bubbleVariants({
+		variant = "default"
+	}: { variant?: BubbleVariant } = {}): string {
+		return cn(
+			"group/bubble relative flex w-fit max-w-[80%] min-w-0 flex-col gap-1",
+			"data-[align=end]:self-end group-data-[align=end]/message:self-end",
+			bubbleSurface[variant]
+		);
 	}
 </script>
 
 <script lang="ts">
-	import { cn, type WithElementRef } from "#lib/utils.js";
-	import type { HTMLAttributes } from "svelte/elements";
-
 	let {
 		ref = $bindable(null),
 		class: className,
@@ -35,12 +46,7 @@
 	data-slot="bubble"
 	data-variant={variant}
 	data-align={align}
-	class={cn(
-		"group/bubble relative flex w-fit max-w-[80%] min-w-0 flex-col gap-1",
-		"data-[align=end]:self-end group-data-[align=end]/message:self-end",
-		variantClass[variant],
-		className
-	)}
+	class={cn(bubbleVariants({ variant }), className)}
 	{...restProps}
 >
 	{@render children?.()}

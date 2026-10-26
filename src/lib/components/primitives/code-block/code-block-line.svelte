@@ -1,8 +1,11 @@
 <script lang="ts" module>
+	import { cn, type WithElementRef } from "#lib/utils.js";
+	import type { HTMLAttributes } from "svelte/elements";
+
 	export type CodeBlockLineVariant = "default" | "added" | "removed" | "highlighted";
 
 	/** Diff line tones; colour stays on the line, never on the block edge. */
-	const variantClass: Record<CodeBlockLineVariant, string> = {
+	const lineSurface: Record<CodeBlockLineVariant, string> = {
 		default: "",
 		added: "bg-muted after:content-['+']",
 		removed: "bg-destructive/10 text-destructive after:content-['−']",
@@ -16,16 +19,26 @@
 		class?: string;
 	};
 
-	/** Line tone helper kept for the barrel API. */
-	export function codeBlockLineVariants(variant: CodeBlockLineVariant = "default"): string {
-		return variantClass[variant];
+	/**
+	 * Line tone helper kept for the barrel API. Returns the whole row class
+	 * set, like the other variant helpers.
+	 */
+	export function codeBlockLineVariants({
+		variant = "default"
+	}: { variant?: CodeBlockLineVariant } = {}): string {
+		return cn(
+			"relative block min-h-[1lh] -mx-3 px-3",
+			"group-data-[size=sm]/code-block:-mx-2.5 group-data-[size=sm]/code-block:px-2.5",
+			"in-data-numbered:col-span-2 in-data-numbered:grid in-data-numbered:grid-cols-subgrid in-data-numbered:gap-x-3 in-data-numbered:[counter-increment:line]",
+			"in-data-numbered:before:min-w-6 in-data-numbered:before:text-end in-data-numbered:before:text-muted-foreground in-data-numbered:before:content-[counter(line)] in-data-numbered:before:select-none",
+			"in-data-numbered:supports-[content:counter(line)_/_'']:before:content-[counter(line)_/_'']",
+			"after:absolute after:start-1 after:top-0 after:text-muted-foreground after:select-none",
+			lineSurface[variant]
+		);
 	}
 </script>
 
 <script lang="ts">
-	import { cn, type WithElementRef } from "#lib/utils.js";
-	import type { HTMLAttributes } from "svelte/elements";
-
 	let {
 		ref = $bindable(null),
 		class: className,
@@ -47,16 +60,7 @@
 	bind:this={ref}
 	data-slot="code-block-line"
 	data-variant={variant}
-	class={cn(
-		"relative block min-h-[1lh] -mx-3 px-3",
-		"group-data-[size=sm]/code-block:-mx-2.5 group-data-[size=sm]/code-block:px-2.5",
-		"in-data-numbered:col-span-2 in-data-numbered:grid in-data-numbered:grid-cols-subgrid in-data-numbered:gap-x-3 in-data-numbered:[counter-increment:line]",
-		"in-data-numbered:before:min-w-6 in-data-numbered:before:text-end in-data-numbered:before:text-muted-foreground in-data-numbered:before:content-[counter(line)] in-data-numbered:before:select-none",
-		"in-data-numbered:supports-[content:counter(line)_/_'']:before:content-[counter(line)_/_'']",
-		"after:absolute after:start-1 after:top-0 after:text-muted-foreground after:select-none",
-		variantClass[variant],
-		className
-	)}
+	class={cn(codeBlockLineVariants({ variant }), className)}
 	{...restProps}
 >
 	<span data-slot="code-block-line-content" class="min-w-0">

@@ -22,6 +22,9 @@
 	let timeout: ReturnType<typeof setTimeout> | undefined;
 
 	function copy() {
+		// `navigator.clipboard` is absent outside a secure context; the button
+		// must stay inert there instead of throwing on click.
+		if (!navigator.clipboard?.writeText) return;
 		navigator.clipboard
 			.writeText(value)
 			.then(() => {
