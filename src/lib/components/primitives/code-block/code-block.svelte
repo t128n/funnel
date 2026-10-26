@@ -1,21 +1,16 @@
 <script lang="ts" module>
-	import { tv, type VariantProps } from "tailwind-variants";
-
-	export const codeBlockVariants = tv({
-		base: "rounded-lg text-sm data-[size=sm]:text-xs has-[>[data-slot=code-block-content]:focus-visible]:ring-3 has-[>[data-slot=code-block-content]:focus-visible]:ring-ring/50 group/code-block relative flex w-full min-w-0 flex-col overflow-hidden",
-		variants: {
-			variant: {
-				default: "border border-input text-foreground dark:bg-input/30 has-[>[data-slot=code-block-content]:focus-visible]:border-ring",
-				destructive: "border border-destructive/30 text-destructive dark:border-destructive/40",
-			},
-		},
-		defaultVariants: {
-			variant: "default",
-		},
-	});
-
-	export type CodeBlockVariant = VariantProps<typeof codeBlockVariants>["variant"];
+	export type CodeBlockVariant = "default" | "destructive";
 	export type CodeBlockSize = "default" | "sm";
+
+	const variantClass: Record<CodeBlockVariant, string> = {
+		default: "border-border bg-card text-foreground",
+		destructive: "border-destructive/30 text-destructive"
+	};
+
+	/** Flat code surface: 1px edge and the token surface only. */
+	export function codeBlockVariants(variant: CodeBlockVariant = "default"): string {
+		return variantClass[variant];
+	}
 </script>
 
 <script lang="ts">
@@ -40,7 +35,12 @@
 	data-slot="code-block"
 	data-variant={variant}
 	data-size={size}
-	class={cn(codeBlockVariants({ variant }), className)}
+	class={cn(
+		"group/code-block relative flex w-full min-w-0 flex-col overflow-hidden rounded-xs border text-sm",
+		"data-[size=sm]:text-xs",
+		variantClass[variant],
+		className
+	)}
 	{...restProps}
 >
 	{@render children?.()}

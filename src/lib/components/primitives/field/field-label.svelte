@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { Label } from "#lib/components/primitives/label/index.js";
+	import { labelText } from "#lib/components/primitives/styles.js";
 	import { cn } from "#lib/utils.js";
 	import type { ComponentProps } from "svelte";
 
@@ -15,8 +16,10 @@
 	bind:ref
 	data-slot="field-label"
 	class={cn(
-		"has-data-checked:bg-primary/5 has-data-checked:border-primary/30 dark:has-data-checked:border-primary/20 dark:has-data-checked:bg-primary/10 gap-2 leading-snug group-data-[disabled=true]/field:opacity-50 has-[>[data-slot=field]]:rounded-lg has-[>[data-slot=field]]:border has-[>[data-slot=field]]:not-has-[:disabled,[data-disabled]]:hover:bg-muted/50 has-[>[data-slot=field]]:has-[:focus-visible]:border-ring has-[>[data-slot=field]]:has-[:focus-visible]:ring-ring/50 has-[>[data-slot=field]]:has-[:focus-visible]:ring-3 *:data-[slot=field]:p-2.5 group/field-label peer/field-label flex w-fit",
-		"has-[>[data-slot=field]]:w-full has-[>[data-slot=field]]:flex-col",
+		labelText,
+		"group/field-label peer/field-label flex w-fit items-center gap-1.5 leading-snug select-none",
+		"group-data-[disabled=true]/field:pointer-events-none group-data-[disabled=true]/field:opacity-50",
+		"has-[>[data-slot=field]]:w-full has-[>[data-slot=field]]:flex-col has-[>[data-slot=field]]:rounded-xs has-[>[data-slot=field]]:border has-[>[data-slot=field]]:border-border has-[>[data-slot=field]]:p-2",
 		className
 	)}
 	{...restProps}

@@ -1,21 +1,16 @@
 <script lang="ts" module>
-	import { tv, type VariantProps } from "tailwind-variants";
-	export const inputGroupAddonVariants = tv({
-		base: "text-muted-foreground h-auto gap-2 py-1.5 text-sm font-medium group-data-[disabled=true]/input-group:opacity-50 [&>kbd]:rounded-[calc(var(--radius)_-_5px)] [&>svg:not([class*='size-'])]:size-4 flex cursor-text items-center justify-center select-none",
-		variants: {
-			align: {
-				"inline-start": "pl-2 has-[>button]:ml-[-0.3rem] has-[>kbd]:ml-[-0.15rem] order-first",
-				"inline-end": "pr-2 has-[>button]:mr-[-0.3rem] has-[>kbd]:mr-[-0.15rem] order-last",
-				"block-start": "px-2.5 pt-2 group-has-[>input]/input-group:pt-2 [.border-b]:pb-2 order-first w-full justify-start",
-				"block-end": "px-2.5 pb-2 group-has-[>input]/input-group:pb-2 [.border-t]:pt-2 order-last w-full justify-start",
-			},
-		},
-		defaultVariants: {
-			align: "inline-start",
-		},
-	});
+	export type InputGroupAddonAlign = "inline-start" | "inline-end" | "block-start" | "block-end";
 
-	export type InputGroupAddonAlign = VariantProps<typeof inputGroupAddonVariants>["align"];
+	/**
+	 * Addon placement inside the shell. `inline-*` sits beside the control,
+	 * `block-*` stacks above or below it.
+	 */
+	const alignClass: Record<InputGroupAddonAlign, string> = {
+		"inline-start": "order-first pl-2 has-[>button]:-ml-1 has-[>kbd]:-ml-0.5",
+		"inline-end": "order-last pr-2 has-[>button]:-mr-1 has-[>kbd]:-mr-0.5",
+		"block-start": "order-first w-full justify-start px-2 pt-2",
+		"block-end": "order-last w-full justify-start px-2 pb-2"
+	};
 </script>
 
 <script lang="ts">
@@ -38,12 +33,20 @@
 	role="group"
 	data-slot="input-group-addon"
 	data-align={align}
-	class={cn(inputGroupAddonVariants({ align }), className)}
+	class={cn(
+		"flex h-auto cursor-text items-center justify-center gap-1.5 py-1.5 text-sm font-medium text-muted-foreground select-none",
+		"group-has-[[data-slot=input-group-control]:disabled]:opacity-60",
+		"[&>svg:not([class*='size-'])]:size-4 [&>kbd]:rounded-xs",
+		alignClass[align],
+		className
+	)}
 	onclick={(e) => {
 		if ((e.target as HTMLElement).closest("button")) {
 			return;
 		}
-		e.currentTarget.parentElement?.querySelector("input")?.focus();
+		e.currentTarget.parentElement
+			?.querySelector<HTMLElement>("input, textarea")
+			?.focus();
 	}}
 	{...restProps}
 >

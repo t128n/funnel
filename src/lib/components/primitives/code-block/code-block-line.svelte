@@ -1,29 +1,25 @@
 <script lang="ts" module>
-	import { tv, type VariantProps } from "tailwind-variants";
+	export type CodeBlockLineVariant = "default" | "added" | "removed" | "highlighted";
 
-	export const codeBlockLineVariants = tv({
-		base: "-mx-3 px-3 in-data-numbered:gap-x-3 before:min-w-6 before:text-end before:text-muted-foreground after:start-1 after:text-muted-foreground group-data-[size=sm]/code-block:-mx-2.5 group-data-[size=sm]/code-block:px-2.5 relative block min-h-lh after:absolute after:top-0 after:select-none in-data-numbered:col-span-2 in-data-numbered:grid in-data-numbered:grid-cols-subgrid in-data-numbered:[counter-increment:line] in-data-numbered:before:content-[counter(line)] in-data-numbered:before:select-none in-data-numbered:supports-[content:counter(line)_/_'']:before:content-[counter(line)_/_'']",
-		variants: {
-			variant: {
-				default: "",
-				added: "bg-muted after:content-['+']",
-				removed: "bg-destructive/10 after:text-destructive after:content-['−']",
-				highlighted: "bg-muted",
-			},
-		},
-		defaultVariants: {
-			variant: "default",
-		},
-	});
+	/** Diff line tones; colour stays on the line, never on the block edge. */
+	const variantClass: Record<CodeBlockLineVariant, string> = {
+		default: "",
+		added: "bg-muted after:content-['+']",
+		removed: "bg-destructive/10 text-destructive after:content-['−']",
+		highlighted: "bg-muted"
+	};
 
-	export type CodeBlockLineVariant = VariantProps<typeof codeBlockLineVariants>["variant"];
-
-	// One highlighted token, such as one returned by `useHighlightedCode`.
+	/** One highlighted token, such as one returned by `useHighlightedCode`. */
 	export type CodeBlockLineToken = {
 		content: string;
 		style?: string;
 		class?: string;
 	};
+
+	/** Line tone helper kept for the barrel API. */
+	export function codeBlockLineVariants(variant: CodeBlockLineVariant = "default"): string {
+		return variantClass[variant];
+	}
 </script>
 
 <script lang="ts">
@@ -49,12 +45,22 @@
 <!-- An empty line holds a newline so copying a selection keeps blank lines. -->
 <span
 	bind:this={ref}
-	data-slot="code-block-line"data-variant={variant}
-	class={cn(codeBlockLineVariants({ variant }), className)}
+	data-slot="code-block-line"
+	data-variant={variant}
+	class={cn(
+		"relative block min-h-[1lh] -mx-3 px-3",
+		"group-data-[size=sm]/code-block:-mx-2.5 group-data-[size=sm]/code-block:px-2.5",
+		"in-data-numbered:col-span-2 in-data-numbered:grid in-data-numbered:grid-cols-subgrid in-data-numbered:gap-x-3 in-data-numbered:[counter-increment:line]",
+		"in-data-numbered:before:min-w-6 in-data-numbered:before:text-end in-data-numbered:before:text-muted-foreground in-data-numbered:before:content-[counter(line)] in-data-numbered:before:select-none",
+		"in-data-numbered:supports-[content:counter(line)_/_'']:before:content-[counter(line)_/_'']",
+		"after:absolute after:start-1 after:top-0 after:text-muted-foreground after:select-none",
+		variantClass[variant],
+		className
+	)}
 	{...restProps}
 >
-	<span data-slot="code-block-line-content"class="min-w-0">
-		{#if typeof code ==="string"}
+	<span data-slot="code-block-line-content" class="min-w-0">
+		{#if typeof code === "string"}
 			{code || newline}
 		{:else if code?.length}
 			{#each code as token, index (index)}

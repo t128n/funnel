@@ -7,6 +7,7 @@
 		ref = $bindable(null),
 		class: className,
 		child,
+		children,
 		...restProps
 	}: WithElementRef<HTMLAttributes<HTMLDivElement>> & {
 		child?: Snippet<[{ props: Record<string, unknown> }]>;
@@ -14,11 +15,13 @@
 
 	const mergedProps = $derived({
 		class: cn(
-			"rounded-xl border border-transparent px-3 py-2 text-sm leading-relaxed [button,a]:outline-none [button,a]:focus-visible:border-ring [button,a]:focus-visible:ring-3 [button,a]:focus-visible:ring-ring/50 group-data-[align=end]/bubble:self-end w-fit max-w-full min-w-0 overflow-hidden wrap-break-word [button]:text-left [button,a]:transition-colors",
+			"w-fit max-w-full min-w-0 overflow-hidden rounded-xs border border-border bg-card px-3 py-2 text-sm leading-relaxed text-card-foreground wrap-break-word",
+			"group-data-[align=end]/bubble:self-end",
+			"[button]:text-left [button,a]:transition-colors [button,a]:outline-none [button,a]:focus-visible:outline-2 [button,a]:focus-visible:outline-offset-1 [button,a]:focus-visible:outline-[var(--ring)]",
 			className
 		),
 		"data-slot": "bubble-content",
-		...restProps,
+		...restProps
 	});
 </script>
 
@@ -26,6 +29,6 @@
 	{@render child({ props: mergedProps })}
 {:else}
 	<div bind:this={ref} {...mergedProps}>
-		{@render mergedProps.children?.()}
+		{@render children?.()}
 	</div>
 {/if}
