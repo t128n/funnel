@@ -13,7 +13,7 @@
 <optgroup
 	bind:this={ref}
 	data-slot="native-select-optgroup"
-	class={cn("bg-[Canvas] text-[CanvasText]", className)}
+	class={cn("bg-popover text-popover-foreground", className)}
 	{...restProps}
 >
 	{@render children?.()}
