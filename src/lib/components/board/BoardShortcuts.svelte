@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { formatForDisplay } from '@tanstack/svelte-hotkeys';
 	import * as Popover from '#lib/components/primitives/popover';
+	import { Button } from '#lib/components/primitives/button';
 	import { Kbd, KbdGroup } from '#lib/components/primitives/kbd';
 	import { appHotkeys } from '#lib/client/hotkeys';
 	import KeyboardIcon from '@lucide/svelte/icons/keyboard';
@@ -31,11 +32,12 @@
 </script>
 
 <Popover.Root>
-	<Popover.Trigger
-		class="text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:ring-ring/50 inline-flex size-7 items-center justify-center rounded outline-none focus-visible:ring-1"
-		aria-label="Keyboard shortcuts"
-	>
-		<KeyboardIcon class="size-3.5" />
+	<Popover.Trigger>
+		{#snippet child({ props })}
+			<Button {...props} variant="ghost" size="icon-sm" aria-label="Keyboard shortcuts">
+				<KeyboardIcon />
+			</Button>
+		{/snippet}
 	</Popover.Trigger>
 	<Popover.Content align="end" class="w-64 gap-2 p-2">
 		<span class="text-muted-foreground text-xs font-medium tracking-wider uppercase">
@@ -47,7 +49,7 @@
 					<span class="text-xs">{row.label}</span>
 					<KbdGroup class="gap-1">
 						{#each row.keys as key (key)}
-							<Kbd class="h-4 min-w-4 px-1 text-[10px]">{displayKey(key)}</Kbd>
+							<Kbd class="h-4 min-w-4 px-1">{displayKey(key)}</Kbd>
 						{/each}
 					</KbdGroup>
 				</li>

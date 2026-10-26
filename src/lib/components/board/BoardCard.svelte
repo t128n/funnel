@@ -20,6 +20,7 @@
 <script lang="ts">
 	import * as DropdownMenu from '#lib/components/primitives/dropdown-menu/index.js';
 	import * as Tooltip from '#lib/components/primitives/tooltip/index.js';
+	import { Button } from '#lib/components/primitives/button';
 	import {
 		clearFocusedCard,
 		clearMenuRequest,
@@ -225,22 +226,24 @@
 		class="absolute top-1 right-1 flex items-center gap-0.5 opacity-100 transition-opacity md:opacity-0 md:group-hover/card:opacity-100 md:group-focus-within/card:opacity-100"
 	>
 		{#if canAssign}
-			<button
-				type="button"
-				class="text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:ring-ring/50 inline-flex size-5 items-center justify-center rounded-none outline-none focus-visible:ring-1"
+			<Button
+				variant="ghost"
+				size="icon-xs"
 				title="Assign to me"
 				aria-label="Assign to me"
 				onclick={() => void assignToMe(issue, viewer!)}
 			>
-				<UserPlusIcon class="size-3.5" />
-			</button>
+				<UserPlusIcon />
+			</Button>
 		{/if}
 		<DropdownMenu.Root bind:open={menuOpen}>
-			<DropdownMenu.Trigger
-				class="text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:ring-ring/50 inline-flex size-5 items-center justify-center rounded-none outline-none focus-visible:ring-1"
-			>
-				<EllipsisIcon class="size-3.5" />
-				<span class="sr-only">Issue actions</span>
+			<DropdownMenu.Trigger>
+				{#snippet child({ props })}
+					<Button {...props} variant="ghost" size="icon-xs">
+						<EllipsisIcon />
+						<span class="sr-only">Issue actions</span>
+					</Button>
+				{/snippet}
 			</DropdownMenu.Trigger>
 			<DropdownMenu.Content align="start" class="w-52">
 				<DropdownMenu.Label>Move to</DropdownMenu.Label>

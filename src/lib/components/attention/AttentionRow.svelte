@@ -85,7 +85,7 @@
 	<!-- Stretched link: the whole row opens the issue; controls layer above it. -->
 	<a
 		{href}
-		class="focus-visible:ring-ring/50 absolute inset-0 outline-none focus-visible:ring-1"
+		class="absolute inset-0"
 		aria-label={`Open ${issue.repo}#${issue.number}: ${issue.title}`}
 	></a>
 

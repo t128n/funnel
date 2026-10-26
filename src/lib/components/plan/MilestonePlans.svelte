@@ -64,7 +64,7 @@
 							size={18}
 						/>
 						<a
-							class="focus-visible:ring-ring/50 min-w-0 truncate rounded text-xs outline-none hover:underline focus-visible:ring-2"
+							class="min-w-0 truncate rounded text-xs hover:underline"
 							href={`https://github.com/${lane.maintainer.login}`}
 							target="_blank"
 							rel="noreferrer"
@@ -86,7 +86,7 @@
 							{#each lane.issues as issue (issueKey(issue.repo, issue.number))}
 								<li class="flex min-w-0 items-center gap-2">
 									<a
-										class="focus-visible:ring-ring/50 min-w-0 flex-1 truncate rounded text-[11px] outline-none hover:underline focus-visible:ring-2"
+										class="min-w-0 flex-1 truncate rounded text-[11px] hover:underline"
 										href={issuePath('issues', issue.repo, issue.number)}
 									>
 										<span class="text-muted-foreground me-1.5 tabular-nums">
@@ -118,7 +118,7 @@
 						<span class="text-muted-foreground">{plan.unestimated.length}</span>
 						{#each plan.unestimated as issue (issueKey(issue.repo, issue.number))}
 							<a
-								class="text-muted-foreground focus-visible:ring-ring/50 max-w-56 truncate rounded underline-offset-2 outline-none hover:underline focus-visible:ring-2"
+								class="text-muted-foreground max-w-56 truncate rounded underline-offset-2 hover:underline"
 								href={issuePath('issues', issue.repo, issue.number)}
 							>
 								{issue.repo}#{issue.number}

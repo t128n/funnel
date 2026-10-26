@@ -15,7 +15,6 @@
 		type BlockInfo,
 		type DelayReason
 	} from '#lib/funnel-metadata';
-	import { cn } from '#lib/utils';
 	import {
 		blockInfoPayload,
 		canSubmitBlock,
@@ -102,10 +101,10 @@
 >
 	<Dialog.Content aria-describedby={undefined} class="sm:max-w-lg">
 		<Dialog.Header>
-			<Dialog.Title class="text-base font-semibold">
+			<Dialog.Title>
 				{isBlock ? (revising ? 'Update block' : 'Block issue') : 'Unblock issue'}
 			</Dialog.Title>
-			<Dialog.Description class="text-muted-foreground text-xs">
+			<Dialog.Description>
 				{#if revising}
 					Revising why the issue is still blocked and when to re-check it. The summary is posted
 					as a comment and replaces the issue's stored blocker metadata.
@@ -178,9 +177,8 @@
 							{#each quickDates as option (option.label)}
 								<Button
 									type="button"
-									variant="ghost"
+									variant={recheck === option.value ? 'secondary' : 'ghost'}
 									size="sm"
-									class={cn(recheck === option.value && 'bg-accent text-foreground')}
 									title={option.value}
 									onclick={() => (recheck = option.value)}
 								>

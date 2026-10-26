@@ -4,6 +4,7 @@
 	import BoardCard from './BoardCard.svelte';
 	import { droppableLane, type LaneHandlers } from './dnd';
 	import type { IssueListItem, UserRef } from '#lib/server/issues/types';
+	import { Button } from '#lib/components/primitives/button';
 	import { cn } from '#lib/utils';
 
 	/**
@@ -232,14 +233,9 @@
 		{#if error}
 			<div class="text-destructive flex items-center justify-center gap-2 py-3 text-xs" role="alert">
 				<span class="min-w-0 truncate">{error}</span>
-				<button
-					type="button"
-					class="text-foreground hover:bg-accent focus-visible:ring-ring/50 shrink-0 rounded-[2px] px-1.5 py-0.5 font-medium underline-offset-2 outline-none hover:underline focus-visible:ring-1"
-					onclick={onLoadMore}
-					disabled={loading}
-				>
+				<Button variant="ghost" size="xs" class="shrink-0" onclick={onLoadMore} disabled={loading}>
 					Retry
-				</button>
+				</Button>
 			</div>
 		{/if}
 	</div>

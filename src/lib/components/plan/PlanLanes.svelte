@@ -60,7 +60,7 @@
 				<div class="bug-table-head flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
 					<span class="flex min-w-0 items-baseline gap-2">
 						<a
-							class="link focus-visible:ring-ring/50 min-w-0 truncate outline-none focus-visible:ring-2"
+							class="link min-w-0 truncate"
 							href={`https://github.com/${lane.maintainer.login}`}
 							target="_blank"
 							rel="noreferrer"
@@ -149,7 +149,7 @@
 		class="group/issue flex min-w-0 items-baseline gap-2 border-b border-[color:var(--border)] px-2 py-1 last:border-b-0"
 	>
 		<a
-			class="focus-visible:ring-ring/50 flex min-w-0 flex-1 items-baseline gap-2 outline-none focus-visible:ring-2"
+			class="flex min-w-0 flex-1 items-baseline gap-2"
 			href={issuePath('issues', issue.repo, issue.number)}
 		>
 			<span class="flag flag-muted shrink-0">{issue.repo}#{issue.number}</span>

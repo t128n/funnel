@@ -36,7 +36,7 @@
 		tone === 'over'
 			? 'bg-destructive'
 			: tone === 'near'
-				? 'bg-amber-500'
+				? 'bg-warning'
 				: 'bg-[var(--primary)]'
 	);
 </script>

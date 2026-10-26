@@ -97,8 +97,8 @@
 <Dialog.Root {open} onOpenChange={close}>
 	<Dialog.Content class="sm:max-w-lg" aria-describedby={undefined}>
 		<Dialog.Header>
-			<Dialog.Title class="text-base font-semibold">Add child</Dialog.Title>
-			<Dialog.Description class="text-muted-foreground text-xs">
+			<Dialog.Title>Add child</Dialog.Title>
+			<Dialog.Description>
 				Open issues that are not already in another epic. The full child list is written to the
 				epic issue body.
 			</Dialog.Description>
@@ -134,7 +134,7 @@
 							<button
 								type="button"
 								class={cn(
-									'focus-visible:ring-ring/50 flex w-full min-w-0 items-center gap-2 border-b border-[color:var(--border)] px-2.5 py-1.5 text-start text-xs outline-none last:border-b-0 focus-visible:ring-2',
+									'flex w-full min-w-0 items-center gap-2 border-b border-[color:var(--border)] px-2.5 py-1.5 text-start text-xs last:border-b-0',
 									selectedRef === candidate.ref
 										? 'bg-[var(--accent)]'
 										: 'hover:bg-[var(--accent)]'
