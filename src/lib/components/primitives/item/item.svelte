@@ -1,28 +1,31 @@
 <script lang="ts" module>
-	import { tv, type VariantProps } from "tailwind-variants";
+	import { cn } from "#lib/utils.js";
 
-	export const itemVariants = tv({
-		base: "[a]:hover:bg-muted rounded-lg border text-sm group/item flex w-full flex-wrap items-center transition-colors duration-100 outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 [a]:transition-colors",
-		variants: {
-			variant: {
-				default: "border-transparent",
-				outline: "border-border",
-				muted: "bg-muted/50 border-transparent",
-			},
-			size: {
-				default: "gap-2.5 px-3 py-2.5",
-				sm: "gap-2.5 px-3 py-2.5",
-				xs: "gap-2 px-2.5 py-2 in-data-[slot=dropdown-menu-content]:p-0",
-			},
-		},
-		defaultVariants: {
-			variant: "default",
-			size: "default",
-		},
-	});
+	export type ItemSize = "default" | "sm" | "xs";
+	export type ItemVariant = "default" | "outline";
 
-	export type ItemSize = VariantProps<typeof itemVariants>["size"];
-	export type ItemVariant = VariantProps<typeof itemVariants>["variant"];
+	/** Flat list row: square corners, 1px edge only when outlined. */
+	const itemSurface: Record<ItemVariant, string> = {
+		default: "border-transparent",
+		outline: "border-border"
+	};
+
+	const itemSpacing: Record<ItemSize, string> = {
+		default: "gap-2.5 px-3 py-2",
+		sm: "gap-2.5 px-3 py-2",
+		xs: "gap-2 px-2.5 py-1.5"
+	};
+
+	export function itemVariants({
+		variant = "default",
+		size = "default"
+	}: { variant?: ItemVariant; size?: ItemSize } = {}): string {
+		return cn(
+			"group/item flex w-full flex-wrap items-center rounded-none border text-sm transition-colors hover:bg-muted",
+			itemSurface[variant],
+			itemSpacing[size]
+		);
+	}
 </script>
 
 <script lang="ts">

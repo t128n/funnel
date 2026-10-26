@@ -1,20 +1,22 @@
 <script lang="ts" module>
-	import { tv, type VariantProps } from "tailwind-variants";
+	import { cn } from "#lib/utils.js";
 
-	export const emptyMediaVariants = tv({
-		base: "mb-2 flex shrink-0 items-center justify-center [&_svg]:pointer-events-none [&_svg]:shrink-0",
-		variants: {
-			variant: {
-				default: "bg-transparent",
-				icon: "bg-muted text-foreground flex size-8 shrink-0 items-center justify-center rounded-lg [&_svg:not([class*='size-'])]:size-4",
-			},
-		},
-		defaultVariants: {
-			variant: "default",
-		},
-	});
+	export type EmptyMediaVariant = "default" | "icon";
 
-	export type EmptyMediaVariant = VariantProps<typeof emptyMediaVariants>["variant"];
+	/** The empty state's media well: muted, square-ish, never a pill. */
+	const emptyMediaSurface: Record<EmptyMediaVariant, string> = {
+		default: "bg-transparent",
+		icon: "size-8 rounded-xs bg-muted text-muted-foreground"
+	};
+
+	export function emptyMediaVariants({
+		variant = "default"
+	}: { variant?: EmptyMediaVariant } = {}): string {
+		return cn(
+			"mb-2 flex shrink-0 items-center justify-center [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+			emptyMediaSurface[variant]
+		);
+	}
 </script>
 
 <script lang="ts">

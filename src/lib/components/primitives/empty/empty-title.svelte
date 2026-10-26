@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { cn, type WithElementRef } from "#lib/utils.js";
+	import { labelText } from "../styles.js";
 	import type { HTMLAttributes } from "svelte/elements";
 
 	let {
@@ -13,7 +14,7 @@
 <div
 	bind:this={ref}
 	data-slot="empty-title"
-	class={cn("text-sm font-medium tracking-tight", className)}
+	class={cn(labelText, "text-foreground", className)}
 	{...restProps}
 >
 	{@render children?.()}
