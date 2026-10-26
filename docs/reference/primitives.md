@@ -46,7 +46,7 @@ are exported alongside the components (`buttonVariants`, `ButtonVariant`).
 | Dialog | `#lib/components/primitives/dialog` | `Dialog`, `DialogContent`, `DialogHeader`, `DialogTitle`, `DialogDescription`, `DialogFooter`, `DialogOverlay`, `DialogPortal`, `DialogClose` | 4px panel, `text-xl` title, overlay `bg-foreground/25`; open the root with `bind:open` from a button. |
 | DropdownMenu | `#lib/components/primitives/dropdown-menu` | `DropdownMenu`, `DropdownMenuTrigger`, `DropdownMenuContent`, `DropdownMenuPortal`, `DropdownMenuItem`, `DropdownMenuLabel`, `DropdownMenuRadioGroup`, `DropdownMenuRadioItem`, `DropdownMenuSeparator` | Flat `rounded-none` rows, `data-[highlighted]` fill. |
 | Empty | `#lib/components/primitives/empty` | `Empty`, `EmptyHeader`, `EmptyMedia`, `EmptyTitle`, `EmptyDescription` | Muted media, no illustration chrome. |
-| Field | `#lib/components/primitives/field` | `Field`, `FieldSet`, `FieldLegend`, `FieldGroup`, `FieldLabel`, `FieldDescription` | Label is `text-xs font-semibold`; layout only. |
+| Field | `#lib/components/primitives/field` | `Field`, `FieldSet`, `FieldLegend`, `FieldGroup`, `FieldLabel`, `FieldDescription`, `FieldLabelVariant` | `FieldLabel` takes `variant`: `default` is the small-caps prompt, `choice` is a bordered radio-card label that takes the accent when its control is checked. |
 | Input | `#lib/components/primitives/input` | `Input`, `InputVariant` | `default`, `ghost` (borderless inline editor). |
 | InputGroup | `#lib/components/primitives/input-group` | `InputGroup`, `InputGroupAddon`, `InputGroupInput`, `InputGroupTextarea` | One 1px shell around a ghost field. |
 | Item | `#lib/components/primitives/item` | `Item`, `ItemContent`, `ItemTitle`, `ItemDescription`, `ItemActions` | `default`, `outline`; hover `bg-muted`, flat rows. |
@@ -74,6 +74,20 @@ are exported alongside the components (`buttonVariants`, `ButtonVariant`).
   <Input id="summary" variant="ghost" bind:value={summary} />
   <FieldDescription>Rendered as plain text when not editing.</FieldDescription>
 </Field>
+
+<FieldSet>
+  <FieldLegend>Visibility</FieldLegend>
+  <FieldGroup>
+    <FieldLabel variant="choice">
+      <input type="radio" name="visibility" value="public" bind:group={visibility} />
+      Public
+    </FieldLabel>
+    <FieldLabel variant="choice">
+      <input type="radio" name="visibility" value="private" bind:group={visibility} />
+      Private
+    </FieldLabel>
+  </FieldGroup>
+</FieldSet>
 
 <Select.Root type="single" bind:value={status}>
   <Select.Trigger variant="pill"><Select.Value placeholder="Status" /></Select.Trigger>

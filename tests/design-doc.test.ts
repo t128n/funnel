@@ -98,6 +98,13 @@ describe("reference/primitives.md", () => {
 		}
 	});
 
+	test("documents the Field.Label choice variant", () => {
+		const reference = readFileSync(referencePath, "utf8");
+		expect(reference).toContain("FieldLabelVariant");
+		expect(reference).toContain('variant="choice"');
+		expect(reference).toContain('type="radio"');
+	});
+
 	test("carries no shadcn or tailwind-variants references", () => {
 		const reference = readFileSync(referencePath, "utf8");
 		expect(reference.toLowerCase()).not.toContain("shadcn");
