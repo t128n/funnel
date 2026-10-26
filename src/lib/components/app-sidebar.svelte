@@ -93,18 +93,16 @@
 </script>
 
 <Sidebar.Root bind:ref {collapsible} {...restProps}>
-	<Sidebar.Header class="flex-col gap-1 border-b border-[color:var(--border)]">
+	<Sidebar.Header class="flex-col gap-1 border-b">
 		<Sidebar.Menu class="min-w-0">
 			<Sidebar.MenuItem>
 				<Sidebar.MenuButton size="lg" tooltipContent="funnel">
 					{#snippet child({ props })}
 						<a href="/" {...props}>
-							<span class="group-data-[collapsible=icon]:hidden truncate font-semibold tracking-tight">
-								funnel
-							</span>
+							<span class="group-data-[collapsible=icon]:hidden truncate">funnel</span>
 							<span
 								aria-hidden="true"
-								class="group-data-[collapsible=icon]:inline hidden font-semibold tracking-tight"
+								class="group-data-[collapsible=icon]:inline hidden"
 							>
 								f
 							</span>

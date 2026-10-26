@@ -33,7 +33,6 @@
 
 <ToggleGroup.Root
 	type="single"
-	size="sm"
 	variant="outline"
 	value={active}
 	onValueChange={onChange}

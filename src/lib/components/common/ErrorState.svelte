@@ -43,7 +43,7 @@
 	<div class="flex w-full max-w-md flex-col items-center gap-7 text-center">
 		<a
 			href="/"
-			class="text-muted-foreground hover:text-foreground focus-visible:ring-ring/50 inline-flex items-center gap-2 rounded-md text-sm font-medium outline-none focus-visible:ring-2"
+			class="link inline-flex items-center gap-2 text-sm font-medium"
 		>
 			<FunnelIcon class="size-4" />
 			Funnel

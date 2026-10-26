@@ -39,7 +39,7 @@
 	<aside
 		class={cn(
 			'flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden',
-			'max-[1000px]:bg-background max-[1000px]:absolute max-[1000px]:inset-y-0 max-[1000px]:right-0 max-[1000px]:z-40 max-[1000px]:w-[min(560px,100%)] max-[1000px]:border-l max-[1000px]:shadow-lg',
+			'max-[1000px]:bg-background max-[1000px]:absolute max-[1000px]:inset-y-0 max-[1000px]:right-0 max-[1000px]:z-40 max-[1000px]:w-[min(560px,100%)] max-[1000px]:border-l',
 			!detailOpen && 'max-[1000px]:hidden'
 		)}
 	>

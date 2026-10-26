@@ -141,7 +141,7 @@
 </script>
 
 <Popover.Root bind:open>
-	<Popover.Trigger class="link text-sm">
+	<Popover.Trigger class="link">
 		Filter{#if count > 0} ({count}){/if}
 	</Popover.Trigger>
 

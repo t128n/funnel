@@ -2,6 +2,7 @@
 	import { untrack } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
+	import { Input } from '#lib/components/primitives/input';
 	import { buildFilterUrl, parseFilterParams } from '#lib/url-filter';
 
 	/**
@@ -38,10 +39,10 @@
 	}
 </script>
 
-<input
+<Input
 	id="issue-search"
 	type="search"
-	class="border-[color:var(--input)] placeholder:text-muted-foreground h-7 w-full rounded-none border bg-transparent px-2 text-sm focus-visible:border-[color:var(--primary)]"
+	class="w-full"
 	placeholder="Search title, body, comments…"
 	value={search}
 	oninput={(e) => onInput(e.currentTarget.value)}

@@ -71,11 +71,10 @@
 	}
 </script>
 
-<InputGroup.Root
-	class="border-border bg-background hover:border-input has-[[data-slot=input-group-control]:focus-visible]:border-primary h-auto flex-col rounded-none border transition-colors duration-150 ease-out has-[[data-slot=input-group-control]:focus-visible]:ring-0"
->
+<InputGroup.Root class="h-auto flex-col">
 	<InputGroup.Textarea
-		class="min-h-16 px-3 py-2.5 text-[13px] leading-relaxed"
+		variant="ghost"
+		class="min-h-16 px-3 py-2.5 leading-relaxed"
 		placeholder={effectivePlaceholder}
 		value={value}
 		oninput={(event) => (value = event.currentTarget.value)}
@@ -133,17 +132,13 @@
 					</button>
 				</div>
 			{:else}
-				<Kbd.Root
-					class="text-muted-foreground hidden h-auto min-w-0 rounded-none bg-transparent px-0 font-sans text-[11px] font-normal sm:inline-flex"
-					aria-hidden="true"
-				>
+				<Kbd.Root class="hidden h-auto min-w-0 sm:inline-flex" aria-hidden="true">
 					{isMac ? '⌘' : 'Ctrl'}↵
 				</Kbd.Root>
 			{/if}
 			<Button
 				variant={canSubmit ? 'default' : 'ghost'}
 				size="sm"
-				class="rounded-none"
 				onclick={onsubmit}
 				disabled={!canSubmit}
 				title={effectiveLabel}

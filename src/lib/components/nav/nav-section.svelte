@@ -44,7 +44,7 @@
 	const open = $derived(!canCollapse || !collapsed || forceOpen);
 
 	const headingClass =
-		'group-data-[collapsible=icon]:hidden flex h-7 w-full shrink-0 items-center gap-1.5 border-t border-[color:var(--border)] px-2 text-xs font-semibold tracking-wider uppercase';
+		'group-data-[collapsible=icon]:hidden text-muted-foreground flex h-7 w-full shrink-0 items-center gap-1.5 border-t border-border px-2 text-xs font-semibold tracking-wider uppercase hover:text-foreground';
 </script>
 
 <Sidebar.Group class={cn('gap-1', className)}>
@@ -57,19 +57,14 @@
 	>
 		{#if label}
 			{#if canCollapse}
-				<Collapsible.Trigger
-					class={cn(
-						headingClass,
-						'text-muted-foreground hover:text-foreground focus-visible:ring-sidebar-ring transition-colors outline-hidden focus-visible:ring-2'
-					)}
-				>
+				<Collapsible.Trigger class={headingClass}>
 					<span class="w-2 shrink-0 text-center font-mono" aria-hidden="true">
 						{open ? '−' : '+'}
 					</span>
 					<span class="truncate">{label}</span>
 				</Collapsible.Trigger>
 			{:else}
-				<div class={cn(headingClass, 'text-muted-foreground')}>
+				<div class={headingClass}>
 					<span class="truncate">{label}</span>
 				</div>
 			{/if}

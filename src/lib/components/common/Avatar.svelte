@@ -14,7 +14,6 @@
 </script>
 
 <Avatar.Root
-	class="after:rounded-full"
 	style="width:{size}px;height:{size}px;font-size:{Math.round(size * 0.55)}px"
 	title={login}
 >
