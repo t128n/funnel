@@ -6,7 +6,7 @@
 	import SingleSelect from '#lib/components/common/SingleSelect.svelte';
 	import DetailShell from '#lib/components/detail/DetailShell.svelte';
 	import DuplicateDialog from '#lib/components/inbox/DuplicateDialog.svelte';
-	import { Button } from '#lib/components/ui/button';
+	import { Button } from '#lib/components/primitives/button';
 	import { SIZE_OPTIONS, labelTint } from '#lib/labels';
 	import { removeSubmission, restoreSubmission } from '#lib/client/optimistic.svelte';
 	import { clearSelection } from '#lib/client/selection.svelte';

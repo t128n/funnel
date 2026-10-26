@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { createHotkey } from "@tanstack/svelte-hotkeys";
 	import { appHotkeys } from "#lib/client/hotkeys";
-	import * as Tooltip from "#lib/components/ui/tooltip/index.js";
+	import * as Tooltip from "#lib/components/primitives/tooltip/index.js";
 	import { cn, type WithElementRef } from "#lib/utils.js";
 	import {
 		SIDEBAR_COOKIE_MAX_AGE,

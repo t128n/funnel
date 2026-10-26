@@ -1,8 +1,8 @@
 <script lang="ts">
 	import ExternalLinkIcon from '@lucide/svelte/icons/external-link';
-	import { Badge } from '#lib/components/ui/badge';
-	import { Button } from '#lib/components/ui/button';
-	import * as Card from '#lib/components/ui/card';
+	import { Badge } from '#lib/components/primitives/badge';
+	import { Button } from '#lib/components/primitives/button';
+	import * as Card from '#lib/components/primitives/card';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();

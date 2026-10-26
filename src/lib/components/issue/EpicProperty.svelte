@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { invalidateAll } from '$app/navigation';
 	import Spinner from '#lib/components/common/Spinner.svelte';
-	import { Button } from '#lib/components/ui/button';
+	import { Button } from '#lib/components/primitives/button';
 	import type { EpicRef } from '#lib/server/issues/types';
 	import LayersIcon from '@lucide/svelte/icons/layers';
 	import {

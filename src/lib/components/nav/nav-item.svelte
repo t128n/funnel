@@ -1,5 +1,5 @@
 <script lang="ts">
-	import * as Sidebar from '#lib/components/ui/sidebar/index.js';
+	import * as Sidebar from '#lib/components/primitives/sidebar/index.js';
 	import { cn } from '#lib/utils.js';
 
 	/**

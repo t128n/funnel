@@ -1,6 +1,6 @@
 <script lang="ts">
 	import Avatar from '#lib/components/common/Avatar.svelte';
-	import { Button } from '#lib/components/ui/button';
+	import { Button } from '#lib/components/primitives/button';
 	import { attachmentUrl } from '#lib/client/mutations';
 	import { timeAgo } from '#lib/client/clock.svelte';
 	import { absoluteTime } from '#lib/time';

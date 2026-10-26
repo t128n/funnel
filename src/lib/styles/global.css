@@ -1,6 +1,4 @@
 @import "tailwindcss";
-@import "tw-animate-css";
-@import "shadcn-svelte/tailwind.css";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -113,6 +111,15 @@
   /* Monospace identifiers: issue numbers, shas, tags. */
   .mono {
     @apply font-mono tabular-nums;
+  }
+
+  /* Scrollable rails without a visible track (command lists, side rails). */
+  .no-scrollbar {
+    scrollbar-width: none;
+  }
+
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
   }
 
   /* Plain-text fallback: preserved author formatting for a body that has been

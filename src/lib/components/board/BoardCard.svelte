@@ -18,8 +18,8 @@
 </script>
 
 <script lang="ts">
-	import * as DropdownMenu from '#lib/components/ui/dropdown-menu/index.js';
-	import * as Tooltip from '#lib/components/ui/tooltip/index.js';
+	import * as DropdownMenu from '#lib/components/primitives/dropdown-menu/index.js';
+	import * as Tooltip from '#lib/components/primitives/tooltip/index.js';
 	import {
 		clearFocusedCard,
 		clearMenuRequest,

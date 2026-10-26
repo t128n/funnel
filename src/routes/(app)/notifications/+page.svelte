@@ -4,8 +4,8 @@
 	import Avatar from '#lib/components/common/Avatar.svelte';
 	import PageHead from '#lib/components/common/PageHead.svelte';
 	import Spinner from '#lib/components/common/Spinner.svelte';
-	import * as Empty from '#lib/components/ui/empty';
-	import { Button } from '#lib/components/ui/button';
+	import * as Empty from '#lib/components/primitives/empty';
+	import { Button } from '#lib/components/primitives/button';
 	import { timeAgo } from '#lib/client/clock.svelte';
 	import { markNotificationsRead } from '#lib/client/mutations';
 	import { enableNativeNotifications, NATIVE_NOTIFICATIONS_KEY } from '#lib/client/native-notifications';

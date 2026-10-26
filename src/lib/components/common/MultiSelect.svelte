@@ -1,7 +1,7 @@
 <script lang="ts">
-	import { Badge } from '#lib/components/ui/badge';
-	import * as Command from '#lib/components/ui/command';
-	import * as Popover from '#lib/components/ui/popover';
+	import { Badge } from '#lib/components/primitives/badge';
+	import * as Command from '#lib/components/primitives/command';
+	import * as Popover from '#lib/components/primitives/popover';
 	import {
 		selectTriggerChevron,
 		selectTriggerClass

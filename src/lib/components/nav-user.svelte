@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { goto } from "$app/navigation";
-	import * as Sidebar from "#lib/components/ui/sidebar/index.js";
+	import * as Sidebar from "#lib/components/primitives/sidebar/index.js";
 	import NavItem from "#lib/components/nav/nav-item.svelte";
 	import { signOut } from "#lib/client/auth";
 	import type { Role } from "#lib/roles";

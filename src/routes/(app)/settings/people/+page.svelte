@@ -1,10 +1,10 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import { toast } from 'svelte-sonner';
-	import * as Avatar from '#lib/components/ui/avatar';
-	import { Button } from '#lib/components/ui/button';
-	import * as Card from '#lib/components/ui/card';
-	import * as NativeSelect from '#lib/components/ui/native-select';
+	import * as Avatar from '#lib/components/primitives/avatar';
+	import { Button } from '#lib/components/primitives/button';
+	import * as Card from '#lib/components/primitives/card';
+	import * as NativeSelect from '#lib/components/primitives/native-select';
 	import { ROLES, type Role } from '#lib/roles';
 	import type { PageProps } from './$types';
 

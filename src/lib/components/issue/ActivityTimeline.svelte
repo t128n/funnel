@@ -9,10 +9,10 @@
 
 <script lang="ts">
 	import Avatar from '#lib/components/common/Avatar.svelte';
-	import * as Bubble from '#lib/components/ui/bubble';
-	import { Button } from '#lib/components/ui/button';
-	import * as Message from '#lib/components/ui/message';
-	import { Textarea } from '#lib/components/ui/textarea';
+	import * as Bubble from '#lib/components/primitives/bubble';
+	import { Button } from '#lib/components/primitives/button';
+	import * as Message from '#lib/components/primitives/message';
+	import { Textarea } from '#lib/components/primitives/textarea';
 	import { timeAgo } from '#lib/client/clock.svelte';
 	import { absoluteTime } from '#lib/time';
 	import type { RenderedComment, RenderedWorkNote } from '#lib/server/issues/types';

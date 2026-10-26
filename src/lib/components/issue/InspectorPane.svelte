@@ -19,10 +19,10 @@
 	import RecordDelayDialog from '#lib/components/issue/RecordDelayDialog.svelte';
 	import { delayReasonLabel } from '#lib/components/issue/inspector-format';
 	import PriorityPicker from '#lib/components/issue/PriorityPicker.svelte';
-	import * as Alert from '#lib/components/ui/alert';
-	import { Button } from '#lib/components/ui/button';
-	import { Input } from '#lib/components/ui/input';
-	import { Textarea } from '#lib/components/ui/textarea';
+	import * as Alert from '#lib/components/primitives/alert';
+	import { Button } from '#lib/components/primitives/button';
+	import { Input } from '#lib/components/primitives/input';
+	import { Textarea } from '#lib/components/primitives/textarea';
 	import {
 		addIssueComment,
 		addIssueLabels,

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { getGroupBy, setGroupBy } from '#lib/client/list-prefs.svelte';
-	import * as DropdownMenu from '#lib/components/ui/dropdown-menu/index.js';
+	import * as DropdownMenu from '#lib/components/primitives/dropdown-menu/index.js';
 	import type { GroupKey, ProjectOption } from '#lib/components/issue/grouping';
 
 	interface Props {

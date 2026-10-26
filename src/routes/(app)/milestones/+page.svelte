@@ -1,6 +1,6 @@
 <script lang="ts">
 	import PageHead from '#lib/components/common/PageHead.svelte';
-	import * as Empty from '#lib/components/ui/empty';
+	import * as Empty from '#lib/components/primitives/empty';
 	import type { MilestoneItem } from '#lib/server/issues/types';
 	import type { PageProps } from './$types';
 

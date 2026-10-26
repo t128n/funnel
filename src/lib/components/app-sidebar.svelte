@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { page } from "$app/state";
 	import type { ComponentProps } from "svelte";
-	import * as Sidebar from "#lib/components/ui/sidebar/index.js";
+	import * as Sidebar from "#lib/components/primitives/sidebar/index.js";
 	import NavItem from "#lib/components/nav/nav-item.svelte";
 	import NavSection from "#lib/components/nav/nav-section.svelte";
 	import { isWorkspaceCollapsed, toggleWorkspace } from "#lib/client/sidebar-prefs.svelte";

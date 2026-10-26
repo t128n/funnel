@@ -1,11 +1,11 @@
 <script lang="ts">
 	import { invalidateAll } from '$app/navigation';
 	import Spinner from '#lib/components/common/Spinner.svelte';
-	import { Button } from '#lib/components/ui/button';
-	import * as Dialog from '#lib/components/ui/dialog';
-	import * as Empty from '#lib/components/ui/empty';
-	import * as Field from '#lib/components/ui/field';
-	import { Input } from '#lib/components/ui/input';
+	import { Button } from '#lib/components/primitives/button';
+	import * as Dialog from '#lib/components/primitives/dialog';
+	import * as Empty from '#lib/components/primitives/empty';
+	import * as Field from '#lib/components/primitives/field';
+	import { Input } from '#lib/components/primitives/input';
 	import { cn } from '#lib/utils';
 	import {
 		addChildRequest,

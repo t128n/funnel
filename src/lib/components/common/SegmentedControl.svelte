@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import * as ToggleGroup from '#lib/components/ui/toggle-group/index.js';
+	import * as ToggleGroup from '#lib/components/primitives/toggle-group/index.js';
 
 	/**
 	 * Presentational segmented control: a set of mutually exclusive options.

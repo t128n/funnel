@@ -1,9 +1,9 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import Spinner from '#lib/components/common/Spinner.svelte';
-	import { Button } from '#lib/components/ui/button';
-	import * as InputGroup from '#lib/components/ui/input-group';
-	import * as Kbd from '#lib/components/ui/kbd';
+	import { Button } from '#lib/components/primitives/button';
+	import * as InputGroup from '#lib/components/primitives/input-group';
+	import * as Kbd from '#lib/components/primitives/kbd';
 
 	/**
 	 * The embedded action composer: a plain bordered textarea with text-link

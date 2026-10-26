@@ -14,8 +14,8 @@
 
 <script lang="ts">
 	import { invalidateAll } from '$app/navigation';
-	import * as Empty from '#lib/components/ui/empty';
-	import { Button } from '#lib/components/ui/button';
+	import * as Empty from '#lib/components/primitives/empty';
+	import { Button } from '#lib/components/primitives/button';
 	import { formatMinutes } from '#lib/planning';
 	import type { DayBlockInput, DayCandidate } from '#lib/planning/day-plan';
 	import { formatClock, parseClock } from '#lib/time/zoned';

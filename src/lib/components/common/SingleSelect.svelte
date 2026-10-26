@@ -1,5 +1,5 @@
 <script lang="ts">
-	import * as Select from '#lib/components/ui/select';
+	import * as Select from '#lib/components/primitives/select';
 	import { selectTriggerClass } from '#lib/components/common/select-trigger';
 	import { cn } from '#lib/utils';
 	import type { Snippet } from 'svelte';

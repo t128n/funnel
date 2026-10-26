@@ -5,7 +5,7 @@
 	import IssueListHeader from './IssueListHeader.svelte';
 	import IssueRow from './IssueRow.svelte';
 	import type { ProjectOption } from './grouping';
-	import * as Empty from '#lib/components/ui/empty';
+	import * as Empty from '#lib/components/primitives/empty';
 	import type { Feed } from '#lib/client/feed.svelte';
 	import { getGroupBy, isGroupCollapsed, toggleGroup } from '#lib/client/list-prefs.svelte';
 	import { flattenIssueRows } from '#lib/feeds';

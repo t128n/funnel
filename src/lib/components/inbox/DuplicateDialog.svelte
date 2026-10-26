@@ -3,10 +3,10 @@
 	import { enhance } from '$app/forms';
 	import Spinner from '#lib/components/common/Spinner.svelte';
 	import SingleSelect from '#lib/components/common/SingleSelect.svelte';
-	import * as Alert from '#lib/components/ui/alert';
-	import { Button } from '#lib/components/ui/button';
-	import * as Dialog from '#lib/components/ui/dialog';
-	import * as Field from '#lib/components/ui/field';
+	import * as Alert from '#lib/components/primitives/alert';
+	import { Button } from '#lib/components/primitives/button';
+	import * as Dialog from '#lib/components/primitives/dialog';
+	import * as Field from '#lib/components/primitives/field';
 	import { fetchRepoIssues } from '#lib/client/mutations';
 	import type { IssueOption } from '#lib/server/issues/types';
 

@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
-	import * as Popover from '#lib/components/ui/popover';
+	import * as Popover from '#lib/components/primitives/popover';
 	import MultiSelect from '#lib/components/common/MultiSelect.svelte';
 	import { SIZE_OPTIONS, STATUS_OPTIONS } from '#lib/labels';
 	import { PRIORITY_SCALE } from '#lib/priority';

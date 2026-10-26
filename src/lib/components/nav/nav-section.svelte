@@ -1,6 +1,6 @@
 <script lang="ts">
-	import * as Collapsible from '#lib/components/ui/collapsible';
-	import * as Sidebar from '#lib/components/ui/sidebar/index.js';
+	import * as Collapsible from '#lib/components/primitives/collapsible';
+	import * as Sidebar from '#lib/components/primitives/sidebar/index.js';
 	import { cn } from '#lib/utils.js';
 	import type { Snippet } from 'svelte';
 

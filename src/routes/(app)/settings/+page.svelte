@@ -3,9 +3,9 @@
 	import ArrowLeftIcon from '@lucide/svelte/icons/arrow-left';
 	import ExternalLinkIcon from '@lucide/svelte/icons/external-link';
 	import LogOutIcon from '@lucide/svelte/icons/log-out';
-	import * as Avatar from '#lib/components/ui/avatar';
-	import { Button } from '#lib/components/ui/button';
-	import * as Card from '#lib/components/ui/card';
+	import * as Avatar from '#lib/components/primitives/avatar';
+	import { Button } from '#lib/components/primitives/button';
+	import * as Card from '#lib/components/primitives/card';
 	import { signOut } from '#lib/client/auth';
 	import type { PageProps } from './$types';
 

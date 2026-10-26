@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { formatForDisplay } from '@tanstack/svelte-hotkeys';
-	import * as Popover from '#lib/components/ui/popover';
-	import { Kbd, KbdGroup } from '#lib/components/ui/kbd';
+	import * as Popover from '#lib/components/primitives/popover';
+	import { Kbd, KbdGroup } from '#lib/components/primitives/kbd';
 	import { appHotkeys } from '#lib/client/hotkeys';
 	import KeyboardIcon from '@lucide/svelte/icons/keyboard';
 

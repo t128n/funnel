@@ -2,11 +2,11 @@
 	import FunnelIcon from '@lucide/svelte/icons/funnel';
 	import { untrack } from 'svelte';
 	import PageHead from '#lib/components/common/PageHead.svelte';
-	import { Button } from '#lib/components/ui/button';
-	import * as Card from '#lib/components/ui/card';
-	import * as Field from '#lib/components/ui/field';
-	import { Input } from '#lib/components/ui/input';
-	import * as NativeSelect from '#lib/components/ui/native-select';
+	import { Button } from '#lib/components/primitives/button';
+	import * as Card from '#lib/components/primitives/card';
+	import * as Field from '#lib/components/primitives/field';
+	import { Input } from '#lib/components/primitives/input';
+	import * as NativeSelect from '#lib/components/primitives/native-select';
 	import OnboardingSteps from '#lib/components/onboarding/onboarding-steps.svelte';
 	import type { PageProps } from './$types';
 

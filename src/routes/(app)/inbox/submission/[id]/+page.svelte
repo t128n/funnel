@@ -1,5 +1,5 @@
 <script lang="ts">
-	import * as Empty from '#lib/components/ui/empty';
+	import * as Empty from '#lib/components/primitives/empty';
 	import PageHead from '#lib/components/common/PageHead.svelte';
 	import SubmissionDetail from '#lib/components/inbox/SubmissionDetail.svelte';
 	import type { RenderedSubmission } from '#lib/server/issues/types';

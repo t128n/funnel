@@ -1,9 +1,9 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
-	import { Button } from '#lib/components/ui/button';
-	import * as Card from '#lib/components/ui/card';
-	import * as Field from '#lib/components/ui/field';
-	import { Input } from '#lib/components/ui/input';
+	import { Button } from '#lib/components/primitives/button';
+	import * as Card from '#lib/components/primitives/card';
+	import * as Field from '#lib/components/primitives/field';
+	import { Input } from '#lib/components/primitives/input';
 	import { formatClock, parseClock } from '#lib/time/zoned';
 	import type { PageProps } from './$types';
 

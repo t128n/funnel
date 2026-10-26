@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Spinner as SpinnerIcon } from '#lib/components/ui/spinner';
+	import { Spinner as SpinnerIcon } from '#lib/components/primitives/spinner';
 
 	interface Props {
 		/** Diameter in px. */

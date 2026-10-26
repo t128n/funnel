@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
-	import * as Card from '#lib/components/ui/card';
+	import * as Card from '#lib/components/primitives/card';
 	import SettingsForm from '#lib/components/settings/settings-form.svelte';
 	import type { SettingsFormResult } from '#lib/components/settings/sections';
 	import type { PageProps } from './$types';

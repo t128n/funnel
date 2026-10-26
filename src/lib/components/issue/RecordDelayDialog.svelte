@@ -1,12 +1,12 @@
 <script lang="ts">
 	import { invalidateAll } from '$app/navigation';
 	import Spinner from '#lib/components/common/Spinner.svelte';
-	import * as Alert from '#lib/components/ui/alert';
-	import { Button } from '#lib/components/ui/button';
-	import * as Dialog from '#lib/components/ui/dialog';
-	import * as Field from '#lib/components/ui/field';
-	import * as NativeSelect from '#lib/components/ui/native-select';
-	import { Textarea } from '#lib/components/ui/textarea';
+	import * as Alert from '#lib/components/primitives/alert';
+	import { Button } from '#lib/components/primitives/button';
+	import * as Dialog from '#lib/components/primitives/dialog';
+	import * as Field from '#lib/components/primitives/field';
+	import * as NativeSelect from '#lib/components/primitives/native-select';
+	import { Textarea } from '#lib/components/primitives/textarea';
 	import {
 		DELAY_REASONS,
 		type DelayReason

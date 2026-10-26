@@ -5,7 +5,7 @@
 	import EpicChildTable from '#lib/components/epics/EpicChildTable.svelte';
 	import EpicRollups from '#lib/components/epics/EpicRollups.svelte';
 	import { epicChildErrorMessage, removeChildRequest, type EpicCandidate } from '#lib/components/epics/epic-actions';
-	import { Button } from '#lib/components/ui/button';
+	import { Button } from '#lib/components/primitives/button';
 	import { issuePath } from '#lib/issue-url';
 	import { canWrite } from '#lib/roles';
 	import type { EpicDetail } from '#lib/server/epics/queries';

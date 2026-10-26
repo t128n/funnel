@@ -2,9 +2,9 @@
 	import FunnelIcon from '@lucide/svelte/icons/funnel';
 	import ExternalLinkIcon from '@lucide/svelte/icons/external-link';
 	import PageHead from '#lib/components/common/PageHead.svelte';
-	import { Button } from '#lib/components/ui/button';
-	import * as Card from '#lib/components/ui/card';
-	import { Badge } from '#lib/components/ui/badge';
+	import { Button } from '#lib/components/primitives/button';
+	import * as Card from '#lib/components/primitives/card';
+	import { Badge } from '#lib/components/primitives/badge';
 	import OnboardingSteps from '#lib/components/onboarding/onboarding-steps.svelte';
 	import type { PageProps } from './$types';
 

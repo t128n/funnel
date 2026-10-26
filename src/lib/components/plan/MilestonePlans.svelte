@@ -1,6 +1,6 @@
 <script lang="ts">
 	import Avatar from '#lib/components/common/Avatar.svelte';
-	import * as Empty from '#lib/components/ui/empty';
+	import * as Empty from '#lib/components/primitives/empty';
 	import type { MilestonePlan } from '#lib/server/planning/milestones';
 	import { issuePath } from '#lib/issue-url';
 	import { formatMinutes } from '#lib/planning';

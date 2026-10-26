@@ -6,7 +6,7 @@
 	import BlockActionDialog from '#lib/components/board/BlockActionDialog.svelte';
 	import ViewSegment from '#lib/components/filter/ViewSegment.svelte';
 	import IssueActionDialog from '#lib/components/issue/IssueActionDialog.svelte';
-	import * as Empty from '#lib/components/ui/empty';
+	import * as Empty from '#lib/components/primitives/empty';
 	import { classifyAttention, toISODate, type AttentionBuckets } from '#lib/attention';
 	import { clockTick } from '#lib/client/clock.svelte';
 	import type { CloseReason } from '#lib/client/mutations';

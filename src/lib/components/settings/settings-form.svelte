@@ -2,8 +2,8 @@
 	import { enhance } from '$app/forms';
 	import { toast } from 'svelte-sonner';
 	import type { Snippet } from 'svelte';
-	import * as Alert from '#lib/components/ui/alert';
-	import { Button } from '#lib/components/ui/button';
+	import * as Alert from '#lib/components/primitives/alert';
+	import { Button } from '#lib/components/primitives/button';
 	import type { SettingsFormResult } from './sections';
 
 	/**

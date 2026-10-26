@@ -10,7 +10,7 @@
 </script>
 
 <script lang="ts">
-	import * as Tooltip from '#lib/components/ui/tooltip/index.js';
+	import * as Tooltip from '#lib/components/primitives/tooltip/index.js';
 	import { selectIssue } from '#lib/client/selection.svelte';
 	import { timeAgo } from '#lib/client/clock.svelte';
 	import { issueRef } from '#lib/issue-ref';

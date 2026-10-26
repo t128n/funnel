@@ -7,7 +7,7 @@
 		serializeFeatureOverrides,
 		type FeatureOverrides
 	} from '#lib/features';
-	import * as Item from '#lib/components/ui/item';
+	import * as Item from '#lib/components/primitives/item';
 	import type { PageProps } from './$types';
 
 	/**

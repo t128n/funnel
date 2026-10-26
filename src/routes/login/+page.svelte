@@ -1,9 +1,9 @@
 <script lang="ts">
 	import { signInWithGitHub } from '#lib/client/auth';
 	import PageHead from '#lib/components/common/PageHead.svelte';
-	import { Button } from '#lib/components/ui/button';
-	import { Spinner } from '#lib/components/ui/spinner';
-	import { Field, FieldDescription, FieldGroup } from '#lib/components/ui/field';
+	import { Button } from '#lib/components/primitives/button';
+	import { Spinner } from '#lib/components/primitives/spinner';
+	import { Field, FieldDescription, FieldGroup } from '#lib/components/primitives/field';
 	import FunnelIcon from '@lucide/svelte/icons/funnel';
 	import type { PageProps } from './$types';
 

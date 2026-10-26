@@ -1,8 +1,8 @@
 <script lang="ts">
-	import { Button } from '#lib/components/ui/button';
-	import * as Command from '#lib/components/ui/command';
-	import { Input } from '#lib/components/ui/input';
-	import * as Popover from '#lib/components/ui/popover';
+	import { Button } from '#lib/components/primitives/button';
+	import * as Command from '#lib/components/primitives/command';
+	import { Input } from '#lib/components/primitives/input';
+	import * as Popover from '#lib/components/primitives/popover';
 	import Spinner from '#lib/components/common/Spinner.svelte';
 	import { selectTriggerClass } from '#lib/components/common/select-trigger';
 	import { createRepoMilestone } from '#lib/client/mutations';

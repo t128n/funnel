@@ -1,5 +1,5 @@
 <script lang="ts">
-	import * as Empty from '#lib/components/ui/empty';
+	import * as Empty from '#lib/components/primitives/empty';
 	import type { PlanningIssue } from '#lib/server/planning/queries';
 	import type { PlanLane, PlanUnassigned } from '#lib/server/planning/plans';
 	import { issuePath } from '#lib/issue-url';

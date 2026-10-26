@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Button } from '#lib/components/ui/button';
+	import { Button } from '#lib/components/primitives/button';
 	import { describeError, safeErrorMessage } from '#lib/errors';
 	import { pageTitle } from '#lib/seo';
 	import FunnelIcon from '@lucide/svelte/icons/funnel';

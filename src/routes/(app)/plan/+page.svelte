@@ -6,8 +6,8 @@
 	import PlanLanes from '#lib/components/plan/PlanLanes.svelte';
 	import ScheduleDialog from '#lib/components/plan/ScheduleDialog.svelte';
 	import { scheduleWeekFor, unscheduleRequest } from '#lib/components/plan/schedule';
-	import { Button } from '#lib/components/ui/button';
-	import * as Empty from '#lib/components/ui/empty';
+	import { Button } from '#lib/components/primitives/button';
+	import * as Empty from '#lib/components/primitives/empty';
 	import type { MilestonePlan } from '#lib/server/planning/milestones';
 	import type { PlanningIssue } from '#lib/server/planning/queries';
 	import type { CyclePlan, WeekPlan } from '#lib/server/planning/plans';

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import * as Empty from '#lib/components/ui/empty';
+	import * as Empty from '#lib/components/primitives/empty';
 	import ArrowRightIcon from '@lucide/svelte/icons/arrow-right';
 
 	/**

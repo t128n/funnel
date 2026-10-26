@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
-	import * as Card from '#lib/components/ui/card';
-	import * as Field from '#lib/components/ui/field';
-	import * as NativeSelect from '#lib/components/ui/native-select';
+	import * as Card from '#lib/components/primitives/card';
+	import * as Field from '#lib/components/primitives/field';
+	import * as NativeSelect from '#lib/components/primitives/native-select';
 	import SettingsForm from '#lib/components/settings/settings-form.svelte';
 	import type { SettingsFormResult } from '#lib/components/settings/sections';
 	import type { PageProps } from './$types';

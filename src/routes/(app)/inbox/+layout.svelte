@@ -11,8 +11,8 @@
 	import SplitView from '#lib/components/shell/SplitView.svelte';
 	import SubmissionRow from '#lib/components/inbox/SubmissionRow.svelte';
 	import IssueRow from '#lib/components/issue/IssueRow.svelte';
-	import * as Alert from '#lib/components/ui/alert';
-	import * as Empty from '#lib/components/ui/empty';
+	import * as Alert from '#lib/components/primitives/alert';
+	import * as Empty from '#lib/components/primitives/empty';
 	import { createFeed } from '#lib/client/feed.svelte';
 	import {
 		isGroupCollapsed,

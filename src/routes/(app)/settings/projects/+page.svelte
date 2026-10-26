@@ -2,10 +2,10 @@
 	import PlusIcon from '@lucide/svelte/icons/plus';
 	import Trash2Icon from '@lucide/svelte/icons/trash-2';
 	import { untrack } from 'svelte';
-	import { Button } from '#lib/components/ui/button';
-	import * as Card from '#lib/components/ui/card';
-	import * as Field from '#lib/components/ui/field';
-	import { Input } from '#lib/components/ui/input';
+	import { Button } from '#lib/components/primitives/button';
+	import * as Card from '#lib/components/primitives/card';
+	import * as Field from '#lib/components/primitives/field';
+	import { Input } from '#lib/components/primitives/input';
 	import SettingsForm from '#lib/components/settings/settings-form.svelte';
 	import type { SettingsFormResult } from '#lib/components/settings/sections';
 	import type { PageProps } from './$types';

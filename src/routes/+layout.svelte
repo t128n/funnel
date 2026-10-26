@@ -3,7 +3,7 @@
 	import { HotkeysProvider } from '@tanstack/svelte-hotkeys';
 	import { appHotkeys } from '#lib/client/hotkeys';
 	import { initTheme } from '#lib/client/theme';
-	import { Toaster } from '#lib/components/ui/sonner';
+	import { Toaster } from '#lib/components/primitives/sonner';
 	import '#lib/styles/global.css';
 	import '#lib/styles/markdown.css';
 	import type { LayoutProps } from './$types';

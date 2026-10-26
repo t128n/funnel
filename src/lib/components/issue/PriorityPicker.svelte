@@ -1,7 +1,7 @@
 <script lang="ts">
 	import PriorityIcon from '#lib/components/common/PriorityIcon.svelte';
 	import { selectTriggerClass } from '#lib/components/common/select-trigger';
-	import * as Popover from '#lib/components/ui/popover';
+	import * as Popover from '#lib/components/primitives/popover';
 	import {
 		IMPACT_SCALE,
 		URGENCY_SCALE,

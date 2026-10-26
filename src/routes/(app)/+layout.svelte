@@ -4,7 +4,7 @@
 	import { createHotkeys, getAppHotkeys } from '@tanstack/svelte-hotkeys';
 	import AppSidebar from '#lib/components/app-sidebar.svelte';
 	import FooterNav from '#lib/components/nav/footer-nav.svelte';
-	import * as Sidebar from '#lib/components/ui/sidebar/index.js';
+	import * as Sidebar from '#lib/components/primitives/sidebar/index.js';
 	import { actionableCount, classifyAttention, toISODate } from '#lib/attention';
 	import { connectEvents, type FunnelEvent } from '#lib/client/events';
 	import { startNativeNotifications } from '#lib/client/native-notifications';

@@ -1,10 +1,10 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
-	import * as Avatar from '#lib/components/ui/avatar';
-	import { Button } from '#lib/components/ui/button';
-	import * as Card from '#lib/components/ui/card';
-	import * as Field from '#lib/components/ui/field';
-	import { Input } from '#lib/components/ui/input';
+	import * as Avatar from '#lib/components/primitives/avatar';
+	import { Button } from '#lib/components/primitives/button';
+	import * as Card from '#lib/components/primitives/card';
+	import * as Field from '#lib/components/primitives/field';
+	import { Input } from '#lib/components/primitives/input';
 	import SettingsForm from '#lib/components/settings/settings-form.svelte';
 	import type { SettingsFormResult } from '#lib/components/settings/sections';
 	import { hoursToMinutes, minutesToHours } from '#lib/planning';

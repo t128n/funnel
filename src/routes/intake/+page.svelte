@@ -8,11 +8,11 @@
 	import IntakeTag from '#lib/components/common/IntakeTag.svelte';
 	import PageHead from '#lib/components/common/PageHead.svelte';
 	import SingleSelect from '#lib/components/common/SingleSelect.svelte';
-	import * as Alert from '#lib/components/ui/alert';
-	import { Button } from '#lib/components/ui/button';
-	import { Input } from '#lib/components/ui/input';
-	import * as Kbd from '#lib/components/ui/kbd';
-	import { Textarea } from '#lib/components/ui/textarea';
+	import * as Alert from '#lib/components/primitives/alert';
+	import { Button } from '#lib/components/primitives/button';
+	import { Input } from '#lib/components/primitives/input';
+	import * as Kbd from '#lib/components/primitives/kbd';
+	import { Textarea } from '#lib/components/primitives/textarea';
 	import { encodeSubmitDeeplinkQuery } from '#lib/client/intake-deeplink';
 	import {
 		hasSubmitPrefill,

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import * as CodeBlock from '#lib/components/ui/code-block';
+	import * as CodeBlock from '#lib/components/primitives/code-block';
 	import { useHighlightedCode } from '#lib/hooks/use-highlighted-code.svelte';
 
 	/**
