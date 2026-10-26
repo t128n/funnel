@@ -1,33 +1,44 @@
 <script lang="ts" module>
-	import { tv, type VariantProps } from "tailwind-variants";
+	import { cn } from "#lib/utils.js";
 
-	export const sidebarMenuButtonVariants = tv({
-		base: "ring-sidebar-ring hover:bg-sidebar-accent active:bg-sidebar-accent data-active:bg-transparent data-active:text-sidebar-primary data-active:font-semibold data-active:shadow-[inset_3px_0_0_0_var(--sidebar-primary)] gap-2 rounded-none p-2 text-left text-sm transition-[width,height,padding] group-has-data-[sidebar=menu-action]/menu-item:pr-8 group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:p-2! focus-visible:ring-2 peer/menu-button group/menu-button flex w-full items-center overflow-hidden outline-hidden disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 [&_svg]:size-4 [&_svg]:shrink-0 [&>span:last-child]:truncate",
-		variants: {
-			variant: {
-				default: "",
-				outline: "bg-background shadow-[0_0_0_1px_var(--sidebar-border)] hover:shadow-[0_0_0_1px_var(--sidebar-accent)]",
-			},
-			size: {
-				default: "h-8 text-sm",
-				sm: "h-7 text-xs",
-				lg: "h-12 text-sm group-data-[collapsible=icon]:p-0!",
-			},
-		},
-		defaultVariants: {
-			variant: "default",
-			size: "default",
-		},
-	});
+	export type SidebarMenuButtonVariant = "default" | "outline";
+	export type SidebarMenuButtonSize = "default" | "sm" | "lg";
 
-	export type SidebarMenuButtonVariant = VariantProps<typeof sidebarMenuButtonVariants>["variant"];
-	export type SidebarMenuButtonSize = VariantProps<typeof sidebarMenuButtonVariants>["size"];
+	/**
+	 * One flat row in every variant. The transparent 3px track keeps the label
+	 * from shifting when a row becomes active; the rule itself is painted on
+	 * the pseudo-element so it is a real edge, not a shadow.
+	 */
+	const menuButtonBase =
+		"peer/menu-button group/menu-button relative flex w-full items-center gap-2 overflow-hidden rounded-none border border-transparent p-2 text-left text-sm outline-none hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[var(--sidebar-ring)] disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 before:absolute before:inset-y-0 before:start-0 before:w-[3px] before:bg-transparent data-[active=true]:bg-transparent data-[active=true]:font-semibold data-[active=true]:text-[var(--sidebar-primary)] data-[active=true]:before:bg-[var(--sidebar-primary)] group-has-data-[sidebar=menu-action]/menu-item:pr-8 group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:p-2! [&_svg]:size-4 [&_svg]:shrink-0 [&>span:last-child]:truncate";
+
+	const menuButtonVariants: Record<SidebarMenuButtonVariant, string> = {
+		default: "",
+		outline: "border-sidebar-border bg-background hover:border-sidebar-accent",
+	};
+
+	export const sidebarMenuButtonSizes: Record<SidebarMenuButtonSize, string> = {
+		default: "h-8 text-sm",
+		sm: "h-7 text-xs",
+		lg: "h-12 text-sm group-data-[collapsible=icon]:p-0!",
+	};
+
+	/** Compose the row from the variant map; no runtime variant package. */
+	export function sidebarMenuButtonVariants({
+		variant = "default",
+		size = "default",
+	}: {
+		variant?: SidebarMenuButtonVariant;
+		size?: SidebarMenuButtonSize;
+	} = {}): string {
+		return cn(menuButtonBase, menuButtonVariants[variant], sidebarMenuButtonSizes[size]);
+	}
 </script>
 
 <script lang="ts">
 	import { mergeProps } from "bits-ui";
 	import * as Tooltip from "#lib/components/primitives/tooltip/index.js";
-	import { cn, type WithElementRef, type WithoutChildrenOrChild } from "#lib/utils.js";
+	import type { WithElementRef, WithoutChildrenOrChild } from "#lib/utils.js";
 	import { useSidebar } from "./context.svelte.js";
 	import type { ComponentProps, Snippet } from "svelte";
 	import type { HTMLAttributes } from "svelte/elements";
