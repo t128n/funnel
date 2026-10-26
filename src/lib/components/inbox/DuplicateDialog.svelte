@@ -108,8 +108,8 @@
 >
 	<Dialog.Content aria-describedby={undefined} class="sm:max-w-md">
 		<Dialog.Header>
-			<Dialog.Title class="text-base font-semibold">Duplicate submission</Dialog.Title>
-			<Dialog.Description class="text-muted-foreground text-xs">
+			<Dialog.Title>Duplicate submission</Dialog.Title>
+			<Dialog.Description>
 				The submission text is posted as a comment on an existing issue, then cleared from the
 				queue.
 			</Dialog.Description>

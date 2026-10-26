@@ -17,13 +17,13 @@
 		{@const step = index + 1}
 		{@const done = step < active}
 		{@const current = step === active}
-		<li class="flex items-center gap-2">
+		<li class="flex items-center gap-2" aria-current={current ? 'step' : undefined}>
 			<span
 				class={cn(
-					'flex size-5 shrink-0 items-center justify-center rounded-full border text-[0.625rem] font-medium',
-					done && 'border-transparent bg-emerald-500/15 text-emerald-400',
+					'flex size-5 shrink-0 items-center justify-center rounded-xs border text-2xs font-medium',
+					done && 'border-primary bg-primary text-primary-foreground',
 					current && 'border-primary text-foreground',
-					!done && !current && 'border-transparent'
+					!done && !current && 'border-border text-muted-foreground'
 				)}
 			>
 				{#if done}

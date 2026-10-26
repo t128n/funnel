@@ -229,31 +229,22 @@
 />
 
 <main
-	class="surface-shell bg-[color:var(--background)] flex min-h-svh items-center justify-center p-4 sm:p-6"
+	class="surface-shell bg-background flex min-h-svh items-center justify-center p-4 sm:p-6"
 	aria-labelledby="submit-heading"
 >
 	<div class="w-full max-w-2xl">
 		<div
-			class="bg-[color:var(--card)] border-[color:var(--border)] overflow-hidden rounded border shadow-sm dark:shadow-none"
+			class="bg-card border-border overflow-hidden rounded-lg border"
 		>
-			<header
-				class="border-[color:var(--border)] flex h-11 items-center gap-2 border-b px-4"
-			>
+			<header class="border-border flex h-11 items-center gap-2 border-b px-4">
 				<span
-					class="bg-primary text-primary-foreground inline-flex size-5 shrink-0 items-center justify-center rounded-md"
+					class="bg-primary text-primary-foreground inline-flex size-5 shrink-0 items-center justify-center rounded-xs"
 				>
 					<FunnelIcon class="size-3" />
 				</span>
-				<span
-					class="text-muted-foreground text-[11px] font-medium tracking-tight dark:text-[#9ca3af]"
-				>
-					Funnel
-				</span>
-				<span class="text-muted-foreground/50 dark:text-[#6b6e76]" aria-hidden="true">/</span>
-				<h1
-					id="submit-heading"
-					class="text-foreground truncate text-[13px] font-medium tracking-tight dark:text-[#f3f4f6]"
-				>
+				<span class="text-muted-foreground text-xs font-medium">Funnel</span>
+				<span class="text-muted-foreground" aria-hidden="true">/</span>
+				<h1 id="submit-heading" class="text-foreground truncate text-sm font-medium">
 					{form?.submitted ? 'Submission received' : 'New submission'}
 				</h1>
 				<span class="ml-auto flex shrink-0 items-center gap-1">
@@ -264,7 +255,6 @@
 						aria-label="Copy deeplink"
 						disabled={!hasContent}
 						onclick={copyDeeplink}
-						class="focus-visible:outline-[color:var(--primary)] focus-visible:ring-0 focus-visible:outline focus-visible:outline-[1.5px] focus-visible:outline-offset-2"
 					>
 						{#if copied}
 							<CheckIcon class="size-3.5" />
@@ -281,34 +271,23 @@
 				<div class="flex flex-col gap-4 px-4 py-5 sm:px-5" role="status">
 					<div class="flex items-start gap-3">
 						<span
-							class="bg-success/10 text-success mt-0.5 inline-flex size-7 shrink-0 items-center justify-center rounded-md"
+							class="bg-success/10 text-success mt-0.5 inline-flex size-7 shrink-0 items-center justify-center rounded-xs"
 						>
 							<CircleCheckIcon class="size-4" />
 						</span>
 						<div class="flex min-w-0 flex-col gap-1">
-							<h2
-								bind:this={successEl}
-								tabindex="-1"
-								class="text-foreground text-sm font-medium tracking-tight outline-none dark:text-[#f3f4f6]"
-							>
+							<h2 bind:this={successEl} tabindex="-1" class="text-foreground text-sm font-medium outline-none">
 								Thanks — your submission is in.
 							</h2>
-							<p
-								class="text-muted-foreground text-[13px] leading-relaxed dark:text-[#9ca3af]"
-							>
+							<p class="text-muted-foreground text-sm leading-relaxed">
 								A triager will review it shortly. Nothing is created on GitHub until it's accepted,
 								so there's nothing else you need to do.
 							</p>
 						</div>
 					</div>
 				</div>
-				<footer
-					class="border-[color:var(--border)] flex items-center justify-end border-t px-4 py-3"
-				>
-					<Button
-						href="/intake"
-						class="focus-visible:outline-[color:var(--primary)] focus-visible:ring-0 focus-visible:outline focus-visible:outline-[1.5px] focus-visible:outline-offset-2"
-					>
+				<footer class="border-border flex items-center justify-end border-t px-4 py-3">
+					<Button href="/intake">
 						Submit another
 					</Button>
 				</footer>
@@ -331,13 +310,13 @@
 				>
 					{#if showPrefillStrip}
 						<div
-							class="border-[color:var(--border)] text-muted-foreground flex h-8 items-center gap-1.5 border-b px-4 text-xs dark:text-[#9ca3af]"
+							class="border-border text-muted-foreground flex h-8 items-center gap-1.5 border-b px-4 text-xs"
 						>
 							<LinkIcon class="size-3 shrink-0" aria-hidden="true" />
 							<span>Prefilled from link</span>
 							<a
 								href="/intake"
-								class="hover:text-foreground focus-visible:outline-[color:var(--primary)] ml-auto rounded px-1.5 py-1 underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-[1.5px] focus-visible:outline-offset-2 dark:hover:text-[#f3f4f6]"
+								class="hover:text-foreground ms-auto px-1.5 py-1 underline-offset-2 hover:underline outline-none focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring"
 							>
 								Clear
 							</a>
@@ -347,11 +326,7 @@
 					<!-- Seamless writing canvas: no interior borders, one shared left edge. -->
 					<div class="flex flex-col gap-0.5 px-3 pt-2.5 pb-2 sm:px-4">
 						{#if form?.error}
-							<Alert.Root
-								id="submit-error"
-								variant="destructive"
-								class="border-destructive/25 bg-destructive/5 mb-2"
-							>
+							<Alert.Root id="submit-error" variant="destructive" class="mb-2">
 								<CircleAlertIcon />
 								<Alert.Title>Couldn't submit</Alert.Title>
 								<Alert.Description>{form.error}</Alert.Description>
@@ -369,17 +344,16 @@
 								required
 								maxlength={INTAKE_TITLE_MAX}
 								placeholder="Issue title"
+								variant="ghost"
 								aria-invalid={form?.error ? true : undefined}
 								aria-errormessage={form?.error ? 'submit-error' : undefined}
 								onkeydown={onTitleKeydown}
 								oninput={markDirty}
-								class="[@media(hover:hover)]:hover:bg-[color:var(--accent)] focus-visible:outline-[color:var(--primary)] h-auto rounded-md border-transparent bg-transparent px-2 py-1.5 text-lg font-medium tracking-tight shadow-none transition-colors duration-150 ease-out placeholder:text-muted-foreground focus-visible:border-transparent focus-visible:ring-0 focus-visible:outline focus-visible:outline-[1.5px] focus-visible:outline-offset-2 md:text-lg dark:bg-transparent dark:text-[#f3f4f6] dark:placeholder:text-[#6b6e76] {showCounter
-									? 'pr-16'
-									: ''}"
+								class="h-auto px-2 py-1.5 text-lg font-medium {showCounter ? 'pr-16' : ''}"
 							/>
 							{#if showCounter}
 								<span
-									class="mono text-muted-foreground pointer-events-none absolute top-1/2 right-2 -translate-y-1/2 text-[10px] tabular-nums dark:text-[#9ca3af]"
+									class="mono text-muted-foreground pointer-events-none absolute top-1/2 right-2 -translate-y-1/2 text-2xs tabular-nums"
 									aria-hidden="true"
 								>
 									{titleLength}/{INTAKE_TITLE_MAX}
@@ -396,22 +370,21 @@
 								name="body"
 								maxlength={INTAKE_BODY_MAX}
 								placeholder="Add a description…"
+								variant="ghost"
 								oninput={markDirty}
-								class="focus-visible:outline-[color:var(--primary)] min-h-44 resize-none rounded-md border-transparent bg-transparent px-2 py-2 text-base leading-relaxed shadow-none transition-colors duration-150 ease-out placeholder:text-muted-foreground focus-visible:border-transparent focus-visible:ring-0 focus-visible:outline focus-visible:outline-[1.5px] focus-visible:outline-offset-2 md:text-sm dark:bg-transparent dark:text-[#d4d6db] dark:placeholder:text-[#6b6e76]"
+								class="min-h-44 resize-none px-2 py-2"
 							></Textarea>
 						</div>
 					</div>
 
 					<footer
-						class="border-[color:var(--border)] flex flex-wrap items-center justify-between gap-2 border-t px-3 py-2 sm:px-4"
+						class="border-border flex flex-wrap items-center justify-between gap-2 border-t px-3 py-2 sm:px-4"
 					>
 						<!--
 							The SingleSelect is JavaScript-only; the hidden input keeps the
 							source in the payload for the no-JS path (where it stays empty).
 						-->
-						<div
-							class="flex min-w-0 items-center [&_[data-slot=select-trigger]]:focus-visible:ring-0 [&_[data-slot=select-trigger]]:focus-visible:outline [&_[data-slot=select-trigger]]:focus-visible:outline-[1.5px] [&_[data-slot=select-trigger]]:focus-visible:outline-offset-2 [&_[data-slot=select-trigger]]:focus-visible:outline-[color:var(--primary)]"
-						>
+						<div class="flex min-w-0 items-center">
 							<input type="hidden" name="source" value={source} />
 							<SingleSelect
 								variant="pill"
@@ -433,7 +406,7 @@
 						</div>
 
 						<div class="ml-auto flex items-center gap-3">
-							<span class="text-muted-foreground hidden text-[11px] dark:text-[#9ca3af] sm:inline">
+							<span class="text-muted-foreground hidden text-2xs sm:inline">
 								Markdown supported
 							</span>
 							<Button
@@ -441,7 +414,6 @@
 								disabled={submitting}
 								aria-busy={submitting}
 								aria-keyshortcuts="Meta+Enter Control+Enter"
-								class="focus-visible:outline-[color:var(--primary)] active:scale-[0.98] focus-visible:ring-0 focus-visible:outline focus-visible:outline-[1.5px] focus-visible:outline-offset-2"
 							>
 								Submit
 								<span class="inline-flex h-4 w-7 items-center justify-center">
@@ -449,7 +421,7 @@
 										<Spinner size={11} label="Submitting" />
 									{:else}
 										<Kbd.Root
-											class="border-primary-foreground/30 text-primary-foreground/80 h-4 min-w-4 border bg-transparent px-1 text-[0.625rem] leading-none font-normal"
+											class="border-primary-foreground/30 text-primary-foreground/80 h-4 min-w-4 border bg-transparent px-1 text-2xs leading-none"
 											aria-hidden="true"
 										>
 											{isMac ? '⌘' : 'Ctrl'}↵
@@ -463,10 +435,10 @@
 			{/if}
 		</div>
 
-		<p class="text-muted-foreground mt-4 text-center text-[11px] dark:text-[#9ca3af]">
+		<p class="text-muted-foreground mt-4 text-center text-2xs">
 			Funnel v{__APP_VERSION__}. <a
 				href="/login"
-				class="hover:text-foreground focus-visible:outline-[color:var(--primary)] rounded underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-[1.5px] focus-visible:outline-offset-2 dark:hover:text-[#f3f4f6]"
+				class="hover:text-foreground underline-offset-2 hover:underline outline-none focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring"
 			>
 				Login
 			</a>
