@@ -1,7 +1,7 @@
 <script lang="ts">
 	import PriorityIcon from '#lib/components/common/PriorityIcon.svelte';
-	import { selectTriggerClass } from '#lib/components/common/select-trigger';
 	import * as Popover from '#lib/components/primitives/popover';
+	import { triggerClass } from '#lib/components/primitives/styles';
 	import {
 		IMPACT_SCALE,
 		URGENCY_SCALE,
@@ -100,7 +100,7 @@
 <Popover.Root bind:open>
 	<Popover.Trigger
 		{disabled}
-		class={selectTriggerClass('pill', cn('gap-1.5', priority && 'text-foreground'))}
+		class={triggerClass('pill', cn('gap-1.5', priority && 'text-foreground'))}
 		title="Priority"
 	>
 		<PriorityIcon priority={priority} />
@@ -122,7 +122,7 @@
 		</Popover.Header>
 
 		<div
-			class="border-border bg-muted/40 flex items-center justify-between rounded-md border px-2.5 py-1.5"
+			class="border-border bg-muted/40 flex items-center justify-between rounded-xs border px-2.5 py-1.5"
 		>
 			<span class="text-muted-foreground text-[10px] font-medium tracking-wide uppercase">
 				Result

@@ -5,6 +5,7 @@
 	import { Button } from '#lib/components/primitives/button';
 	import * as Dialog from '#lib/components/primitives/dialog';
 	import * as Field from '#lib/components/primitives/field';
+	import { Input } from '#lib/components/primitives/input';
 	import * as NativeSelect from '#lib/components/primitives/native-select';
 	import { Textarea } from '#lib/components/primitives/textarea';
 	import {
@@ -103,8 +104,8 @@
 <Dialog.Root {open} onOpenChange={close}>
 	<Dialog.Content aria-describedby={undefined} class="sm:max-w-md">
 		<Dialog.Header>
-			<Dialog.Title class="text-base font-semibold">Record delay</Dialog.Title>
-			<Dialog.Description class="text-muted-foreground text-xs">
+			<Dialog.Title>Record delay</Dialog.Title>
+			<Dialog.Description>
 				Manual delays are local to Funnel. They may overlap a blocked delay; total delay time
 				is the union of the intervals.
 			</Dialog.Description>
@@ -127,22 +128,12 @@
 				<Field.Label for="delay-start">
 					Started <span class="text-destructive font-normal">required</span>
 				</Field.Label>
-				<input
-					id="delay-start"
-					type="datetime-local"
-					bind:value={started}
-					class="border-input dark:bg-input/30 h-8 rounded-lg border bg-transparent px-2.5 text-sm"
-				/>
+				<Input id="delay-start" type="datetime-local" bind:value={started} />
 			</Field.Field>
 
 			<Field.Field>
 				<Field.Label for="delay-end">Ended</Field.Label>
-				<input
-					id="delay-end"
-					type="datetime-local"
-					bind:value={ended}
-					class="border-input dark:bg-input/30 h-8 rounded-lg border bg-transparent px-2.5 text-sm"
-				/>
+				<Input id="delay-end" type="datetime-local" bind:value={ended} />
 			</Field.Field>
 
 			<Field.Field>

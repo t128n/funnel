@@ -54,10 +54,10 @@
 >
 	<Dialog.Content aria-describedby={undefined} class="sm:max-w-md">
 		<Dialog.Header>
-			<Dialog.Title class="text-base font-semibold">
+			<Dialog.Title>
 				{isClose ? 'Close issue' : 'Reopen issue'}
 			</Dialog.Title>
-			<Dialog.Description class="text-muted-foreground text-xs">
+			<Dialog.Description>
 				{#if isClose}
 					Closing records a resolution. The note is posted as a comment on GitHub before the
 					issue is closed.
@@ -74,7 +74,7 @@
 					<Field.Legend variant="label">Resolution</Field.Legend>
 					<div class="flex gap-2" role="radiogroup" aria-label="Resolution">
 						<Field.Label
-							class="has-data-checked:border-ring flex-1 cursor-pointer flex-row items-center gap-2 rounded-md border p-2 text-xs font-normal"
+							class="flex-1 cursor-pointer flex-row items-center gap-2 p-2"
 						>
 							<input
 								type="radio"
@@ -86,7 +86,7 @@
 							<span>Completed</span>
 						</Field.Label>
 						<Field.Label
-							class="has-data-checked:border-ring flex-1 cursor-pointer flex-row items-center gap-2 rounded-md border p-2 text-xs font-normal"
+							class="flex-1 cursor-pointer flex-row items-center gap-2 p-2"
 						>
 							<input
 								type="radio"

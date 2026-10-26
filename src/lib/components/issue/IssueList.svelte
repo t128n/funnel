@@ -110,7 +110,7 @@
 </script>
 
 {#if projected.length === 0}
-	<Empty.Root class="flex-1 border-0">
+	<Empty.Root class="flex-1">
 		<Empty.Description>{empty}</Empty.Description>
 	</Empty.Root>
 {:else}

@@ -130,7 +130,7 @@
 								</span>
 							</Message.Header>
 							<Bubble.Root variant="muted">
-								<Bubble.Content class="markdown text-sm">
+								<Bubble.Content class="markdown">
 									{@html entry.comment.bodyHtml}
 								</Bubble.Content>
 							</Bubble.Root>

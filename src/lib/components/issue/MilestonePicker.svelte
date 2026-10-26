@@ -4,7 +4,7 @@
 	import { Input } from '#lib/components/primitives/input';
 	import * as Popover from '#lib/components/primitives/popover';
 	import Spinner from '#lib/components/common/Spinner.svelte';
-	import { selectTriggerClass } from '#lib/components/common/select-trigger';
+	import { triggerClass } from '#lib/components/primitives/styles';
 	import { createRepoMilestone } from '#lib/client/mutations';
 	import type { RepoMilestoneRef } from '#lib/server/issues/types';
 	import { cn } from '#lib/utils';
@@ -103,7 +103,7 @@
 <Popover.Root bind:open>
 	<Popover.Trigger
 		{disabled}
-		class={selectTriggerClass('pill', cn('gap-1.5', value && 'text-foreground'))}
+		class={triggerClass('pill', cn('gap-1.5', value && 'text-foreground'))}
 	>
 		<span class="inline-flex size-4 shrink-0 items-center justify-center" aria-hidden="true">
 			<MilestoneIcon class="size-3.5" />
@@ -161,9 +161,9 @@
 				</div>
 			</div>
 		{:else}
-			<Command.Root class="rounded-lg! bg-transparent">
+			<Command.Root>
 				<Command.Input placeholder="Search milestones…" />
-				<Command.List class="max-h-72 overflow-x-hidden overflow-y-auto">
+				<Command.List>
 					<Command.Empty>No milestones</Command.Empty>
 					<Command.Group>
 						{#each ordered as milestone (`${milestone.repo}#${milestone.number}`)}

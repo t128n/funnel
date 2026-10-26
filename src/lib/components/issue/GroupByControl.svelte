@@ -31,7 +31,7 @@
 </script>
 
 <DropdownMenu.Root>
-	<DropdownMenu.Trigger class="link text-sm">Group</DropdownMenu.Trigger>
+	<DropdownMenu.Trigger class="link">Group</DropdownMenu.Trigger>
 	<DropdownMenu.Content align="end" class="w-44">
 		<DropdownMenu.Label>Group by</DropdownMenu.Label>
 		<DropdownMenu.RadioGroup

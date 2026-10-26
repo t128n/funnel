@@ -1019,7 +1019,8 @@
 				<div class="flex min-w-0 items-center gap-2">
 					{#if editingTitle}
 						<Input
-							class="hover:bg-accent/50 h-auto -ml-1 min-w-0 flex-1 rounded-sm border-0 bg-transparent px-1 text-xl leading-tight font-semibold tracking-tight shadow-none md:text-xl dark:bg-transparent"
+							variant="ghost"
+							class="h-auto -ml-1 min-w-0 flex-1 px-1 text-xl leading-tight font-semibold tracking-tight md:text-xl"
 							value={title}
 							oninput={(e) => (title = e.currentTarget.value)}
 							onblur={saveTitle}
@@ -1049,7 +1050,7 @@
 						<h2
 							bind:this={titleEl}
 							class={cn(
-								'text-foreground -ml-1 h-auto min-w-0 flex-1 rounded-sm px-1 text-xl leading-tight font-semibold tracking-tight md:text-xl',
+								'text-foreground -ml-1 h-auto min-w-0 flex-1 px-1 text-xl leading-tight font-semibold tracking-tight md:text-xl',
 								mayWrite && 'hover:bg-[var(--accent)] cursor-text'
 							)}
 							tabindex={mayWrite ? 0 : undefined}
@@ -1139,6 +1140,7 @@
 									options={statusOptions}
 									value={statusValue}
 									onselect={setStatus}
+									variant="pill"
 									disabled={busy === 'status' || !mayWrite}
 								/>
 							</div>
@@ -1253,6 +1255,7 @@
 									value={sizeValue}
 									onselect={setSize}
 									allowClear
+									variant="pill"
 									disabled={busy === 'size' || !mayWrite}
 								/>
 							</div>
@@ -1282,6 +1285,7 @@
 									label="Assignee"
 									placeholder="Unassigned"
 									display="selection"
+									variant="pill"
 									options={assigneeOptions.map((u) => ({ value: u.login, label: u.login }))}
 									selected={assigneeLogins}
 									onselect={setAssignees}
@@ -1323,6 +1327,7 @@
 									label="Labels"
 									placeholder="No labels"
 									display="selection"
+									variant="pill"
 									options={labelOptions}
 									selected={selectedLabels}
 									onselect={setLabels}
@@ -1402,6 +1407,7 @@
 		<section class="flex flex-col" aria-label="Description">
 			{#if editingBody}
 				<Textarea
+					variant="ghost"
 					class="min-h-32"
 					value={body}
 					oninput={(e) => (body = e.currentTarget.value)}
