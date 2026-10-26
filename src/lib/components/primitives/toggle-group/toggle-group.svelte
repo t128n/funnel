@@ -1,13 +1,11 @@
 <script lang="ts" module>
 	import { getContext, setContext } from "svelte";
-	import { toggleVariants } from "#lib/components/primitives/toggle/index.js";
-	import type { VariantProps } from "tailwind-variants";
+	import type { ToggleSize, ToggleVariant } from "#lib/components/primitives/toggle/index.js";
 
-	type ToggleVariants = VariantProps<typeof toggleVariants>;
-
-	interface ToggleGroupContext extends ToggleVariants {
-		spacing?: number;
-		orientation?: "horizontal" | "vertical";
+	export interface ToggleGroupContext {
+		readonly variant: ToggleVariant;
+		readonly size: ToggleSize;
+		readonly orientation: "horizontal" | "vertical";
 	}
 
 	export function setToggleGroupCtx(props: ToggleGroupContext) {
@@ -15,7 +13,7 @@
 	}
 
 	export function getToggleGroupCtx() {
-		return getContext<Required<ToggleGroupContext>>("toggleGroup");
+		return getContext<ToggleGroupContext>("toggleGroup");
 	}
 </script>
 
@@ -28,15 +26,14 @@
 		value = $bindable(),
 		class: className,
 		size = "default",
-		spacing = 0,
 		orientation = "horizontal",
-		variant = "default",
+		variant = "outline",
 		...restProps
-	}: ToggleGroupPrimitive.RootProps &
-		ToggleVariants & {
-			spacing?: number;
-			orientation?: "horizontal" | "vertical";
-		} = $props();
+	}: ToggleGroupPrimitive.RootProps & {
+		variant?: ToggleVariant;
+		size?: ToggleSize;
+		orientation?: "horizontal" | "vertical";
+	} = $props();
 
 	setToggleGroupCtx({
 		get variant() {
@@ -45,12 +42,9 @@
 		get size() {
 			return size;
 		},
-		get spacing() {
-			return spacing;
-		},
 		get orientation() {
 			return orientation;
-		},
+		}
 	});
 </script>
 
@@ -65,10 +59,8 @@ get along, so we shut typescript up by casting `value` to `never`.
 	data-slot="toggle-group"
 	data-variant={variant}
 	data-size={size}
-	data-spacing={spacing}
-	style={`--gap: ${spacing}`}
 	class={cn(
-		"rounded-lg data-[size=sm]:rounded-[min(var(--radius-md),10px)] group/toggle-group flex w-fit flex-row items-center gap-[--spacing(var(--gap))] data-vertical:flex-col data-vertical:items-stretch",
+		"group/toggle-group inline-flex w-fit items-center rounded-xs border border-input bg-background data-[orientation=vertical]:flex-col data-[orientation=vertical]:items-stretch",
 		className
 	)}
 	{...restProps}
