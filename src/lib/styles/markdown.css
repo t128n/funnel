@@ -5,8 +5,8 @@
  * with `{@html}`, so Svelte's scoped component styles cannot reach these
  * elements — they are styled globally here instead, tagged `.markdown`.
  *
- * Colors and radii come from the stock shadcn-svelte theme variables in
- * `global.css`, so the prose flips with the `.dark` class automatically.
+ * Colors and radii come from the theme tokens defined in `global.css`, so the
+ * prose flips with the `.dark` class automatically.
  */
 
 .markdown {

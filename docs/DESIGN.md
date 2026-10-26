@@ -43,7 +43,7 @@ translucent tone or gradients.
 | `--sidebar`          | `#f9f9fb` | `#23222a` | Sidebar canvas                   |
 | `--comment-header`   | `#f0f0f4` | `#2b2a33` | Comment header bar               |
 | `--comment-reporter` | `#fffbe6` | `#2e2b22` | Reporter comment tint            |
-| `--radius`           | `0.25rem` | `0.25rem` | Cards and popovers only          |
+| `--radius`           | `0.25rem` | `0.25rem` | Cards, popovers and dialogs      |
 
 Semantics: green = done/fixed, red = blocker/severity, amber =
 in-progress/review/pending, grey = backlog/closed/minor. Colour goes on the
@@ -71,12 +71,15 @@ bodies mono 13px/1.55. Nothing below 11px except counts at 10px; no arbitrary
 
 ## 4. Shape
 
-- Radius `0` for cells, inputs, buttons and selects. `4px` for cards and
-  popovers. Nothing above 8px.
+- Radius `0` for table cells, data rows, badges and menu rows.
+- Radius `2px` (`rounded-xs`) for controls: inputs, textareas, native selects,
+  buttons, segmented toggles and select triggers.
+- Radius `4px` (`rounded-lg`) for cards, popovers and dialogs. Avatars are
+  `rounded-full`. Nothing above 8px.
 - Every structural edge is a real 1px `var(--border)`. Rows are carried by
   1px rules and zebra striping, not by shadow or translucent tone.
 - Shadows appear only on popovers and dialogs.
-- Buttons look native: 1px border, `--muted` fill, 2px radius. The primary
+- Buttons look native: 1px border, `--muted` fill, `2px` radius. The primary
   action is a `--primary` fill.
 
 ## 5. Chrome
@@ -136,5 +139,9 @@ top nav (a product decision), offset by the footer nav. Priority stays derived.
 - Render status, severity and internal markers with `.flag`; colour the token,
   never the row.
 - Use `.link` for in-prose links: `--primary` with an underline.
+- Import controls, surfaces, overlays, selection and chrome from
+  `#lib/components/primitives/<family>`; see
+  [the primitives reference](reference/primitives.md)
+  (`docs/reference/primitives.md`) for every family, export and variant.
 - Do not introduce `--surface-*` tokens, radii above 4px on chrome, or body
   text below 13px. Check the dark theme before calling the surface done.
