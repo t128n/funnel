@@ -73,9 +73,7 @@
 				<Field.Set>
 					<Field.Legend variant="label">Resolution</Field.Legend>
 					<div class="flex gap-2" role="radiogroup" aria-label="Resolution">
-						<Field.Label
-							class="flex-1 cursor-pointer flex-row items-center gap-2 p-2"
-						>
+						<Field.Label variant="choice" class="flex-1 gap-2">
 							<input
 								type="radio"
 								name="resolution"
@@ -85,9 +83,7 @@
 							/>
 							<span>Completed</span>
 						</Field.Label>
-						<Field.Label
-							class="flex-1 cursor-pointer flex-row items-center gap-2 p-2"
-						>
+						<Field.Label variant="choice" class="flex-1 gap-2">
 							<input
 								type="radio"
 								name="resolution"

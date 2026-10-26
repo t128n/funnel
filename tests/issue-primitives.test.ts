@@ -208,10 +208,23 @@ describe('issue surface primitives', () => {
 		expect(inspector).toContain('open={delayDialogOpen}');
 	});
 
-	test('resolution choices stay native radios without shadcn overrides', () => {
+	test('resolution choices are primitive choice cards', () => {
 		const source = read(ACTION_DIALOG);
 		const group = source.slice(source.indexOf('role="radiogroup"'));
 		const labels = group.slice(0, group.indexOf('</Field.Set>'));
+
+		const labelTags = labels.match(/<Field\.Label\b[\s\S]*?>/g) ?? [];
+		expect(labelTags).toHaveLength(2);
+		for (const [index, tag] of labelTags.entries()) {
+			expect(tag, `resolution label ${index + 1}`).toContain('variant="choice"');
+			// The primitive owns the card edge, radius, fill, type scale and the
+			// checked state; the call site keeps only layout.
+			const classes = tag.match(/class="([^"]*)"/)?.[1] ?? '';
+			expect(classes, `resolution label ${index + 1}`).not.toMatch(
+				/\b(?:border|rounded|bg-|text-|font-|shadow|ring-|dark:)/
+			);
+		}
+
 		expect(labels.match(/type="radio"/g)?.length).toBe(2);
 		expect(labels.match(/name="resolution"/g)?.length).toBe(2);
 		expect(labels).toContain('value="completed"');
@@ -220,9 +233,15 @@ describe('issue surface primitives', () => {
 		expect(labels).toContain("onchange={() => (reason = 'completed')}");
 		expect(labels).toContain("checked={reason === 'not_planned'}");
 		expect(labels).toContain("onchange={() => (reason = 'not_planned')}");
-		// T9 removed the shadcn card chrome; only layout and spacing remain on
-		// the Field.Label call sites.
+		// T9 removed the shadcn card chrome; no shadcn-era selectors remain.
 		expect(source).not.toMatch(/has-data-checked|dark:|rounded-md|border-ring/);
+
+		// The card affordance lives in Field.Label's `choice` surface.
+		const primitive = read('src/lib/components/primitives/field/field-label.svelte');
+		expect(primitive).toContain('FieldLabelVariant');
+		expect(primitive).toContain('choice: cn(');
+		expect(primitive).toContain('rounded-xs border border-input');
+		expect(primitive).toContain('has-[:checked]:border-primary');
 	});
 
 	test('dialogs keep their dialog primitives', () => {
