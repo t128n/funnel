@@ -112,10 +112,21 @@ export const RETIRED_PRIORITY_LABELS: Readonly<Record<string, Priority>> = {
   p3: "P3",
 };
 
+/**
+ * One decision criterion for a scale level. `label` is the short axis the
+ * triager weighs (e.g. `Reach`); `anchor` is the concrete description that
+ * anchors that level of the criterion (e.g. how many users are affected).
+ */
+export interface ScaleCriterion {
+  label: string;
+  anchor: string;
+}
+
 export interface ScaleLevel<T extends number> {
   value: T;
   name: string;
   definition: string;
+  criteria: readonly ScaleCriterion[];
 }
 
 export const IMPACT_SCALE: readonly ScaleLevel<Impact>[] = [
@@ -123,16 +134,37 @@ export const IMPACT_SCALE: readonly ScaleLevel<Impact>[] = [
     value: 1,
     name: "Severe",
     definition: "Blocks many users or a critical path; no workaround.",
+    criteria: [
+      { label: "Reach", anchor: "All or most users, or a whole tenant or region." },
+      { label: "Data", anchor: "Irreversible loss, corruption, or exposure." },
+      { label: "Money", anchor: "Material revenue, billing, or contractual loss." },
+      { label: "Locations", anchor: "Several sites, regions, or tenants." },
+      { label: "Workaround", anchor: "None; the critical path is blocked." },
+    ],
   },
   {
     value: 2,
     name: "Moderate",
     definition: "Blocks a team or an important flow; workaround is costly.",
+    criteria: [
+      { label: "Reach", anchor: "A team, a key customer segment, or one location." },
+      { label: "Data", anchor: "Recoverable loss or a contained exposure." },
+      { label: "Money", anchor: "Bounded, forecastable cost." },
+      { label: "Locations", anchor: "One site or region." },
+      { label: "Workaround", anchor: "Exists, but is costly or slow." },
+    ],
   },
   {
     value: 3,
     name: "Minor",
     definition: "Degrades a flow or is a single-person annoyance.",
+    criteria: [
+      { label: "Reach", anchor: "An individual or a small group." },
+      { label: "Data", anchor: "No data loss; presentation or convenience only." },
+      { label: "Money", anchor: "Negligible or no cost." },
+      { label: "Locations", anchor: "A single device or an edge case." },
+      { label: "Workaround", anchor: "Trivial and sustainable." },
+    ],
   },
 ];
 
@@ -141,16 +173,37 @@ export const URGENCY_SCALE: readonly ScaleLevel<Urgency>[] = [
     value: 1,
     name: "High",
     definition: "Nothing else can proceed; harm accrues immediately.",
+    criteria: [
+      { label: "Harm", anchor: "Damage accrues now, hour by hour." },
+      { label: "Exposure", anchor: "Data or money is at risk while it waits." },
+      { label: "Spread", anchor: "More people or locations are affected over time." },
+      { label: "Dependencies", anchor: "Other people or teams are blocked." },
+      { label: "Deadline", anchor: "A regulatory, contractual, or launch deadline is imminent." },
+    ],
   },
   {
     value: 2,
     name: "Mid",
     definition: "Active degradation; needs this cycle.",
+    criteria: [
+      { label: "Harm", anchor: "Active degradation with a stable ceiling." },
+      { label: "Exposure", anchor: "Contained data or money exposure." },
+      { label: "Spread", anchor: "One location or group; not spreading." },
+      { label: "Dependencies", anchor: "A few people are waiting." },
+      { label: "Deadline", anchor: "Needs this cycle, not this hour." },
+    ],
   },
   {
     value: 3,
     name: "Low",
     definition: "Can wait a sprint or longer.",
+    criteria: [
+      { label: "Harm", anchor: "No ongoing harm." },
+      { label: "Exposure", anchor: "No data or money at risk." },
+      { label: "Spread", anchor: "Stable; affects one location." },
+      { label: "Dependencies", anchor: "Nobody is blocked." },
+      { label: "Deadline", anchor: "No deadline inside this cycle." },
+    ],
   },
 ];
 
@@ -171,6 +224,13 @@ export const DEFAULT_PRIORITY_MATRIX: PriorityMatrix = {
   2: { 1: "P1", 2: "P2", 3: "P3" },
   3: { 1: "P2", 2: "P3", 3: "P3" },
 };
+
+/**
+ * The fixed 4×4 matrix axis order: the three assessed levels followed by the
+ * "not assessed" null. Rows are impact, columns urgency.
+ */
+export const MATRIX_IMPACT_VALUES: readonly (Impact | null)[] = [1, 2, 3, null];
+export const MATRIX_URGENCY_VALUES: readonly (Urgency | null)[] = [1, 2, 3, null];
 
 /** Used when either axis is unset or invalid; missing input is not severity. */
 export const DEFAULT_PRIORITY: Priority = "P3";
@@ -331,4 +391,71 @@ export function retiredPriorityConflict(
   if (present.length > 1) return true;
   const legacy = legacyPriorityFromLabels(labels);
   return legacy !== derived;
+}
+
+/** How completely a matrix cell's two axes are assessed. */
+export type MatrixAssessment = "both" | "partial" | "none";
+
+/** Visual tone for a matrix cell, keyed by priority tier or assessment state. */
+export type MatrixCellTone = "p1" | "p2" | "p3" | "partial" | "none";
+
+/** Display metadata for one cell of the 4×4 priority matrix. */
+export interface MatrixCellMeta {
+  priority: Priority | null;
+  assessment: MatrixAssessment;
+  label: string;
+  tone: MatrixCellTone;
+}
+
+/**
+ * Classify a matrix cell from its two axes. Both assessed → the derived
+ * priority; exactly one → "Needs assessment"; neither → "No priority". Partial
+ * and unassessed cells never collapse to a `P3` label even though the stored
+ * priority cache still derives the P3 fallback.
+ */
+export function matrixCellMeta(
+  impact: unknown,
+  urgency: unknown,
+): MatrixCellMeta {
+  const i = parseImpact(impact);
+  const u = parseUrgency(urgency);
+  if (i !== null && u !== null) {
+    const priority = DEFAULT_PRIORITY_MATRIX[i][u];
+    return {
+      priority,
+      assessment: "both",
+      label: `${priority} · ${priorityMeta(priority)!.name}`,
+      tone: priority.toLowerCase() as MatrixCellTone,
+    };
+  }
+  if (i !== null || u !== null) {
+    return {
+      priority: null,
+      assessment: "partial",
+      label: "Needs assessment",
+      tone: "partial",
+    };
+  }
+  return {
+    priority: null,
+    assessment: "none",
+    label: "No priority",
+    tone: "none",
+  };
+}
+
+/**
+ * Look up a scale level by value, coercing numeric strings. Out-of-range,
+ * non-numeric and null values resolve to `null` (absent).
+ */
+export function scaleLevel<T extends number>(
+  scale: readonly ScaleLevel<T>[],
+  value: unknown,
+): ScaleLevel<T> | null {
+  const numeric =
+    typeof value === "string" && /^\d+$/.test(value.trim())
+      ? Number(value.trim())
+      : value;
+  if (typeof numeric !== "number" || !Number.isFinite(numeric)) return null;
+  return scale.find((level) => level.value === numeric) ?? null;
 }

@@ -6,6 +6,8 @@ import {
   IMPACT_LABEL_VALUES,
   IMPACT_SCALE,
   IMPACT_VALUES,
+  MATRIX_IMPACT_VALUES,
+  MATRIX_URGENCY_VALUES,
   PRIORITY_SCALE,
   PRIORITY_VALUES,
   RETIRED_PRIORITY_LABELS,
@@ -20,6 +22,7 @@ import {
   isPriorityMatrix,
   isRetiredPriorityLabel,
   legacyPriorityFromLabels,
+  matrixCellMeta,
   parseImpact,
   parseImpactLabel,
   parseUrgency,
@@ -29,6 +32,7 @@ import {
   resolvePriorityRules,
   retiredPriority,
   retiredPriorityConflict,
+  scaleLevel,
   urgencyLabel,
   type Impact,
   type PriorityMatrix,
@@ -190,5 +194,34 @@ describe("retired priority labels", () => {
     expect(retiredPriorityConflict("P1", ["p1", "p2"])).toBe(true);
     expect(retiredPriorityConflict(null, ["p1"])).toBe(true);
     expect(retiredPriorityConflict("P1", ["todo"])).toBe(false);
+  });
+});
+
+describe("matrix view data", () => {
+  test("every level carries five decision criteria", () => {
+    for (const level of [...IMPACT_SCALE, ...URGENCY_SCALE]) {
+      expect(level.criteria).toHaveLength(5);
+      for (const criterion of level.criteria) {
+        expect(criterion.label.length).toBeGreaterThan(0);
+        expect(criterion.anchor.length).toBeGreaterThan(0);
+      }
+    }
+  });
+
+  test("matrixCellMeta separates assessed, partial and unassessed cells", () => {
+    expect(matrixCellMeta(1, 1)).toMatchObject({ priority: "P1", assessment: "both", label: "P1 · High", tone: "p1" });
+    expect(matrixCellMeta(2, 3)).toMatchObject({ priority: "P3", assessment: "both", label: "P3 · Low" });
+    expect(matrixCellMeta(1, null)).toMatchObject({ priority: null, assessment: "partial", label: "Needs assessment", tone: "partial" });
+    expect(matrixCellMeta(null, 2)).toMatchObject({ priority: null, assessment: "partial" });
+    expect(matrixCellMeta(null, null)).toMatchObject({ priority: null, assessment: "none", label: "No priority", tone: "none" });
+    expect(matrixCellMeta("1", "1")).toMatchObject({ priority: "P1" });
+    expect(matrixCellMeta(9, 9)).toMatchObject({ assessment: "none" });
+  });
+
+  test("matrix axes keep the assessed levels then Not assessed", () => {
+    expect(MATRIX_IMPACT_VALUES).toEqual([1, 2, 3, null]);
+    expect(MATRIX_URGENCY_VALUES).toEqual([1, 2, 3, null]);
+    expect(scaleLevel(IMPACT_SCALE, 2)?.name).toBe("Moderate");
+    expect(scaleLevel(IMPACT_SCALE, null)).toBeNull();
   });
 });
