@@ -1,6 +1,6 @@
 # Screenshot harness
 
-Reproducible 1440×900 captures of the ten cockpit views, in light and dark,
+Reproducible 1440×900 captures of the twelve cockpit views, in light and dark,
 against a throwaway database. Used for the before/after design gallery.
 
 Both scripts run under Bun outside Vite. They import only `bun:sqlite`,
@@ -18,8 +18,9 @@ COOKIE="$(bun scripts/screenshots/seed.ts --out /tmp/funnel-shots)"
   re-seed.
 - Applies every `drizzle/<timestamp>_<name>/migration.sql` in sorted order.
 - Seeds one repo (`acme/widgets`), users dana/mira/otto, the canonical labels,
-  one milestone, six issues (one closed, one blocked, one epic, one untriaged)
-  and two markdown comments per issue.
+  one milestone, eleven issues (one closed, one blocked, one epic, one
+  untriaged, two partially assessed, one unassessed for the priority matrix)
+  and two markdown comments on each of the first six issues.
 - Enriches the planning views: a maintainer roster with weekly capacity, the
   default size map/allocation/cycle/work-hours settings, plan items for the
   current ISO week (issues 1, 2, 3, 6), and two saved day blocks for today in
@@ -75,9 +76,9 @@ bun scripts/screenshots/capture.ts \
 
 `--db` and `--secret` are accepted as flags for the self-starting path.
 
-Output is 20 PNGs named `<view>-<light|dark>.png`: `issues`, `issue`,
+Output is 24 PNGs named `<view>-<light|dark>.png`: `issues`, `issue`,
 `issue-activity`, `board`, `plan`, `epics`, `milestones`, `attention`, `inbox`,
-`settings-appearance`.
+`settings-appearance`, `matrix`, `priority-guidance`.
 The viewport is 1440×900 at `deviceScaleFactor: 2`, with
 `<html class="dark">` driven by `funnel:theme` and `prefers-color-scheme`
 emulated per theme.

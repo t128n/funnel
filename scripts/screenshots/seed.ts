@@ -161,10 +161,10 @@ interface DemoIssue {
   state: "open" | "closed";
   stateReason: string | null;
   status: string | null;
-  impact: 1 | 2 | 3;
-  urgency: 1 | 2 | 3;
-  priority: "P1" | "P2" | "P3";
-  priorityRank: 0 | 1 | 2;
+  impact: 1 | 2 | 3 | null;
+  urgency: 1 | 2 | 3 | null;
+  priority: "P1" | "P2" | "P3" | null;
+  priorityRank: 0 | 1 | 2 | 3;
   size: "sm" | "md" | "lg";
   blocked?: boolean;
   epic?: boolean;
@@ -343,6 +343,123 @@ const ISSUES: DemoIssue[] = [
     milestone: null,
     labels: ["mod", "low", "sm"],
     updatedOffsetMinutes: 30,
+  },
+  {
+    number: 7,
+    title: "Order export omits widgets with no variants",
+    body: [
+      "Exporting an order that references a widget with an empty variant list",
+      "silently drops the row, so revenue totals no longer reconcile.",
+      "",
+      "The impact is severe but we have not agreed how quickly it must ship.",
+    ].join("\n"),
+    state: "open",
+    stateReason: null,
+    status: "todo",
+    impact: 1,
+    urgency: null,
+    priority: "P3",
+    priorityRank: 2,
+    size: "sm",
+    author: 3,
+    assignee: 1,
+    milestone: null,
+    labels: ["todo", "sev", "sm"],
+    updatedOffsetMinutes: 45,
+  },
+  {
+    number: 8,
+    title: "Dashboard tiles load one at a time on cold start",
+    body: [
+      "Each tile waits for the previous one to finish before it paints, so a",
+      "cold dashboard takes several seconds even on a fast connection.",
+      "",
+      "Flagged urgent by support; we still need to score the blast radius.",
+    ].join("\n"),
+    state: "open",
+    stateReason: null,
+    status: "todo",
+    impact: null,
+    urgency: 1,
+    priority: "P3",
+    priorityRank: 2,
+    size: "lg",
+    author: 2,
+    assignee: 3,
+    milestone: null,
+    labels: ["todo", "high", "lg"],
+    updatedOffsetMinutes: 120,
+  },
+  {
+    number: 9,
+    title: "Localize the date picker for RTL locales",
+    body: [
+      "The date picker still lays out left-to-right in Arabic and Hebrew, and",
+      "the week starts on the wrong day.",
+      "",
+      "Not yet triaged: no severity or urgency has been set.",
+    ].join("\n"),
+    state: "open",
+    stateReason: null,
+    status: null,
+    impact: null,
+    urgency: null,
+    priority: null,
+    priorityRank: 3,
+    size: "sm",
+    author: 1,
+    assignee: 2,
+    milestone: null,
+    labels: ["sm"],
+    updatedOffsetMinutes: 20,
+  },
+  {
+    number: 10,
+    title: "CSV export truncates past 1000 rows",
+    body: [
+      "The CSV export stops at 1000 rows without a warning, so a large",
+      "reconciliation is silently incomplete.",
+      "",
+      "Severe data issue, but it only bites a handful of large accounts each",
+      "quarter, so it can wait a little.",
+    ].join("\n"),
+    state: "open",
+    stateReason: null,
+    status: "in-progress",
+    impact: 1,
+    urgency: 3,
+    priority: "P2",
+    priorityRank: 1,
+    size: "md",
+    author: 2,
+    assignee: 2,
+    milestone: 1,
+    labels: ["in-progress", "sev", "low", "md"],
+    updatedOffsetMinutes: 210,
+  },
+  {
+    number: 11,
+    title: "Numbered comments render out of order after a merge",
+    body: [
+      "After merging two threads the `#cN` anchors renumber but the rendered",
+      "list keeps the old order, so links jump to the wrong comment.",
+      "",
+      "Minor severity, but reviewers hit it every day and are blocked from",
+      "quoting threads accurately.",
+    ].join("\n"),
+    state: "open",
+    stateReason: null,
+    status: "backlog",
+    impact: 3,
+    urgency: 1,
+    priority: "P2",
+    priorityRank: 1,
+    size: "lg",
+    author: 1,
+    assignee: 3,
+    milestone: 1,
+    labels: ["backlog", "min", "high", "lg"],
+    updatedOffsetMinutes: 480,
   },
 ];
 
