@@ -59,7 +59,14 @@
 </script>
 
 <div class="p-3" data-testid="matrix-grid">
-	<table class="min-w-[860px] w-full border-collapse text-sm">
+	<table class="table-fixed min-w-[860px] w-full border-collapse text-sm">
+		<colgroup>
+			<col class="w-44" />
+			<col />
+			<col />
+			<col />
+			<col />
+		</colgroup>
 		<thead>
 			<tr>
 				<th class="border border-[color:var(--border)] bg-muted/40 p-2 text-left align-bottom">
