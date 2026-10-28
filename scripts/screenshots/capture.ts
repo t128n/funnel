@@ -1,5 +1,5 @@
 /**
- * Capture the nine cockpit views in light and dark at 1440×900 (DPR 2).
+ * Capture the twelve cockpit views in light and dark at 1440×900 (DPR 2).
  *
  * This script runs outside Vite, so it must not import `$app/*` or `#lib/*`.
  * It seeds nothing itself; pair it with `seed.ts`:
@@ -21,11 +21,12 @@ import { chromium, type BrowserContext, type Page } from "playwright";
 import { DEFAULT_SECRET } from "./seed";
 
 /**
- * The nine views captured for the design gallery.
+ * The twelve views captured for the design gallery.
  *
  * `ready` is the hydration contract: a selector that only exists once the
  * client-side data view has painted. Without it the capture can frame a
- * loading spinner or a bare table header on a cold context.
+ * loading spinner or a bare table header on a cold context. Views with a
+ * `click` open a popover first and then wait for `readyAfter` before framing.
  */
 export const VIEWS = [
   {
@@ -70,6 +71,18 @@ export const VIEWS = [
     name: "settings-appearance",
     path: "/settings/appearance",
     ready: "h1, h2",
+  },
+  {
+    name: "matrix",
+    path: "/matrix",
+    ready: '[data-testid="matrix-grid"]',
+  },
+  {
+    name: "priority-guidance",
+    path: "/issues/acme/widgets/1",
+    ready: '[aria-label="Issue inspector"] h2',
+    click: '[title="Change priority"]',
+    readyAfter: '[data-slot="popover-content"]',
   },
 ] as const;
 
@@ -152,7 +165,19 @@ function startServer(): ChildProcess {
 
   const child = spawn(
     "bun",
-    ["--bun", "vite", "dev", "--port", String(DEV_PORT), "--strictPort"],
+    [
+      "--bun",
+      "vite",
+      "dev",
+      "--port",
+      String(DEV_PORT),
+      "--strictPort",
+      // Bind IPv4 explicitly: on hosts where `localhost` resolves to `::1`
+      // first, Vite listens on IPv6 only and the 127.0.0.1 health check
+      // below never connects.
+      "--host",
+      "127.0.0.1",
+    ],
     {
       cwd: repositoryRoot(),
       env: {
@@ -196,7 +221,11 @@ async function waitForView(
     );
   }
 
-  if (view.name === "issue" || view.name === "issue-activity") {
+  if (
+    view.name === "issue" ||
+    view.name === "issue-activity" ||
+    view.name === "priority-guidance"
+  ) {
     try {
       await page.waitForFunction(
         () =>
@@ -208,7 +237,21 @@ async function waitForView(
       );
     } catch {
       throw new Error(
-        "View issue did not finish loading the issue detail (spinner still present)",
+        `View ${view.name} did not finish loading the issue detail (spinner still present)`,
+      );
+    }
+  }
+
+  if ("click" in view && view.click) {
+    await page.click(view.click);
+  }
+
+  if ("readyAfter" in view && view.readyAfter) {
+    try {
+      await page.waitForSelector(view.readyAfter, { timeout: 30_000 });
+    } catch {
+      throw new Error(
+        `View ${view.name} did not become ready after click: ${view.readyAfter} never appeared`,
       );
     }
   }

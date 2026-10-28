@@ -87,19 +87,20 @@ Milestones are not part of the reserved vocabulary. They are ordinary GitHub mil
 
 The cockpit uses milestones in three places: the **Milestones** view groups them by repository with progress and due dates, the issue feeds add a milestone filter and group-by dimension (`?milestone=owner/name#number`, `none` for unmilestoned issues), and the Inspector can set or clear an issue's milestone. The Inspector picker can create a milestone lazily in the issue's repository, which is the only milestone write Funnel performs; everything else is managed on GitHub.
 
-## Inbox, Issues, and the board
+## Inbox, Issues, the board, and the matrix
 
-Three views partition the workflow, and each is a query against the local mirror rather than the network (see `src/lib/server/issues/queries.ts`):
+Three views partition the workflow, and a fourth reads it as a lens over derived priority. Each is a query against the local mirror rather than the network (see `src/lib/server/issues/queries.ts`):
 
 - **Inbox** — pending intake submissions followed by untriaged open issues. It is the queue of things that have not been given a stage yet.
 - **Issues** — every triaged mirrored issue, open and closed. `allIssues()` filters on `status IS NOT NULL` precisely so the two views form a clean partition: the moment an issue gains a status label it leaves the Inbox and appears here.
 - **Board** — four columns by status label for open issues, plus a `Done` column.
+- **Matrix** — a read-only 4×4 projection of impact × urgency over the same filtered stream, with a **Not assessed** row and column. It is not a partition by stage: an issue lands in a cell from its impact and urgency, and the partial and unassessed cells surface the work that the `P3` fallback hides everywhere else.
 
 The `Done` column is a window, not a place. It holds issues that are closed *as completed* (`state = "closed" AND state_reason = "completed"`) within `board.done_days` (default 14). Issues closed as `not_planned` are omitted entirely, and the window itself is configurable. The consequence is that "Done" is time-relative: a card silently ages out of the column after the window passes, even though the issue is still closed. That is a board affordance, not a data loss — the issue is still in **Issues**, and the mirror keeps `closedAt`.
 
 ## Priority ordering
 
-Priority is **derived**, not chosen. The Inspector has one Priority control; its popover records **impact** and **urgency**, two three-point scales carried as ordinary reserved labels (`sev`/`mod`/`min`, `high`/`mid`/`low`). Their P1–P3 lookup is the only mapping in the system; one unset axis yields the `P3` fallback and both unset axes mean *no priority*. See [Impact, urgency, and priority](../reference/priority.md).
+Priority is **derived**, not chosen. The Inspector has one Priority control; its popover records **impact** and **urgency**, two three-point scales carried as ordinary reserved labels (`sev`/`mod`/`min`, `high`/`mid`/`low`). Their P1–P3 lookup is the only mapping in the system; one unset axis yields the `P3` fallback and both unset axes mean *no priority*. The **Matrix** view makes that distinction visible: a partial pair renders as **Needs assessment** rather than `P3`, while the stored priority cache keeps the `P3` fallback. See [Impact, urgency, and priority](../reference/priority.md).
 
 GitHub is authoritative for the axes. The mirror caches the levels on `mirror_github_issue.impact` and `.urgency` and the derived value on `.priority`; a label edit anywhere propagates on the next sync. The retired `p1`–`p3` labels are ignored unless they disagree with the derived value, in which case they raise the label-conflict flag.
 

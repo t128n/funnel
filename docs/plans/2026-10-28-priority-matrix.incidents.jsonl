@@ -1,0 +1,280 @@
+{"file": "src/lib/attention.test.ts", "line": 0, "context": "run_tests full: 17 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:50:33"}
+{"file": "src/lib/client/feed-merge.test.ts", "line": 0, "context": "run_tests full: 22 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:50:33"}
+{"file": "src/lib/client/native-notifications.test.ts", "line": 0, "context": "run_tests full: 10 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:50:33"}
+{"file": "src/lib/components/board/board-card.test.ts", "line": 0, "context": "run_tests full: 8 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:50:33"}
+{"file": "src/lib/components/board/dnd.test.ts", "line": 0, "context": "run_tests full: 11 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:50:33"}
+{"file": "src/lib/components/issue/activity-timeline.test.ts", "line": 0, "context": "run_tests full: 2 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:50:33"}
+{"file": "src/lib/components/issue/bug-vocabulary.test.ts", "line": 0, "context": "run_tests full: 3 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:50:33"}
+{"file": "src/lib/components/issue/grouping.test.ts", "line": 0, "context": "run_tests full: 7 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:50:33"}
+{"file": "src/lib/components/issue/inspector-format.test.ts", "line": 0, "context": "run_tests full: 5 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:50:33"}
+{"file": "src/lib/components/issue/issue-row.test.ts", "line": 0, "context": "run_tests full: 2 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:50:33"}
+{"file": "src/lib/components/plan/day-plan-request.test.ts", "line": 0, "context": "run_tests full: 7 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:50:33"}
+{"file": "src/lib/components/plan/day-plan.test.ts", "line": 0, "context": "run_tests full: 4 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:50:33"}
+{"file": "src/lib/components/plan/format.test.ts", "line": 0, "context": "run_tests full: 5 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:50:33"}
+{"file": "src/lib/components/plan/plan-ui.test.ts", "line": 0, "context": "run_tests full: 3 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:50:33"}
+{"file": "src/lib/components/plan/schedule.test.ts", "line": 0, "context": "run_tests full: 5 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:50:33"}
+{"file": "src/lib/errors.test.ts", "line": 0, "context": "run_tests full: 7 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:50:33"}
+{"file": "src/lib/features.test.ts", "line": 0, "context": "run_tests full: 7 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:50:33"}
+{"file": "src/lib/funnel-metadata.test.ts", "line": 0, "context": "run_tests full: 25 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:50:33"}
+{"file": "src/lib/issue-copy.test.ts", "line": 0, "context": "run_tests full: 13 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:50:33"}
+{"file": "src/lib/issue-ref.test.ts", "line": 0, "context": "run_tests full: 5 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:50:33"}
+{"file": "src/lib/issue-url.test.ts", "line": 0, "context": "run_tests full: 7 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:50:33"}
+{"file": "src/lib/planning.test.ts", "line": 0, "context": "run_tests full: 6 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:50:33"}
+{"file": "src/lib/planning/availability.test.ts", "line": 0, "context": "run_tests full: 15 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:50:33"}
+{"file": "src/lib/planning/day-plan.test.ts", "line": 0, "context": "run_tests full: 13 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:50:33"}
+{"file": "src/lib/priority.test.ts", "line": 0, "context": "run_tests full: 16 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:50:33"}
+{"file": "src/lib/seo.test.ts", "line": 0, "context": "run_tests full: 5 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:50:33"}
+{"file": "src/lib/server/actuals/reasons.test.ts", "line": 0, "context": "run_tests full: 4 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:50:33"}
+{"file": "src/lib/server/actuals/store.test.ts", "line": 0, "context": "run_tests full: 12 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:50:33"}
+{"file": "src/lib/server/actuals/time.test.ts", "line": 0, "context": "run_tests full: 23 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:50:33"}
+{"file": "src/lib/server/actuals/transitions.test.ts", "line": 0, "context": "run_tests full: 15 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:50:33"}
+{"file": "src/lib/server/attachments/store.test.ts", "line": 0, "context": "run_tests full: 6 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:50:33"}
+{"file": "src/lib/server/auth/auth.test.ts", "line": 0, "context": "run_tests full: 6 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:50:33"}
+{"file": "src/lib/server/calendar/ics.test.ts", "line": 0, "context": "run_tests full: 11 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:50:33"}
+{"file": "src/lib/server/config.test.ts", "line": 0, "context": "run_tests full: 16 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:50:33"}
+{"file": "src/lib/server/crypto/secrets.test.ts", "line": 0, "context": "run_tests full: 5 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:50:33"}
+{"file": "src/lib/server/db/schema.test.ts", "line": 0, "context": "run_tests full: 6 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:50:33"}
+{"file": "src/lib/server/epics/mutations.test.ts", "line": 0, "context": "run_tests full: 5 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:50:33"}
+{"file": "src/lib/server/epics/queries.test.ts", "line": 0, "context": "run_tests full: 3 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:50:33"}
+{"file": "src/lib/server/forge/providers.test.ts", "line": 0, "context": "run_tests full: 6 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:50:33"}
+{"file": "src/lib/server/github/api-passthrough.test.ts", "line": 0, "context": "run_tests full: 21 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:50:33"}
+{"file": "src/lib/server/github/assignees.test.ts", "line": 0, "context": "run_tests full: 2 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:50:33"}
+{"file": "src/lib/server/github/cache.test.ts", "line": 0, "context": "run_tests full: 12 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:50:33"}
+{"file": "src/lib/server/github/credentials.test.ts", "line": 0, "context": "run_tests full: 5 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:50:33"}
+{"file": "src/lib/server/github/labels.test.ts", "line": 0, "context": "run_tests full: 12 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:50:33"}
+{"file": "src/lib/server/github/manifest-flow.server.test.ts", "line": 0, "context": "run_tests full: 7 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:50:33"}
+{"file": "src/lib/server/github/manifest.test.ts", "line": 0, "context": "run_tests full: 6 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:50:33"}
+{"file": "src/lib/server/github/milestones.test.ts", "line": 0, "context": "run_tests full: 9 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:50:33"}
+{"file": "src/lib/server/intake/actions.test.ts", "line": 0, "context": "run_tests full: 15 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:50:33"}
+{"file": "src/lib/server/intake/staging.test.ts", "line": 0, "context": "run_tests full: 10 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:50:33"}
+{"file": "src/lib/server/issues/detail.test.ts", "line": 0, "context": "run_tests full: 7 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:50:33"}
+{"file": "src/lib/server/issues/filters.test.ts", "line": 0, "context": "run_tests full: 14 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:50:33"}
+{"file": "src/lib/server/issues/mutations.test.ts", "line": 0, "context": "run_tests full: 36 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:50:33"}
+{"file": "src/lib/server/issues/queries.test.ts", "line": 0, "context": "run_tests full: 43 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:50:33"}
+{"file": "src/lib/server/log.test.ts", "line": 0, "context": "run_tests full: 3 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:50:33"}
+{"file": "src/lib/server/markdown/render.test.ts", "line": 0, "context": "run_tests full: 17 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:50:33"}
+{"file": "src/lib/server/notifications/plan.test.ts", "line": 0, "context": "run_tests full: 12 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:50:33"}
+{"file": "src/lib/server/notifications/service.test.ts", "line": 0, "context": "run_tests full: 8 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:50:33"}
+{"file": "src/lib/server/onboarding/access.test.ts", "line": 0, "context": "run_tests full: 2 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:50:33"}
+{"file": "src/lib/server/planning/calendar.test.ts", "line": 0, "context": "run_tests full: 15 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:50:33"}
+{"file": "src/lib/server/planning/capacity.test.ts", "line": 0, "context": "run_tests full: 18 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:50:33"}
+{"file": "src/lib/server/planning/day-queries.test.ts", "line": 0, "context": "run_tests full: 4 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:50:33"}
+{"file": "src/lib/server/planning/day-store.test.ts", "line": 0, "context": "run_tests full: 6 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:50:33"}
+{"file": "src/lib/server/planning/milestones.test.ts", "line": 0, "context": "run_tests full: 5 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:50:33"}
+{"file": "src/lib/server/planning/mutations.test.ts", "line": 0, "context": "run_tests full: 12 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:50:33"}
+{"file": "src/lib/server/planning/plans.test.ts", "line": 0, "context": "run_tests full: 7 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:50:33"}
+{"file": "src/lib/server/planning/queries.test.ts", "line": 0, "context": "run_tests full: 7 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:50:33"}
+{"file": "src/lib/server/planning/store.test.ts", "line": 0, "context": "run_tests full: 4 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:50:33"}
+{"file": "src/lib/server/settings/apply.test.ts", "line": 0, "context": "run_tests full: 11 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:50:33"}
+{"file": "src/lib/server/settings/store.test.ts", "line": 0, "context": "run_tests full: 15 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:50:33"}
+{"file": "src/lib/server/sync/conflicts.test.ts", "line": 0, "context": "run_tests full: 22 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:50:33"}
+{"file": "src/lib/server/sync/events.test.ts", "line": 0, "context": "run_tests full: 3 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:50:33"}
+{"file": "src/lib/server/sync/hydrate.test.ts", "line": 0, "context": "run_tests full: 36 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:50:33"}
+{"file": "src/lib/server/sync/mirror.test.ts", "line": 0, "context": "run_tests full: 19 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:50:33"}
+{"file": "src/lib/server/sync/reconcile.test.ts", "line": 0, "context": "run_tests full: 4 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:50:33"}
+{"file": "src/lib/server/sync/worker.test.ts", "line": 0, "context": "run_tests full: 21 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:50:33"}
+{"file": "src/lib/server/work-notes.test.ts", "line": 0, "context": "run_tests full: 7 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:50:33"}
+{"file": "src/lib/time.test.ts", "line": 0, "context": "run_tests full: 3 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:50:33"}
+{"file": "src/lib/time/zoned.test.ts", "line": 0, "context": "run_tests full: 10 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:50:33"}
+{"file": "src/lib/url-filter.test.ts", "line": 0, "context": "run_tests full: 11 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:50:33"}
+{"file": "src/routes/api/feeds/feeds.test.ts", "line": 0, "context": "run_tests full: 12 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:50:33"}
+{"file": "tests/availability-page.test.ts", "line": 0, "context": "run_tests full: 9 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:50:33"}
+{"file": "tests/availability-routes.test.ts", "line": 0, "context": "run_tests full: 6 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:50:33"}
+{"file": "tests/calendar-feed-route.test.ts", "line": 0, "context": "run_tests full: 5 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:50:33"}
+{"file": "tests/day-page.test.ts", "line": 0, "context": "run_tests full: 8 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:50:33"}
+{"file": "tests/day-plan-routes.test.ts", "line": 0, "context": "run_tests full: 8 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:50:33"}
+{"file": "tests/delay-routes.test.ts", "line": 0, "context": "run_tests full: 13 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:50:33"}
+{"file": "tests/design-doc.test.ts", "line": 0, "context": "run_tests full: 4 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:50:33"}
+{"file": "tests/design-tokens.test.ts", "line": 0, "context": "run_tests full: 7 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:50:33"}
+{"file": "tests/docs-actuals-epics.test.ts", "line": 0, "context": "run_tests full: 7 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:50:33"}
+{"file": "tests/docs-alpen.test.ts", "line": 0, "context": "run_tests full: 10 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:50:33"}
+{"file": "tests/docs-diataxis.test.ts", "line": 0, "context": "run_tests full: 4 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:50:33"}
+{"file": "tests/docs-planning.test.ts", "line": 0, "context": "run_tests full: 16 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:50:33"}
+{"file": "tests/epic-routes.test.ts", "line": 0, "context": "run_tests full: 5 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:50:33"}
+{"file": "tests/epics-page.test.ts", "line": 0, "context": "run_tests full: 9 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:50:33"}
+{"file": "tests/error-routes.test.ts", "line": 0, "context": "run_tests full: 1 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:50:33"}
+{"file": "tests/flags.test.ts", "line": 0, "context": "run_tests full: 5 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:50:33"}
+{"file": "tests/hotkeys.test.ts", "line": 0, "context": "run_tests full: 2 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:50:33"}
+{"file": "tests/inbox-projection.test.ts", "line": 0, "context": "run_tests full: 4 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:50:33"}
+{"file": "tests/intake-deeplink.test.ts", "line": 0, "context": "run_tests full: 11 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:50:33"}
+{"file": "tests/intake-prefill.test.ts", "line": 0, "context": "run_tests full: 8 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:50:33"}
+{"file": "tests/intake.test.ts", "line": 0, "context": "run_tests full: 9 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:50:33"}
+{"file": "tests/issues-routes.test.ts", "line": 0, "context": "run_tests full: 19 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:50:33"}
+{"file": "tests/mirror-issues-route.test.ts", "line": 0, "context": "run_tests full: 5 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:50:33"}
+{"file": "tests/notifications-routes.test.ts", "line": 0, "context": "run_tests full: 14 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:50:33"}
+{"file": "tests/openapi.test.ts", "line": 0, "context": "run_tests full: 2 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:50:33"}
+{"file": "tests/planning-day-load.test.ts", "line": 0, "context": "run_tests full: 9 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:50:33"}
+{"file": "tests/planning-page.test.ts", "line": 0, "context": "run_tests full: 18 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:50:33"}
+{"file": "tests/planning-routes.test.ts", "line": 0, "context": "run_tests full: 8 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:50:33"}
+{"file": "tests/priority-migration.test.ts", "line": 0, "context": "run_tests full: 1 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:50:33"}
+{"file": "tests/rbac.test.ts", "line": 0, "context": "run_tests full: 8 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:50:33"}
+{"file": "tests/routes.test.ts", "line": 0, "context": "run_tests full: 16 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:50:33"}
+{"file": "tests/sse.test.ts", "line": 0, "context": "run_tests full: 2 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:50:33"}
+{"file": "tests/work-notes-routes.test.ts", "line": 0, "context": "run_tests full: 12 tests pass", "agent": "run_tests", "kind": "verified", "time": "03:50:33"}
+{"file": "src/lib/components/matrix/matrix-grid.ts", "line": 3, "context": "MatrixBoard and MatrixCellMeta imports do not exist yet; owner files (types.ts, priority.ts) untouched", "agent": "T0", "kind": "spec-ambiguity", "resolution": "stub imports types type-only; tsc fails until T1/T2 land", "confidence": "high", "time": "03:50:37"}
+{"file": "docs/plans/2026-10-28-priority-matrix.spec.md", "line": 0, "context": "T0: change outside Owns blocked by commit_task; nothing committed", "agent": "commit_task", "kind": "exception", "resolution": "open", "time": "03:50:47"}
+{"file": "tests/docs-priority-matrix.test.ts", "line": 26, "context": "priority reference documents criteria and the 4x4: expect(received).toContain(expected)", "agent": "run_tests", "kind": "test-failure", "resolution": "open", "time": "03:51:52"}
+{"file": "tests/docs-priority-matrix.test.ts", "line": 31, "context": "the matrix route and how-to are indexed: expect(received).toContain(expected)", "agent": "run_tests", "kind": "test-failure", "resolution": "open", "time": "03:51:52"}
+{"file": "-", "line": 0, "context": "exit code 1: Ran 1 test across 1 file. [214.00ms]", "agent": "run_tests", "kind": "test-failure", "resolution": "open", "time": "03:52:35"}
+{"file": "src/routes/(app)/matrix/+layout.server.ts", "line": 0, "context": "T3: change outside Owns blocked by commit_task; nothing committed", "agent": "commit_task", "kind": "exception", "resolution": "open", "time": "04:11:27"}
+{"file": "src/routes/(app)/matrix/+layout.svelte", "line": 0, "context": "T3: change outside Owns blocked by commit_task; nothing committed", "agent": "commit_task", "kind": "exception", "resolution": "open", "time": "04:11:27"}
+{"file": "src/routes/(app)/matrix/+page.svelte", "line": 0, "context": "T3: change outside Owns blocked by commit_task; nothing committed", "agent": "commit_task", "kind": "exception", "resolution": "open", "time": "04:11:27"}
+{"file": "src/routes/(app)/matrix/[owner]/[repo]/[number]/+page.server.ts", "line": 0, "context": "T3: change outside Owns blocked by commit_task; nothing committed", "agent": "commit_task", "kind": "exception", "resolution": "open", "time": "04:11:27"}
+{"file": "src/routes/(app)/matrix/[owner]/[repo]/[number]/+page.svelte", "line": 0, "context": "T3: change outside Owns blocked by commit_task; nothing committed", "agent": "commit_task", "kind": "exception", "resolution": "open", "time": "04:11:27"}
+{"file": "src/routes/(app)/matrix/+layout.server.ts", "line": 0, "context": "T4: change outside Owns blocked by commit_task; nothing committed", "agent": "commit_task", "kind": "exception", "resolution": "open", "time": "04:11:27"}
+{"file": "src/routes/(app)/matrix/+layout.svelte", "line": 0, "context": "T4: change outside Owns blocked by commit_task; nothing committed", "agent": "commit_task", "kind": "exception", "resolution": "open", "time": "04:11:27"}
+{"file": "src/routes/(app)/matrix/+page.svelte", "line": 0, "context": "T4: change outside Owns blocked by commit_task; nothing committed", "agent": "commit_task", "kind": "exception", "resolution": "open", "time": "04:11:27"}
+{"file": "src/routes/(app)/matrix/[owner]/[repo]/[number]/+page.server.ts", "line": 0, "context": "T4: change outside Owns blocked by commit_task; nothing committed", "agent": "commit_task", "kind": "exception", "resolution": "open", "time": "04:11:27"}
+{"file": "src/routes/(app)/matrix/[owner]/[repo]/[number]/+page.svelte", "line": 0, "context": "T4: change outside Owns blocked by commit_task; nothing committed", "agent": "commit_task", "kind": "exception", "resolution": "open", "time": "04:11:27"}
+{"file": "src/routes/(app)/matrix/+layout.server.ts", "line": 0, "context": "T3: change outside Owns blocked by commit_task; nothing committed", "agent": "commit_task", "kind": "exception", "resolution": "open", "time": "04:11:59"}
+{"file": "src/routes/(app)/matrix/+layout.svelte", "line": 0, "context": "T3: change outside Owns blocked by commit_task; nothing committed", "agent": "commit_task", "kind": "exception", "resolution": "open", "time": "04:11:59"}
+{"file": "src/routes/(app)/matrix/+page.svelte", "line": 0, "context": "T3: change outside Owns blocked by commit_task; nothing committed", "agent": "commit_task", "kind": "exception", "resolution": "open", "time": "04:11:59"}
+{"file": "src/routes/(app)/matrix/[owner]/[repo]/[number]/+page.server.ts", "line": 0, "context": "T3: change outside Owns blocked by commit_task; nothing committed", "agent": "commit_task", "kind": "exception", "resolution": "open", "time": "04:11:59"}
+{"file": "src/routes/(app)/matrix/[owner]/[repo]/[number]/+page.svelte", "line": 0, "context": "T3: change outside Owns blocked by commit_task; nothing committed", "agent": "commit_task", "kind": "exception", "resolution": "open", "time": "04:11:59"}
+{"file": "src/routes/(app)/matrix/+layout.server.ts", "line": 0, "context": "T4: change outside Owns blocked by commit_task; nothing committed", "agent": "commit_task", "kind": "exception", "resolution": "open", "time": "04:11:59"}
+{"file": "src/routes/(app)/matrix/+layout.svelte", "line": 0, "context": "T4: change outside Owns blocked by commit_task; nothing committed", "agent": "commit_task", "kind": "exception", "resolution": "open", "time": "04:11:59"}
+{"file": "src/routes/(app)/matrix/+page.svelte", "line": 0, "context": "T4: change outside Owns blocked by commit_task; nothing committed", "agent": "commit_task", "kind": "exception", "resolution": "open", "time": "04:11:59"}
+{"file": "src/routes/(app)/matrix/[owner]/[repo]/[number]/+page.server.ts", "line": 0, "context": "T4: change outside Owns blocked by commit_task; nothing committed", "agent": "commit_task", "kind": "exception", "resolution": "open", "time": "04:11:59"}
+{"file": "src/routes/(app)/matrix/[owner]/[repo]/[number]/+page.svelte", "line": 0, "context": "T4: change outside Owns blocked by commit_task; nothing committed", "agent": "commit_task", "kind": "exception", "resolution": "open", "time": "04:11:59"}
+{"file": "docs/plans/2026-10-28-priority-matrix.md", "line": 83, "context": "seam T1↔T4: T1 Produces: matrixCellMeta: no module found (file missing)", "agent": "pt_review", "kind": "exception", "confidence": "high", "resolution": "open", "time": "04:12:58"}
+{"file": "scripts/screenshots/capture.ts", "line": 178, "context": "vite dev bound [::1]:5199 so self-start health check on 127.0.0.1 timed out; forced --host 127.0.0.1", "agent": "T6", "kind": "workaround", "resolution": "spawn vite with --host 127.0.0.1", "confidence": "high", "time": "04:26:44"}
+{"file": "scripts/screenshots/capture.ts", "line": 285, "context": "chromium launch failed: libnspr4.so missing; set LD_LIBRARY_PATH to /tmp/opencode/chrome-libs and FONTCONFIG_FILE to its fonts.conf", "agent": "T6", "kind": "workaround", "resolution": "run capture with LD_LIBRARY_PATH + FONTCONFIG_FILE env", "confidence": "high", "time": "04:28:25"}
+{"file": "", "line": 0, "context": "verified: seam T4↔T6", "agent": "pt_review", "kind": "verified", "time": "04:30:18"}
+{"file": "src/lib/components/matrix/matrix-grid.test.ts", "line": 0, "context": "run_tests full: 1 tests pass", "agent": "run_tests", "kind": "verified", "time": "04:30:31"}
+{"file": "src/lib/priority.test.ts", "line": 0, "context": "run_tests full: 19 tests pass", "agent": "run_tests", "kind": "verified", "time": "04:30:31"}
+{"file": "src/lib/server/issues/queries.test.ts", "line": 0, "context": "run_tests full: 47 tests pass", "agent": "run_tests", "kind": "verified", "time": "04:30:31"}
+{"file": "tests/docs-priority-matrix.test.ts", "line": 0, "context": "run_tests full: 2 tests pass", "agent": "run_tests", "kind": "verified", "time": "04:30:31"}
+{"file": "tests/matrix-route.test.ts", "line": 0, "context": "run_tests full: 1 tests pass", "agent": "run_tests", "kind": "verified", "time": "04:30:31"}
+{"file": "tests/screenshots-matrix.test.ts", "line": 0, "context": "run_tests full: 1 tests pass", "agent": "run_tests", "kind": "verified", "time": "04:30:31"}
+{"file": "src/lib/components/matrix/matrix-grid.test.ts", "line": 15, "context": "regression test: asserts the grid table uses table-fixed and a 5-col colgroup so the 1440px overflow cannot regress", "agent": "subagent-review", "kind": "verified", "resolution": "fixed", "confidence": "high", "time": "04:38:42"}
+{"file": "src/lib/components/matrix/MatrixGrid.svelte", "line": 62, "context": "4th urgency column (Not assessed) clipped at 1440 and long titles widened the auto-layout table; switched to table-fixed + colgroup (w-44 row header, four equal urgency cols) so all five columns fit …", "agent": "subagent-review", "kind": "exception", "resolution": "fixed", "confidence": "high", "time": "04:38:59"}
+{"file": "src/lib/components/matrix/matrix-grid.test.ts", "line": 15, "context": "regression test: asserts the grid table uses table-fixed and a 5-col colgroup so the 1440px overflow cannot regress", "agent": "subagent-review", "kind": "verified", "resolution": "fixed", "confidence": "high", "time": "04:38:59"}
+{"file": "src/lib/priority.ts", "line": 416, "context": "4x4 semantics verified: matrixCellMeta returns both->derived priority, exactly-one->partial (null priority, 'Needs assessment'), neither->none; partial/none never collapse to P3; string '1' coerces a…", "agent": "subagent-review", "kind": "verified", "resolution": "fixed", "confidence": "high", "time": "04:39:10"}
+{"file": "src/routes/(app)/matrix/+layout.server.ts", "line": 20, "context": "route default verified: empty states -> ['open']; matrixBoard applied to the full parseIssueFilter stream (all dimensions) with no triaged/untriaged or state special-casing", "agent": "subagent-review", "kind": "verified", "resolution": "fixed", "confidence": "high", "time": "04:39:10"}
+{"file": "src/lib/server/issues/queries.ts", "line": 788, "context": "query filters/cap verified: matrixBoard builds every filter dimension via buildIssueWhere, counts from grouped SQL, previews capped at MATRIX_PREVIEW_LIMIT=4 ordered by rank then updated", "agent": "subagent-review", "kind": "verified", "resolution": "fixed", "confidence": "high", "time": "04:39:10"}
+{"file": "src/lib/components/issue/PriorityPicker.svelte", "line": 157, "context": "criteria copy verified: selected level renders five label-anchor criteria as text; unselected names Reach/data loss/money/locations/workaround and Harm now/data or money at risk/spread/blocked people…", "agent": "subagent-review", "kind": "verified", "resolution": "fixed", "confidence": "high", "time": "04:39:10"}
+{"file": "docs/reference/priority.md", "line": 76, "context": "P3-fallback statement verified: partial pair displays Needs assessment and is never labelled P3, while the stored priority cache still holds the P3 fallback; how-to and workflow-model agree", "agent": "subagent-review", "kind": "verified", "resolution": "fixed", "confidence": "high", "time": "04:39:10"}
+{"file": "src/lib/components/matrix/matrix-grid.ts", "line": 39, "context": "matrixGrid contract verified: 4x4 row-major projection keyed by fixed axis order, meta from matrixCellMeta, empty board still yields 16 cells. pt_review 'no module found' is a Python-only tooling fal…", "agent": "subagent-review", "kind": "verified", "resolution": "fixed", "confidence": "high", "time": "04:40:21"}
+{"file": "", "line": 0, "context": "verified: seam T4↔T6", "agent": "pt_review", "kind": "verified", "time": "04:54:35"}
+{"file": "src/lib/components/matrix/matrix-grid.test.ts", "line": 0, "context": "run_tests full: 2 tests pass", "agent": "run_tests", "kind": "verified", "time": "04:55:12"}
+{"file": "docs/plans/2026-10-28-priority-matrix.incidents.jsonl", "line": 0, "context": "T3: change outside Owns blocked by commit_task; nothing committed", "agent": "commit_task", "kind": "exception", "resolution": "open", "time": "05:03:29"}
+{"file": "docs/plans/2026-10-28-priority-matrix.progress.md", "line": 0, "context": "T3: change outside Owns blocked by commit_task; nothing committed", "agent": "commit_task", "kind": "exception", "resolution": "open", "time": "05:03:29"}
+{"file": "docs/plans/2026-10-28-priority-matrix.incidents.jsonl", "line": 0, "context": "T3: change outside Owns blocked by commit_task; nothing committed", "agent": "commit_task", "kind": "exception", "resolution": "open", "time": "05:06:14"}
+{"file": "docs/plans/2026-10-28-priority-matrix.progress.md", "line": 0, "context": "T3: change outside Owns blocked by commit_task; nothing committed", "agent": "commit_task", "kind": "exception", "resolution": "open", "time": "05:06:14"}
+{"file": "src/lib/attention.test.ts", "line": 0, "context": "run_tests full: 17 tests pass", "agent": "run_tests", "kind": "verified", "time": "05:07:57"}
+{"file": "src/lib/client/feed-merge.test.ts", "line": 0, "context": "run_tests full: 22 tests pass", "agent": "run_tests", "kind": "verified", "time": "05:07:57"}
+{"file": "src/lib/client/native-notifications.test.ts", "line": 0, "context": "run_tests full: 10 tests pass", "agent": "run_tests", "kind": "verified", "time": "05:07:57"}
+{"file": "src/lib/components/board/board-card.test.ts", "line": 0, "context": "run_tests full: 8 tests pass", "agent": "run_tests", "kind": "verified", "time": "05:07:57"}
+{"file": "src/lib/components/board/dnd.test.ts", "line": 0, "context": "run_tests full: 11 tests pass", "agent": "run_tests", "kind": "verified", "time": "05:07:57"}
+{"file": "src/lib/components/issue/activity-timeline.test.ts", "line": 0, "context": "run_tests full: 2 tests pass", "agent": "run_tests", "kind": "verified", "time": "05:07:57"}
+{"file": "src/lib/components/issue/bug-vocabulary.test.ts", "line": 0, "context": "run_tests full: 3 tests pass", "agent": "run_tests", "kind": "verified", "time": "05:07:57"}
+{"file": "src/lib/components/issue/grouping.test.ts", "line": 0, "context": "run_tests full: 7 tests pass", "agent": "run_tests", "kind": "verified", "time": "05:07:57"}
+{"file": "src/lib/components/issue/inspector-format.test.ts", "line": 0, "context": "run_tests full: 5 tests pass", "agent": "run_tests", "kind": "verified", "time": "05:07:57"}
+{"file": "src/lib/components/issue/issue-row.test.ts", "line": 0, "context": "run_tests full: 2 tests pass", "agent": "run_tests", "kind": "verified", "time": "05:07:57"}
+{"file": "src/lib/components/matrix/matrix-grid.test.ts", "line": 0, "context": "run_tests full: 2 tests pass", "agent": "run_tests", "kind": "verified", "time": "05:07:57"}
+{"file": "src/lib/components/plan/day-plan-request.test.ts", "line": 0, "context": "run_tests full: 7 tests pass", "agent": "run_tests", "kind": "verified", "time": "05:07:57"}
+{"file": "src/lib/components/plan/day-plan.test.ts", "line": 0, "context": "run_tests full: 4 tests pass", "agent": "run_tests", "kind": "verified", "time": "05:07:57"}
+{"file": "src/lib/components/plan/format.test.ts", "line": 0, "context": "run_tests full: 5 tests pass", "agent": "run_tests", "kind": "verified", "time": "05:07:57"}
+{"file": "src/lib/components/plan/plan-ui.test.ts", "line": 0, "context": "run_tests full: 3 tests pass", "agent": "run_tests", "kind": "verified", "time": "05:07:57"}
+{"file": "src/lib/components/plan/schedule.test.ts", "line": 0, "context": "run_tests full: 5 tests pass", "agent": "run_tests", "kind": "verified", "time": "05:07:57"}
+{"file": "src/lib/errors.test.ts", "line": 0, "context": "run_tests full: 7 tests pass", "agent": "run_tests", "kind": "verified", "time": "05:07:57"}
+{"file": "src/lib/features.test.ts", "line": 0, "context": "run_tests full: 7 tests pass", "agent": "run_tests", "kind": "verified", "time": "05:07:57"}
+{"file": "src/lib/funnel-metadata.test.ts", "line": 0, "context": "run_tests full: 25 tests pass", "agent": "run_tests", "kind": "verified", "time": "05:07:57"}
+{"file": "src/lib/issue-copy.test.ts", "line": 0, "context": "run_tests full: 13 tests pass", "agent": "run_tests", "kind": "verified", "time": "05:07:57"}
+{"file": "src/lib/issue-ref.test.ts", "line": 0, "context": "run_tests full: 5 tests pass", "agent": "run_tests", "kind": "verified", "time": "05:07:57"}
+{"file": "src/lib/issue-url.test.ts", "line": 0, "context": "run_tests full: 7 tests pass", "agent": "run_tests", "kind": "verified", "time": "05:07:57"}
+{"file": "src/lib/planning.test.ts", "line": 0, "context": "run_tests full: 6 tests pass", "agent": "run_tests", "kind": "verified", "time": "05:07:57"}
+{"file": "src/lib/planning/availability.test.ts", "line": 0, "context": "run_tests full: 15 tests pass", "agent": "run_tests", "kind": "verified", "time": "05:07:57"}
+{"file": "src/lib/planning/day-plan.test.ts", "line": 0, "context": "run_tests full: 13 tests pass", "agent": "run_tests", "kind": "verified", "time": "05:07:57"}
+{"file": "src/lib/priority.test.ts", "line": 0, "context": "run_tests full: 19 tests pass", "agent": "run_tests", "kind": "verified", "time": "05:07:57"}
+{"file": "src/lib/seo.test.ts", "line": 0, "context": "run_tests full: 5 tests pass", "agent": "run_tests", "kind": "verified", "time": "05:07:57"}
+{"file": "src/lib/server/actuals/reasons.test.ts", "line": 0, "context": "run_tests full: 4 tests pass", "agent": "run_tests", "kind": "verified", "time": "05:07:57"}
+{"file": "src/lib/server/actuals/store.test.ts", "line": 0, "context": "run_tests full: 12 tests pass", "agent": "run_tests", "kind": "verified", "time": "05:07:57"}
+{"file": "src/lib/server/actuals/time.test.ts", "line": 0, "context": "run_tests full: 23 tests pass", "agent": "run_tests", "kind": "verified", "time": "05:07:57"}
+{"file": "src/lib/server/actuals/transitions.test.ts", "line": 0, "context": "run_tests full: 15 tests pass", "agent": "run_tests", "kind": "verified", "time": "05:07:57"}
+{"file": "src/lib/server/attachments/store.test.ts", "line": 0, "context": "run_tests full: 6 tests pass", "agent": "run_tests", "kind": "verified", "time": "05:07:57"}
+{"file": "src/lib/server/auth/auth.test.ts", "line": 0, "context": "run_tests full: 6 tests pass", "agent": "run_tests", "kind": "verified", "time": "05:07:57"}
+{"file": "src/lib/server/calendar/ics.test.ts", "line": 0, "context": "run_tests full: 11 tests pass", "agent": "run_tests", "kind": "verified", "time": "05:07:57"}
+{"file": "src/lib/server/config.test.ts", "line": 0, "context": "run_tests full: 16 tests pass", "agent": "run_tests", "kind": "verified", "time": "05:07:57"}
+{"file": "src/lib/server/crypto/secrets.test.ts", "line": 0, "context": "run_tests full: 5 tests pass", "agent": "run_tests", "kind": "verified", "time": "05:07:57"}
+{"file": "src/lib/server/db/schema.test.ts", "line": 0, "context": "run_tests full: 6 tests pass", "agent": "run_tests", "kind": "verified", "time": "05:07:57"}
+{"file": "src/lib/server/epics/mutations.test.ts", "line": 0, "context": "run_tests full: 5 tests pass", "agent": "run_tests", "kind": "verified", "time": "05:07:57"}
+{"file": "src/lib/server/epics/queries.test.ts", "line": 0, "context": "run_tests full: 3 tests pass", "agent": "run_tests", "kind": "verified", "time": "05:07:57"}
+{"file": "src/lib/server/forge/providers.test.ts", "line": 0, "context": "run_tests full: 6 tests pass", "agent": "run_tests", "kind": "verified", "time": "05:07:57"}
+{"file": "src/lib/server/github/api-passthrough.test.ts", "line": 0, "context": "run_tests full: 21 tests pass", "agent": "run_tests", "kind": "verified", "time": "05:07:57"}
+{"file": "src/lib/server/github/assignees.test.ts", "line": 0, "context": "run_tests full: 2 tests pass", "agent": "run_tests", "kind": "verified", "time": "05:07:57"}
+{"file": "src/lib/server/github/cache.test.ts", "line": 0, "context": "run_tests full: 12 tests pass", "agent": "run_tests", "kind": "verified", "time": "05:07:57"}
+{"file": "src/lib/server/github/credentials.test.ts", "line": 0, "context": "run_tests full: 5 tests pass", "agent": "run_tests", "kind": "verified", "time": "05:07:57"}
+{"file": "src/lib/server/github/labels.test.ts", "line": 0, "context": "run_tests full: 12 tests pass", "agent": "run_tests", "kind": "verified", "time": "05:07:57"}
+{"file": "src/lib/server/github/manifest-flow.server.test.ts", "line": 0, "context": "run_tests full: 7 tests pass", "agent": "run_tests", "kind": "verified", "time": "05:07:57"}
+{"file": "src/lib/server/github/manifest.test.ts", "line": 0, "context": "run_tests full: 6 tests pass", "agent": "run_tests", "kind": "verified", "time": "05:07:57"}
+{"file": "src/lib/server/github/milestones.test.ts", "line": 0, "context": "run_tests full: 9 tests pass", "agent": "run_tests", "kind": "verified", "time": "05:07:57"}
+{"file": "src/lib/server/intake/actions.test.ts", "line": 0, "context": "run_tests full: 15 tests pass", "agent": "run_tests", "kind": "verified", "time": "05:07:57"}
+{"file": "src/lib/server/intake/staging.test.ts", "line": 0, "context": "run_tests full: 10 tests pass", "agent": "run_tests", "kind": "verified", "time": "05:07:57"}
+{"file": "src/lib/server/issues/detail.test.ts", "line": 0, "context": "run_tests full: 7 tests pass", "agent": "run_tests", "kind": "verified", "time": "05:07:57"}
+{"file": "src/lib/server/issues/filters.test.ts", "line": 0, "context": "run_tests full: 14 tests pass", "agent": "run_tests", "kind": "verified", "time": "05:07:57"}
+{"file": "src/lib/server/issues/mutations.test.ts", "line": 0, "context": "run_tests full: 36 tests pass", "agent": "run_tests", "kind": "verified", "time": "05:07:57"}
+{"file": "src/lib/server/issues/queries.test.ts", "line": 0, "context": "run_tests full: 47 tests pass", "agent": "run_tests", "kind": "verified", "time": "05:07:57"}
+{"file": "src/lib/server/log.test.ts", "line": 0, "context": "run_tests full: 3 tests pass", "agent": "run_tests", "kind": "verified", "time": "05:07:57"}
+{"file": "src/lib/server/markdown/render.test.ts", "line": 0, "context": "run_tests full: 17 tests pass", "agent": "run_tests", "kind": "verified", "time": "05:07:57"}
+{"file": "src/lib/server/notifications/plan.test.ts", "line": 0, "context": "run_tests full: 12 tests pass", "agent": "run_tests", "kind": "verified", "time": "05:07:57"}
+{"file": "src/lib/server/notifications/service.test.ts", "line": 0, "context": "run_tests full: 8 tests pass", "agent": "run_tests", "kind": "verified", "time": "05:07:57"}
+{"file": "src/lib/server/onboarding/access.test.ts", "line": 0, "context": "run_tests full: 2 tests pass", "agent": "run_tests", "kind": "verified", "time": "05:07:57"}
+{"file": "src/lib/server/planning/calendar.test.ts", "line": 0, "context": "run_tests full: 15 tests pass", "agent": "run_tests", "kind": "verified", "time": "05:07:57"}
+{"file": "src/lib/server/planning/capacity.test.ts", "line": 0, "context": "run_tests full: 18 tests pass", "agent": "run_tests", "kind": "verified", "time": "05:07:57"}
+{"file": "src/lib/server/planning/day-queries.test.ts", "line": 0, "context": "run_tests full: 4 tests pass", "agent": "run_tests", "kind": "verified", "time": "05:07:57"}
+{"file": "src/lib/server/planning/day-store.test.ts", "line": 0, "context": "run_tests full: 6 tests pass", "agent": "run_tests", "kind": "verified", "time": "05:07:57"}
+{"file": "src/lib/server/planning/milestones.test.ts", "line": 0, "context": "run_tests full: 5 tests pass", "agent": "run_tests", "kind": "verified", "time": "05:07:57"}
+{"file": "src/lib/server/planning/mutations.test.ts", "line": 0, "context": "run_tests full: 12 tests pass", "agent": "run_tests", "kind": "verified", "time": "05:07:57"}
+{"file": "src/lib/server/planning/plans.test.ts", "line": 0, "context": "run_tests full: 7 tests pass", "agent": "run_tests", "kind": "verified", "time": "05:07:57"}
+{"file": "src/lib/server/planning/queries.test.ts", "line": 0, "context": "run_tests full: 7 tests pass", "agent": "run_tests", "kind": "verified", "time": "05:07:57"}
+{"file": "src/lib/server/planning/store.test.ts", "line": 0, "context": "run_tests full: 4 tests pass", "agent": "run_tests", "kind": "verified", "time": "05:07:57"}
+{"file": "src/lib/server/settings/apply.test.ts", "line": 0, "context": "run_tests full: 11 tests pass", "agent": "run_tests", "kind": "verified", "time": "05:07:57"}
+{"file": "src/lib/server/settings/store.test.ts", "line": 0, "context": "run_tests full: 15 tests pass", "agent": "run_tests", "kind": "verified", "time": "05:07:57"}
+{"file": "src/lib/server/sync/conflicts.test.ts", "line": 0, "context": "run_tests full: 22 tests pass", "agent": "run_tests", "kind": "verified", "time": "05:07:57"}
+{"file": "src/lib/server/sync/events.test.ts", "line": 0, "context": "run_tests full: 3 tests pass", "agent": "run_tests", "kind": "verified", "time": "05:07:57"}
+{"file": "src/lib/server/sync/hydrate.test.ts", "line": 0, "context": "run_tests full: 36 tests pass", "agent": "run_tests", "kind": "verified", "time": "05:07:57"}
+{"file": "src/lib/server/sync/mirror.test.ts", "line": 0, "context": "run_tests full: 19 tests pass", "agent": "run_tests", "kind": "verified", "time": "05:07:57"}
+{"file": "src/lib/server/sync/reconcile.test.ts", "line": 0, "context": "run_tests full: 4 tests pass", "agent": "run_tests", "kind": "verified", "time": "05:07:57"}
+{"file": "src/lib/server/sync/worker.test.ts", "line": 0, "context": "run_tests full: 21 tests pass", "agent": "run_tests", "kind": "verified", "time": "05:07:57"}
+{"file": "src/lib/server/work-notes.test.ts", "line": 0, "context": "run_tests full: 7 tests pass", "agent": "run_tests", "kind": "verified", "time": "05:07:57"}
+{"file": "src/lib/time.test.ts", "line": 0, "context": "run_tests full: 3 tests pass", "agent": "run_tests", "kind": "verified", "time": "05:07:57"}
+{"file": "src/lib/time/zoned.test.ts", "line": 0, "context": "run_tests full: 10 tests pass", "agent": "run_tests", "kind": "verified", "time": "05:07:57"}
+{"file": "src/lib/url-filter.test.ts", "line": 0, "context": "run_tests full: 11 tests pass", "agent": "run_tests", "kind": "verified", "time": "05:07:57"}
+{"file": "src/routes/api/feeds/feeds.test.ts", "line": 0, "context": "run_tests full: 12 tests pass", "agent": "run_tests", "kind": "verified", "time": "05:07:57"}
+{"file": "tests/availability-page.test.ts", "line": 0, "context": "run_tests full: 9 tests pass", "agent": "run_tests", "kind": "verified", "time": "05:07:57"}
+{"file": "tests/availability-routes.test.ts", "line": 0, "context": "run_tests full: 6 tests pass", "agent": "run_tests", "kind": "verified", "time": "05:07:57"}
+{"file": "tests/calendar-feed-route.test.ts", "line": 0, "context": "run_tests full: 5 tests pass", "agent": "run_tests", "kind": "verified", "time": "05:07:57"}
+{"file": "tests/day-page.test.ts", "line": 0, "context": "run_tests full: 8 tests pass", "agent": "run_tests", "kind": "verified", "time": "05:07:57"}
+{"file": "tests/day-plan-routes.test.ts", "line": 0, "context": "run_tests full: 8 tests pass", "agent": "run_tests", "kind": "verified", "time": "05:07:57"}
+{"file": "tests/delay-routes.test.ts", "line": 0, "context": "run_tests full: 13 tests pass", "agent": "run_tests", "kind": "verified", "time": "05:07:57"}
+{"file": "tests/design-doc.test.ts", "line": 0, "context": "run_tests full: 4 tests pass", "agent": "run_tests", "kind": "verified", "time": "05:07:57"}
+{"file": "tests/design-tokens.test.ts", "line": 0, "context": "run_tests full: 7 tests pass", "agent": "run_tests", "kind": "verified", "time": "05:07:57"}
+{"file": "tests/docs-actuals-epics.test.ts", "line": 0, "context": "run_tests full: 7 tests pass", "agent": "run_tests", "kind": "verified", "time": "05:07:57"}
+{"file": "tests/docs-alpen.test.ts", "line": 0, "context": "run_tests full: 10 tests pass", "agent": "run_tests", "kind": "verified", "time": "05:07:57"}
+{"file": "tests/docs-diataxis.test.ts", "line": 0, "context": "run_tests full: 4 tests pass", "agent": "run_tests", "kind": "verified", "time": "05:07:57"}
+{"file": "tests/docs-planning.test.ts", "line": 0, "context": "run_tests full: 16 tests pass", "agent": "run_tests", "kind": "verified", "time": "05:07:57"}
+{"file": "tests/docs-priority-matrix.test.ts", "line": 0, "context": "run_tests full: 2 tests pass", "agent": "run_tests", "kind": "verified", "time": "05:07:57"}
+{"file": "tests/epic-routes.test.ts", "line": 0, "context": "run_tests full: 5 tests pass", "agent": "run_tests", "kind": "verified", "time": "05:07:57"}
+{"file": "tests/epics-page.test.ts", "line": 0, "context": "run_tests full: 9 tests pass", "agent": "run_tests", "kind": "verified", "time": "05:07:57"}
+{"file": "tests/error-routes.test.ts", "line": 0, "context": "run_tests full: 1 tests pass", "agent": "run_tests", "kind": "verified", "time": "05:07:57"}
+{"file": "tests/flags.test.ts", "line": 0, "context": "run_tests full: 5 tests pass", "agent": "run_tests", "kind": "verified", "time": "05:07:57"}
+{"file": "tests/hotkeys.test.ts", "line": 0, "context": "run_tests full: 2 tests pass", "agent": "run_tests", "kind": "verified", "time": "05:07:57"}
+{"file": "tests/inbox-projection.test.ts", "line": 0, "context": "run_tests full: 4 tests pass", "agent": "run_tests", "kind": "verified", "time": "05:07:57"}
+{"file": "tests/intake-deeplink.test.ts", "line": 0, "context": "run_tests full: 11 tests pass", "agent": "run_tests", "kind": "verified", "time": "05:07:57"}
+{"file": "tests/intake-prefill.test.ts", "line": 0, "context": "run_tests full: 8 tests pass", "agent": "run_tests", "kind": "verified", "time": "05:07:57"}
+{"file": "tests/intake.test.ts", "line": 0, "context": "run_tests full: 9 tests pass", "agent": "run_tests", "kind": "verified", "time": "05:07:57"}
+{"file": "tests/issues-routes.test.ts", "line": 0, "context": "run_tests full: 19 tests pass", "agent": "run_tests", "kind": "verified", "time": "05:07:57"}
+{"file": "tests/matrix-route.test.ts", "line": 0, "context": "run_tests full: 4 tests pass", "agent": "run_tests", "kind": "verified", "time": "05:07:57"}
+{"file": "tests/mirror-issues-route.test.ts", "line": 0, "context": "run_tests full: 5 tests pass", "agent": "run_tests", "kind": "verified", "time": "05:07:57"}
+{"file": "tests/notifications-routes.test.ts", "line": 0, "context": "run_tests full: 14 tests pass", "agent": "run_tests", "kind": "verified", "time": "05:07:57"}
+{"file": "tests/openapi.test.ts", "line": 0, "context": "run_tests full: 2 tests pass", "agent": "run_tests", "kind": "verified", "time": "05:07:57"}
+{"file": "tests/planning-day-load.test.ts", "line": 0, "context": "run_tests full: 9 tests pass", "agent": "run_tests", "kind": "verified", "time": "05:07:57"}
+{"file": "tests/planning-page.test.ts", "line": 0, "context": "run_tests full: 18 tests pass", "agent": "run_tests", "kind": "verified", "time": "05:07:57"}
+{"file": "tests/planning-routes.test.ts", "line": 0, "context": "run_tests full: 8 tests pass", "agent": "run_tests", "kind": "verified", "time": "05:07:57"}
+{"file": "tests/priority-migration.test.ts", "line": 0, "context": "run_tests full: 1 tests pass", "agent": "run_tests", "kind": "verified", "time": "05:07:57"}
+{"file": "tests/rbac.test.ts", "line": 0, "context": "run_tests full: 8 tests pass", "agent": "run_tests", "kind": "verified", "time": "05:07:57"}
+{"file": "tests/routes.test.ts", "line": 0, "context": "run_tests full: 16 tests pass", "agent": "run_tests", "kind": "verified", "time": "05:07:57"}
+{"file": "tests/screenshots-matrix.test.ts", "line": 0, "context": "run_tests full: 1 tests pass", "agent": "run_tests", "kind": "verified", "time": "05:07:57"}
+{"file": "tests/sse.test.ts", "line": 0, "context": "run_tests full: 2 tests pass", "agent": "run_tests", "kind": "verified", "time": "05:07:57"}
+{"file": "tests/work-notes-routes.test.ts", "line": 0, "context": "run_tests full: 12 tests pass", "agent": "run_tests", "kind": "verified", "time": "05:07:57"}

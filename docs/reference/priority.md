@@ -24,6 +24,22 @@ Urgency answers “how soon must this be addressed?” and is independent of imp
 | `mid` | `2` | Mid | Active degradation; needs this cycle. |
 | `low` | `3` | Low | Can wait a sprint or longer. |
 
+## Rating criteria
+
+Each level is rated with five concrete criteria. Impact weighs the effect on users and the business; urgency weighs the cost of waiting. These are decision aids only — no new stored fields, labels, or columns. The criteria labels are fixed: impact is **Reach**, **Data**, **Money**, **Locations** and **Workaround**; urgency is **Harm**, **Exposure**, **Spread**, **Dependencies** and **Deadline**.
+
+| Impact | Reach | Data | Money | Locations | Workaround |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| Severe | All or most users, or a whole tenant or region. | Irreversible loss, corruption, or exposure. | Material revenue, billing, or contractual loss. | Several sites, regions, or tenants. | None; the critical path is blocked. |
+| Moderate | A team, a key customer segment, or one location. | Recoverable loss or a contained exposure. | Bounded, forecastable cost. | One site or region. | Exists, but is costly or slow. |
+| Minor | An individual or a small group. | No data loss; presentation or convenience only. | Negligible or no cost. | A single device or an edge case. | Trivial and sustainable. |
+
+| Urgency | Harm | Exposure | Spread | Dependencies | Deadline |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| High | Damage accrues now, hour by hour. | Data or money is at risk while it waits. | More people or locations are affected over time. | Other people or teams are blocked. | A regulatory, contractual, or launch deadline is imminent. |
+| Mid | Active degradation with a stable ceiling. | Contained data or money exposure. | One location or group; not spreading. | A few people are waiting. | Needs this cycle, not this hour. |
+| Low | No ongoing harm. | No data or money at risk. | Stable; affects one location. | Nobody is blocked. | No deadline inside this cycle. |
+
 ## Priority matrix
 
 Read the row as impact and the column as urgency. Higher impact and urgency are lower numbers, so the most severe combination is the top-left cell.
@@ -36,9 +52,28 @@ Read the row as impact and the column as urgency. Higher impact and urgency are 
 
 `P1` is the highest priority and `P3` the lowest, named High, Medium and Low. The matrix is monotonic: worsening either axis never improves priority.
 
+## The 4×4 matrix view
+
+The `/matrix` route renders a four-by-four grid over the same filtered issue stream as the Issues view. The rows are impact and the columns are urgency, each with the three assessed levels followed by a **Not assessed** step:
+
+| Impact row / Urgency column | Levels |
+| :--- | :--- |
+| Impact (rows) | `1` Severe, `2` Moderate, `3` Minor, **Not assessed** |
+| Urgency (columns) | `1` High, `2` Mid, `3` Low, **Not assessed** |
+
+A cell shows one of three outcomes depending on how many axes are assessed:
+
+- **Both axes assessed** — the derived token (`P1 · High`, `P2 · Medium`, `P3 · Low`), read straight from `DEFAULT_PRIORITY_MATRIX`.
+- **Both axes absent** — **No priority**.
+- **Exactly one axis present** — **Needs assessment**. The cell is never labelled `P3`.
+
+Each cell shows its total and up to four preview issues, ordered by priority rank then most recently updated. Counts always come from SQL, never from the previews, and the grid always renders all 16 cells. Previews link to `/matrix/{owner}/{repo}/{number}`, where the standard Inspector docks beside the grid. The page defaults to `state=open` and includes triaged and untriaged issues.
+
 ### When an axis is unset
 
-If either label is absent — or the pair is malformed — the priority projection is **`P3`**. Missing input is treated as “not yet assessed”, not as evidence of severity; a triager can add the missing label to raise the result. Both labels absent means an issue has no priority at all, and the cockpit renders the empty state.
+Missing input is treated as “not yet assessed”, not as evidence of severity. The stored `mirror_thread.priority` cache keeps the data-layer rule: a pair with one axis unset derives to **`P3`**, and both axes absent derives to **no priority**. A triager can add the missing label to raise the result.
+
+The matrix view shows that distinction instead of hiding it. A partial pair — exactly one axis present — displays as **Needs assessment** and is never labelled `P3`; the stored priority cache still holds the `P3` fallback. The view only relabels how the pair is shown, never the cache.
 
 ## Where the inputs live
 

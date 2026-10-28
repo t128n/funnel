@@ -77,6 +77,7 @@ Learning-oriented, with one path and expected results.
 - [Track time and delays](how-to/use/track-time-and-delays.md) — read actual time, record manual delays, and understand why tracking starts at deployment.
 - [Manage epics](how-to/use/epics.md) — mark an epic, edit its child list in the issue body, and read progress and time rollups.
 - [Use the board](how-to/use/board.md) — drag cards, switch to the Backlog list, and use the Done lane.
+- [Use the matrix](how-to/use/matrix.md) — read the impact × urgency grid, find unassessed work, and rate both axes.
 - [Use milestones](how-to/use/milestones.md) — browse repo-scoped milestones, filter and group by them, and set or create one from an issue.
 - [Work notes and attachments](how-to/use/work-notes-and-attachments.md) — keep internal notes, publish them, and manage the file dropbox.
 - [Keyboard shortcuts](how-to/use/keyboard.md) — the global and board bindings, plus arrow-key navigation.
@@ -100,7 +101,7 @@ Learning-oriented, with one path and expected results.
 - [Settings](reference/settings.md) — the instance settings stored in SQLite, with defaults and validation rules.
 - [Planning and time](reference/planning-and-time.md) — estimates, capacity, weeks and cycles, actual-time and delay rules, epic metadata, tables and endpoints.
 - [Reserved labels](reference/reserved-labels.md) — the canonical status, impact, urgency, size, flag, and epic vocabulary plus the retired priority labels.
-- [Impact, urgency, and priority](reference/priority.md) — the three-point input labels, the P1–P3 lookup matrix, and the retired priority labels.
+- [Impact, urgency, and priority](reference/priority.md) — the three-point input labels, the P1–P3 lookup matrix, the 4×4 matrix view, the rating criteria, and the retired priority labels.
 - [Roles and permissions](reference/roles-and-permissions.md) — what `read`, `write`, and `admin` may do.
 - [HTTP API](reference/http-api.md) — the intake endpoint, mutation endpoints, mirror reads, and health probes.
 - [Database schema](reference/database-schema.md) — mirror tables, Funnel-owned state, and authentication tables.
