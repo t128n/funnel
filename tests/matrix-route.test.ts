@@ -6,7 +6,11 @@
  * the axis counts are deterministic.
  */
 import { beforeEach, describe, expect, test } from "bun:test";
+import { matrixCellMeta } from "#lib/priority";
+import { matrixGrid } from "#lib/components/matrix/matrix-grid";
 import { setConfig } from "#/lib/server/config";
+import { EMPTY_FILTER } from "#lib/server/issues/filters";
+import { matrixBoard } from "#lib/server/issues/queries";
 import type { MatrixBoard } from "#/lib/server/issues/types";
 import { load } from "#/routes/(app)/matrix/+layout.server";
 import { clearMirror } from "#tests/mirror-helpers";
@@ -60,5 +64,27 @@ describe("matrix route", () => {
     expect(data.matrix.cells).toHaveLength(16);
     expect(cell(data.matrix, 1, 1).total).toBe(1);
     expect(cell(data.matrix, 2, 2).total).toBe(0);
+  });
+});
+
+describe("matrix contract exports", () => {
+  test("matrixCellMeta derives the P1 label", () => {
+    expect(typeof matrixCellMeta).toBe("function");
+    expect(matrixCellMeta(1, 1).label).toBe("P1 · High");
+  });
+
+  test("matrixGrid projects an empty board onto the 4×4 grid", () => {
+    expect(typeof matrixGrid).toBe("function");
+    const grid = matrixGrid({ total: 0, cells: [] });
+    expect(grid).toHaveLength(4);
+    expect(grid[0]).toHaveLength(4);
+    expect(grid[0][0].meta.label).toBe("P1 · High");
+  });
+
+  test("matrixBoard returns 16 counted cells", () => {
+    expect(typeof matrixBoard).toBe("function");
+    matrixSeed();
+    const board = matrixBoard({ ...EMPTY_FILTER, states: ["open"] });
+    expect(board.cells).toHaveLength(16);
   });
 });
