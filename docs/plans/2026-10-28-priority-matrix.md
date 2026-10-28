@@ -106,7 +106,7 @@ critical path: T1 → T4 → T6 (6.7 min) · peak width 4 · predicted build 6.7
 **Notes:** `upsertIssue` derives `priority_rank` from `priority`, so seeds pass `priority: "P3"` for partials and `null` for both-absent. Counts: `select impact, urgency, count(*) group by impact, urgency` over `buildIssueWhere(filter)`. Previews: one window query over the `issueColumns` joins with `row_number() over (partition by impact, urgency order by priority_rank, updated_at desc, repo_id desc, number desc)`, keep `rn <= MATRIX_PREVIEW_LIMIT`, hydrate with `hydrate()`. Build all 16 cells from T1's axis arrays; missing pairs are `{ total: 0, issues: [] }`.
 
 ### T3 matrix route and grid · Complexity 5 · Est. context 48k
-**Owns:** src/lib/issue-url.ts, src/lib/issue-url.test.ts, src/lib/components/matrix/matrix-grid.ts, src/lib/components/matrix/matrix-grid.test.ts, src/lib/components/matrix/MatrixGrid.svelte, src/routes/(app)/matrix/, src/lib/components/app-sidebar.svelte, tests/matrix-route.test.ts
+**Owns:** src/lib/issue-url.ts, src/lib/issue-url.test.ts, src/lib/components/matrix/matrix-grid.ts, src/lib/components/matrix/matrix-grid.test.ts, src/lib/components/matrix/MatrixGrid.svelte, src/routes/*/matrix/**/*, src/lib/components/app-sidebar.svelte, tests/matrix-route.test.ts
 **Components:** 5 · **LOC owned:** 300 · **Tests:** fast · **Kind:** design · **Model:** sonnet · **Est. time:** 5 min
 **Consumes:** `matrixBoard(filter: IssueFilter) -> MatrixBoard` (T2) · `MatrixBoard`/`MatrixCell` (T2) · `matrixCellMeta(impact: unknown, urgency: unknown) -> MatrixCellMeta` (T1) · `MATRIX_IMPACT_VALUES`/`MATRIX_URGENCY_VALUES` (T1) · `IMPACT_SCALE`/`URGENCY_SCALE` (T1)
 **Produces:** `matrixGrid(board: MatrixBoard) -> MatrixGridCell[][]` · `ViewId` includes `"matrix"`
