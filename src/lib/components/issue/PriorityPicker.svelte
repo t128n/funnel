@@ -7,7 +7,7 @@
 		URGENCY_SCALE,
 		derivePriorityOrNull,
 		priorityMeta,
-		type ScaleLevel
+		scaleLevel
 	} from '#lib/priority';
 	import { cn } from '#lib/utils';
 
@@ -60,15 +60,8 @@
 	const previewMeta = $derived(priorityMeta(preview));
 	const currentMeta = $derived(priorityMeta(priority));
 
-	function level<T extends number>(
-		scale: readonly ScaleLevel<T>[],
-		value: number | null
-	): ScaleLevel<T> | null {
-		return value === null ? null : (scale.find((entry) => entry.value === value) ?? null);
-	}
-
-	const impactLevel = $derived(level(IMPACT_SCALE, localImpact));
-	const urgencyLevel = $derived(level(URGENCY_SCALE, localUrgency));
+	const impactLevel = $derived(scaleLevel(IMPACT_SCALE, localImpact));
+	const urgencyLevel = $derived(scaleLevel(URGENCY_SCALE, localUrgency));
 
 	function onAxisInput(
 		axis: 'impact' | 'urgency',
@@ -113,7 +106,7 @@
 		</span>
 	</Popover.Trigger>
 
-	<Popover.Content align="start" sideOffset={6} preventScroll={false} class="w-72 gap-3">
+	<Popover.Content align="start" sideOffset={6} preventScroll={false} class="w-80 max-h-[70vh] overflow-y-auto gap-3">
 		<Popover.Header>
 			<Popover.Title>Priority</Popover.Title>
 			<Popover.Description>
@@ -161,9 +154,26 @@
 				oninput={(event) => onAxisInput('impact', event)}
 				onchange={() => void commit('impact')}
 			/>
-			<p class="text-muted-foreground min-h-8 text-xs leading-snug">
-				{impactLevel?.definition ?? 'Drag to rate how much this hurts.'}
-			</p>
+			{#if impactLevel}
+				<div class="flex flex-col gap-1">
+					<p class="text-muted-foreground text-xs leading-snug">
+						{impactLevel.definition}
+					</p>
+					<ul class="text-muted-foreground flex flex-col gap-0.5 pl-3 text-xs leading-snug">
+						{#each impactLevel.criteria as criterion (criterion.label)}
+							<li>
+								<span class="text-foreground/80 font-medium">{criterion.label}</span>
+								<span aria-hidden="true"> — </span>
+								{criterion.anchor}
+							</li>
+						{/each}
+					</ul>
+				</div>
+			{:else}
+				<p class="text-muted-foreground min-h-8 text-xs leading-snug">
+					Reach, data loss, money, locations, workaround
+				</p>
+			{/if}
 		</div>
 
 		<div class="flex flex-col gap-1.5">
@@ -188,9 +198,26 @@
 				oninput={(event) => onAxisInput('urgency', event)}
 				onchange={() => void commit('urgency')}
 			/>
-			<p class="text-muted-foreground min-h-8 text-xs leading-snug">
-				{urgencyLevel?.definition ?? 'Drag to rate how soon it must be fixed.'}
-			</p>
+			{#if urgencyLevel}
+				<div class="flex flex-col gap-1">
+					<p class="text-muted-foreground text-xs leading-snug">
+						{urgencyLevel.definition}
+					</p>
+					<ul class="text-muted-foreground flex flex-col gap-0.5 pl-3 text-xs leading-snug">
+						{#each urgencyLevel.criteria as criterion (criterion.label)}
+							<li>
+								<span class="text-foreground/80 font-medium">{criterion.label}</span>
+								<span aria-hidden="true"> — </span>
+								{criterion.anchor}
+							</li>
+						{/each}
+					</ul>
+				</div>
+			{:else}
+				<p class="text-muted-foreground min-h-8 text-xs leading-snug">
+					Harm now, data or money at risk, spread, blocked people, deadline
+				</p>
+			{/if}
 		</div>
 
 		{#if localImpact !== null || localUrgency !== null}
