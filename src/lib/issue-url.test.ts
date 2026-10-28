@@ -12,6 +12,7 @@ describe("issuePath", () => {
       "/issues/t128n/funnel-issue-tracker/7",
     );
     expect(issuePath("board", "acme/web", 12)).toBe("/board/acme/web/12");
+    expect(issuePath("matrix", "acme/web", 12)).toBe("/matrix/acme/web/12");
     expect(issuePath("inbox", "acme/web", 1)).toBe("/inbox/acme/web/1");
   });
 
@@ -30,6 +31,7 @@ describe("viewOf", () => {
   test("reads the leading segment for base and detail paths", () => {
     expect(viewOf("/issues")).toBe("issues");
     expect(viewOf("/issues/acme/web/7")).toBe("issues");
+    expect(viewOf("/matrix/acme/web/12")).toBe("matrix");
     expect(viewOf("/inbox/submission/abc")).toBe("inbox");
   });
 

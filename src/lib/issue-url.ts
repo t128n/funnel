@@ -6,6 +6,7 @@
  *
  *   /issues/<owner>/<repo>/<n>
  *   /board/<owner>/<repo>/<n>
+ *   /matrix/<owner>/<repo>/<n>
  *   /inbox/<owner>/<repo>/<n>
  *   /inbox/submission/<id>
  *
@@ -15,10 +16,10 @@
  * dependency-free so it can be imported from both components and tests.
  */
 
-/** The three cockpit views that dock a detail pane beside their feed. */
-export type ViewId = "issues" | "board" | "inbox";
+/** The cockpit views that dock a detail pane beside their feed. */
+export type ViewId = "issues" | "board" | "matrix" | "inbox";
 
-export const VIEWS: readonly ViewId[] = ["issues", "board", "inbox"];
+export const VIEWS: readonly ViewId[] = ["issues", "board", "matrix", "inbox"];
 
 /** Detail route params as SvelteKit hands them to a component (all strings). */
 export interface IssueParams {

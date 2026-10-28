@@ -65,6 +65,7 @@
 	const inboxActive = $derived(viewOf(path) === "inbox");
 	const issuesActive = $derived(viewOf(path) === "issues" && !mine);
 	const boardActive = $derived(viewOf(path) === "board");
+	const matrixActive = $derived(viewOf(path) === "matrix");
 	const planActive = $derived(path.startsWith("/plan"));
 	const epicsActive = $derived(path.startsWith("/epics"));
 	const milestonesActive = $derived(path.startsWith("/milestones"));
@@ -86,6 +87,7 @@
 	const workspace: NavLink[] = $derived([
 		{ href: "/issues", label: "Issues", active: issuesActive },
 		{ href: "/board", label: "Board", active: boardActive },
+		{ href: "/matrix", label: "Matrix", active: matrixActive },
 		{ href: "/plan", label: "Plan", active: planActive },
 		{ href: "/epics", label: "Epics", active: epicsActive },
 		{ href: "/milestones", label: "Milestones", active: milestonesActive }
