@@ -10,6 +10,7 @@ import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { db } from "#lib/server/db/index";
 import { authUser, stateIssueEvent, statePlanItem } from "#lib/server/db/schema";
+import { derivePriorityOrNull, type Impact, type Urgency } from "#lib/priority";
 import {
   replaceRepoAssignees,
   replaceRepoMilestones,
@@ -57,6 +58,10 @@ export interface PlanningIssueSeed {
   size?: string | null;
   status?: string | null;
   priority?: "P1" | "P2" | "P3" | null;
+  /** Triage axis (`1`–`3`), or `null` when unset. */
+  impact?: number | null;
+  /** Triage axis (`1`–`3`), or `null` when unset. */
+  urgency?: number | null;
   assignees?: UserRecord[];
   milestoneNumber?: number | null;
   updatedAt?: number;
@@ -65,6 +70,12 @@ export interface PlanningIssueSeed {
 /** Insert or replace one mirrored issue with its cached triage metadata. */
 export function seedPlanningIssue(seed: PlanningIssueSeed): void {
   const state = seed.state ?? "open";
+  const impact = seed.impact ?? null;
+  const urgency = seed.urgency ?? null;
+  // The mirror derives `priority_rank` from the stored priority, so a partial
+  // pair (exactly one axis) caches the P3 fallback and a both-absent pair
+  // caches `null` — matching the write path the matrix query reads back.
+  const priority = seed.priority ?? derivePriorityOrNull(impact, urgency);
   upsertIssue(
     {
       externalId: `${seed.repoId}/${seed.number}`,
@@ -87,9 +98,9 @@ export function seedPlanningIssue(seed: PlanningIssueSeed): void {
     },
     {
       status: seed.status ?? null,
-      impact: null,
-      urgency: null,
-      priority: seed.priority ?? null,
+      impact: impact as Impact | null,
+      urgency: urgency as Urgency | null,
+      priority,
       size: seed.size ?? null,
       blocked: false,
       labelConflict: false,

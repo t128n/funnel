@@ -141,6 +141,23 @@ export interface StatusBoard {
   columns: BoardColumn[];
 }
 
+/** One counted cell in the impact × urgency matrix (SPEC §2.3–§2.4). */
+export interface MatrixCell {
+  impact: number | null;
+  urgency: number | null;
+  /** Exact SQL count, never derived from the preview list. */
+  total: number;
+  /** Up to {@link MATRIX_PREVIEW_LIMIT} previews ordered by rank then updated. */
+  issues: IssueListItem[];
+}
+
+/** The 4×4 priority matrix over the filtered mirror stream. */
+export interface MatrixBoard {
+  cells: MatrixCell[];
+  /** Sum of every cell's total. */
+  total: number;
+}
+
 /**
  * One comment in the Inspector Pane thread. `body` is the raw Markdown kept in
  * the mirror (used for editing); the rendered, sanitized HTML is attached as

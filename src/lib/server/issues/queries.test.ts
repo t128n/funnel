@@ -12,7 +12,7 @@ import {
 import { writeBlocked } from "#lib/funnel-metadata";
 import { clearMirror } from "#tests/mirror-helpers";
 import { TEST_CONFIG } from "#tests/test-config";
-import { parseIssueFilter } from "./filters";
+import { EMPTY_FILTER, parseIssueFilter } from "./filters";
 import {
   decodeCursor,
   encodeCursor,
@@ -30,10 +30,17 @@ import {
   inbox,
   inboxCount,
   listMilestones,
+  matrixBoard,
   milestoneIssues,
   myIssues,
   statusBoard,
+  type MatrixBoard,
 } from "./queries";
+import {
+  seedPlanningIssue,
+  seedPlanningRepo,
+  type PlanningIssueSeed,
+} from "#tests/planning-helpers";
 
 const DAY_MS = 86_400_000;
 const VIEWER = "42";
@@ -840,5 +847,70 @@ describe("board pagination", () => {
     const stillDone = await boardColumnPage(parse(""), "done", { limit: 50 });
     expect(numbers(stillDone)).toEqual([4]);
     expect(stillDone.total).toBe(1);
+  });
+});
+
+describe("matrixBoard", () => {
+  function matrixSeed(): number {
+    const repo = seedPlanningRepo("acme/widgets");
+    const add = (number: number, impact: number | null, urgency: number | null, extra: Partial<PlanningIssueSeed> = {}) =>
+      seedPlanningIssue({ repoId: repo, number, impact, urgency, ...extra });
+    add(1, 1, 1); add(2, 1, null); add(3, null, 2); add(4, null, null);
+    add(5, 3, 3, { status: "todo" });
+    add(6, 2, 2, { state: "closed", stateReason: "completed" });
+    return repo;
+  }
+  function cell(board: MatrixBoard, impact: number | null, urgency: number | null) {
+    return board.cells.find((entry) => entry.impact === impact && entry.urgency === urgency)!;
+  }
+
+  // The file-level `beforeEach` seeds orgA rows with both axes unset, which
+  // would land in the (null, null) cell and skew these exact counts; the matrix
+  // cases reset the mirror so `matrixSeed` is the only data present.
+  beforeEach(() => {
+    clearMirror();
+  });
+
+  test("matrix counts every axis pair, including unassessed", () => {
+    matrixSeed();
+    const board = matrixBoard({ ...EMPTY_FILTER, states: ["open"] });
+    expect(board.cells).toHaveLength(16);
+    expect(cell(board, 1, 1).total).toBe(1);
+    expect(cell(board, 1, null).total).toBe(1);
+    expect(cell(board, null, 2).total).toBe(1);
+    expect(cell(board, null, null).total).toBe(1);
+    expect(cell(board, 3, 3).total).toBe(1);
+    expect(cell(board, 2, 2).total).toBe(0);
+    expect(board.total).toBe(5);
+  });
+
+  test("matrix previews are capped and ordered by rank then updated", () => {
+    const repo = seedPlanningRepo("acme/widgets");
+    for (let number = 1; number <= 6; number += 1) {
+      seedPlanningIssue({ repoId: repo, number, impact: 1, urgency: 1, priority: "P1", updatedAt: number });
+    }
+    const board = matrixBoard({ ...EMPTY_FILTER, states: ["open"] });
+    const found = cell(board, 1, 1);
+    expect(found.total).toBe(6);
+    expect(found.issues.map((issue) => issue.number)).toEqual([6, 5, 4, 3]);
+  });
+
+  test("applies the search and status dimensions", () => {
+    matrixSeed();
+    const todo = matrixBoard({ ...EMPTY_FILTER, states: ["open"], statuses: ["todo"] });
+    expect(cell(todo, 3, 3).total).toBe(1);
+    expect(cell(todo, 1, 1).total).toBe(0);
+
+    const searched = matrixBoard({ ...EMPTY_FILTER, states: ["open"], search: "Issue 5" });
+    expect(searched.total).toBe(1);
+    expect(cell(searched, 3, 3).total).toBe(1);
+  });
+
+  test("does not special-case state or status", () => {
+    matrixSeed();
+    const board = matrixBoard({ ...EMPTY_FILTER });
+    expect(board.total).toBe(6);
+    expect(cell(board, 2, 2).total).toBe(1); // closed #6
+    expect(cell(board, 1, 1).total).toBe(1); // untriaged #1
   });
 });

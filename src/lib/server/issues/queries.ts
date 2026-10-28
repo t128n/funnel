@@ -89,13 +89,24 @@ import type {
   IssueDetail,
   IssueListItem,
   IssueOption,
+  MatrixBoard,
+  MatrixCell,
   MilestoneItem,
   RepoMilestoneRef,
   StatusKey,
   UserRef,
 } from "./types";
 
+export type { MatrixBoard, MatrixCell } from "./types";
+
 const DAY_MS = 86_400_000;
+
+/** Maximum preview issues rendered per matrix cell (SPEC §2.4). */
+export const MATRIX_PREVIEW_LIMIT = 4;
+
+/** Fixed 4×4 axis order: assessed levels then Not assessed (SPEC §2.2). */
+const MATRIX_IMPACT_AXIS: readonly (number | null)[] = [1, 2, 3, null];
+const MATRIX_URGENCY_AXIS: readonly (number | null)[] = [1, 2, 3, null];
 
 const BOARD_LABELS: Record<StatusKey, string> = {
   backlog: "Backlog",
@@ -716,6 +727,112 @@ export async function statusBoard(
   return {
     columns: [...STATUS_VALUES.map(columnPage), columnPage("done")],
   };
+}
+
+/** Stable key for one matrix cell, unambiguous across `null` axes. */
+function matrixCellKey(
+  impact: number | null,
+  urgency: number | null,
+): string {
+  return `${impact}\u0000${urgency}`;
+}
+
+/**
+ * Preview rows for the matrix: one window query partitions the filtered stream
+ * by `(impact, urgency)` and ranks within each cell by priority rank then most
+ * recently updated, so the caller keeps at most {@link MATRIX_PREVIEW_LIMIT}
+ * issues per cell without fetching every matching row.
+ */
+function matrixPreviews(where: SQL | undefined): IssueListItem[] {
+  const ranked = db
+    .select({
+      ...issueColumns,
+      rn: sql<number>`row_number() over (
+        partition by ${mirrorThread.impact}, ${mirrorThread.urgency}
+        order by ${mirrorThread.priorityRank},
+                 ${mirrorThread.updatedAt} desc,
+                 ${mirrorThread.repoId} desc,
+                 ${mirrorThread.number} desc
+      )`.as("rn"),
+    })
+    .from(mirrorThread)
+    .innerJoin(mirrorRepo, eq(mirrorThread.repoId, mirrorRepo.id))
+    .leftJoin(mirrorUser, eq(mirrorThread.authorId, mirrorUser.id))
+    .leftJoin(
+      mirrorMilestone,
+      and(
+        eq(mirrorMilestone.repoId, mirrorThread.repoId),
+        eq(mirrorMilestone.number, mirrorThread.milestoneNumber),
+      ),
+    )
+    .where(where)
+    .as("ranked");
+
+  const rows = db
+    .select()
+    .from(ranked)
+    .where(sql`${ranked.rn} <= ${MATRIX_PREVIEW_LIMIT}`)
+    .all();
+
+  return hydrate(rows as unknown as RawRow[]);
+}
+
+/**
+ * Priority matrix (SPEC §2): 16 counted cells — impact `1` Severe … `3` Minor
+ * then Not assessed, crossed with urgency `1` High … `3` Low then Not assessed.
+ * Every pair is always present; counts come from a grouped SQL query and each
+ * cell previews at most {@link MATRIX_PREVIEW_LIMIT} issues in rank/updated
+ * order. The filter is applied exactly as given — no default state, and no
+ * triaged/untriaged or open/closed special-casing.
+ */
+export function matrixBoard(filter: IssueFilter): MatrixBoard {
+  const where = buildIssueWhere(filter);
+
+  const countRows = db
+    .select({
+      impact: mirrorThread.impact,
+      urgency: mirrorThread.urgency,
+      value: sql<number>`count(*)`,
+    })
+    .from(mirrorThread)
+    .where(where)
+    .groupBy(mirrorThread.impact, mirrorThread.urgency)
+    .all();
+
+  const countByCell = new Map<string, number>();
+  for (const row of countRows) {
+    countByCell.set(
+      matrixCellKey(row.impact, row.urgency),
+      Number(row.value),
+    );
+  }
+
+  const previews = matrixPreviews(where);
+  const issuesByCell = new Map<string, IssueListItem[]>();
+  for (const issue of previews) {
+    const key = matrixCellKey(issue.impact, issue.urgency);
+    const list = issuesByCell.get(key) ?? [];
+    list.push(issue);
+    issuesByCell.set(key, list);
+  }
+
+  const cells: MatrixCell[] = [];
+  let total = 0;
+  for (const impact of MATRIX_IMPACT_AXIS) {
+    for (const urgency of MATRIX_URGENCY_AXIS) {
+      const key = matrixCellKey(impact, urgency);
+      const count = countByCell.get(key) ?? 0;
+      total += count;
+      cells.push({
+        impact,
+        urgency,
+        total: count,
+        issues: issuesByCell.get(key) ?? [],
+      });
+    }
+  }
+
+  return { cells, total };
 }
 
 /**
