@@ -1,0 +1,27 @@
+- start df20bfecfaadadfa00bbeeb58ec07bed2968cc01
+- Ruling: hold T3 until T1/T2 commit despite the dropped graph edges - matrixGrid composes matrixCellMeta and the route binds matrixBoard, so its tests execute both producers - cost: one wave of latency.
+- Ruling: hold T6 until T3 commits in addition to its T4 edge - the screenshots render the real grid - cost: none beyond sequencing.
+- unblocked: dispatched T0 T1 T2 T5 at 03:49:29; holding T3 T6 for real producer code
+- tests full passed=1106 failed=0 skipped=0 seconds=8.0
+- T0 done: no tracked skeleton changes (existing manifest/config; stub discarded as out of scope)
+- tests fast passed=0 failed=2 skipped=0 seconds=0.3
+- tests fast passed=0 failed=1 skipped=0 seconds=0.3
+- tests fast passed=19 failed=0 skipped=0 seconds=0.3
+- tests fast passed=2 failed=0 skipped=0 seconds=0.2
+- tests fast passed=47 failed=0 skipped=0 seconds=0.7
+- tests fast passed=47 failed=0 skipped=0 seconds=0.6
+- commit T1 0138c06173 domain and guidance data
+- commit T2 da526f97d6 matrix query
+- commit T5 d008def15b documentation
+- tests fast passed=19 failed=0 skipped=0 seconds=0.3
+- tests fast passed=9 failed=0 skipped=0 seconds=0.3
+- commit T3 c3d3804fd3 matrix route and grid
+- commit T4 078df240f7 priority popover guidance
+- tests fast passed=1 failed=0 skipped=0 seconds=0.4
+- commit T6 e211fad516 screenshots and seed
+- tests full passed=1118 failed=0 skipped=0 seconds=7.8
+- commit T3 1388f168e4 matrix route and grid
+- tests fast passed=1 failed=0 skipped=0 seconds=0.2
+- commit T6 7f6458e5ed screenshots and seed
+- tests full passed=1119 failed=0 skipped=0 seconds=8.8
+- commit T3 efacb642ef matrix route and grid
