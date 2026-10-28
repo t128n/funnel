@@ -61,6 +61,8 @@ All cockpit routes live under the `(app)` layout and require at least the `read`
 | `/board` | Five-column status board: Backlog, Todo, In Progress, In Review, Done. | `read` | `read` viewers see the board read-only. Done is bounded by `board.done_days`; blocking is a card flag, not a lane. |
 | `/board?view=backlog` | Backlog list view rather than board lanes. | `read` | Same layout and filters as the board. |
 | `/board/{owner}/{repo}/{number}` | Inspector docked beside the board. | `read` | Malformed params return `404`. |
+| `/matrix` | Four-by-four impact × urgency matrix over the same filtered issue stream, with a Not assessed row and column. | `read` | Defaults to `state=open` and includes triaged and untriaged issues. Each cell shows its total and up to four previews ordered by priority rank then most recently updated. |
+| `/matrix/{owner}/{repo}/{number}` | Inspector docked beside the matrix. | `read` | Malformed params return `404`. |
 | `/attention` | Blocked issues with a re-check date, grouped overdue, today and upcoming. | `read` | Bucketing is computed in the browser's local timezone; upcoming is a seven-day window. |
 | `/notifications` | The signed-in viewer's notification feed, unread rows before read rows. | `read` | Newest first, limited to 100 rows. Opening an unread row marks it read; per-row and mark-all controls persist read state. The page also offers the per-browser notification opt-in when `notifications.native` is on. |
 | `/milestones` | Every mirrored milestone, grouped by repository, with progress and due dates. | `read` | GitHub scopes a milestone to one repository, so equal titles in two repositories are separate entries. |
@@ -105,11 +107,12 @@ All three require `write`. Accept and duplicate fail with `401` when no user tok
 
 ## Detail routes
 
-The three cockpit views own self-describing detail paths:
+The four cockpit views own self-describing detail paths:
 
 ```text
 /issues/{owner}/{repo}/{number}
 /board/{owner}/{repo}/{number}
+/matrix/{owner}/{repo}/{number}
 /inbox/{owner}/{repo}/{number}
 /inbox/submission/{id}
 ```
@@ -176,6 +179,8 @@ API routes are not under the `(app)` layout and enforce their own guards. Detail
 | `/issues/{owner}/{repo}/{number}` | Issues Inspector. | `read` |
 | `/board` | Status board. | `read` |
 | `/board/{owner}/{repo}/{number}` | Board Inspector. | `read` |
+| `/matrix` | Impact × urgency matrix. | `read` |
+| `/matrix/{owner}/{repo}/{number}` | Matrix Inspector. | `read` |
 | `/attention` | Blocked issues due for re-check. | `read` |
 | `/notifications` | Personal notification feed. | `read` |
 | `/milestones` | Repo-scoped milestones and progress. | `read` |
