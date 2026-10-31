@@ -5,16 +5,18 @@
 	export type SidebarMenuButtonSize = "default" | "sm" | "lg";
 
 	/**
-	 * One flat row in every variant. The transparent 3px track keeps the label
-	 * from shifting when a row becomes active; the rule itself is painted on
-	 * the pseudo-element so it is a real edge, not a shadow.
+	 * One flat row in every variant. The 3px rule is painted on the
+	 * pseudo-element so it is a real edge, not a shadow, and it sits flush
+	 * against the row. The base carries no border: a transparent one would
+	 * eat 2px of the 32px icon target and clip the 16px glyph.
 	 */
 	const menuButtonBase =
-		"peer/menu-button group/menu-button relative flex w-full items-center gap-2 overflow-hidden rounded-none border border-transparent p-2 text-left text-sm outline-none hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[var(--sidebar-ring)] disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 before:absolute before:inset-y-0 before:start-0 before:w-[3px] before:bg-transparent data-[active=true]:bg-transparent data-[active=true]:font-semibold data-[active=true]:text-[var(--sidebar-primary)] data-[active=true]:before:bg-[var(--sidebar-primary)] group-has-data-[sidebar=menu-action]/menu-item:pr-8 group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:p-2! [&_svg]:size-4 [&_svg]:shrink-0 [&>span:last-child]:truncate";
+		"peer/menu-button group/menu-button relative flex w-full items-center gap-2 overflow-hidden rounded-none p-2 text-left text-sm outline-none hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[var(--sidebar-ring)] disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 before:absolute before:inset-y-0 before:start-0 before:w-[3px] before:bg-transparent data-[active=true]:bg-transparent data-[active=true]:font-semibold data-[active=true]:text-[var(--sidebar-primary)] data-[active=true]:before:bg-[var(--sidebar-primary)] group-has-data-[sidebar=menu-action]/menu-item:pr-8 group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:p-2! [&_svg]:size-4 [&_svg]:shrink-0 [&>span:last-child]:truncate";
 
 	const menuButtonVariants: Record<SidebarMenuButtonVariant, string> = {
 		default: "",
-		outline: "border-sidebar-border bg-background hover:border-sidebar-accent",
+		outline:
+			"border border-sidebar-border bg-background hover:border-sidebar-accent group-data-[collapsible=icon]:border-0",
 	};
 
 	export const sidebarMenuButtonSizes: Record<SidebarMenuButtonSize, string> = {

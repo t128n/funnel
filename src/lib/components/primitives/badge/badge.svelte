@@ -1,5 +1,6 @@
 <script lang="ts" module>
 	import { cn } from "#lib/utils.js";
+	import { focusRing } from "../styles.js";
 
 	export type BadgeVariant = "default" | "secondary" | "outline" | "destructive";
 
@@ -17,13 +18,14 @@
 	export function badgeVariants({ variant = "default" }: { variant?: BadgeVariant } = {}): string {
 		return cn(
 			"group/badge inline-flex h-5 w-fit shrink-0 items-center justify-center gap-1 overflow-hidden rounded-none border px-1.5 font-mono text-2xs font-medium tracking-wide whitespace-nowrap uppercase transition-colors [&>svg]:pointer-events-none [&>svg]:size-3",
+			focusRing,
 			badgeSurface[variant]
 		);
 	}
 </script>
 
 <script lang="ts">
-	import { cn, type WithElementRef } from "#lib/utils.js";
+	import { type WithElementRef } from "#lib/utils.js";
 	import type { HTMLAnchorAttributes } from "svelte/elements";
 
 	let {

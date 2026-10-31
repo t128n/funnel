@@ -25,7 +25,10 @@
 {#if collapsible === "none"}
 	<div
 		class={cn(
-			"flex h-full w-(--sidebar-width) flex-col border-e border-sidebar-border bg-sidebar text-sidebar-foreground",
+			// The static sidebar keeps its 1px edge on the side that faces the
+			// content, matching the collapsible desktop branch below.
+			"flex h-full w-(--sidebar-width) flex-col border-sidebar-border bg-sidebar text-sidebar-foreground",
+			side === "right" ? "border-s" : "border-e",
 			className
 		)}
 		bind:this={ref}

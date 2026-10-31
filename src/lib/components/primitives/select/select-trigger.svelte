@@ -22,7 +22,7 @@
 	class={triggerClass(
 		variant,
 		cn(
-			"w-fit whitespace-nowrap",
+			"w-fit whitespace-nowrap data-[placeholder]:text-muted-foreground",
 			"*:data-[slot=select-value]:line-clamp-1 *:data-[slot=select-value]:flex *:data-[slot=select-value]:items-center *:data-[slot=select-value]:gap-1.5",
 			className
 		)

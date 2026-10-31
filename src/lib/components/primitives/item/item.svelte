@@ -1,5 +1,6 @@
 <script lang="ts" module>
 	import { cn } from "#lib/utils.js";
+	import { focusRing } from "../styles.js";
 
 	export type ItemSize = "default" | "sm" | "xs";
 	export type ItemVariant = "default" | "outline";
@@ -22,6 +23,7 @@
 	}: { variant?: ItemVariant; size?: ItemSize } = {}): string {
 		return cn(
 			"group/item flex w-full flex-wrap items-center rounded-none border text-sm transition-colors hover:bg-muted",
+			focusRing,
 			itemSurface[variant],
 			itemSpacing[size]
 		);
@@ -29,7 +31,7 @@
 </script>
 
 <script lang="ts">
-	import { cn, type WithElementRef } from "#lib/utils.js";
+	import { type WithElementRef } from "#lib/utils.js";
 	import type { Snippet } from "svelte";
 	import type { HTMLAttributes } from "svelte/elements";
 
@@ -37,6 +39,7 @@
 		ref = $bindable(null),
 		class: className,
 		child,
+		children,
 		variant,
 		size,
 		...restProps
@@ -59,6 +62,6 @@
 	{@render child({ props: mergedProps })}
 {:else}
 	<div bind:this={ref} {...mergedProps}>
-		{@render mergedProps.children?.()}
+		{@render children?.()}
 	</div>
 {/if}

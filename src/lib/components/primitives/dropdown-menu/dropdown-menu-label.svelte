@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { labelText } from "../styles.js";
 	import { cn, type WithElementRef } from "#lib/utils.js";
 	import type { HTMLAttributes } from "svelte/elements";
 
@@ -17,7 +18,7 @@
 	bind:this={ref}
 	data-slot="dropdown-menu-label"
 	data-inset={inset}
-	class={cn("px-2 py-1.5 text-xs font-semibold text-muted-foreground", inset && "pl-7", className)}
+	class={cn(labelText, "px-2 py-1.5", inset && "pl-7", className)}
 	{...restProps}
 >
 	{@render children?.()}

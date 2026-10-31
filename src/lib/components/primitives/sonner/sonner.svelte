@@ -18,7 +18,7 @@
 		classes: {
 			toast: "rounded-lg border border-border bg-popover text-popover-foreground shadow-sm",
 			title: "text-sm font-semibold",
-			description: "text-xs text-muted-foreground",
+			description: "text-xs text-muted-foreground!",
 		},
 	}}
 	{...restProps}

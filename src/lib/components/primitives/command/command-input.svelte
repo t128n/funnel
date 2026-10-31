@@ -14,7 +14,8 @@
 <div data-slot="command-input-wrapper" class="flex h-8 items-center gap-1.5 border-b border-border px-2">
 	<SearchIcon class="size-3.5 shrink-0 text-muted-foreground" />
 	<CommandPrimitive.Input
-		{value}
+		bind:ref
+		bind:value
 		data-slot="command-input"
 		class={cn(
 			"h-7 w-full min-w-0 border-0 bg-transparent py-0 text-sm text-foreground placeholder:text-muted-foreground outline-none disabled:cursor-not-allowed disabled:opacity-50",

@@ -1,17 +1,22 @@
 <script lang="ts" module>
-	import { control, focusRing } from "../styles.js";
+	import { cn as merge } from "#lib/utils.js";
+	import { control } from "../styles.js";
 
 	export type InputVariant = "default" | "ghost";
 
-	/** Borderless inline editor: the edge appears on hover and keyboard focus. */
-	const ghostControl = [
-		"h-7 w-full min-w-0 rounded-xs border border-transparent bg-transparent px-1 text-sm text-foreground transition-colors",
-		"placeholder:text-muted-foreground hover:border-border focus-visible:border-input",
-		"disabled:cursor-not-allowed disabled:opacity-60",
-		focusRing,
-	].join(" ");
+	const defaultControl = merge(
+		control,
+		"py-0 file:mr-2 file:h-6 file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground"
+	);
 
-	const defaultControl = `${control} py-0 file:mr-2 file:h-6 file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground`;
+	/**
+	 * Borderless inline editor: the same geometry and focus ring as `control`,
+	 * with the edge and fill appearing only on hover and keyboard focus.
+	 */
+	const ghostControl = merge(
+		control,
+		"border-transparent bg-transparent px-1 hover:border-border focus-visible:border-input"
+	);
 </script>
 
 <script lang="ts">

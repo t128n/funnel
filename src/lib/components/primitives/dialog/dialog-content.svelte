@@ -31,21 +31,21 @@
 		class={cn(
 			panel,
 			focusRing,
-			"fixed top-1/2 left-1/2 z-50 grid w-full max-w-[calc(100%_-_2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 rounded-lg p-4 text-sm sm:max-w-sm",
+			"fixed top-1/2 left-1/2 z-50 grid w-full max-w-[calc(100%_-_2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 p-4 text-sm sm:max-w-sm",
 			className
 		)}
 		{...restProps}
 	>
 		{@render children?.()}
 		{#if showCloseButton}
-			<DialogPrimitive.Close data-slot="dialog-close">
+			<Dialog.Close data-slot="dialog-close">
 				{#snippet child({ props })}
 					<Button variant="ghost" class="absolute top-2 right-2" size="icon-sm" {...props}>
-						<XIcon  />
+						<XIcon />
 						<span class="sr-only">Close</span>
 					</Button>
 				{/snippet}
-			</DialogPrimitive.Close>
+			</Dialog.Close>
 		{/if}
 	</DialogPrimitive.Content>
 </DialogPortal>

@@ -38,7 +38,7 @@
 		class={cn(
 			panel,
 			focusRing,
-			"fixed z-50 flex flex-col gap-4 rounded-lg border-border text-sm data-[side=bottom]:inset-x-0 data-[side=bottom]:bottom-0 data-[side=bottom]:h-auto data-[side=bottom]:border-t data-[side=left]:inset-y-0 data-[side=left]:left-0 data-[side=left]:h-full data-[side=left]:w-3/4 data-[side=left]:border-r data-[side=right]:inset-y-0 data-[side=right]:right-0 data-[side=right]:h-full data-[side=right]:w-3/4 data-[side=right]:border-l data-[side=top]:inset-x-0 data-[side=top]:top-0 data-[side=top]:h-auto data-[side=top]:border-b data-[side=left]:sm:max-w-sm data-[side=right]:sm:max-w-sm",
+			"fixed z-50 flex flex-col gap-4 text-sm data-[side=bottom]:inset-x-0 data-[side=bottom]:bottom-0 data-[side=bottom]:h-auto data-[side=bottom]:border-t data-[side=left]:inset-y-0 data-[side=left]:left-0 data-[side=left]:h-full data-[side=left]:w-3/4 data-[side=left]:border-r data-[side=right]:inset-y-0 data-[side=right]:right-0 data-[side=right]:h-full data-[side=right]:w-3/4 data-[side=right]:border-l data-[side=top]:inset-x-0 data-[side=top]:top-0 data-[side=top]:h-auto data-[side=top]:border-b data-[side=left]:sm:max-w-sm data-[side=right]:sm:max-w-sm",
 			className
 		)}
 		{...restProps}
@@ -48,7 +48,7 @@
 			<SheetPrimitive.Close data-slot="sheet-close">
 				{#snippet child({ props })}
 					<Button variant="ghost" class="absolute top-3 right-3" size="icon-sm" {...props}>
-						<XIcon  />
+						<XIcon />
 						<span class="sr-only">Close</span>
 					</Button>
 				{/snippet}

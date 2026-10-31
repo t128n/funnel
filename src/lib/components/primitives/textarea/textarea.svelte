@@ -1,15 +1,18 @@
 <script lang="ts" module>
 	import { cn as merge } from "#lib/utils.js";
-	import { control, focusRing } from "../styles.js";
+	import { control } from "../styles.js";
 
 	export type TextareaVariant = "default" | "ghost";
 
 	const defaultControl = merge(control, "h-auto min-h-16 field-sizing-content py-1");
 
-	/** Borderless inline editor: the edge appears on hover and keyboard focus. */
+	/**
+	 * Borderless inline editor: the same geometry and focus ring as `control`,
+	 * with the edge and fill appearing only on hover and keyboard focus.
+	 */
 	const ghostControl = merge(
-		"h-auto min-h-16 w-full field-sizing-content rounded-xs border border-transparent bg-transparent px-1 py-1 text-sm text-foreground transition-colors placeholder:text-muted-foreground hover:border-border focus-visible:border-input disabled:cursor-not-allowed disabled:opacity-60",
-		focusRing
+		control,
+		"h-auto min-h-16 field-sizing-content border-transparent bg-transparent px-1 py-1 hover:border-border focus-visible:border-input"
 	);
 
 	export const textareaClass = (variant: TextareaVariant) =>

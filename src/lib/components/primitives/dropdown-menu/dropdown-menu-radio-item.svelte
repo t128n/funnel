@@ -19,7 +19,7 @@
 	data-slot="dropdown-menu-radio-item"
 	class={cn(
 		menuItem,
-		"gap-1.5 rounded-none pr-8 [&_svg:not([class*='size-'])]:size-4 [&_svg]:shrink-0",
+		"relative gap-1.5 pr-8 data-inset:pl-7 [&_svg:not([class*='size-'])]:size-4 [&_svg]:shrink-0",
 		className
 	)}
 	{...restProps}

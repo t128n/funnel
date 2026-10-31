@@ -22,10 +22,10 @@
 	data-variant={variant}
 	class={cn(
 		menuItem,
-		"gap-1.5 rounded-none [&_svg:not([class*='size-'])]:size-4 [&_svg]:pointer-events-none [&_svg]:shrink-0",
+		"gap-1.5 [&_svg:not([class*='size-'])]:size-4 [&_svg]:pointer-events-none [&_svg]:shrink-0",
 		inset && "pl-7",
 		variant === "destructive" &&
-			"data-[variant=destructive]:text-destructive data-[variant=destructive]:data-[highlighted]:bg-destructive/10 data-[variant=destructive]:data-[highlighted]:text-destructive [&_svg]:text-destructive",
+			"text-destructive data-[highlighted]:bg-destructive/10 data-[highlighted]:text-destructive [&_svg]:text-destructive",
 		className
 	)}
 	{...restProps}

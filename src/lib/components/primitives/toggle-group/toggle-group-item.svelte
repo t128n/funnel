@@ -23,7 +23,7 @@
 		ctx.variant,
 		ctx.size,
 		cn(
-			"rounded-none border-0 border-l border-border px-2 first:border-l-0 data-[state=on]:bg-accent data-[state=on]:text-accent-foreground group-data-[orientation=vertical]/toggle-group:border-l-0 group-data-[orientation=vertical]/toggle-group:border-t group-data-[orientation=vertical]/toggle-group:first:border-t-0",
+			"rounded-none border-0 border-l border-border px-2 first:border-l-0 data-[state=on]:bg-accent data-[state=on]:text-accent-foreground group-data-[orientation=horizontal]/toggle-group:first:rounded-l-xs group-data-[orientation=horizontal]/toggle-group:last:rounded-r-xs group-data-[orientation=vertical]/toggle-group:border-l-0 group-data-[orientation=vertical]/toggle-group:border-t group-data-[orientation=vertical]/toggle-group:first:border-t-0 group-data-[orientation=vertical]/toggle-group:first:rounded-t-xs group-data-[orientation=vertical]/toggle-group:last:rounded-b-xs",
 			className
 		)
 	)}

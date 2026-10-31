@@ -6,8 +6,7 @@
 	const buttonSurface = {
 		default: "border-primary bg-primary text-primary-foreground hover:bg-primary/90",
 		outline: "border-border bg-muted text-foreground hover:bg-accent aria-expanded:bg-accent",
-		secondary:
-			"border-border bg-secondary text-secondary-foreground hover:bg-accent aria-expanded:bg-accent",
+		secondary: "border-border bg-muted text-foreground hover:bg-accent aria-expanded:bg-accent",
 		ghost:
 			"border-transparent bg-transparent text-foreground hover:bg-muted aria-expanded:bg-muted",
 		destructive: "border-destructive bg-destructive text-background hover:bg-destructive/90",

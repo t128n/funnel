@@ -44,6 +44,7 @@ describe("status and surfaces primitives", () => {
 		expect(badge).toContain("text-2xs");
 		expect(badge).toContain("uppercase");
 		expect(badge).toContain("bg-muted");
+		expect(badge).toContain("focusRing");
 		expect(badge).not.toContain("rounded-4xl");
 		expect(badge).not.toContain("tailwind-variants");
 	});
@@ -116,6 +117,7 @@ describe("status and surfaces primitives", () => {
 
 		expect(item).toContain("rounded-none");
 		expect(item).toContain("hover:bg-muted");
+		expect(item).toContain("focusRing");
 		expect(item).toContain('"default" | "outline"');
 	});
 
@@ -133,5 +135,29 @@ describe("status and surfaces primitives", () => {
 		for (const family of families) {
 			expect(familySource(family)).toContain("cn(");
 		}
+	});
+
+	test("each surface imports cn once", () => {
+		// Imports from <script module> and <script> share one compiled module
+		// scope, so importing `cn` in both is a duplicate declaration that fails
+		// svelte-check and the build.
+		for (const family of families) {
+			for (const file of svelteFiles(family)) {
+				const text = source(family, file);
+				const imports = text.match(/import\s*\{[^}]*\bcn\b[^}]*\}\s*from/g) ?? [];
+
+				expect({ file: `${family}/${file}`, imports: imports.length }).toEqual({
+					file: `${family}/${file}`,
+					imports: text.includes("cn(") ? 1 : 0
+				});
+			}
+		}
+	});
+
+	test("item renders its children snippet", () => {
+		const item = source("item", "item.svelte");
+
+		expect(item).toContain("{@render children?.()}");
+		expect(item).not.toContain("mergedProps.children");
 	});
 });

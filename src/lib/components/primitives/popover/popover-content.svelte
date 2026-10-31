@@ -26,7 +26,7 @@
 		class={cn(
 			panel,
 			focusRing,
-			"z-50 flex w-72 flex-col gap-2.5 rounded-lg p-2.5 text-sm",
+			"z-50 flex w-72 flex-col gap-2.5 p-2.5 text-sm",
 			className
 		)}
 		{...restProps}
