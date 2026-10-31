@@ -97,6 +97,7 @@ Learning-oriented, with one path and expected results.
 - [Environment variables](reference/environment-variables.md) — every deploy-time variable, its default, and its purpose.
 - [CLI](reference/cli.md) — the packaged executable's flags and the Bun scripts it maps to.
 - [Build tasks](reference/build-tasks.md) — the `mise` tasks and what each one produces.
+- [UI primitives](reference/primitives.md) — the bits-ui wrapper families, their exports, variants and style recipes.
 - [Settings](reference/settings.md) — the instance settings stored in SQLite, with defaults and validation rules.
 - [Planning and time](reference/planning-and-time.md) — estimates, capacity, weeks and cycles, actual-time and delay rules, epic metadata, tables and endpoints.
 - [Reserved labels](reference/reserved-labels.md) — the canonical status, impact, urgency, size, flag, and epic vocabulary plus the retired priority labels.
@@ -118,10 +119,11 @@ Learning-oriented, with one path and expected results.
 - [Security model](explanation/security-model.md) — sessions, encrypted credentials, role enforcement, and user-token writes.
 - [Deployment model](explanation/deployment-model.md) — why Funnel is one long-lived process with local state.
 - [Design principles](explanation/design-principles.md) — the density, keyboard, and interaction standards behind the cockpit.
+- [Design language](explanation/design-language.md) — the Bugzilla language, token layer, and before/after gallery.
 
 ## Project documents
 
-- [DESIGN.md](DESIGN.md) — the Linear-inspired UI/UX standards: tokens, layouts, keyboard behaviour, and interaction details.
+- [DESIGN.md](DESIGN.md) — the Bugzilla UI/UX standards: tokens, layouts, keyboard behaviour, and interaction details.
 - [scripts/README.md](../scripts/README.md) — the Windows intake helpers, icon generator, and their current status.
 
 ## Conventions
