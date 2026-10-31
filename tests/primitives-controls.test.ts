@@ -213,4 +213,11 @@ describe("control primitives", () => {
 		expect(callSites).not.toMatch(/size=["']icon-lg["']/);
 		expect(callSites).not.toMatch(/(?:<Button[^>]*\svariant|buttonVariants\(\{[^}]*variant)=["']link["']/);
 	});
+
+	test("file inputs never bind value", () => {
+		const fileSource = source("input/input.svelte");
+		const fileBranch = fileSource.split('{#if type === "file"}')[1]?.split("{:else}")[0] ?? "";
+		expect(fileBranch).toContain("bind:files");
+		expect(fileBranch).not.toContain("bind:value");
+	});
 });

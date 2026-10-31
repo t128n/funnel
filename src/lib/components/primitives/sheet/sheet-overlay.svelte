@@ -12,6 +12,6 @@
 <SheetPrimitive.Overlay
 	bind:ref
 	data-slot="sheet-overlay"
-	class={cn("fixed inset-0 z-50 bg-foreground/25", className)}
+	class={cn("fixed inset-0 z-50 bg-black/40", className)}
 	{...restProps}
 />

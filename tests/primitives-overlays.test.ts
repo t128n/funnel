@@ -110,8 +110,8 @@ describe("overlay primitives", () => {
 	test("overlay is a flat scrim", () => {
 		for (const file of ["dialog/dialog-overlay.svelte", "sheet/sheet-overlay.svelte"]) {
 			const source = read(file);
-			expect(source).toContain("bg-foreground/25");
-			expect(source).not.toContain("bg-black");
+			expect(source).toContain("bg-black/40");
+			expect(source).not.toContain("bg-foreground/25");
 			expect(source).not.toContain("backdrop-blur");
 			expect(source).not.toContain("animate-");
 			expect(source).not.toContain("duration-");
@@ -136,6 +136,7 @@ describe("overlay primitives", () => {
 	test("sheet keeps its edge and loses motion", () => {
 		const source = read("sheet/sheet-content.svelte");
 		expect(source).toContain("panel");
+		expect(source).toContain("rounded-none");
 		expect(source).toContain("data-[side=right]:border-l");
 		expect(source).toContain("data-[side=bottom]:border-t");
 		expect(source).not.toContain("animate-");
@@ -148,6 +149,7 @@ describe("overlay primitives", () => {
 		const source = read("tooltip/tooltip-content.svelte");
 		expect(source).toContain("bg-foreground");
 		expect(source).toContain("text-background");
+		expect(source).toContain("rounded-lg");
 		expect(source).toContain("rounded-xs");
 		expect(source).not.toContain("panel");
 		expect(source).not.toContain("animate-");

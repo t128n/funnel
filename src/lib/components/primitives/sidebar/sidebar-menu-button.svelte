@@ -39,6 +39,7 @@
 
 <script lang="ts">
 	import { mergeProps } from "bits-ui";
+	import { createAttachmentKey } from "svelte/attachments";
 	import * as Tooltip from "#lib/components/primitives/tooltip/index.js";
 	import type { WithElementRef, WithoutChildrenOrChild } from "#lib/utils.js";
 	import { useSidebar } from "./context.svelte.js";
@@ -66,8 +67,10 @@
 	} = $props();
 
 	const sidebar = useSidebar();
+	const refAttachment = createAttachmentKey();
 
 	const buttonProps = $derived({
+		...(child ? { [refAttachment]: (node: HTMLButtonElement) => { ref = node; return () => { ref = null; }; } } : {}),
 		class: cn(sidebarMenuButtonVariants({ variant, size }), className),
 		"data-slot": "sidebar-menu-button",
 		"data-sidebar": "menu-button",

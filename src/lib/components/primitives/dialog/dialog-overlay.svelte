@@ -12,6 +12,6 @@
 <DialogPrimitive.Overlay
 	bind:ref
 	data-slot="dialog-overlay"
-	class={cn("fixed inset-0 isolate z-50 bg-foreground/25", className)}
+	class={cn("fixed inset-0 isolate z-50 bg-black/40", className)}
 	{...restProps}
 />

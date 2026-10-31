@@ -36,7 +36,7 @@ are exported alongside the components (`buttonVariants`, `ButtonVariant`).
 | :--- | :--- | :--- | :--- |
 | Alert | `#lib/components/primitives/alert` | `Alert`, `AlertTitle`, `AlertDescription` | `default`, `destructive` (2px left rule). |
 | Avatar | `#lib/components/primitives/avatar` | `Avatar`, `AvatarImage`, `AvatarFallback` | `rounded-full` is the one round surface. |
-| Badge | `#lib/components/primitives/badge` | `Badge` | `default`, `secondary`, `outline`, `destructive`; mono 10px uppercase on `--muted`. |
+| Badge | `#lib/components/primitives/badge` | `Badge` | `default`, `secondary`, `outline`, `destructive`; mono 11px uppercase on `--muted`. |
 | Bubble | `#lib/components/primitives/bubble` | `Bubble`, `BubbleContent` | `default`, `muted`; flat bordered box. |
 | Button | `#lib/components/primitives/button` | `Button`, `buttonVariants`, `ButtonVariant`, `ButtonSize` | `default`, `outline`, `ghost`, `secondary`, `destructive`; `default`, `sm`, `xs`, `lg`, `icon`, `icon-sm`, `icon-xs`; renders `<a>` with `href`. |
 | Card | `#lib/components/primitives/card` | `Card`, `CardHeader`, `CardTitle`, `CardDescription`, `CardContent`, `CardFooter`, `CardAction` | Flat 4px panel, `p-3`, no tinted shell. |
@@ -50,7 +50,7 @@ are exported alongside the components (`buttonVariants`, `ButtonVariant`).
 | Input | `#lib/components/primitives/input` | `Input`, `InputVariant` | `default`, `ghost` (borderless inline editor). |
 | InputGroup | `#lib/components/primitives/input-group` | `InputGroup`, `InputGroupAddon`, `InputGroupInput`, `InputGroupTextarea` | One 1px shell around a ghost field. |
 | Item | `#lib/components/primitives/item` | `Item`, `ItemContent`, `ItemTitle`, `ItemDescription`, `ItemActions` | `default`, `outline`; hover `bg-muted`, flat rows. |
-| Kbd | `#lib/components/primitives/kbd` | `Kbd`, `KbdGroup` | Mono 10px on `--muted`. |
+| Kbd | `#lib/components/primitives/kbd` | `Kbd`, `KbdGroup` | Mono 11px on `--muted`. |
 | Label | `#lib/components/primitives/label` | `Label` | Binds to a field; `text-xs` semibold via `labelText`. |
 | Message | `#lib/components/primitives/message` | `Message`, `MessageAvatar`, `MessageHeader`, `MessageContent` | Flat bordered discussion block. |
 | NativeSelect | `#lib/components/primitives/native-select` | `NativeSelect`, `NativeSelectOption`, `NativeSelectOptGroup` | Flat native chevron; `size` `default` or `sm`. |

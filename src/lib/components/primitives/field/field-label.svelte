@@ -18,8 +18,7 @@
 		choice: cn(
 			"cursor-pointer rounded-xs border border-input bg-transparent px-2 py-1 text-sm font-normal text-foreground",
 			"has-[:checked]:border-primary has-[:checked]:bg-accent",
-			"has-data-checked:border-primary has-data-checked:bg-accent",
-			"data-[state=checked]:border-primary data-[state=checked]:bg-accent",
+			"has-data-[state=checked]:border-primary has-data-[state=checked]:bg-accent",
 			"has-[:focus-visible]:border-primary"
 		)
 	};

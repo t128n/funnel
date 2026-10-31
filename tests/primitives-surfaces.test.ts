@@ -41,7 +41,7 @@ describe("status and surfaces primitives", () => {
 
 		expect(badge).toContain("rounded-none");
 		expect(badge).toContain("font-mono");
-		expect(badge).toContain("text-2xs");
+		expect(badge).toContain("text-xs");
 		expect(badge).toContain("uppercase");
 		expect(badge).toContain("bg-muted");
 		expect(badge).toContain("focusRing");

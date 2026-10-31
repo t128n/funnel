@@ -59,15 +59,22 @@ describe("forms and content primitives", () => {
 		expect(choice).not.toContain("labelText");
 		expect(choice).not.toContain("font-semibold");
 
-		// Checked affordance for bits-ui state, data-checked and native radios.
-		for (const state of [
-			"data-[state=checked]",
-			"has-data-checked",
-			"has-[:checked]"
-		]) {
+		// Checked affordance for bits-ui data-state and native radios.
+		for (const state of ["has-data-[state=checked]", "has-[:checked]"]) {
 			expect(label).toContain(`${state}:border-primary`);
 			expect(label).toContain(`${state}:bg-accent`);
 		}
+	});
+
+	test("choice labels do not depend on self state or data-checked", () => {
+		const label = read("field/field-label.svelte");
+		expect(label).not.toContain("has-data-checked:");
+		expect(label).not.toContain(" data-[state=checked]:");
+	});
+
+	test("child snippets forward refs through attachments", () => {
+		expect(read("item/item.svelte")).toContain("createAttachmentKey");
+		expect(read("bubble/bubble-content.svelte")).toContain("createAttachmentKey");
 	});
 
 	test("bubbles flat", () => {

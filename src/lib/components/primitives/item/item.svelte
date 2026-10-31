@@ -34,6 +34,9 @@
 	import { type WithElementRef } from "#lib/utils.js";
 	import type { Snippet } from "svelte";
 	import type { HTMLAttributes } from "svelte/elements";
+	import { createAttachmentKey } from "svelte/attachments";
+
+	const refAttachment = createAttachmentKey();
 
 	let {
 		ref = $bindable(null),
@@ -52,6 +55,7 @@
 	const mergedProps = $derived({
 		class: cn(itemVariants({ variant, size }), className),
 		"data-slot": "item",
+		...(child ? { [refAttachment]: (node: HTMLElement) => { ref = node; return () => { ref = null; }; } } : {}),
 		"data-variant": variant,
 		"data-size": size,
 		...restProps,

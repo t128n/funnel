@@ -2,6 +2,9 @@
 	import { cn, type WithElementRef } from "#lib/utils.js";
 	import type { Snippet } from "svelte";
 	import type { HTMLAttributes } from "svelte/elements";
+	import { createAttachmentKey } from "svelte/attachments";
+
+	const refAttachment = createAttachmentKey();
 
 	let {
 		ref = $bindable(null),
@@ -21,6 +24,7 @@
 			className
 		),
 		"data-slot": "bubble-content",
+		...(child ? { [refAttachment]: (node: HTMLElement) => { ref = node; return () => { ref = null; }; } } : {}),
 		...restProps
 	});
 </script>

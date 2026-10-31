@@ -31,6 +31,7 @@ describe("sidebar chrome", () => {
 		const source = chrome("sidebar/sidebar-menu-button.svelte");
 		// 600 weight in `--primary`, carried by a real 3px left rule.
 		expect(source).toContain("--sidebar-primary");
+		expect(source).toContain("createAttachmentKey");
 		expect(source).toContain("data-[active=true]:font-semibold");
 		expect(source).toContain("data-[active=true]:text-[var(--sidebar-primary)]");
 		expect(source).toContain("data-[active=true]:before:bg-[var(--sidebar-primary)]");

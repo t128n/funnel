@@ -17,7 +17,7 @@
 
 	export function badgeVariants({ variant = "default" }: { variant?: BadgeVariant } = {}): string {
 		return cn(
-			"group/badge inline-flex h-5 w-fit shrink-0 items-center justify-center gap-1 overflow-hidden rounded-none border px-1.5 font-mono text-2xs font-medium tracking-wide whitespace-nowrap uppercase transition-colors [&>svg]:pointer-events-none [&>svg]:size-3",
+			"group/badge inline-flex h-5 w-fit shrink-0 items-center justify-center gap-1 overflow-hidden rounded-none border px-1.5 font-mono text-xs font-medium tracking-wide whitespace-nowrap uppercase transition-colors [&>svg]:pointer-events-none [&>svg]:size-3",
 			focusRing,
 			badgeSurface[variant]
 		);
