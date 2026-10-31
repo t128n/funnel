@@ -56,10 +56,10 @@
 		<div class="flex flex-col gap-3">
 			{#each FEATURE_FLAGS as flag (flag.key)}
 				{@const on = effective(flag.key, flag.default)}
-				<Item.Root variant="outline" class="items-start gap-4 p-4">
+				<Item.Root variant="outline" class="items-start gap-4">
 					<Item.Content class="gap-0.5">
 						<Item.Title>{flag.name}</Item.Title>
-						<Item.Description class="text-xs leading-relaxed">
+						<Item.Description>
 							{flag.description}
 						</Item.Description>
 					</Item.Content>
@@ -72,13 +72,13 @@
 							role="switch"
 							aria-checked={on}
 							aria-label={flag.name}
-							class="focus-visible:ring-ring/50 inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full outline-none transition-colors focus-visible:ring-3 {on
+							class="focus-visible:outline-ring inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-xs outline-none transition-colors focus-visible:outline-2 focus-visible:outline-offset-1 {on
 								? 'bg-primary'
 								: 'bg-muted-foreground/30'}"
 							onclick={() => setFlag(flag.key, !on, flag.default)}
 						>
 							<span
-								class="bg-background pointer-events-none inline-block size-4 rounded-full shadow-sm transition-transform {on
+								class="bg-background pointer-events-none inline-block size-4 rounded-xs transition-transform {on
 									? 'translate-x-[1.125rem]'
 									: 'translate-x-0.5'}"
 							></span>

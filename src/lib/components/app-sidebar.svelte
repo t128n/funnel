@@ -99,10 +99,12 @@
 				<Sidebar.MenuButton size="lg" tooltipContent="funnel">
 					{#snippet child({ props })}
 						<a href="/" {...props}>
-							<span class="group-data-[collapsible=icon]:hidden truncate">funnel</span>
+							<span class="group-data-[collapsible=icon]:hidden truncate font-semibold tracking-tight">
+								funnel
+							</span>
 							<span
 								aria-hidden="true"
-								class="group-data-[collapsible=icon]:inline hidden"
+								class="group-data-[collapsible=icon]:inline hidden font-semibold tracking-tight"
 							>
 								f
 							</span>

@@ -174,7 +174,7 @@
 				<span class="text-muted-foreground text-sm font-medium">funnel</span>
 				<a
 					href="/attention"
-					class="hover:underline focus-visible:ring-ring/50 ms-auto rounded-none text-xs outline-none focus-visible:ring-1"
+					class="link ms-auto text-xs"
 					aria-label={dueCount > 0 ? `Attention: ${dueCount} due` : 'Attention'}
 				>
 					Attention{#if dueCount > 0}<span class="text-muted-foreground"> ({dueCount})</span>{/if}

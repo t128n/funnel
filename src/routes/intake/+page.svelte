@@ -420,10 +420,7 @@
 									{#if submitting}
 										<Spinner size={11} label="Submitting" />
 									{:else}
-										<Kbd.Root
-											class="border-primary-foreground/30 text-primary-foreground/80 h-4 min-w-4 border bg-transparent px-1 text-2xs leading-none"
-											aria-hidden="true"
-										>
+										<Kbd.Root class="h-4 min-w-4 px-1 leading-none" aria-hidden="true">
 											{isMac ? '⌘' : 'Ctrl'}↵
 										</Kbd.Root>
 									{/if}

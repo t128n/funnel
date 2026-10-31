@@ -1,5 +1,6 @@
 <script lang="ts">
 	import * as Select from '#lib/components/primitives/select';
+	import { cn } from '#lib/utils';
 	import type { Snippet } from 'svelte';
 
 	export interface SingleSelectOption {
@@ -58,7 +59,13 @@
 	onValueChange={onChange}
 	{disabled}
 >
-	<Select.Trigger variant={variant} class={variant === 'default' ? 'w-full' : 'w-auto'}>
+	<Select.Trigger
+		variant={variant}
+		class={cn(
+			variant === 'default' ? 'w-full' : 'w-auto',
+			variant !== 'ghost' && value !== null && 'text-foreground'
+		)}
+	>
 		{#if icon}
 			<span class="inline-flex size-4 shrink-0 items-center justify-center" aria-hidden="true">
 				{@render icon()}

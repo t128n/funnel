@@ -39,7 +39,7 @@
 	{payload}
 >
 	<Card.Root>
-		<Card.Content class="flex flex-col gap-3 pt-6">
+		<Card.Content class="flex flex-col gap-3">
 			{#each projects as _, index (index)}
 				<div class="flex items-end gap-2">
 					<Field.Field class="flex-1">

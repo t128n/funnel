@@ -172,7 +172,9 @@
 							Loading issues…
 						</Field.Description>
 					{:else if issuesError}
-						<Field.Description class="text-destructive">{issuesError}</Field.Description>
+						<Field.Description>
+							<span class="text-destructive">{issuesError}</span>
+						</Field.Description>
 					{:else if issueOptions.length === 0}
 						<Field.Description>No mirrored issues in this repository.</Field.Description>
 					{/if}

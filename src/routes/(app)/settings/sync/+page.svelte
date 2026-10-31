@@ -32,7 +32,7 @@
 	{payload}
 >
 	<Card.Root>
-		<Card.Content class="grid gap-4 pt-6 sm:grid-cols-3">
+		<Card.Content class="grid gap-4 sm:grid-cols-3">
 			<Field.Field>
 				<Field.Label>History window (days)</Field.Label>
 				<Input type="number" min="0" bind:value={historyDays} />

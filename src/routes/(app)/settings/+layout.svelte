@@ -41,7 +41,7 @@
 				href={section.href}
 				aria-current={active.id === section.id ? 'page' : undefined}
 				class="inline-block border-b-2 py-0.5 leading-5 no-underline {active.id === section.id
-					? 'border-[color:var(--primary)] font-semibold text-[color:var(--primary)]'
+					? 'border-primary text-primary font-semibold'
 					: 'border-transparent text-muted-foreground hover:text-foreground'}"
 			>
 				{section.label}

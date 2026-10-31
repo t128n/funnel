@@ -21,7 +21,7 @@
 	{payload}
 >
 	<Card.Root>
-		<Card.Content class="pt-6">
+		<Card.Content>
 			<Field.Field class="max-w-[12rem]">
 				<Field.Label>Idle lifetime (days)</Field.Label>
 				<Input type="number" min="0" bind:value={idleDays} />

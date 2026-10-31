@@ -16,6 +16,7 @@
 	import { invalidateAll } from '$app/navigation';
 	import * as Empty from '#lib/components/primitives/empty';
 	import { Button } from '#lib/components/primitives/button';
+	import { Input } from '#lib/components/primitives/input';
 	import { formatMinutes } from '#lib/planning';
 	import type { DayBlockInput, DayCandidate } from '#lib/planning/day-plan';
 	import { formatClock, parseClock } from '#lib/time/zoned';
@@ -255,9 +256,9 @@
 						</div>
 						{#if mayWrite}
 							<div class="mt-0.5 flex items-center gap-1">
-								<input
+								<Input
 									type="time"
-									class="border-input bg-background mono h-5 rounded-none border px-1 text-2xs"
+									class="mono h-5 w-auto px-1"
 									value={formatClock(block.startMinute)}
 									aria-label={`Start time for ${block.kind === 'issue' ? `${block.org}/${block.name}#${block.issueNumber}` : 'buffer'}`}
 									onchange={(event) => editStart(block, event.currentTarget.value)}

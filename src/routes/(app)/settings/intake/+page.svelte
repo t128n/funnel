@@ -24,7 +24,7 @@
 	{payload}
 >
 	<Card.Root>
-		<Card.Content class="pt-6">
+		<Card.Content>
 			<Field.Field class="max-w-sm">
 				<Field.Label>Default repository</Field.Label>
 				<NativeSelect.Root bind:value={defaultRepo}>

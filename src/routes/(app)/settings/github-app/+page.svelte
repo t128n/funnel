@@ -39,7 +39,7 @@
 				</Card.Description>
 				<Card.Action>
 					{#if data.credentials.installationId}
-						<Badge class="bg-emerald-500/15 text-emerald-400">Installed</Badge>
+						<Badge variant="secondary">Installed</Badge>
 					{:else}
 						<Badge variant="destructive">Not installed</Badge>
 					{/if}

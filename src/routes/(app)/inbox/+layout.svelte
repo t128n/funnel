@@ -163,7 +163,7 @@
 			{/if}
 
 			{#if entries.length === 0}
-				<Empty.Root class="flex-1 border-0">
+				<Empty.Root class="flex-1">
 					<Empty.Description>Inbox zero. Nothing staged or untriaged.</Empty.Description>
 				</Empty.Root>
 			{:else}

@@ -43,7 +43,7 @@
 	{payload}
 >
 	<Card.Root>
-		<Card.Content class="flex flex-col gap-4 pt-6">
+		<Card.Content class="flex flex-col gap-4">
 			{#each CONTROLS as control (control.key)}
 				{@const on = notifications[control.key]}
 				<div class="flex items-start justify-between gap-4">
@@ -56,13 +56,13 @@
 						role="switch"
 						aria-checked={on}
 						aria-label={control.label}
-						class="focus-visible:ring-ring/50 inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full outline-none transition-colors focus-visible:ring-3 {on
+						class="focus-visible:outline-ring inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-xs outline-none transition-colors focus-visible:outline-2 focus-visible:outline-offset-1 {on
 							? 'bg-primary'
 							: 'bg-muted-foreground/30'}"
 						onclick={() => toggle(control.key)}
 					>
 						<span
-							class="bg-background pointer-events-none inline-block size-4 rounded-full shadow-sm transition-transform {on
+							class="bg-background pointer-events-none inline-block size-4 rounded-xs transition-transform {on
 								? 'translate-x-[1.125rem]'
 								: 'translate-x-0.5'}"
 						></span>

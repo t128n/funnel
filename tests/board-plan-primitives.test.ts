@@ -106,6 +106,13 @@ describe("insertion line", () => {
 	});
 });
 
+describe("the data tables keep the bug-table idiom", () => {
+	test("epic children and milestones still render a bug-table", () => {
+		expect(read("src/lib/components/epics/EpicChildTable.svelte")).toContain('class="bug-table"');
+		expect(read("src/routes/(app)/milestones/+page.svelte")).toContain("bug-table");
+	});
+});
+
 describe("empty lanes keep their header and height", () => {
 	const column = read("src/lib/components/board/BoardColumn.svelte");
 
@@ -184,5 +191,73 @@ describe("call sites leave visual styling to the primitives", () => {
 				ring: false
 			});
 		}
+	});
+});
+
+describe("controls come from the primitives", () => {
+	test("owned surfaces render no raw form controls", () => {
+		for (const { path, source } of ownedSources) {
+			expect({ path, input: /<input\b/.test(source) }).toEqual({ path, input: false });
+			expect({ path, textarea: /<textarea\b/.test(source) }).toEqual({ path, textarea: false });
+			expect({ path, select: /<select\b/.test(source) }).toEqual({ path, select: false });
+		}
+	});
+
+	test("the day grid's start-time editor is the Input primitive", () => {
+		const day = read("src/lib/components/plan/DayPlan.svelte");
+		const input = day.match(/<Input\b[\s\S]*?\/>/)?.[0] ?? "";
+		expect(input).toContain('type="time"');
+		expect(input).toContain("onchange");
+		expect(input).not.toMatch(/border-input|bg-background|rounded-|text-2xs/);
+	});
+});
+
+describe("dialog typography comes from the primitives", () => {
+	const dialogs = [
+		"src/lib/components/board/BlockActionDialog.svelte",
+		"src/lib/components/plan/ScheduleDialog.svelte",
+		"src/lib/components/epics/AddChildDialog.svelte"
+	];
+
+	test("titles and descriptions carry no call-site typography", () => {
+		for (const path of dialogs) {
+			const source = read(path);
+			for (const tag of ["Dialog.Title", "Dialog.Description"]) {
+				const opening = source.match(new RegExp(`<${tag}\\b[^>]*>`))?.[0] ?? "";
+				expect({ path, tag, class: opening.includes("class=") }).toEqual({
+					path,
+					tag,
+					class: false
+				});
+			}
+		}
+	});
+});
+
+describe("the recheck chips pick the secondary variant", () => {
+	test("selected re-check dates use secondary and the rest ghost", () => {
+		const dialog = read("src/lib/components/board/BlockActionDialog.svelte");
+		expect(dialog).toContain("variant={recheck === option.value ? 'secondary' : 'ghost'}");
+	});
+});
+
+describe("card actions and shortcuts are Buttons", () => {
+	test("the board card exposes assign and menu actions as Button variants", () => {
+		const card = read("src/lib/components/board/BoardCard.svelte");
+		expect(card).toContain("<Button");
+		expect(card).toContain('size="icon-xs"');
+		expect(card).not.toMatch(/<button\b/);
+	});
+
+	test("the shortcuts trigger is a ghost Button", () => {
+		const shortcuts = read("src/lib/components/board/BoardShortcuts.svelte");
+		expect(shortcuts).toContain('variant="ghost" size="icon-sm"');
+		expect(shortcuts).not.toMatch(/<button\b/);
+	});
+
+	test("the lane retry action is a Button", () => {
+		const column = read("src/lib/components/board/BoardColumn.svelte");
+		expect(column).toContain('variant="ghost" size="xs"');
+		expect(column).toContain("onclick={onLoadMore}");
 	});
 });

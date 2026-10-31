@@ -38,7 +38,7 @@
 	{payload}
 >
 	<Card.Root>
-		<Card.Content class="flex flex-col gap-4 pt-6">
+		<Card.Content class="flex flex-col gap-4">
 			<Field.Field class="max-w-[12rem]">
 				<Field.Label>Done retention (days)</Field.Label>
 				<Input type="number" min="0" bind:value={doneDays} />

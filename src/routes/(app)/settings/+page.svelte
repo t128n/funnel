@@ -36,19 +36,19 @@
 	</header>
 
 	<Card.Root>
-		<Card.Content class="flex flex-wrap items-center gap-4 pt-6">
-			<Avatar.Root class="size-14 shrink-0 rounded-xl">
+		<Card.Content class="flex flex-wrap items-center gap-4">
+			<Avatar.Root class="size-14 shrink-0">
 				{#if data.user.image}
 					<Avatar.Image src={data.user.image} alt={data.user.name} />
 				{/if}
-				<Avatar.Fallback class="rounded-xl">{initial}</Avatar.Fallback>
+				<Avatar.Fallback>{initial}</Avatar.Fallback>
 			</Avatar.Root>
 
 			<div class="flex min-w-0 flex-1 flex-col gap-1">
 				<span class="truncate text-sm font-medium">{data.user.name}</span>
 				<a
 					href={`mailto:${data.user.email}`}
-					class="text-muted-foreground hover:text-foreground focus-visible:ring-ring/50 w-fit truncate rounded text-xs outline-none focus-visible:ring-2"
+					class="text-muted-foreground hover:text-foreground w-fit truncate text-xs underline-offset-2 hover:underline outline-none focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring"
 				>
 					{data.user.email}
 				</a>
@@ -58,11 +58,11 @@
 						href={githubProfile}
 						target="_blank"
 						rel="noreferrer"
-						class="text-muted-foreground hover:text-foreground focus-visible:ring-ring/50 mt-0.5 inline-flex w-fit items-center gap-1.5 rounded text-xs outline-none focus-visible:ring-2"
+						class="text-muted-foreground hover:text-foreground mt-0.5 inline-flex w-fit items-center gap-1.5 text-xs underline-offset-2 hover:underline outline-none focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring"
 					>
-						<Avatar.Root class="size-4 shrink-0 rounded-full">
+						<Avatar.Root class="size-4 shrink-0">
 							<Avatar.Image src={data.viewerGithub.avatarUrl} alt="" />
-							<Avatar.Fallback class="rounded-full text-[0.5rem]">gh</Avatar.Fallback>
+							<Avatar.Fallback class="text-2xs">gh</Avatar.Fallback>
 						</Avatar.Root>
 						<span>@{data.viewerGithub.login}</span>
 						<ExternalLinkIcon class="size-3" />

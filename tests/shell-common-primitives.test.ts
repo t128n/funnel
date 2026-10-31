@@ -83,6 +83,26 @@ describe("shell and common primitives", () => {
 		expect(source).toContain("variant={variant}");
 	});
 
+	test("single select keeps selected non-ghost values foreground", () => {
+		const source = read("src/lib/components/common/SingleSelect.svelte");
+		expect(source).toMatch(
+			/variant !== 'ghost' && value !== null && 'text-foreground'/
+		);
+	});
+
+	test("intake tag is a plain token badge", () => {
+		const source = read("src/lib/components/common/IntakeTag.svelte");
+		expect(source).toContain("<Badge");
+		expect(source).not.toContain("bg-primary");
+		expect(source).not.toContain("text-primary");
+	});
+
+	test("brand wordmark keeps its heading weight", () => {
+		const source = read("src/lib/components/app-sidebar.svelte");
+		expect(source).toContain("truncate font-semibold tracking-tight");
+		expect(source).toContain("hidden font-semibold tracking-tight");
+	});
+
 	test("feed search and hotkey hints use their primitives", () => {
 		expect(read("src/lib/components/filter/FeedSearch.svelte")).toContain("primitives/input");
 		expect(read("src/lib/components/hotkeys/Hint.svelte")).toContain("primitives/kbd");

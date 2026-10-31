@@ -4,6 +4,7 @@
 	import * as Card from '#lib/components/primitives/card';
 	import * as Field from '#lib/components/primitives/field';
 	import { Input } from '#lib/components/primitives/input';
+	import * as NativeSelect from '#lib/components/primitives/native-select';
 	import { formatClock, parseClock } from '#lib/time/zoned';
 	import type { PageProps } from './$types';
 
@@ -245,7 +246,7 @@
 				<div class="flex flex-wrap gap-2">
 					{#each WEEKDAYS as day (day.value)}
 						<label
-							class="flex items-center gap-1.5 rounded-md border border-[color:var(--border)] px-2 py-1 text-xs"
+							class="flex items-center gap-1.5 rounded-xs border border-[color:var(--border)] px-2 py-1 text-xs"
 						>
 							<input
 								type="checkbox"
@@ -283,28 +284,28 @@
 
 							<Field.Field class="w-32">
 								<Field.Label>Kind</Field.Label>
-								<select
-									class="border-input bg-background h-8 rounded-md border px-2 text-sm"
+								<NativeSelect.Root
+									class="w-full"
 									bind:value={window.recurring}
 									aria-label="Window kind"
 								>
-									<option value={true}>Recurring</option>
-									<option value={false}>One-off</option>
-								</select>
+									<NativeSelect.Option value={true}>Recurring</NativeSelect.Option>
+									<NativeSelect.Option value={false}>One-off</NativeSelect.Option>
+								</NativeSelect.Root>
 							</Field.Field>
 
 							{#if window.recurring}
 								<Field.Field class="w-24">
 									<Field.Label>Weekday</Field.Label>
-									<select
-										class="border-input bg-background h-8 rounded-md border px-2 text-sm"
+									<NativeSelect.Root
+										class="w-full"
 										bind:value={window.weekday}
 										aria-label="Blocked weekday"
 									>
 										{#each WEEKDAYS as day (day.value)}
-											<option value={day.value}>{day.label}</option>
+											<NativeSelect.Option value={day.value}>{day.label}</NativeSelect.Option>
 										{/each}
-									</select>
+									</NativeSelect.Root>
 								</Field.Field>
 							{:else}
 								<Field.Field class="w-40">

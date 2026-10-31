@@ -37,15 +37,15 @@
 	{/if}
 
 	<Card.Root>
-		<Card.Content class="pt-6">
+		<Card.Content>
 			<ul class="flex flex-col divide-y divide-[color:var(--border)]">
 				{#each data.users as user (user.id)}
 					<li class="flex flex-wrap items-center gap-3 py-3 first:pt-0 last:pb-0">
-						<Avatar.Root class="size-9 shrink-0 rounded-lg">
+						<Avatar.Root class="size-9 shrink-0">
 							{#if user.image}
 								<Avatar.Image src={user.image} alt={user.name} />
 							{/if}
-							<Avatar.Fallback class="rounded-lg">{initial(user.name)}</Avatar.Fallback>
+							<Avatar.Fallback>{initial(user.name)}</Avatar.Fallback>
 						</Avatar.Root>
 
 						<div class="flex min-w-0 flex-1 flex-col gap-0.5">

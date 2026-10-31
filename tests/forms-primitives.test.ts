@@ -67,6 +67,15 @@ describe("forms primitives", () => {
 		expect(title).toContain("font-medium");
 		expect(tagBlocks(source, "Textarea")[0]).toContain('variant="ghost"');
 		expect(source).not.toContain("components/ui/");
+
+		// The shortcut hint is a primitive chip, not a locally re-coloured one.
+		const kbd = source.match(/<Kbd\.Root\b[^>]*>/)?.[0];
+		expect(kbd).toBeDefined();
+		expect(kbd).toContain('class="h-4 min-w-4 px-1 leading-none"');
+		expect(kbd).not.toMatch(/\b(bg-|border|text-primary-foreground)/);
+
+		// Intake text is rendered as escaped text, never as raw HTML.
+		expect(source).not.toContain("{@html");
 	});
 
 	test("owned surfaces never reach for the old namespace", () => {
@@ -94,6 +103,10 @@ describe("forms primitives", () => {
 			expect(source).toContain("Avatar.Root");
 			expect(source).not.toContain("rounded-xl");
 			expect(source).not.toContain("rounded-lg");
+			// The primitive owns the radius; no call site re-shapes an avatar.
+			for (const block of source.match(/<Avatar\.(?:Root|Fallback|Image)\b[^>]*>/g) ?? []) {
+				expect(`${file}: ${block}`).toBe(`${file}: ${block.replace(/\brounded[\w-]*\s*/g, "")}`);
+			}
 		}
 	});
 
@@ -109,6 +122,11 @@ describe("forms primitives", () => {
 		expect(source).toContain('name="payload"');
 		expect(source).toContain("disabled={saving}");
 		expect(source).toContain('variant="destructive"');
+		// Presentation belongs to Alert and Button; only spacing stays local.
+		expect(source).toContain('<Alert.Root variant="destructive" class="mb-4">');
+		expect(source).toContain('<Button type="submit" disabled={saving}>');
+		expect(source).not.toContain("focus-visible:ring");
+		expect(source).not.toContain("bg-destructive/");
 	});
 
 	test("inbox duplicate and triage actions are unchanged", () => {
@@ -116,6 +134,9 @@ describe("forms primitives", () => {
 		expect(dialog).toContain('action="?/duplicate"');
 		expect(dialog).toContain('name="number"');
 		expect(dialog).toContain("disabled={pending");
+		// The error keeps its destructive ink without restyling Field.Description.
+		expect(dialog).toContain('<span class="text-destructive">{issuesError}</span>');
+		expect(dialog).not.toContain('Field.Description class="text-destructive"');
 
 		const detail = read("src/lib/components/inbox/SubmissionDetail.svelte");
 		expect(detail).toContain('action="?/accept"');
@@ -140,6 +161,9 @@ describe("forms primitives", () => {
 		const steps = read("src/lib/components/onboarding/onboarding-steps.svelte");
 		expect(steps).toContain("active");
 		expect(steps).toMatch(/aria-current=\{current \? ['"]step['"] : undefined\}/);
+		expect(steps).toContain("border-primary bg-primary text-primary-foreground");
+		expect(steps).toContain("border-primary text-foreground");
+		expect(steps).toContain("border-border text-muted-foreground");
 		expect(steps).not.toContain("emerald");
 	});
 
