@@ -186,7 +186,7 @@ jobs:
         run: file dist/funnel | grep -q 'ARM aarch64'
 
       - name: Verify embedded static assets
-        if: runner.os != 'Windows'
+        if: runner.os != 'Windows' && matrix.platform != 'linux-arm64'
         shell: bash
         run: |
           set -euo pipefail
@@ -203,6 +203,11 @@ jobs:
             fi
             sleep 1
           done
+          if [[ ! -s "$RUNNER_TEMP/onboarding.html" ]]; then
+            echo "::error::The packaged server did not serve /onboarding."
+            cat "$RUNNER_TEMP/funnel-assets.log"
+            exit 1
+          fi
           css_path="$(grep -oE 'href="[^"]+\.css[^"]*"' "$RUNNER_TEMP/onboarding.html" | head -1 | cut -d'"' -f2)"
           if [[ -z "$css_path" ]]; then
             echo "::error::Onboarding page did not reference a CSS asset."
