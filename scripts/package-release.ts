@@ -81,6 +81,10 @@ mkdirSync(stageDir, { recursive: true });
 copyFileSync(binaryPath, join(stageDir, binaryName));
 if (!isWindows) chmodSync(join(stageDir, binaryName), 0o755);
 
+// Ship the configuration template with every archive. The executable embeds the
+// server and assets, but operators still need the documented environment names.
+stageFile(".env.example", ".env.example");
+
 if (isWindows) {
   const intakePath = join(projectRoot, "dist", "funnel-intake.exe");
   if (!existsSync(intakePath)) {
@@ -115,7 +119,8 @@ Quick start (PowerShell):
 
 The executable keeps state under .\\data by default (funnel.db and uploads/).
 Set FUNNEL_DATA_DIR to use another directory. Funnel requires FUNNEL_SECRET in
-the environment or in a .env file in the working directory.
+the environment or in a .env file in the working directory. Copy .env.example
+to .env and fill in the values, or let the service installer generate one.
 
 Install as a Windows service (elevated PowerShell):
 
@@ -153,9 +158,8 @@ Quick start:
   ./funnel
 
 The executable keeps state under ./data by default (funnel.db and uploads/).
-Set FUNNEL_DATA_DIR to use another directory. Funnel requires FUNNEL_SECRET in
-the environment or in a .env file in the working directory; generate one with
-\`openssl rand -base64 32\`.
+Set FUNNEL_DATA_DIR to use another directory. Copy .env.example to .env, then
+set FUNNEL_SECRET (generate one with \`openssl rand -base64 32\`).
 
 Health probes: /healthz (liveness) and /readyz (readiness).
 Apply migrations without starting the server: ./funnel --migrate

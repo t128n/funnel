@@ -13,7 +13,14 @@
  * (see `scripts/standalone/satteri-binding.ts`), so building natively per OS is
  * the reliable path. `--target` defaults to the host.
  */
-import { existsSync, mkdirSync, rmSync, statSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from "node:fs";
 import { join, resolve } from "node:path";
 import { hostTarget, satteriBindingPlugin } from "./standalone/satteri-binding";
 
@@ -53,6 +60,50 @@ mkdirSync(outDir, { recursive: true });
 const assets = ["build/client", "build/prerendered", "drizzle"].filter((path) =>
   existsSync(join(projectRoot, path)),
 );
+
+/**
+ * Adapter-node streams static files with `fs.createReadStream`. Bun's compiled
+ * filesystem exposes embedded assets through `readFileSync` and `Bun.file`, but
+ * `createReadStream` cannot open a `$bunfs` path — the asset table resolves, the
+ * response starts, and the stream then fails with ENOENT, producing an empty
+ * CSS/JS response. Replace only that one expression with a buffered stream.
+ *
+ * The pattern is pinned; if adapter-node changes it, fail the build rather than
+ * shipping an executable whose assets 200 with an empty body.
+ */
+function patchAdapterNodeStaticStreaming(): void {
+  const handlerPath = join(
+    projectRoot,
+    "build",
+    "server",
+    "adapter-node-handler.js",
+  );
+  if (!existsSync(handlerPath)) {
+    console.error(
+      "[standalone] build/server/adapter-node-handler.js is missing — run `bun run build` first.",
+    );
+    process.exit(1);
+  }
+
+  const source = readFileSync(handlerPath, "utf8");
+  const original = "pipeline(fs.createReadStream(file, range), res, () => {});";
+  const patched =
+    "pipeline(Readable.from([range.start === undefined ? fs.readFileSync(file) : fs.readFileSync(file).subarray(range.start, range.end + 1)]), res, () => {});";
+
+  if (source.includes(patched)) return;
+
+  if (!source.includes(original)) {
+    console.error(
+      "[standalone] adapter-node's static handler changed; update the embedded-asset streaming patch in scripts/build-standalone.ts.",
+    );
+    process.exit(1);
+  }
+
+  writeFileSync(handlerPath, source.replace(original, patched));
+  console.log("[standalone] patched adapter-node static streaming for embedded assets");
+}
+
+patchAdapterNodeStaticStreaming();
 
 /**
  * The generated entrypoint lives in `src/` (so Bun resolves `assets` and the

@@ -36,7 +36,9 @@ VERSION=1.2.3 mise run docker
 
 ## Version source
 
-The version lives in **`package.json`** (`"version"`). It is read at build time by `vite.config.ts` into `__APP_VERSION__` (shown in the public `/intake` page footer) and by `scripts/build-standalone.ts` when compiling the executable (`--version` prints it). Bump `package.json` before building a release; pass `--version`/`VERSION` to `mise run docker` to tag the image.
+The version lives in **`package.json`** (`"version"`). It is read at build time by `vite.config.ts` into `__APP_VERSION__` (shown in the public `/intake` page footer) and by `scripts/build-standalone.ts` when compiling the executable (`--version` prints it).
+
+Do not bump it by hand. **Changesets** owns the version: a user-facing change adds a changeset, and the Changesets GitHub Action opens a version PR that updates `package.json` and `CHANGELOG.md`. Merging that PR produces the `v<version>` tag and starts the executable release pipeline. Pass `--version`/`VERSION` to `mise run docker` when you build the container image.
 
 ## Migrations
 
@@ -82,51 +84,88 @@ The executable also handles `--migrate`, `--healthcheck` (probes `/healthz`), `-
 
 `scripts/build-standalone.ts` accepts `--target=<bun-target>`, `--outdir=<dir>` (default `dist`), and `--outfile=<name>` (default `funnel`, or `funnel.exe` for a Windows target). Cross-target builds need that platform's `satteri` package installed, so building natively per OS is the reliable path.
 
+## Changesets
+
+Funnel uses [Changesets v3](https://changesets.dev) for versioning and
+changelogs. The package is private, so nothing is published to npm; Changesets
+is configured to version and tag private packages:
+
+```json
+{
+  "privatePackages": { "version": true, "tag": true }
+}
+```
+
+Add a changeset in the same pull request as any user-facing change:
+
+```sh
+bun run changeset
+```
+
+The prompt asks for the bump type (`patch`, `minor`, or `major`) and a summary.
+Commit the generated file under `.changeset/`. A change that does not need a
+release can use an empty changeset (`bun run changeset --empty`), and tooling-only
+changes may omit one. Do not edit `package.json`'s version or `CHANGELOG.md` by
+hand.
+
+`bun run changeset:status` shows the pending release. `bun run changeset:version`
+applies versions and changelogs locally; CI normally does this in a version PR.
+
 ## Release procedure
 
-1. Bump `version` in `package.json`.
-2. If the schema changed, run `bun run db:generate` and commit the new `drizzle/<timestamp>_<name>/` directory.
-3. Run `mise run verify` locally (check + test + intake:check + build + exe).
-4. Build the artefacts locally if you need them now: `mise run build`, `mise run exe`, and `mise run docker --version=<version>`.
-5. Commit the version bump and push it to `main`.
-6. Create and push the matching tag. The tag is what publishes the release:
-
-   ```sh
-   git tag -a v0.0.1 -m "Funnel 0.0.1"
-   git push origin v0.0.1
-   ```
-
-7. Deploy the executable or image:
+1. Add a changeset to the pull request (`bun run changeset`) and merge the PR to `main`.
+2. `.github/workflows/changesets.yml` opens or updates a **`chore: version packages`** pull request. Review the version and `CHANGELOG.md` entry.
+3. Merge the version PR. The same workflow then:
+   - runs `changeset publish` in tag-only mode, which creates the `v<version>` tag, and
+   - calls the publish workflow for that tag.
+4. The publish workflow verifies, builds, packages, and creates the GitHub release. Releases in the `0.x` line are marked **pre-release**; `1.0.0` and later are normal releases.
+5. If the schema changed, make sure the new `drizzle/<timestamp>_<name>/` directory was committed with the change (`bun run db:generate`).
+6. Deploy the executable or image:
    - **Windows:** stop the service, replace `funnel.exe`, start it — migrations run automatically on boot.
    - **Container / PaaS:** mount the `/data` volume, or run the separate release phase (`mise run release` against the same `FUNNEL_DB`, or `<image> --migrate`) before starting the new version.
-8. Confirm `/healthz` (liveness) and `/readyz` (readiness, `503` until migrations are applied) after the rollout.
+7. Confirm `/healthz` (liveness) and `/readyz` (readiness, `503` until migrations are applied) after the rollout.
+
+You can still build artifacts locally before merging: `mise run verify`,
+`mise run build`, `mise run exe`, and `mise run docker --version=<version>`.
 
 Funnel is a **single instance**: it owns one SQLite file, so do not scale it horizontally or run multiple replicas against one volume.
 
 ## Release pipeline
 
-`.github/workflows/release.yml` is the committed GitHub Actions pipeline. Pushing
-a tag that matches `package.json` (for example `v0.0.1`) runs:
+Two workflows split versioning from artifact publishing:
 
-1. **Validate** — rejects a tag that does not match the `version` in `package.json`.
-2. **Verify** — `bun run check`, `bun run test`, and the intake helper's `go vet`
-   and `go test`.
-3. **Build** — native executables for Linux x64, Linux arm64, macOS Apple
-   silicon, macOS Intel, and Windows x64. Linux arm64 is cross-compiled on the
-   x64 runner after installing that target's `satteri` optional package. Each job
-   runs `--version` and `--migrate` as a smoke test before packaging.
-4. **Package** — `bun run package:release` (`scripts/package-release.ts`) writes
-   `funnel-<version>-<platform>.tar.gz` (`.zip` on Windows) and a per-asset
-   `.sha256`.
-5. **Publish** — merges the checksums into `SHA256SUMS.txt` and creates a
-   GitHub **pre-release** named `Funnel <version>`. Release notes come from
-   `.github/release-notes/<tag>.md` when present; otherwise GitHub generates
-   them from the commits since the previous tag.
+- **`.github/workflows/changesets.yml`** runs on pushes to `main`. It selects
+  `version` when changesets are pending (opening the version PR), `publish`
+  when the version PR was merged and no changesets remain, and `none`
+  otherwise. In publish mode it creates the git tag with
+  `changesets/action/publish@v2` (`create-github-releases: false`,
+  `push-git-tags: true`) and calls the publish workflow with that tag. A
+  reusable-workflow call is used because tags pushed with `GITHUB_TOKEN` do not
+  trigger a separate tag workflow.
+- **`.github/workflows/publish.yml`** accepts that tag, or a manually pushed
+  `v*` tag, and runs:
+  1. **Validate** — rejects a tag that does not match the `version` in `package.json`.
+  2. **Verify** — `bun run check`, `bun run test`, and the intake helper's `go vet`
+     and `go test`.
+  3. **Build** — native executables for Linux x64, Linux arm64, macOS Apple
+     silicon, macOS Intel, and Windows x64. Linux arm64 is cross-compiled on the
+     x64 runner after installing that target's `satteri` optional package.
+  4. **Smoke test** — runs `--version` and `--migrate`, and requests the
+     onboarding page plus its stylesheet from the executable to catch missing
+     embedded assets.
+  5. **Package** — `bun run package:release` (`scripts/package-release.ts`) writes
+     `funnel-<version>-<platform>.tar.gz` (`.zip` on Windows), including
+     `.env.example`, plus a per-asset `.sha256`.
+  6. **Publish** — merges the checksums into `SHA256SUMS.txt` and creates or
+     updates a GitHub release. The body comes from the Changesets
+     `CHANGELOG.md` entry (`scripts/release-notes.ts`), with
+     `.github/release-notes/<tag>.md` as a fallback for releases that predate
+     Changesets.
 
 Build jobs call the same `bun run build` and `bun scripts/build-standalone.ts`
 commands as `mise run exe`, so a release artefact is the same build a local
-checkout produces. The container image is not published by this workflow; build
-it with `mise run docker --version=<version>` where you deploy it.
+checkout produces. The container image is not published by these workflows;
+build it with `mise run docker --version=<version>` where you deploy it.
 
 ## Related
 

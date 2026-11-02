@@ -75,7 +75,10 @@ The addon comes from the optional package `@bruits/satteri-<suffix>`. `bun insta
 | `start` | `bun ./build/index.js` | Runs the built adapter-node server under Bun. Does not run migrations or parse CLI flags. The server cannot run under Node because the database layer uses `bun:sqlite`. |
 | `release` | `bun scripts/release.ts` | Applies pending migrations and prints `[release] <n> migration(s) applied — db=<path> migrations=<path> total=<n>`. |
 | `build:standalone` | `bun scripts/build-standalone.ts` | Compiles the executable into `dist/`. Requires `build/index.js` to exist; accepts `--target`, `--outdir`, and `--outfile`. The default target is the host and the default output directory is `dist/`. |
-| `package:release` | `bun scripts/package-release.ts --version=<version> --platform=<os>-<arch>` | `release/funnel-<version>-<platform>.tar.gz` (`.zip` for Windows) and a `<archive>.sha256` | Stages the executable, plus the intake helper and installers on Windows, and packages it for the GitHub release pipeline. Accepts `--bin` and `--outdir` (default `release/`). |
+| `package:release` | `bun scripts/package-release.ts --version=<version> --platform=<os>-<arch>` | Writes `release/funnel-<version>-<platform>.tar.gz` (`.zip` for Windows) plus a `<archive>.sha256`, containing the executable, `.env.example`, and on Windows the intake helper and installers. Accepts `--bin` and `--outdir` (default `release/`). |
+| `changeset` | `changeset` | Adds a changeset for the current change. |
+| `changeset:status` | `changeset status` | Shows the pending changesets and the version bump they produce. |
+| `changeset:version` | `changeset version` | Applies versions and changelogs locally; normally run by the Changesets GitHub Action. |
 | `prepare` | `bun --bun svelte-kit sync` | Synchronises SvelteKit's generated types. A failure is swallowed by a suffix that ignores it. |
 | `check` | `bun --bun svelte-kit sync && bun --bun svelte-check --tsconfig ./tsconfig.json` | Synchronises types and type-checks the project. |
 | `check:watch` | `bun --bun svelte-kit sync && bun --bun svelte-check --tsconfig ./tsconfig.json --watch` | The same check in watch mode. |
@@ -86,6 +89,14 @@ The addon comes from the optional package `@bruits/satteri-<suffix>`. `bun insta
 | `test` | `bun test --preload ./tests/setup.ts --max-concurrency 1 --coverage src tests` | Runs the suite serially with setup preloaded and coverage enabled for `src` and `tests`. |
 
 The Drizzle Kit scripts read `FUNNEL_DB`, defaulting to `./data/funnel.db` through `drizzle.config.ts`.
+
+## Changesets
+
+Versions and changelogs are managed by [Changesets v3](https://changesets.dev). `.changeset/config.json` keeps `privatePackages.version` and `privatePackages.tag` enabled so the private application is versioned and tagged without publishing to npm. Add a changeset with `bun run changeset`; the Changesets GitHub Action opens the version PR and creates the `v<version>` tag after it merges. See [Release](../how-to/contribute/release.md#changesets) for the full flow.
+
+## Embedded client assets
+
+Bun's compiled filesystem exposes embedded files through `node:fs` (`existsSync`, `statSync`, `readFileSync`) and `Bun.file`, but not through `fs.createReadStream`. Adapter-node's static middleware uses `createReadStream`, so a standalone executable would serve its stylesheet and scripts as `200` responses with an empty body. `scripts/build-standalone.ts` patches that one expression in the generated `build/server/adapter-node-handler.js` to use a buffered `Readable` stream, and fails the build if adapter-node changes the pattern. The publish workflow also fetches the onboarding stylesheet from the built executable as a smoke test.
 
 ## Related
 

@@ -101,5 +101,6 @@ go -C tools/funnel-intake run ./cmd/funnel-intake -test
 | `build-intake.ts` | Builds `dist/funnel-intake.exe` (`mise run intake:exe`). |
 | `build-standalone.ts` | Builds the self-contained Funnel server executable. |
 | `package-release.ts` | Packages a platform executable into `release/` for the GitHub release workflow. |
+| `release-notes.ts` | Builds a GitHub release body from the Changesets `CHANGELOG.md` entry. |
 | `release.ts` | Applies pending database migrations. |
 | `install-intake.ps1` | Installs/removes the intake hotkey helper. |

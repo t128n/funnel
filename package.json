@@ -16,6 +16,9 @@
 		"release": "bun scripts/release.ts",
 		"build:standalone": "bun scripts/build-standalone.ts",
 		"package:release": "bun scripts/package-release.ts",
+		"changeset": "changeset",
+		"changeset:status": "changeset status",
+		"changeset:version": "changeset version",
 		"prepare": "bun --bun svelte-kit sync || echo ''",
 		"check": "bun --bun svelte-kit sync && bun --bun svelte-check --tsconfig ./tsconfig.json",
 		"check:watch": "bun --bun svelte-kit sync && bun --bun svelte-check --tsconfig ./tsconfig.json --watch",
@@ -26,6 +29,7 @@
 		"test": "bun test --preload ./tests/setup.ts --max-concurrency 1 --coverage src tests"
 	},
 	"devDependencies": {
+		"@changesets/cli": "^3.0.3",
 		"@lucide/svelte": "^1.59.0",
 		"@sveltejs/adapter-node": "^6.0.0",
 		"@sveltejs/kit": "^3.0.0",
