@@ -1,8 +1,10 @@
 <script lang="ts">
+	import ChartGanttIcon from '@lucide/svelte/icons/chart-gantt';
 	import EmptyState from '#lib/components/common/EmptyState.svelte';
 	import PageHead from '#lib/components/common/PageHead.svelte';
 	import StatusText from '#lib/components/common/StatusText.svelte';
 	import PageHeader from '#lib/components/shell/PageHeader.svelte';
+	import { Button } from '#lib/components/ui/button';
 	import { barPercent } from '#lib/planning';
 	import type { MilestoneItem } from '#lib/server/issues/types';
 	import type { PageProps } from './$types';
@@ -25,7 +27,14 @@
 <PageHead title="Milestones" />
 
 <div class="flex min-h-0 flex-1 flex-col overflow-y-auto">
-	<PageHeader title="Milestones" />
+	<PageHeader title="Milestones">
+		{#snippet actions()}
+			<Button variant="outline" href="/timeline">
+				<ChartGanttIcon aria-hidden="true" />
+				Timeline
+			</Button>
+		{/snippet}
+	</PageHeader>
 
 	{#if data.groups.length === 0}
 		<EmptyState

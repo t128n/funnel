@@ -130,7 +130,7 @@ controls and 2.75rem rows. Below 768px, controls and rows are at least 2.75rem.
   note, attachment, primary submit, and a ⌘ Enter hint. Drafts survive collapse.
 - Read-only viewers see text, not a wall of disabled controls.
 
-## 8. Board, matrix, and plan
+## 8. Board, matrix, plan, and timeline
 
 - Board columns are established by quiet headings, counts, alignment, and a
   subtle separator — not full-height bordered/rounded lane containers. Individual
@@ -143,6 +143,15 @@ controls and 2.75rem rows. Below 768px, controls and rows are at least 2.75rem.
   length); bars use the same denominator, with no unexplained marker. Over-cap
   adds an error icon + text. Day plans use full ALPEN words, hour rules, and a
   2px primary leading edge on blocks.
+- The timeline is an Apache ECharts Gantt under the same chrome, not a second
+  schedule. The left column is a real HTML list of milestone links; the canvas
+  carries the same measured rows, so the two stay aligned. The planned window is
+  `chart-1` at 18% fill with a 1px stroke, closed work is solid `chart-2`, open
+  child issues are 1px `chart-3` ticks, no-start due dates are neutral ticks, and
+  today is a 1px `border-strong` line. Month rules use `border-subtle`; the
+  legend is HTML, not canvas. Undated milestones sit in a `data-table` below the
+  chart and never receive an invented end. There is no drag, date picker or
+  write path.
 
 ## 9. Focused flows
 

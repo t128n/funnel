@@ -67,6 +67,7 @@ All cockpit routes live under the `(app)` layout and require at least the `read`
 | `/notifications` | The signed-in viewer's notification feed, unread rows before read rows. | `read` | Newest first, limited to 100 rows. Opening an unread row marks it read; per-row and mark-all controls persist read state. The page also offers the per-browser notification opt-in when `notifications.native` is on. |
 | `/milestones` | Every mirrored milestone, grouped by repository, with progress and due dates. | `read` | GitHub scopes a milestone to one repository, so equal titles in two repositories are separate entries. |
 | `/milestones/{owner}/{repo}/{number}` | The issues attached to one repo-scoped milestone. | `read` | Returns `404` for an unknown repository or milestone. |
+| `/timeline` | Read-only Apache ECharts Gantt of open milestones, projected from plan weeks and observed status transitions to their due dates. | `read` | Bars start at the earliest planned week or first `in-progress`/`in-review` transition and end at the due date. The HTML milestone column links to the detail pages; the `No due date` table holds milestones without a due date. Optional `?repo=owner/name` filter; the picker still lists the unfiltered set. |
 | `/plan` | Time planner with week, cycle, milestone and day horizons. | `read` to view; `write` to schedule or remove | A week is its Monday date; the default horizon is the current week. `/plan?horizon=day&day=YYYY-MM-DD` adds the ALPEN day view: an hour grid, candidates, planned-versus-actual review and auto-plan. A malformed day falls back to the viewer's local today; previous/next shift by one day. The day's own blocks are saved through `/api/me/day-plan`, so any signed-in viewer may edit their own day. Writer-only **Schedule issue** control on the week horizons; every planned issue links to its Inspector. |
 | `/epics` | Every issue carrying the `epic` label, open before closed, with progress and estimate/actual/delay rollups. | `read` | An epic is a normal issue with the `epic` label; its children are parsed from the body's `funnel_metadata` envelope. |
 | `/epics/{owner}/{repo}/{number}` | One epic: header, rollup cards and the ordered child table. | `read` to view; `write` to add or remove children | Writers add a child from open issues not already in another epic. Malformed params return `404`. |
@@ -185,6 +186,7 @@ API routes are not under the `(app)` layout and enforce their own guards. Detail
 | `/notifications` | Personal notification feed. | `read` |
 | `/milestones` | Repo-scoped milestones and progress. | `read` |
 | `/milestones/{owner}/{repo}/{number}` | Issues attached to a milestone. | `read` |
+| `/timeline` | Milestone Gantt projection. | `read` |
 | `/plan` | Week, cycle, milestone and day planner. | `read`; scheduling `write` |
 | `/epics` | Epics with progress and time rollups. | `read` |
 | `/epics/{owner}/{repo}/{number}` | One epic and its children. | `read`; children `write` |

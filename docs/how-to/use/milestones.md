@@ -1,6 +1,6 @@
 # Use milestones
 
-This guide explains how Funnel mirrors GitHub milestones, how to browse and filter them, and how to set or create one from an issue.
+This guide shows you how to browse and filter mirrored GitHub milestones, read the milestone timeline, and set or create one from an issue.
 
 ## What a milestone is in Funnel
 
@@ -28,6 +28,24 @@ The issue feeds support milestones as a filter dimension and as a grouping optio
 - In the **Group by** control, choose **Milestone** to section the feed by milestone title. The option appears only when at least one mirrored repository has a milestone. Issues without a milestone are grouped under **No milestone**.
 
 Milestone filtering is available in the Inbox, Issues and Board queries wherever the shared filter bar is rendered. The milestone dimension combines with the others as OR within the dimension and AND across dimensions.
+
+## Read the timeline
+
+Select **Timeline** in the sidebar, use the **Timeline** action on the Milestones page, or open `/timeline`.
+
+The timeline is an Apache ECharts Gantt over open milestones with a due date. It is a projection of facts Funnel already holds; it adds no per-issue dates and has no drag, resize or save path.
+
+- Each row is one open milestone, earliest due date first. The left column is a normal HTML list, so the title is a real link to `/milestones/{owner}/{repo}/{number}`; the canvas beside it carries the same rows.
+- A bar starts at the earliest start signal Funnel has: the first Monday week planned for one of the milestone's issues, or the first observed `in-progress`/`in-review` status transition, whichever comes first. It ends at the milestone due date.
+- The pale planned window is the full start-to-due span. The solid inner bar is the closed fraction of the milestone's issues, so it matches the `closed/total` count in the row.
+- The small ticks inside a row are the milestone's open child issues, placed at their plan week or the moment they first moved into `in-progress`/`in-review`. Closed children are not shown.
+- The legend below the chart names every series: **Planned window**, **Closed work**, **Open issues**, **No start** and **Today**. **After due** appears only when a planned window starts after its own due date.
+- A milestone with no start signal still gets a row: it shows a due-date tick and a **No start** label instead of a bar.
+- A milestone with no due date is not given a guessed end. It is listed in the **No due date** table below the chart with its progress and start, and stays out of the Gantt.
+- If the only start signal falls after the due date, the row keeps both dates and adds **After due** rather than clamping the bar to fit.
+- Use the repository selector to narrow the chart to one `owner/name`; the URL becomes `/timeline?repo=owner/name`. The selector still lists every repository that has an open milestone.
+
+The view is read-only. To change what you see, change the inputs: plan the issue, move it through the workflow, or correct the milestone on GitHub.
 
 ## Set or clear an issue's milestone
 
