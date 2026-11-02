@@ -98,8 +98,9 @@ controls and 2.75rem rows. Below 768px, controls and rows are at least 2.75rem.
 - The issue stream is a two-line list: fixed reference slot, title, then one
   metadata line (status, priority, size, updated, assignee, milestone/labels).
   It has no column header and no zebra fill; 1px `border-subtle` separators.
-- List chrome shares the page's horizontal inset: the page header, toolbar,
-  group labels, references, empty/error states, and footer all start on
+- Split-view feed panes use a tighter horizontal gutter than full-width pages:
+  the page header, toolbar, group labels, references, empty/error states, and
+  footer share one 0.75rem leading edge. Full-width pages keep
   `--layout-page-padding`. The reference and title are internal columns of the
   row, not a second page inset.
 - Comparison tables keep a 2.25rem header on `surface-2`, 0.875/600, with

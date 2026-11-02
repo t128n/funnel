@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { Snippet } from "svelte";
+	import { cn } from "#lib/utils";
 
 	interface Props {
 		title: string;
@@ -10,13 +11,18 @@
 		level?: 1 | 2;
 		/** Primary and secondary page actions, right-aligned on the title baseline. */
 		actions?: Snippet;
+		/** Override the page gutter, e.g. a narrower split-view feed column. */
+		class?: string;
 	}
 
-	let { title, description, count, level = 1, actions }: Props = $props();
+	let { title, description, count, level = 1, actions, class: className }: Props = $props();
 </script>
 
 <header
-	class="flex flex-wrap items-end justify-between gap-x-4 gap-y-3 px-[var(--layout-page-padding)] pb-4 pt-5"
+	class={cn(
+		"flex flex-wrap items-end justify-between gap-x-4 gap-y-3 px-[var(--layout-page-padding)] pb-4 pt-5",
+		className
+	)}
 >
 	<div class="min-w-0">
 		<div class="flex flex-wrap items-baseline gap-x-2 gap-y-1">

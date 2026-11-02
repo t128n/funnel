@@ -3,6 +3,7 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import * as InputGroup from '#lib/components/ui/input-group';
+	import { cn } from '#lib/utils';
 	import { buildFilterUrl, parseFilterParams } from '#lib/url-filter';
 	import SearchIcon from '@lucide/svelte/icons/search';
 	import XIcon from '@lucide/svelte/icons/x';
@@ -17,6 +18,13 @@
 	 * only when there is a query, so the browser's own search affordance is
 	 * suppressed rather than doubled.
 	 */
+	interface Props {
+		/** Width override for the containing toolbar. */
+		class?: string;
+	}
+
+	let { class: className }: Props = $props();
+
 	const filter = $derived(parseFilterParams(page.url.searchParams));
 
 	let search = $state(untrack(() => filter.search));
@@ -52,7 +60,12 @@
 	}
 </script>
 
-<div class="flex w-full min-w-0 flex-col gap-1 sm:w-[var(--layout-search-field)] sm:flex-none">
+<div
+	class={cn(
+		'flex w-full min-w-0 flex-col gap-1 sm:w-[var(--layout-search-field)] sm:flex-none',
+		className
+	)}
+>
 	<label for="issue-search" class="text-caption font-semibold text-fg-secondary">Search</label>
 	<InputGroup.Root>
 		<InputGroup.Addon align="inline-start" class="pl-3 text-fg-muted">

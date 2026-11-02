@@ -141,6 +141,7 @@
 				title={mine ? 'My Issues' : 'Issues'}
 				description={scopeLine || undefined}
 				level={selected ? 2 : 1}
+				class="px-3"
 			>
 				{#snippet actions()}
 					<DropdownMenu.Root>
@@ -176,8 +177,8 @@
 				{/snippet}
 			</PageHeader>
 
-			<Toolbar>
-				<FeedSearch />
+			<Toolbar class="px-3">
+				<FeedSearch class="sm:w-full" />
 				<ViewSegment />
 				<div class="max-sm:hidden">
 					<GroupByControl

@@ -173,7 +173,7 @@
 	{#if loading}
 		{@render skeleton()}
 	{:else if failed}
-		<div class="min-h-0 flex-1 px-[var(--layout-page-padding)] py-4">
+		<div class="min-h-0 flex-1 px-3 py-4">
 			<InlineStatus
 				tone="error"
 				message={feed?.error ?? 'Could not load issues.'}
@@ -213,7 +213,7 @@
 		</div>
 
 		{#if feed && feed.error !== null}
-			<div class="shrink-0 border-t border-border-subtle px-[var(--layout-page-padding)] py-2">
+			<div class="shrink-0 border-t border-border-subtle px-3 py-2">
 				<InlineStatus tone="error" message={feed.error} action={retryMore} />
 			</div>
 		{:else if feed && feed.loading}
@@ -225,7 +225,7 @@
 
 	{#if !loading && !failed}
 		<footer
-			class="flex shrink-0 flex-wrap items-center gap-x-2 gap-y-1 border-t border-border-subtle px-[var(--layout-page-padding)] py-1.5 text-caption text-fg-secondary"
+			class="flex shrink-0 flex-wrap items-center gap-x-2 gap-y-1 border-t border-border-subtle px-3 py-1.5 text-caption text-fg-secondary"
 		>
 			<span class="tabular-nums">{count.toLocaleString()} {count === 1 ? 'issue' : 'issues'}</span>
 			{#if feed && shown < count}
@@ -247,7 +247,7 @@
 		min-height: var(--size-row-comfortable);
 		column-gap: var(--space-3);
 		row-gap: var(--space-1);
-		padding: var(--space-1) var(--layout-page-padding);
+		padding: var(--space-1) var(--space-3);
 		border-bottom: 1px solid var(--color-border-subtle);
 	}
 
