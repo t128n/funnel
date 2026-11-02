@@ -46,7 +46,7 @@
 >
 	<button
 		type="button"
-		class="inline-flex size-(--size-control-sm) items-center justify-center rounded-sm text-app-bar-text hover:bg-app-bar-raised focus-visible:outline-accent-on-dark lg:hidden"
+		class="inline-flex size-(--size-control-md) items-center justify-center rounded-sm text-app-bar-text hover:bg-app-bar-raised focus-visible:outline-accent-on-dark lg:hidden"
 		aria-label={navOpen ? "Close navigation" : "Open navigation"}
 		aria-expanded={navOpen}
 		onclick={onmenu}
@@ -67,7 +67,7 @@
 
 	<button
 		type="button"
-		class="inline-flex h-(--size-control-sm) items-center gap-2 rounded-sm px-2 text-body text-app-bar-text-secondary hover:bg-app-bar-raised hover:text-app-bar-text focus-visible:outline-accent-on-dark"
+		class="inline-flex h-(--size-control-md) items-center gap-2 rounded-sm px-2 text-body text-app-bar-text-secondary hover:bg-app-bar-raised hover:text-app-bar-text focus-visible:outline-accent-on-dark"
 		aria-label="Search issues"
 		onclick={onsearch}
 	>
@@ -80,7 +80,7 @@
 
 	<a
 		href="/notifications"
-		class="relative inline-flex size-(--size-control-sm) items-center justify-center rounded-sm text-app-bar-text hover:bg-app-bar-raised focus-visible:outline-accent-on-dark"
+		class="relative inline-flex size-(--size-control-md) items-center justify-center rounded-sm text-app-bar-text hover:bg-app-bar-raised focus-visible:outline-accent-on-dark"
 		aria-label={unread > 0 ? `Notifications, ${unread} unread` : "Notifications"}
 	>
 		<BellIcon class="size-5" />
@@ -93,7 +93,7 @@
 
 	<button
 		type="button"
-		class="inline-flex size-(--size-control-sm) items-center justify-center rounded-sm text-app-bar-text hover:bg-app-bar-raised focus-visible:outline-accent-on-dark"
+		class="inline-flex size-(--size-control-md) items-center justify-center rounded-sm text-app-bar-text hover:bg-app-bar-raised focus-visible:outline-accent-on-dark"
 		aria-label={dark ? "Switch to light theme" : "Switch to dark theme"}
 		title={dark ? "Switch to light theme" : "Switch to dark theme"}
 		onclick={() => setTheme(dark ? "light" : "dark")}
@@ -107,7 +107,7 @@
 
 	<DropdownMenu.Root>
 		<DropdownMenu.Trigger
-			class="inline-flex h-(--size-control-sm) items-center gap-2 rounded-sm px-1.5 text-body text-app-bar-text hover:bg-app-bar-raised focus-visible:outline-accent-on-dark"
+			class="inline-flex h-(--size-control-md) items-center gap-2 rounded-sm px-1.5 text-body text-app-bar-text hover:bg-app-bar-raised focus-visible:outline-accent-on-dark"
 			aria-label="Account menu"
 		>
 			<Avatar login={user.name} avatarUrl={user.image} size={24} />

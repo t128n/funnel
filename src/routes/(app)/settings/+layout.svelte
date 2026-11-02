@@ -62,12 +62,12 @@
 								<a
 									href={section.href}
 									aria-current={active.id === section.id ? 'page' : undefined}
-									class="flex min-h-(--size-control-md) items-center gap-2 rounded-sm px-2 text-body text-fg {active.id ===
+									class="flex min-h-(--size-control-md) items-center gap-2 rounded-sm px-2 text-body text-fg-secondary {active.id ===
 									section.id
 										? 'is-selected-nav'
 										: 'hover:bg-surface-2'}"
 								>
-									<span class="flex size-4 shrink-0 items-center justify-center">
+									<span class="flex size-4 shrink-0 items-center justify-center {active.id === section.id ? 'text-primary' : 'text-fg-muted'}">
 										<Icon class="size-4" aria-hidden="true" />
 									</span>
 									<span class="truncate">{section.label}</span>

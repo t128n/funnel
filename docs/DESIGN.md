@@ -66,9 +66,10 @@ for descriptions, errors, and statuses. No all-caps. No type below 0.75rem.
 
 ## 4. Density and shape
 
-The cockpit declares **Compact** density: 1.75rem controls and 2.25rem rows.
-Focused flows use default density (2.25rem controls, 2.75rem rows). Below
-768px, controls and rows are at least 2.75rem.
+The cockpit uses the **Default** control height: 2.25rem controls and 2.25rem
+rows. Dense toolbars, row actions, menus, and icon utilities may use the 1.75rem
+compact height where that is the operational density. Focused flows use 2.25rem
+controls and 2.75rem rows. Below 768px, controls and rows are at least 2.75rem.
 
 - Controls and tags: `--radius-sm` (0.125rem).
 - Menus, popovers, lanes: `--radius-md` (0.25rem).

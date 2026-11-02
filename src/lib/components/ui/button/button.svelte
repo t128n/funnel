@@ -24,10 +24,10 @@
 				link: "bg-transparent text-primary underline-offset-2 hover:underline"
 			},
 			size: {
-				default: "h-(--size-control-md) gap-2 px-3 text-body",
-				xs: "h-(--size-control-sm) gap-1.5 px-2 text-caption",
-				sm: "h-(--size-control-md) gap-1.5 px-2.5 text-body",
-				lg: "h-(--size-control-lg) gap-2 px-3 text-body",
+				default: "h-(--size-control-md) gap-2 px-3 text-[length:var(--font-size-body)]",
+				xs: "h-(--size-control-sm) gap-1.5 px-2 text-[length:var(--font-size-caption)]",
+				sm: "h-(--size-control-md) gap-1.5 px-2.5 text-[length:var(--font-size-body)]",
+				lg: "h-(--size-control-lg) gap-2 px-3 text-[length:var(--font-size-body)]",
 				icon: "size-(--size-control-md)",
 				"icon-xs": "size-(--size-control-sm)",
 				"icon-sm": "size-(--size-control-sm)",
