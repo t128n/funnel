@@ -14,7 +14,8 @@
 	bind:this={ref}
 	data-slot="empty-description"
 	class={cn(
-		"text-sm/relaxed text-muted-foreground [&>a]:underline [&>a]:underline-offset-4 [&>a:hover]:text-primary",
+		"max-w-[var(--layout-form-max)] text-body leading-body text-fg-secondary",
+		"[&>a]:text-primary [&>a]:underline [&>a]:underline-offset-2",
 		className
 	)}
 	{...restProps}

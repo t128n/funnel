@@ -14,9 +14,9 @@
 	bind:this={ref}
 	data-slot="field-description"
 	class={cn(
-		"text-muted-foreground text-left text-sm [[data-variant=legend]+&]:-mt-1.5 leading-normal font-normal group-has-data-horizontal/field:text-balance",
-		"last:mt-0 nth-last-2:-mt-1",
-		"[&>a]:underline [&>a]:underline-offset-4 [&>a:hover]:text-primary",
+		"text-left text-caption font-normal leading-caption text-fg-muted",
+		"group-has-data-horizontal/field:text-balance",
+		"[&>a]:text-primary [&>a]:underline [&>a]:underline-offset-2 [&>a:hover]:text-primary-hover",
 		className
 	)}
 	{...restProps}

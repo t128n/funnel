@@ -12,6 +12,8 @@
 	import IssueActionDialog from '#lib/components/issue/IssueActionDialog.svelte';
 	import IssueList from '#lib/components/issue/IssueList.svelte';
 	import PageHead from '#lib/components/common/PageHead.svelte';
+	import PageHeader from '#lib/components/shell/PageHeader.svelte';
+	import Toolbar from '#lib/components/shell/Toolbar.svelte';
 	import { requestFocusedCardMenu, requestFocusedCardOpen } from '#lib/client/board-ui.svelte';
 	import { createBoardFeed } from '#lib/client/board-feed.svelte';
 	import {
@@ -25,6 +27,7 @@
 	import { projectIssues, reconcileIssues } from '#lib/client/optimistic.svelte';
 	import { canWrite } from '#lib/roles';
 	import { parseIssueParams, type IssueParams } from '#lib/issue-url';
+	import { cn } from '#lib/utils';
 	import type { LayoutProps } from './$types';
 
 	let { data, children }: LayoutProps = $props();
@@ -105,30 +108,27 @@
 	]);
 </script>
 
-<PageHead
-	title="Board"
-	description="Issues arranged by workflow status."
-/>
+<PageHead title="Board" description="Issues arranged by workflow status." />
 
-<div class="bg-background relative flex min-h-0 min-w-0 flex-1">
-	<div class="flex min-h-0 min-w-0 flex-1 flex-col">
-		<header
-			class="border-[color:var(--border)] flex min-h-11 shrink-0 flex-wrap items-center gap-2 border-b px-3 py-1.5 sm:py-0"
+<div class="relative flex min-h-0 min-w-0 flex-1">
+	<div class={cn("flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto", selected && "max-lg:hidden")}>
+		<PageHeader
+			title={backlogView ? "Backlog" : "Board"}
+			count={backlogView ? boardFeed.columns.backlog.total : total}
+			level={selected ? 2 : 1}
 		>
-			<h1 class="text-xl font-semibold tracking-tight">Board</h1>
-			<span class="text-muted-foreground text-xs">{total}</span>
-			<div class="order-last w-full min-w-0 sm:order-none sm:mx-auto sm:w-auto sm:max-w-md sm:flex-1 sm:px-2">
-				<FeedSearch />
-			</div>
-			<div class="ml-auto flex shrink-0 items-center gap-2">
-				<nav class="flex items-center gap-1.5 text-sm" aria-label="Board view">
-					{#each viewItems as item, index (item.label)}
-						{#if index > 0}
-							<span class="text-muted-foreground" aria-hidden="true">|</span>
-						{/if}
+			{#snippet actions()}
+				<!-- Board view tabs: real links with a 2px primary underline, no fill. -->
+				<nav class="flex items-center gap-5" aria-label="Board view">
+					{#each viewItems as item (item.label)}
 						<a
 							href={item.href}
-							class={item.active ? 'link font-semibold' : 'text-muted-foreground hover:underline'}
+							class={cn(
+								'inline-flex items-center border-b-2 pb-1 text-body',
+								item.active
+									? 'border-primary font-semibold text-fg'
+									: 'border-transparent text-fg-secondary hover:text-fg'
+							)}
 							aria-current={item.active ? 'page' : undefined}
 							onclick={(event) => selectView(event, item)}
 						>
@@ -136,44 +136,59 @@
 						</a>
 					{/each}
 				</nav>
-				<ViewSegment />
-				<FilterPopover options={data.options} />
+			{/snippet}
+		</PageHeader>
+
+		<Toolbar>
+			<div class="min-w-0 flex-1 basis-[var(--layout-search-field)]">
+				<FeedSearch />
+			</div>
+			<ViewSegment />
+			<FilterPopover options={data.options} />
+			{#snippet actions()}
 				{#if !backlogView}
 					<BoardShortcuts />
 				{/if}
-			</div>
-		</header>
+			{/snippet}
+		</Toolbar>
 
 		{#if backlogView}
-			<IssueList
-				feed={boardFeed.columns.backlog}
-				project={(issues) =>
-					projectIssues(issues).filter(
-						(issue) => issue.state !== 'closed' && issue.status === 'backlog'
-					)}
-				{selected}
-				empty="Backlog is empty."
-				repoShortcodes={data.repoShortcodes}
-				groupable={false}
-			/>
+			<div class="flex min-h-[30svh] flex-1 flex-col">
+				<IssueList
+					feed={boardFeed.columns.backlog}
+					project={(issues) =>
+						projectIssues(issues).filter(
+							(issue) => issue.state !== 'closed' && issue.status === 'backlog'
+						)}
+					{selected}
+					empty="Backlog is empty."
+					repoShortcodes={data.repoShortcodes}
+					groupable={false}
+				/>
+			</div>
 		{:else}
 			<!-- Each projected lane carries its own `total`, `nextCursor`,
 			     `loading`, and `loadMore`, so `StatusBoard` can wire infinite
 			     scroll without touching the feed stores. -->
-			<StatusBoard
-				{board}
-				wipLimits={data.wipLimits}
-				doneDays={data.doneDays}
-				repoShortcodes={data.repoShortcodes}
-				viewer={data.viewerGithub}
-				readonly={!mayWrite}
-			/>
+			<div class="flex min-h-[30svh] flex-1 flex-col">
+				<StatusBoard
+					{board}
+					{selected}
+					wipLimits={data.wipLimits}
+					doneDays={data.doneDays}
+					repoShortcodes={data.repoShortcodes}
+					viewer={data.viewerGithub}
+					readonly={!mayWrite}
+				/>
+			</div>
 		{/if}
 	</div>
 
-	<!-- The child detail route docks the Inspector beside the grid (the pane
-	     styles its own width/borders when not `fill`ed). -->
-	{@render children()}
+	<!-- The child detail route docks the Inspector beside the grid above 1024px
+	     and takes the full width below it. -->
+	<div class={selected ? "flex min-h-0 min-w-0 flex-1" : "hidden lg:flex"}>
+		{@render children()}
+	</div>
 </div>
 
 <!-- One structured dialog set for the whole board, shared by the card menu, the

@@ -1,9 +1,10 @@
 <script lang="ts">
 	import { invalidateAll } from '$app/navigation';
+	import EmptyState from '#lib/components/common/EmptyState.svelte';
+	import InlineStatus from '#lib/components/common/InlineStatus.svelte';
 	import Spinner from '#lib/components/common/Spinner.svelte';
 	import { Button } from '#lib/components/ui/button';
 	import * as Dialog from '#lib/components/ui/dialog';
-	import * as Empty from '#lib/components/ui/empty';
 	import * as Field from '#lib/components/ui/field';
 	import { Input } from '#lib/components/ui/input';
 	import type { PlanningIssue } from '#lib/server/planning/queries';
@@ -97,10 +98,10 @@
 </script>
 
 <Dialog.Root {open} onOpenChange={close}>
-	<Dialog.Content class="sm:max-w-lg" aria-describedby={undefined}>
+	<Dialog.Content class="sm:max-w-[var(--layout-dialog-width)]">
 		<Dialog.Header>
-			<Dialog.Title class="text-base font-semibold">Schedule issue</Dialog.Title>
-			<Dialog.Description class="text-muted-foreground text-xs">
+			<Dialog.Title>Schedule Issue</Dialog.Title>
+			<Dialog.Description>
 				Add an open, sized issue to the week of {week}. GitHub sizes and assignees stay the
 				source of truth.
 			</Dialog.Description>
@@ -116,19 +117,24 @@
 					bind:value={query}
 					autocomplete="off"
 				/>
+				<Field.Description>
+					Showing open, sized issues that are not already planned.
+				</Field.Description>
 			</Field.Field>
 
 			{#if candidates.length === 0}
-				<Empty.Root class="border-0 p-4">
-					<Empty.Description>
-						No open, sized issues are available. Estimate and triage an issue first.
-					</Empty.Description>
-				</Empty.Root>
+				<EmptyState
+					title="No candidates."
+					description="No open, sized issues are available. Estimate and triage an issue first."
+					class="border-y border-border-subtle py-6"
+				/>
 			{:else if filtered.length === 0}
-				<p class="text-muted-foreground py-3 text-xs">No issue matches “{query}”.</p>
+				<p class="border-y border-border-subtle py-3 text-body text-fg-secondary">
+					No issue matches “{query}”.
+				</p>
 			{:else}
 				<ul
-					class="border-[color:var(--border)] max-h-64 overflow-y-auto rounded border"
+					class="max-h-64 overflow-y-auto border-y border-border-subtle"
 					aria-label="Schedule candidates"
 				>
 					{#each filtered as issue (issueKey(issue))}
@@ -136,10 +142,8 @@
 							<button
 								type="button"
 								class={cn(
-									'focus-visible:ring-ring/50 flex w-full min-w-0 items-center gap-2 border-b border-[color:var(--border)] px-2.5 py-1.5 text-start text-xs outline-none last:border-b-0 focus-visible:ring-2',
-									selectedKey === issueKey(issue)
-										? 'bg-[var(--accent)]'
-										: 'hover:bg-[var(--accent)]'
+									'flex min-h-(--size-row-compact) w-full min-w-0 items-center gap-2 border-b border-border-subtle px-2 text-start last:border-b-0',
+									selectedKey === issueKey(issue) ? 'bg-surface-2' : 'hover:bg-surface'
 								)}
 								aria-pressed={selectedKey === issueKey(issue)}
 								onclick={() => {
@@ -147,11 +151,11 @@
 									error = null;
 								}}
 							>
-								<span class="text-muted-foreground shrink-0 tabular-nums">
+								<span class="mono shrink-0 text-caption text-fg-secondary tabular-nums">
 									{issue.repo}#{issue.number}
 								</span>
-								<span class="min-w-0 flex-1 truncate">{issue.title}</span>
-								<span class="text-muted-foreground shrink-0 text-[10px]">
+								<span class="min-w-0 flex-1 truncate text-body text-fg">{issue.title}</span>
+								<span class="shrink-0 text-caption text-fg-secondary">
 									{issue.size?.toUpperCase() ?? '—'}
 								</span>
 							</button>
@@ -161,7 +165,9 @@
 			{/if}
 
 			{#if error}
-				<p class="text-destructive text-xs" role="alert" data-testid="schedule-error">{error}</p>
+				<div data-testid="schedule-error">
+					<InlineStatus tone="error" message={error} />
+				</div>
 			{/if}
 		</div>
 
@@ -172,8 +178,10 @@
 			<Button size="sm" disabled={busy || selected === null} onclick={() => void submit()}>
 				{#if busy}
 					<Spinner />
+					<span>Scheduling…</span>
+				{:else}
+					<span>Schedule Issue</span>
 				{/if}
-				Schedule
 			</Button>
 		</Dialog.Footer>
 	</Dialog.Content>

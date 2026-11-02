@@ -1,142 +1,173 @@
-# DESIGN.md: Funnel application profile — Bugzilla UI/UX standards
+# DESIGN.md: Funnel application profile — t128n
 
-Funnel adopts the shared [design system baseline](plans/2026-10-25-design-system-baseline.md). The baseline fixes structure, surface, state and behaviour for every web app; this document is Funnel's application profile. It narrows the baseline to an issue cockpit and never relaxes it. Where the two disagree, the baseline wins and this profile is corrected.
+Funnel uses the **t128n** design language. The canonical values live in
+[`src/lib/styles/tokens.css`](../src/lib/styles/tokens.css); the bridge to
+shadcn-svelte and Tailwind lives in
+[`theme.css`](../src/lib/styles/theme.css). This document is the application
+profile: how Funnel applies t128n to an issue cockpit. The full redesign plan
+and screen-by-screen decisions are in
+[`plans/2026-11-02-t128n-redesign.md`](plans/2026-11-02-t128n-redesign.md).
 
-Funnel's interface follows modern Bugzilla (bugzilla.mozilla.org): table-first,
-text-first and data-honest. These rules are binding for every Funnel surface.
-Apply them while building, not as a later cleanup pass.
+Where this profile and the t128n specification disagree, accessibility and
+task comprehension win; record the deviation here.
 
-## 1. Core philosophy
+## 1. Identity
 
-**Density over whitespace.** Information earns its place. Tight rows, tabular
-alignment and short paddings beat decorative breathing room.
+Funnel is a precision instrument for triage and planning. It is calm, dense,
+and legible under pressure. Structure comes from alignment, whitespace, and
+1px `border-subtle` rules. It does not use decorative cards, gradients, or
+shadows on content.
 
-**Function over polish.** A control should look like a control. No glass, no
-gradients, no tinted card shells. A border and a label are usually enough.
-
-**Everything linkable.** Every entity has a URL. Bug numbers, products,
-milestones and comments are links, not spans with click handlers that cannot be
-opened in a new tab.
-
-**Transparency.** Show the real data and its state — status, resolution,
-severity, who wrote what and when. Do not soften or hide inconvenient values.
+- One accent: `--color-primary` in content, `--color-accent-on-dark` on the app
+  bar. Selection is a 2px primary leading bar, never a blue fill.
+- The app shell has a 3rem dark app bar, a 15rem `surface` sidebar, and a fluid
+  canvas.
+- Focused flows (intake, login, onboarding) use a centered column, no
+  navigation, and one primary action.
 
 ## 2. Colour
 
-One accent only: `#0060df` in light, `#8cb4ff` in dark. Links are underlined in
-`--primary`. Structural contrast comes from 1px `--border` rules, never from
-translucent tone or gradients.
+Components consume namespaced roles, never raw hex.
 
-| Token                | Light     | Dark      | Use                              |
-| -------------------- | --------- | --------- | -------------------------------- |
-| `--background`       | `#ffffff` | `#1c1b22` | Page canvas                      |
-| `--foreground`       | `#15141a` | `#fbfbfe` | Body text                        |
-| `--card`             | `#ffffff` | `#2b2a33` | Panels, comments                 |
-| `--popover`          | `#ffffff` | `#2b2a33` | Menus, dialogs                   |
-| `--muted`            | `#f0f0f4` | `#2b2a33` | Header cells, button fill        |
-| `--muted-foreground` | `#5b5b66` | `#bfbfc9` | Labels, secondary meta           |
-| `--border`           | `#cfcfd8` | `#52525e` | Every structural edge            |
-| `--input`            | `#b1b1bd` | `#6f6f7b` | Field outlines                   |
-| `--primary`          | `#0060df` | `#8cb4ff` | Links, primary action, selection |
-| `--accent`           | `#e0eaff` | `#3a3944` | Selected row fill                |
-| `--destructive`      | `#d70022` | `#ff6a75` | Errors, blockers                 |
-| `--success`          | `#058b00` | `#3fe1b0` | Done, fixed                      |
-| `--warning`          | `#a47f00` | `#ffd567` | Pending, review, in progress     |
-| `--sidebar`          | `#f9f9fb` | `#23222a` | Sidebar canvas                   |
-| `--comment-header`   | `#f0f0f4` | `#2b2a33` | Comment header bar               |
-| `--comment-reporter` | `#fffbe6` | `#2e2b22` | Reporter comment tint            |
-| `--radius`           | `0.25rem` | `0.25rem` | Cards and popovers only          |
+| Role | Use |
+| --- | --- |
+| `--color-canvas` | Page background |
+| `--color-surface` | Sidebar, zebra rows, quiet blocks |
+| `--color-surface-2` | Table headers, hover, disabled |
+| `--color-surface-3` | Selected vertical navigation |
+| `--color-border-subtle` | Structural rules |
+| `--color-border-strong` | Inputs and controls |
+| `--color-text-primary` | Body and headings |
+| `--color-text-secondary` | Metadata, labels, supporting copy |
+| `--color-text-muted` | Placeholders and helper text |
+| `--color-primary` | Action, focus, selection, current state |
+| `--color-error` / `--color-warning` / `--color-success` | Status text and icons |
 
-Semantics: green = done/fixed, red = blocker/severity, amber =
-in-progress/review/pending, grey = backlog/closed/minor. Colour goes on the
-token, not on the row or the border.
+Status is always **icon + word**. Colour is a second channel, never the only
+one. The only solid status fill is the danger button (`error` with
+`on-error`). Text selection uses `--color-selection`.
 
 ## 3. Typography
 
-System sans for prose and UI. Monospace for IDs, flags, dates and comment
-bodies: `ui-monospace, "SFMono-Regular", "Cascadia Mono", "Liberation Mono",
-Menlo, Consolas, monospace`.
+Geist Sans for UI and prose; Geist Mono only for refs, identifiers, code, and
+aligned numerals.
 
-| Name  | Size | Use                                  |
-| ----- | ---- | ------------------------------------ |
-| `2xs` | 10px | Counts only — the micro floor        |
-| `xs`  | 11px | Table headers, labels, meta          |
-| `sm`  | 13px | Body copy, table cells, comments     |
-| `base` | 14px | Default form text                    |
-| `lg`  | 15px | Section headings                     |
-| `xl`  | 17px | Page titles                          |
-| `2xl` | 20px | Rare hero figures                    |
+| Role | Size | Weight | Use |
+| --- | --- | --- | --- |
+| Caption | 0.75rem | 400/600 | Metadata, table headers, helper text |
+| Body | 0.875rem | 400/600 | App UI, table cells, navigation |
+| Body content | 1rem / 1.6 | 400 | Issue and comment prose |
+| Heading sm | 1.25rem / 1.3 | 600 | Section headings, dialog titles |
+| Heading md | 1.5rem / 1.25 | 600 | Page title |
+| Mono | 0.8125rem | 400 | Refs, identifiers; 0.75 in cells |
 
-Page title 17px/600. Table headers 11px/600 uppercase. Meta 11px. Comment
-bodies mono 13px/1.55. Nothing below 11px except counts at 10px; no arbitrary
-`text-[9px]` values.
+Title Case for names (page titles, buttons, nav, table headers); sentence case
+for descriptions, errors, and statuses. No all-caps. No type below 0.75rem.
 
-## 4. Shape
+## 4. Density and shape
 
-- Radius `0` for cells, inputs, buttons and selects. `4px` for cards and
-  popovers. Nothing above 8px.
-- Every structural edge is a real 1px `var(--border)`. Rows are carried by
-  1px rules and zebra striping, not by shadow or translucent tone.
-- Shadows appear only on popovers and dialogs.
-- Buttons look native: 1px border, `--muted` fill, 2px radius. The primary
-  action is a `--primary` fill.
+The cockpit uses the **Default** control height: 2.25rem controls and 2.25rem
+rows. Dense toolbars, row actions, menus, and icon utilities may use the 1.75rem
+compact height where that is the operational density. Focused flows use 2.25rem
+controls and 2.75rem rows. Below 768px, controls and rows are at least 2.75rem.
 
-## 5. Chrome
+- Controls and tags: `--radius-sm` (0.125rem).
+- Menus, popovers, lanes: `--radius-md` (0.25rem).
+- Dialogs and drawers: `--radius-lg` (0.375rem).
+- Avatars and status dots: `--radius-full` only.
+- Shadows exist only on menus (`--shadow-raised`) and dialogs/drawers
+  (`--shadow-overlay`). Never on cards, rows, inputs, or buttons.
 
-Sidebar kept, de-iconised: text links only. Section labels are 11px/600
-uppercase. An active item is 600 weight in `--primary` with a 3px left rule.
-Counts render as `(3)`.
+## 5. Shell
 
-A footer nav repeats the primary sections as pipe-separated text links with
-`Funnel 0.0.1` on the right. The mobile sheet trigger stays reachable below
-`md`.
+- **App bar** (3rem, dark in both themes): menu on mobile, wordmark, workspace
+  context, search, notifications, theme toggle, account menu. Focus uses
+  `accent-on-dark`.
+- **Sidebar** (15rem, `surface`): Personal (Inbox, My Issues, Notifications,
+  Attention) and Workspace (Issues, Board, Matrix, Plan, Epics, Milestones),
+  then Settings. Items are 1rem Lucide icons + labels + counts. Selected =
+  `surface-3` + 2px primary leading bar + 600. No icon rail.
+- **Mobile**: the sidebar becomes a bits-ui Sheet below 1024px; split views
+  show one route at a time with a back link.
+- Every app screen has a skip link, one `main` landmark, and one `h1`.
+- Page header: h1 1.5rem/600, optional 0.875 secondary description capped at
+  72ch, primary action right-aligned.
 
-## 6. Issue page
+## 6. Lists and tables
 
-Title: `Bug 1 – Widget grid collapses below 480px (IN PROGRESS)` at 17px/600.
-A missing status renders `UNCONFIRMED`.
+- The issue stream is a two-line list: fixed reference slot, title, then one
+  metadata line (status, priority, size, updated, assignee, milestone/labels).
+  It has no column header and no zebra fill; 1px `border-subtle` separators.
+- Split-view feed panes use a tighter horizontal gutter than full-width pages:
+  the page header, toolbar, group labels, references, empty/error states, and
+  footer share one 0.75rem leading edge. Full-width pages keep
+  `--layout-page-padding`. The reference and title are internal columns of the
+  row, not a second page inset.
+- Comparison tables keep a 2.25rem header on `surface-2`, 0.875/600, with
+  zebra rows and a 1px rule below the header only.
+- Selected rows use the 2px primary leading bar and keep 400 weight.
+- Lists (Attention, Notifications, Activity) use 1px rules and no zebra.
+- Sort state is an icon plus a label change, never colour alone.
+- Row actions appear on hover/focus and are always in a menu.
+- Virtualize lists above roughly 50 rows; keep the header outside the scroller.
+- At enlarged text the list keeps a usable viewport minimum and the surrounding
+  page scrolls instead of collapsing the list to zero height.
 
-Then a metadata table: right-aligned 11px/600 muted labels, 13px values, 1px
-rules, no pills. Rows: Status, Resolution, Product/Component, Milestone,
-Priority, Severity, Size, Assignee, Reporter, Labels, Blocked, Watching, CC.
-Values stay click-to-edit but render as plain text.
+## 7. Issue page
 
-Then description and attachments. Then comments: `#c1` anchor, grey header bar
-(author, time, `reply`), mono body, reporter tint. Internal notes get an amber
-left rule and an `Internal` flag. The composer is a plain textarea with
-`Save Changes`.
+- Title 1.5rem/600; ref mono + GitHub/Copy utilities; one compact triage strip
+  near the title for status, priority, assignee, and milestone. Each value
+  appears once. Priority renders as P1–P3 with an accessible name.
+- An active blocker sits immediately below triage. Secondary properties
+  (severity, size, reporter, labels, watching, epic action, time) live in a
+  native Details disclosure.
+- Description and comments use 1rem/1.6 prose, max 72ch, with the shared
+  Markdown styles; discussion follows the description.
+- Activity is a ruled list, not chat bubbles. Internal work notes use
+  `surface` and a lock icon + “Internal”; no reporter tint.
+- Work notes and attachments sit inline after Activity. The composer is a
+  one-line prompt at rest and expands on interaction with Comment/Internal
+  note, attachment, primary submit, and a ⌘ Enter hint. Drafts survive collapse.
+- Read-only viewers see text, not a wall of disabled controls.
 
-## 7. Lists
+## 8. Board, matrix, and plan
 
-11px uppercase header on `--muted`, zebra rows, 1px rules. Closed rows are
-struck through and muted. Severity colour appears only on the P/sev token:
-priority is derived and displayed `P1`–`P3`, severity as `blocker` / `major` /
-`minor`. Footer: `N bugs · Edit Search`.
+- Board columns are established by quiet headings, counts, alignment, and a
+  subtle separator — not full-height bordered/rounded lane containers. Individual
+  cards keep a 1px `border-subtle`; WIP counts and over-cap warnings remain.
+  Drag, keyboard move, and a menu-based move are all supported.
+- Matrix is a real table; the rating guide is a dialog. Cells show a priority
+  token + name and tabular count, not colour alone.
+- Plan lanes are ruled sections, not cards. Capacity is stated explicitly as
+  scheduled hours over the cap (which already includes allocation and window
+  length); bars use the same denominator, with no unexplained marker. Over-cap
+  adds an error icon + text. Day plans use full ALPEN words, hour rules, and a
+  2px primary leading edge on blocks.
 
-## 8. Board and plan
+## 9. Focused flows
 
-Bordered lanes with a grey header cell (name + count). Cards: 1px border, mono
-ref, title, plain token row. Drag stays, but tilt and shadow are replaced by a
-2px `--primary` insertion line. Plan lanes reuse the board header cell; day
-blocks become bordered rows.
+Intake, login, and onboarding have no app bar/sidebar. One column, 25–40rem,
+one primary action. Errors are inline and tied to fields. Success replaces the
+form with the result and its next action. Loading labels end with `…`.
 
-## 9. Accepted distance
+## 10. Feedback and motion
 
-Bugzilla has no kanban, calendar or live updates. Board and plan keep their
-function and lose the decorative chrome. The sidebar is kept against Bugzilla's
-top nav (a product decision), offset by the footer nav. Priority stays derived.
+- Inline is the default: field errors under fields, outcomes beside the action,
+  failures in the region they affect with a Retry.
+- Floating toasts are reserved for global background events (SSE disconnect,
+  browser-notification errors) and are never the only record of an outcome.
+- Hover 120ms, expand/view 180ms, overlays 240ms; exits are faster. Row and
+  focus states change instantly. Honor `prefers-reduced-motion`.
+- No stacked dialogs. A flow that needs two is a page.
 
-## 10. Adding a surface
+## 11. Adding a surface
 
-- Structure chrome and nav bars with `.bug-chrome`; give it a 1px `--border`
-  edge and no radius.
-- Render tabular data with `.bug-table` — 11px uppercase header, zebra rows,
-  1px rules.
-- Render label/value pairs with `.bug-meta` — right-aligned muted labels, flat
-  values, no pills.
-- Render discussion with `.bug-comment` — grey header bar and mono body.
-- Render status, severity and internal markers with `.flag`; colour the token,
-  never the row.
-- Use `.link` for in-prose links: `--primary` with an underline.
-- Do not introduce `--surface-*` tokens, radii above 4px on chrome, or body
-  text below 13px. Check the dark theme before calling the surface done.
+- Import `tokens.css`/`theme.css` through `global.css`; never add a second
+  token layer.
+- Use `PageHeader`, `Toolbar`, `StatusText`, `PriorityText`, `RefText`,
+  `InlineStatus`, and `EmptyState` before inventing local variants.
+- Use `#lib/components/ui/*` (bits-ui wrappers) for primitives; feature code
+  must not import bits-ui directly.
+- Add a missing dimension to `tokens.css` first, then consume it.
+- Check both themes, keyboard order, 320px, 200% text, reduced motion, and
+  forced colors before calling the surface done.

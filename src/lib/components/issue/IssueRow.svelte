@@ -11,6 +11,9 @@
 
 <script lang="ts">
 	import * as Tooltip from '#lib/components/ui/tooltip/index.js';
+	import PriorityText from '#lib/components/common/PriorityText.svelte';
+	import RefText from '#lib/components/common/RefText.svelte';
+	import StatusText from '#lib/components/common/StatusText.svelte';
 	import { selectIssue } from '#lib/client/selection.svelte';
 	import { timeAgo } from '#lib/client/clock.svelte';
 	import { issueRef } from '#lib/issue-ref';
@@ -22,21 +25,23 @@
 	import type { GroupKey } from './grouping';
 
 	/**
-	 * One row of the Bugzilla result table shared by the Issues feed, the Inbox
-	 * queue and the board's Backlog list. Lays out on the shared `.issue-grid`
-	 * template so every column holds its slot regardless of title length or
-	 * missing metadata. Metadata is plain text: a mono reference, a status flag,
-	 * `P1`–`P3`, the size letter, comma-separated labels, the updated time and
-	 * comma-separated assignee logins. No chips, badges, glyphs or avatars.
+	 * One row of the issue stream shared by the Issues feed, the Inbox queue and
+	 * the board's Backlog list.
+	 *
+	 * The row is a stable two-line list: a fixed reference slot and the title on
+	 * the first line, then one metadata line aligned under the title. Metadata
+	 * always reads status, priority, size, updated, assignee, milestone/labels;
+	 * the trailing context truncates so it can never displace the fixed fields.
+	 * Selection is the 2px primary leading bar, never a fill.
 	 */
 	interface Props {
 		issue: IssueListItem;
 		selected?: boolean;
 		/** `owner/name` → project key from instance settings. */
 		repoShortcodes?: Record<string, string>;
-		/** When grouped by status the section header carries it, so the row omits its flag. */
+		/** When grouped by status the section header carries it, so the row omits its status. */
 		groupedBy?: GroupKey | null;
-		/** Position in the flattened feed; odd positions take the zebra stripe. */
+		/** Retained for the Inbox caller; rows no longer alternate their fill. */
 		index?: number;
 	}
 
@@ -44,17 +49,15 @@
 		issue,
 		selected = false,
 		repoShortcodes = {},
-		groupedBy = null,
-		index = 0
+		groupedBy = null
 	}: Props = $props();
 
 	const ref = $derived(issueRef(issue.repo, issue.number, repoShortcodes));
 	const closed = $derived(isStruckThrough(issue.state));
-	const striped = $derived(index % 2 === 1);
 	const title = $derived(issue.title.trim() || 'Untitled');
 	const untitled = $derived(issue.title.trim().length === 0);
 
-	/** Non-reserved labels only; reserved groups render as dedicated columns. */
+	/** Non-reserved labels only; reserved groups render as dedicated fields. */
 	const labels = $derived(
 		issue.labels.filter(
 			(label) => !canonicalLabel(label) && !isRetiredPriorityLabel(label)
@@ -66,43 +69,14 @@
 			? issue.milestone.title || `${issue.milestone.repo}#${issue.milestone.number}`
 			: null
 	);
-	const labelText = $derived(
-		[milestoneText, ...labels].filter((value): value is string => Boolean(value)).join(', ')
+	const contextText = $derived(
+		[milestoneText, ...labels]
+			.filter((value): value is string => Boolean(value))
+			.join(', ')
 	);
 
 	const sizeText = $derived(
 		issue.size === 'sm' ? 'S' : issue.size === 'md' ? 'M' : issue.size === 'lg' ? 'L' : null
-	);
-
-	/** Blocked wins the status slot: it is the one signal the row cannot drop. */
-	const statusWord = $derived(
-		issue.blocked
-			? 'blocked'
-			: closed
-				? 'closed'
-				: (issue.status?.replace(/-/g, ' ') ?? 'unconfirmed')
-	);
-
-	const statusClass = $derived(
-		closed
-			? 'flag-muted'
-			: issue.blocked
-				? 'flag-danger'
-				: issue.status === 'done'
-					? 'flag-success'
-					: issue.status === 'in-progress' || issue.status === 'in-review'
-						? 'flag-warning'
-						: 'flag-muted'
-	);
-
-	const priorityClass = $derived(
-		closed
-			? 'flag-muted'
-			: issue.priority === 'P1'
-				? 'flag-danger'
-				: issue.priority === 'P2'
-					? 'flag-warning'
-					: 'flag-muted'
 	);
 
 	const assigneeText = $derived(issue.assignees.map((person) => person.login).join(', '));
@@ -116,12 +90,11 @@
 
 <div
 	class={cn(
-		'issue-row issue-grid group/row cursor-pointer border-b border-border px-2 py-1.5 select-none transition-colors duration-[120ms]',
+		'issue-row group/row cursor-pointer select-none border-b border-border-subtle',
 		'focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ring',
-		closed && 'text-muted-foreground',
-		selected && 'is-selected'
+		closed ? 'text-fg-muted' : 'text-fg',
+		selected && 'is-selected-row'
 	)}
-	data-striped={striped}
 	role="button"
 	tabindex={0}
 	aria-current={selected ? 'true' : undefined}
@@ -134,24 +107,22 @@
 		}
 	}}
 >
-	<span aria-hidden="true"></span>
-
 	<Tooltip.Root>
 		<Tooltip.Trigger>
 			{#snippet child({ props })}
-				<span {...props} class="mono text-muted-foreground min-w-0 truncate text-xs">
-					{ref}
+				<span {...props} class="issue-ref">
+					<RefText value={ref} class="text-caption" />
 				</span>
 			{/snippet}
 		</Tooltip.Trigger>
 		<Tooltip.Content>{issue.repo}#{issue.number}</Tooltip.Content>
 	</Tooltip.Root>
 
-	<span class="flex min-w-0 items-center gap-1.5">
+	<span class="issue-title">
 		<span
 			class={cn(
-				'min-w-0 truncate text-sm',
-				closed || untitled ? 'text-muted-foreground' : 'text-foreground',
+				'line-clamp-2 min-w-0 break-words text-body',
+				closed || untitled ? 'text-fg-muted' : 'text-fg',
 				untitled && 'italic',
 				closed && 'line-through'
 			)}
@@ -161,62 +132,129 @@
 		</span>
 		{#if issue.labelConflict}
 			<TriangleAlertIcon
-				class="text-warning size-3.5 shrink-0"
+				class="size-3.5 shrink-0 text-warning"
 				title="Conflicting reserved label or retired priority label on GitHub"
 			/>
 		{/if}
-		{#if showStatus || issue.blocked}
-			<span class={cn('flag shrink-0', statusClass)}>{statusWord}</span>
-		{/if}
 	</span>
 
-	<!-- Labels track (wide layouts only; hidden by `.issue-col-labels`). -->
-	<span class="issue-col-labels min-w-0 items-center overflow-hidden">
-		<span class="flag flag-muted block truncate" title={labelText}>{labelText}</span>
-	</span>
-
-	<span class="flex items-center">
-		{#if issue.priority}
-			<span class={cn('flag', priorityClass)}>{issue.priority}</span>
-		{/if}
-	</span>
-
-	<span class="flex items-center">
-		{#if sizeText}
-			<span class="flag flag-muted" title={`Size: ${issue.size}`}>{sizeText}</span>
-		{/if}
-	</span>
-
-	<span
-		class="text-muted-foreground justify-self-end truncate text-xs tabular-nums"
-		title={new Date(issue.updatedAt).toLocaleString()}
-	>
-		{timeAgo(issue.updatedAt)}
-	</span>
-
-	<span class="flex min-w-0 items-center justify-end">
-		{#if assigneeText}
-			<span class="text-muted-foreground truncate text-xs" title={assigneeText}>
-				{assigneeText}
+	<span class="issue-meta">
+		{#if showStatus}
+			<span class="issue-status">
+				<StatusText
+					status={issue.status}
+					state={issue.state}
+					blocked={issue.blocked}
+					class={closed ? 'text-fg-muted' : undefined}
+				/>
 			</span>
+		{/if}
+
+		{#if issue.priority}
+			<span class="issue-priority">
+				<PriorityText
+					priority={issue.priority}
+					class={closed ? 'text-fg-muted' : undefined}
+				/>
+			</span>
+		{/if}
+
+		{#if sizeText}
+			<span class="issue-size" title={`Size: ${issue.size}`}>{sizeText}</span>
+		{/if}
+
+		<span
+			class="issue-updated"
+			title={new Date(issue.updatedAt).toLocaleString()}
+		>
+			{timeAgo(issue.updatedAt)}
+		</span>
+
+		<span class="issue-assignee" title={assigneeText || 'Unassigned'}>
+			{#if assigneeText}
+				{assigneeText}
+			{:else}
+				<span class="text-fg-muted">Unassigned</span>
+			{/if}
+		</span>
+
+		{#if contextText}
+			<span class="issue-context" title={contextText}>{contextText}</span>
 		{/if}
 	</span>
 </div>
 
 <style>
-	.issue-row[data-striped='true'] {
-		background: color-mix(in srgb, var(--muted) 45%, transparent);
+	.issue-row {
+		/* 5.5rem: a stable column wide enough for `FIT-1234` without letting a
+		   long reference shift every title. */
+		--issue-ref-column: calc(var(--space-7) + var(--space-6) + var(--space-2));
+		display: grid;
+		grid-template-columns: var(--issue-ref-column) minmax(0, 1fr);
+		grid-template-areas:
+			'ref title'
+			'. meta';
+		align-items: baseline;
+		min-height: var(--size-row-comfortable);
+		column-gap: var(--space-3);
+		row-gap: var(--space-1);
+		padding: var(--space-1) var(--space-3);
 	}
 
-	.issue-row:hover,
-	.issue-row[data-striped='true']:hover {
-		background: var(--accent);
+	.issue-row > .issue-ref {
+		grid-area: ref;
+		min-width: 0;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
 	}
 
-	/* Selection is a flat accent fill, never an inset accent bar. */
-	.issue-row.is-selected,
-	.issue-row.is-selected:hover {
-		background: var(--accent);
-		box-shadow: none;
+	.issue-row > .issue-title {
+		grid-area: title;
+		display: flex;
+		min-width: 0;
+		align-items: center;
+		gap: var(--space-1);
+	}
+
+	.issue-meta {
+		grid-area: meta;
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: var(--space-1) var(--space-3);
+		min-width: 0;
+		font-size: var(--font-size-caption);
+		line-height: var(--font-leading-caption);
+		color: var(--color-text-secondary);
+	}
+
+	.issue-meta > * {
+		flex: none;
+		min-width: 0;
+	}
+
+	.issue-updated {
+		font-variant-numeric: tabular-nums;
+	}
+
+	.issue-assignee {
+		max-width: var(--layout-field-sm);
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	.issue-context {
+		flex: 1 1 0;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	@media (hover: hover) and (pointer: fine) {
+		.issue-row:not(.is-selected-row):hover {
+			background: var(--color-surface);
+		}
 	}
 </style>

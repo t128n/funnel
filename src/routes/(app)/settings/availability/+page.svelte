@@ -1,9 +1,14 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
+	import CircleCheckIcon from '@lucide/svelte/icons/circle-check';
+	import CopyIcon from '@lucide/svelte/icons/copy';
 	import { Button } from '#lib/components/ui/button';
-	import * as Card from '#lib/components/ui/card';
 	import * as Field from '#lib/components/ui/field';
 	import { Input } from '#lib/components/ui/input';
+	import * as NativeSelect from '#lib/components/ui/native-select';
+	import InlineStatus from '#lib/components/common/InlineStatus.svelte';
+	import ConfirmDialog from '#lib/components/settings/confirm-dialog.svelte';
+	import Section from '#lib/components/settings/section.svelte';
 	import { formatClock, parseClock } from '#lib/time/zoned';
 	import type { PageProps } from './$types';
 
@@ -78,8 +83,9 @@
 	let secretUrl = $state<string | null>(null);
 	let copied = $state(false);
 	let saving = $state(false);
-	let message = $state<string | null>(null);
+	let saved = $state(false);
 	let error = $state<string | null>(null);
+	let confirmOpen = $state(false);
 
 	let nextWindowKey = initial.windows.length;
 
@@ -102,9 +108,17 @@
 		windows = windows.filter((window) => window.key !== key);
 	}
 
+	function kindChanged(event: Event, window: WindowRow): void {
+		window.recurring = (event.currentTarget as HTMLSelectElement).value === 'recurring';
+	}
+
+	function weekdayChanged(event: Event, window: WindowRow): void {
+		window.weekday = Number((event.currentTarget as HTMLSelectElement).value);
+	}
+
 	async function saveAvailability(): Promise<void> {
 		saving = true;
-		message = null;
+		saved = false;
 		error = null;
 
 		const payload = {
@@ -133,7 +147,7 @@
 				error = body?.message ?? 'Availability could not be saved';
 				return;
 			}
-			message = 'Availability saved';
+			saved = true;
 		} catch {
 			error = 'Availability could not be saved';
 		} finally {
@@ -143,7 +157,7 @@
 
 	async function createFeed(): Promise<void> {
 		error = null;
-		message = null;
+		saved = false;
 		try {
 			const response = await fetch('/api/me/calendar-feed', { method: 'POST' });
 			if (!response.ok) {
@@ -161,7 +175,7 @@
 
 	async function revokeFeed(): Promise<void> {
 		error = null;
-		message = null;
+		saved = false;
 		try {
 			const response = await fetch('/api/me/calendar-feed', { method: 'DELETE' });
 			if (!response.ok) {
@@ -170,7 +184,7 @@
 			}
 			feed = null;
 			secretUrl = null;
-			message = 'Calendar feed revoked';
+			saved = true;
 		} catch {
 			error = 'The calendar feed could not be revoked';
 		}
@@ -187,202 +201,269 @@
 	}
 </script>
 
-<div class="mx-auto flex w-full max-w-3xl flex-col gap-5">
-	<header class="flex flex-col gap-1">
-		<h1 class="text-sm font-medium">Availability</h1>
-		<p class="text-muted-foreground text-xs leading-relaxed">
-			Your working hours and blocked windows feed the ALPEN day view. The calendar link is a
-			read-only subscription for Outlook or any other ICS app.
-		</p>
-	</header>
-
+<form
+	class="flex w-full max-w-[var(--layout-form-max)] flex-col gap-6"
+	onsubmit={(event) => {
+		event.preventDefault();
+		void saveAvailability();
+	}}
+>
 	{#if error}
-		<p class="text-destructive text-xs" role="alert">{error}</p>
-	{:else if message}
-		<p class="text-muted-foreground text-xs">{message}</p>
+		<InlineStatus tone="error" message={error} />
 	{/if}
 
-	<Card.Root>
-		<Card.Header>
-			<Card.Title>Working hours</Card.Title>
-			<Card.Description>
-				The day view uses these hours until you change them. Windows subtract from the work
-				window.
-			</Card.Description>
-		</Card.Header>
-		<Card.Content class="flex flex-col gap-4">
-			<div class="grid gap-4 sm:grid-cols-2">
-				<Field.Field>
-					<Field.Label>Timezone</Field.Label>
-					<Input list="availability-timezones" bind:value={timezone} placeholder="Europe/Berlin" />
-					<datalist id="availability-timezones">
-						{#each TIMEZONES as zone (zone)}
-							<option value={zone}></option>
-						{/each}
-					</datalist>
-					<Field.Description>An IANA zone, such as Europe/Berlin or UTC.</Field.Description>
-				</Field.Field>
-				<Field.Field>
-					<Field.Label>Buffer (%)</Field.Label>
-					<Input type="number" min="0" max="90" bind:value={bufferPercent} />
-					<Field.Description>The share of the work window reserved for slack (0–90).</Field.Description>
-				</Field.Field>
+	<Section
+		title="Working hours"
+		description="The day view uses these hours until you change them. Windows subtract from the work window."
+	>
+		<Field.Field>
+			<Field.Label for="availability-timezone">Timezone</Field.Label>
+			<Input
+				id="availability-timezone"
+				list="availability-timezones"
+				bind:value={timezone}
+				placeholder="Europe/Berlin"
+			/>
+			<datalist id="availability-timezones">
+				{#each TIMEZONES as zone (zone)}
+					<option value={zone}></option>
+				{/each}
+			</datalist>
+			<Field.Description>An IANA zone, such as Europe/Berlin or UTC.</Field.Description>
+		</Field.Field>
+		<Field.Field>
+			<Field.Label for="availability-buffer">Buffer (%)</Field.Label>
+			<Input id="availability-buffer" type="number" min="0" max="90" bind:value={bufferPercent} />
+			<Field.Description>The share of the work window reserved for slack (0–90).</Field.Description>
+		</Field.Field>
+		<Field.Field>
+			<Field.Label for="availability-start">Start time</Field.Label>
+			<Input id="availability-start" type="time" bind:value={startTime} />
+		</Field.Field>
+		<Field.Field>
+			<Field.Label for="availability-end">End time</Field.Label>
+			<Input id="availability-end" type="time" bind:value={endTime} />
+		</Field.Field>
+		<Field.Field>
+			<Field.Label>Work days</Field.Label>
+			<div class="flex flex-wrap gap-x-4 gap-y-2">
+				{#each WEEKDAYS as day (day.value)}
+					<label class="flex items-center gap-2 text-body">
+						<input
+							type="checkbox"
+							class="size-4 accent-primary"
+							value={day.value}
+							bind:group={workDays}
+						/>
+						{day.label}
+					</label>
+				{/each}
 			</div>
+			<Field.Description>At least one ISO weekday, Monday through Sunday.</Field.Description>
+		</Field.Field>
+	</Section>
 
-			<div class="grid gap-4 sm:grid-cols-2">
-				<Field.Field>
-					<Field.Label>Start time</Field.Label>
-					<Input type="time" bind:value={startTime} />
-				</Field.Field>
-				<Field.Field>
-					<Field.Label>End time</Field.Label>
-					<Input type="time" bind:value={endTime} />
-				</Field.Field>
-			</div>
-
-			<Field.Field>
-				<Field.Label>Work days</Field.Label>
-				<div class="flex flex-wrap gap-2">
-					{#each WEEKDAYS as day (day.value)}
-						<label
-							class="flex items-center gap-1.5 rounded-md border border-[color:var(--border)] px-2 py-1 text-xs"
-						>
-							<input
-								type="checkbox"
-								class="size-3.5 accent-foreground"
-								value={day.value}
-								bind:group={workDays}
-							/>
-							{day.label}
-						</label>
-					{/each}
-				</div>
-				<Field.Description>At least one ISO weekday, Monday through Sunday.</Field.Description>
-			</Field.Field>
-		</Card.Content>
-	</Card.Root>
-
-	<Card.Root>
-		<Card.Header>
-			<Card.Title>Blocked windows</Card.Title>
-			<Card.Description>
-				Recurring windows apply every week on a weekday; one-off windows apply to a single date.
-			</Card.Description>
-		</Card.Header>
-		<Card.Content class="flex flex-col gap-3">
-			{#if windows.length === 0}
-				<p class="text-muted-foreground text-xs">No blocked windows yet.</p>
-			{:else}
-				<ul class="flex flex-col divide-y divide-[color:var(--border)]">
-					{#each windows as window (window.key)}
-						<li class="flex flex-wrap items-end gap-2 py-3 first:pt-0 last:pb-0">
-							<Field.Field class="min-w-40 flex-1">
-								<Field.Label>Label</Field.Label>
-								<Input bind:value={window.label} maxlength={60} placeholder="Lunch" />
-							</Field.Field>
-
-							<Field.Field class="w-32">
-								<Field.Label>Kind</Field.Label>
-								<select
-									class="border-input bg-background h-8 rounded-md border px-2 text-sm"
-									bind:value={window.recurring}
-									aria-label="Window kind"
-								>
-									<option value={true}>Recurring</option>
-									<option value={false}>One-off</option>
-								</select>
-							</Field.Field>
-
-							{#if window.recurring}
-								<Field.Field class="w-24">
-									<Field.Label>Weekday</Field.Label>
-									<select
-										class="border-input bg-background h-8 rounded-md border px-2 text-sm"
-										bind:value={window.weekday}
-										aria-label="Blocked weekday"
-									>
-										{#each WEEKDAYS as day (day.value)}
-											<option value={day.value}>{day.label}</option>
-										{/each}
-									</select>
-								</Field.Field>
-							{:else}
-								<Field.Field class="w-40">
-									<Field.Label>Date</Field.Label>
-									<Input type="date" bind:value={window.date} />
-								</Field.Field>
-							{/if}
-
-							<Field.Field class="w-28">
-								<Field.Label>From</Field.Label>
-								<Input type="time" bind:value={window.startTime} />
-							</Field.Field>
-							<Field.Field class="w-28">
-								<Field.Label>To</Field.Label>
-								<Input type="time" bind:value={window.endTime} />
-							</Field.Field>
-
-							<Button
-								variant="ghost"
-								size="sm"
-								onclick={() => removeWindow(window.key)}
-								aria-label={`Remove ${window.label || 'window'}`}
+	<Section
+		title="Blocked windows"
+		description="Recurring windows apply every week on a weekday; one-off windows apply to a single date."
+	>
+		{#if windows.length === 0}
+			<p class="text-body text-fg-secondary">No blocked windows yet.</p>
+		{:else}
+			<div class="overflow-x-auto">
+				<table class="w-full border-collapse text-body">
+					<thead>
+						<tr>
+							<th
+								class="h-9 border-b border-border-subtle bg-surface-2 px-2 text-left font-semibold"
 							>
-								Remove
-							</Button>
-						</li>
-					{/each}
-				</ul>
-			{/if}
-
-			<div>
-				<Button variant="outline" size="sm" onclick={addWindow}>Add window</Button>
+								Label
+							</th>
+							<th
+								class="h-9 border-b border-border-subtle bg-surface-2 px-2 text-left font-semibold"
+							>
+								Schedule
+							</th>
+							<th
+								class="h-9 border-b border-border-subtle bg-surface-2 px-2 text-left font-semibold"
+							>
+								From
+							</th>
+							<th
+								class="h-9 border-b border-border-subtle bg-surface-2 px-2 text-left font-semibold"
+							>
+								To
+							</th>
+							<th class="h-9 border-b border-border-subtle bg-surface-2 px-2">
+								<span class="sr-only">Actions</span>
+							</th>
+						</tr>
+					</thead>
+					<tbody>
+						{#each windows as window, index (window.key)}
+							<tr class="border-b border-border-subtle">
+								<td class="py-1 pr-2">
+									<Input
+										bind:value={window.label}
+										maxlength={60}
+										placeholder="Lunch"
+										aria-label={`Window ${index + 1} label`}
+										class="h-7"
+									/>
+								</td>
+								<td class="py-1 pr-2">
+									<div class="flex flex-wrap items-center gap-2">
+										<NativeSelect.Root
+											value={window.recurring ? 'recurring' : 'one-off'}
+											onchange={(event) => kindChanged(event, window)}
+											aria-label={`Window ${index + 1} kind`}
+											class="w-28"
+										>
+											<NativeSelect.Option value="recurring">Recurring</NativeSelect.Option>
+											<NativeSelect.Option value="one-off">One-off</NativeSelect.Option>
+										</NativeSelect.Root>
+										{#if window.recurring}
+											<NativeSelect.Root
+												value={String(window.weekday)}
+												onchange={(event) => weekdayChanged(event, window)}
+												aria-label={`Window ${index + 1} weekday`}
+												class="w-24"
+											>
+												{#each WEEKDAYS as day (day.value)}
+													<NativeSelect.Option value={String(day.value)}>
+														{day.label}
+													</NativeSelect.Option>
+												{/each}
+											</NativeSelect.Root>
+										{:else}
+											<Input
+												type="date"
+												bind:value={window.date}
+												aria-label={`Window ${index + 1} date`}
+												class="h-7 w-36"
+											/>
+										{/if}
+									</div>
+								</td>
+								<td class="py-1 pr-2">
+									<Input
+										type="time"
+										bind:value={window.startTime}
+										aria-label={`Window ${index + 1} start time`}
+										class="h-7 w-28"
+									/>
+								</td>
+								<td class="py-1 pr-2">
+									<Input
+										type="time"
+										bind:value={window.endTime}
+										aria-label={`Window ${index + 1} end time`}
+										class="h-7 w-28"
+									/>
+								</td>
+								<td class="py-1 text-right">
+									<Button
+										variant="ghost"
+										size="sm"
+										onclick={() => removeWindow(window.key)}
+										aria-label={`Remove ${window.label || 'window'}`}
+									>
+										Remove
+									</Button>
+								</td>
+							</tr>
+						{/each}
+					</tbody>
+				</table>
 			</div>
-		</Card.Content>
-	</Card.Root>
+		{/if}
 
-	<Card.Root>
-		<Card.Header>
-			<Card.Title>Calendar feed</Card.Title>
-			<Card.Description>
-				A read-only ICS URL containing your issue blocks, buffer and blocked windows for the
-				next six weeks.
-			</Card.Description>
-		</Card.Header>
-		<Card.Content class="flex flex-col gap-3">
-			{#if secretUrl}
-				<p class="text-muted-foreground text-xs leading-relaxed">
-					Copy this URL now. It is shown once and cannot be recovered; regenerate it if you lose
-					it.
-				</p>
-				<div class="flex flex-wrap items-center gap-2">
-					<Input readonly value={secretUrl} class="min-w-64 flex-1" aria-label="Calendar feed URL" />
-					<Button variant="outline" size="sm" onclick={copySecret}>
-						{copied ? 'Copied' : 'Copy'}
-					</Button>
-				</div>
-			{:else if feed}
-				<p class="text-muted-foreground text-xs">
-					Active feed · hint <code>{feed.hint}</code>
-				</p>
-			{:else}
-				<p class="text-muted-foreground text-xs">No calendar feed yet.</p>
-			{/if}
+		<div>
+			<Button type="button" variant="outline" onclick={addWindow}>Add window</Button>
+		</div>
+	</Section>
 
-			<div class="flex flex-wrap gap-2">
+	<Section
+		title="Calendar feed"
+		description="A read-only ICS URL containing your issue blocks, buffer and blocked windows for the next six weeks."
+	>
+		<dl class="label-value">
+			<dt>Status</dt>
+			<dd>
 				{#if feed}
-					<Button variant="outline" size="sm" onclick={createFeed}>Regenerate</Button>
-					<Button variant="ghost" size="sm" onclick={revokeFeed}>Revoke</Button>
+					<span class="status status-success">
+						<CircleCheckIcon aria-hidden="true" />
+						Active
+					</span>
 				{:else}
-					<Button variant="outline" size="sm" onclick={createFeed}>Create calendar link</Button>
+					<span class="status status-muted">Not created</span>
 				{/if}
-			</div>
-		</Card.Content>
-	</Card.Root>
+			</dd>
+			{#if feed}
+				<dt>Hint</dt>
+				<dd><span class="mono break-all">{feed.hint}</span></dd>
+			{/if}
+		</dl>
 
-	<footer class="flex justify-end">
-		<Button onclick={saveAvailability} disabled={saving}>
-			{saving ? 'Saving…' : 'Save changes'}
+		{#if secretUrl}
+			<p class="text-body leading-body text-fg-secondary">
+				Copy this URL now. It is shown once and cannot be recovered; regenerate it if you lose
+				it.
+			</p>
+			<div class="flex flex-wrap items-center gap-2">
+				<Input
+					readonly
+					value={secretUrl}
+					class="min-w-0 flex-1"
+					aria-label="Calendar feed URL"
+				/>
+				<Button type="button" variant="outline" onclick={copySecret}>
+					<CopyIcon />
+					{copied ? 'Copied' : 'Copy'}
+				</Button>
+			</div>
+		{:else}
+			<div>
+				<Button type="button" variant="outline" onclick={createFeed}>
+					{feed ? 'Regenerate Feed' : 'Create Calendar Link'}
+				</Button>
+			</div>
+		{/if}
+	</Section>
+
+	{#if feed}
+		<Section
+			title="Revoke feed"
+			description="Revoking stops every calendar app using this URL. You can create a new link afterwards."
+			danger
+		>
+			<div>
+				<Button type="button" variant="destructive" onclick={() => (confirmOpen = true)}>
+					Revoke Calendar Feed
+				</Button>
+			</div>
+		</Section>
+	{/if}
+
+	<footer class="flex flex-wrap items-center gap-3 border-t border-border-subtle pt-4">
+		<Button type="submit" disabled={saving} class="min-w-24">
+			{saving ? 'Saving…' : 'Save Changes'}
 		</Button>
+		<span class="min-h-4" aria-live="polite">
+			{#if saved}
+				<span class="status status-success">
+					<CircleCheckIcon aria-hidden="true" />
+					Saved.
+				</span>
+			{/if}
+		</span>
 	</footer>
-</div>
+</form>
+
+<ConfirmDialog
+	bind:open={confirmOpen}
+	title="Revoke Calendar Feed"
+	description="Calendar apps using the current URL stop updating. This cannot be undone, but you can create a new link."
+	confirmLabel="Revoke Calendar Feed"
+	onconfirm={() => void revokeFeed()}
+/>

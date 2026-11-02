@@ -1,5 +1,5 @@
 /**
- * Capture the twelve cockpit views in light and dark at 1440×900 (DPR 2).
+ * Capture the fifteen cockpit views in light and dark at 1440×900 (DPR 2).
  *
  * This script runs outside Vite, so it must not import `$app/*` or `#lib/*`.
  * It seeds nothing itself; pair it with `seed.ts`:
@@ -32,17 +32,17 @@ export const VIEWS = [
   {
     name: "issues",
     path: "/issues",
-    ready: "div.issue-grid:not(.sticky)",
+    ready: ".issue-feed",
   },
   {
     name: "issue",
     path: "/issues/acme/widgets/1",
-    ready: '[aria-label="Issue inspector"] h2',
+    ready: '[aria-label="Issue inspector"] h1',
   },
   {
     name: "issue-activity",
     path: "/issues/acme/widgets/1",
-    ready: '[aria-label="Issue inspector"] h2',
+    ready: '[aria-label="Issue inspector"] h1',
     scrollTo: "Activity",
   },
   { name: "board", path: "/board", ready: "[data-board-card] h3" },
@@ -65,12 +65,22 @@ export const VIEWS = [
   {
     name: "inbox",
     path: "/inbox",
-    ready: "div.issue-grid:not(.sticky)",
+    ready: ".issue-row",
+  },
+  {
+    name: "notifications",
+    path: "/notifications",
+    ready: "h1",
   },
   {
     name: "settings-appearance",
     path: "/settings/appearance",
     ready: "h1, h2",
+  },
+  {
+    name: "settings-repositories",
+    path: "/settings/repositories",
+    ready: "h1",
   },
   {
     name: "matrix",
@@ -84,6 +94,11 @@ export const VIEWS = [
     click: '[title="Change priority"]',
     readyAfter: '[data-slot="popover-content"]',
   },
+  {
+    name: "intake",
+    path: "/intake",
+    ready: "form",
+  },
 ] as const;
 
 export type CaptureTheme = "light" | "dark";
@@ -93,6 +108,8 @@ export interface CaptureOptions {
   outDir: string;
   /** `name=value` from `seed.ts` (already URL-encoded once). */
   cookie: string;
+  /** Device pixel ratio; 2 for the committed gallery, 1 for lighter previews. */
+  scale?: number;
 }
 
 export interface CaptureResult {
@@ -273,10 +290,11 @@ async function createContext(
   baseUrl: string,
   cookie: string,
   theme: CaptureTheme,
+  scale: number,
 ): Promise<BrowserContext> {
   const context = await browser.newContext({
     viewport: { width: 1440, height: 900 },
-    deviceScaleFactor: 2,
+    deviceScaleFactor: scale,
     colorScheme: theme,
   });
 
@@ -314,6 +332,7 @@ export async function captureAll({
   baseUrl: requestedBaseUrl,
   outDir,
   cookie,
+  scale = 2,
 }: CaptureOptions): Promise<CaptureResult> {
   const baseUrl = requestedBaseUrl ?? DEV_URL;
   const server = requestedBaseUrl ? null : startServer();
@@ -328,7 +347,7 @@ export async function captureAll({
     browser = await chromium.launch(executablePath ? { executablePath } : {});
 
     for (const theme of ["light", "dark"] as const) {
-      const context = await createContext(browser, baseUrl, cookie, theme);
+      const context = await createContext(browser, baseUrl, cookie, theme, scale);
       try {
         for (const view of VIEWS) {
           const page = await context.newPage();
@@ -340,7 +359,7 @@ export async function captureAll({
             });
             await waitForView(page, view);
             // Let the last hydration paint settle before the frame is taken.
-            await page.waitForTimeout(700);
+            await page.waitForTimeout(1200);
             await page.evaluate(() => document.fonts.ready);
 
             const file = join(outDir, `${view.name}-${theme}.png`);
@@ -371,9 +390,10 @@ function option(name: string): string | undefined {
 if (import.meta.main) {
   const outDir = option("out");
   const cookie = option("cookie");
+  const scale = Number(option("scale") ?? "2");
   if (!outDir || !cookie) {
     console.error(
-      "Usage: bun scripts/screenshots/capture.ts --out <dir> --cookie <name=value> [--base-url <url>] [--db <path>] [--secret <secret>]",
+      "Usage: bun scripts/screenshots/capture.ts --out <dir> --cookie <name=value> [--base-url <url>] [--db <path>] [--secret <secret>] [--scale <n>]",
     );
     process.exit(1);
   }
@@ -388,6 +408,7 @@ if (import.meta.main) {
     baseUrl: option("base-url"),
     outDir,
     cookie,
+    scale: Number.isFinite(scale) && scale > 0 ? scale : 2,
   });
   console.log(`${files.length} captures written to ${outDir}`);
 }

@@ -1,20 +1,17 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
-	import { toast } from 'svelte-sonner';
 	import type { Snippet } from 'svelte';
-	import * as Alert from '#lib/components/ui/alert';
+	import CircleCheckIcon from '@lucide/svelte/icons/circle-check';
 	import { Button } from '#lib/components/ui/button';
 	import type { SettingsFormResult } from './sections';
 
 	/**
-	 * One instance-settings section: heading, fields, and a Save button. The
-	 * fields are supplied as a snippet; the whole section posts a single hidden
-	 * JSON `payload` built by the page, which the section's `save` action
-	 * validates and applies as a patch.
+	 * One instance-settings form: ruled sections supplied as a snippet, inline
+	 * validation at the top, and one save action at the end. The page still posts
+	 * a single hidden JSON `payload` built by the page; nothing about the server
+	 * contract changed.
 	 */
 	interface Props {
-		title: string;
-		description?: string;
 		/** The page's action result, for inline validation errors. */
 		form: SettingsFormResult | null;
 		/** Serialized settings patch submitted as the hidden `payload` field. */
@@ -23,59 +20,68 @@
 		saveLabel?: string;
 	}
 
-	let { title, description, form, payload, children, saveLabel = 'Save changes' }: Props = $props();
+	let { form, payload, children, saveLabel = 'Save Changes' }: Props = $props();
 
 	let saving = $state(false);
+	let saved = $state(false);
+
+	/** Any edit clears the previous confirmation. */
+	function onEdit(): void {
+		saved = false;
+	}
 </script>
 
-<div class="mx-auto flex w-full max-w-3xl flex-col gap-5">
-	<header class="flex flex-col gap-1">
-		<h1 class="text-sm font-medium">{title}</h1>
-		{#if description}
-			<p class="text-muted-foreground text-xs leading-relaxed">{description}</p>
-		{/if}
-	</header>
+<div class="flex w-full max-w-[var(--layout-form-max)] flex-col gap-6">
+	{#if form?.message}
+		<div class="border-t border-error pt-3 text-body text-error" role="alert">
+			<p class="font-semibold">Settings could not be saved</p>
+			<p class="mt-1">{form.message}</p>
+			{#if form.issues?.length}
+				<ul class="mt-1 list-disc ps-4">
+					{#each form.issues as issue, index (index)}
+						<li>{issue}</li>
+					{/each}
+				</ul>
+			{/if}
+		</div>
+	{/if}
 
 	<form
 		method="POST"
 		action="?/save"
+		oninput={onEdit}
+		onchange={onEdit}
 		use:enhance={() => {
 			saving = true;
+			saved = false;
 			return async ({ result, update }) => {
-				await update();
-				saving = false;
-				if (result.type === 'success') {
-					toast.success('Settings saved');
-				} else if (result.type === 'failure' && typeof result.data?.message === 'string') {
-					toast.error(result.data.message);
+				try {
+					await update();
+					if (result.type === 'success') saved = true;
+				} finally {
+					saving = false;
 				}
 			};
 		}}
 	>
 		<input type="hidden" name="payload" value={payload} />
 
-		{#if form?.message}
-			<Alert.Root variant="destructive" class="mb-4">
-				<Alert.Title>Settings could not be saved</Alert.Title>
-				<Alert.Description>
-					{form.message}
-					{#if form.issues?.length}
-						<ul class="mt-1 list-disc ps-4">
-							{#each form.issues as issue (issue)}
-								<li>{issue}</li>
-							{/each}
-						</ul>
-					{/if}
-				</Alert.Description>
-			</Alert.Root>
-		{/if}
-
-		<div class="flex flex-col gap-4">
+		<div class="flex flex-col gap-6">
 			{@render children()}
 		</div>
 
-		<footer class="mt-5 flex justify-end">
-			<Button type="submit" disabled={saving}>{saving ? 'Saving…' : saveLabel}</Button>
+		<footer class="mt-6 flex flex-wrap items-center gap-3 border-t border-border-subtle pt-4">
+			<Button type="submit" disabled={saving} class="min-w-24">
+				{saving ? 'Saving…' : saveLabel}
+			</Button>
+			<span class="min-h-4" aria-live="polite">
+				{#if saved}
+					<span class="status status-success">
+						<CircleCheckIcon aria-hidden="true" />
+						Saved.
+					</span>
+				{/if}
+			</span>
 		</footer>
 	</form>
 </div>

@@ -67,16 +67,16 @@
 </script>
 
 <section class="flex flex-col gap-3" aria-label="Attachments">
-	<div class="flex items-center justify-between">
-		<h2 class="text-foreground text-base font-semibold">Files</h2>
-		<span class="mono text-muted-foreground text-xs">{attachments.length}</span>
+	<div class="flex items-center justify-between gap-3 border-t border-border-subtle pt-3">
+		<h2 class="text-heading-sm font-semibold text-fg">Attachments</h2>
+		<span class="text-caption tabular-nums text-fg-secondary">{attachments.length}</span>
 	</div>
 
 	{#if !readonly}
 		<div
 			class={cn(
-				'border-border hover:border-border/80 rounded-lg border border-dashed px-4 py-5 text-center transition-colors',
-				dragging && 'border-ring bg-accent/40'
+				'rounded-sm border border-dashed border-border-strong px-4 py-4 text-center',
+				dragging && 'border-primary bg-surface-2'
 			)}
 			role="group"
 			aria-label="Attachment drop zone"
@@ -98,16 +98,16 @@
 			/>
 			<button
 				type="button"
-				class="text-muted-foreground hover:text-foreground flex w-full cursor-pointer flex-col items-center gap-1.5 text-xs"
+				class="flex w-full cursor-pointer flex-col items-center gap-1.5 text-caption text-fg-secondary hover:text-fg disabled:pointer-events-none disabled:text-fg-disabled"
 				disabled={uploading > 0}
 				onclick={() => input?.click()}
 			>
-				<UploadIcon class="size-4" />
+				<UploadIcon class="size-4" aria-hidden="true" />
 				<span>
 					{#if uploading > 0}
 						Uploading {uploading} file{uploading === 1 ? '' : 's'}…
 					{:else}
-						Drop files here, or <span class="text-foreground font-medium">browse</span>
+						Drop files here, or <span class="font-semibold text-fg">browse</span>
 					{/if}
 				</span>
 			</button>
@@ -117,18 +117,18 @@
 	{#if attachments.length > 0}
 		<ul class="flex flex-col">
 			{#each attachments as item (item.id)}
-				<li class="border-border flex items-center gap-2.5 border-t py-2 text-sm first:border-t-0">
-					<FileIcon class="text-muted-foreground size-4 shrink-0" />
-					<div class="flex min-w-0 flex-1 flex-col">
-						<span class="truncate font-medium" title={item.filename}>{item.filename}</span>
-						<span class="text-muted-foreground flex items-center gap-1.5 text-[11px]">
-							<span class="mono">{formatBytes(item.sizeBytes)}</span>
+				<li class="flex items-center gap-2.5 border-t border-border-subtle py-2 text-body first:border-t-0">
+					<FileIcon class="size-4 shrink-0 text-fg-muted" aria-hidden="true" />
+					<div class="flex min-w-0 flex-1 flex-col gap-0.5">
+						<span class="truncate font-semibold text-fg" title={item.filename}>{item.filename}</span>
+						<span class="flex flex-wrap items-center gap-x-2 gap-y-1 text-caption text-fg-secondary">
+							<span class="tabular-nums">{formatBytes(item.sizeBytes)}</span>
 							{#if item.uploadedBy}
 								<span class="inline-flex items-center gap-1">
 									<Avatar
 										login={item.uploadedBy.login}
 										avatarUrl={item.uploadedBy.avatarUrl}
-										size={12}
+										size={16}
 									/>
 									{item.uploadedBy.login}
 								</span>

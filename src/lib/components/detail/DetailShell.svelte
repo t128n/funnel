@@ -50,31 +50,42 @@
 	}: Props = $props();
 
 	const MEASURE = $derived(
-		wide ? 'mx-auto w-full max-w-[1200px]' : 'mx-auto w-full max-w-[760px]'
+		wide ? 'mx-auto w-full max-w-[75rem]' : 'mx-auto w-full max-w-[var(--layout-inspector)]'
 	);
 </script>
 
 <aside
 	bind:this={element}
-	class={cn('bg-background flex h-full flex-col', className)}
+	class={cn('flex h-full flex-col bg-canvas', className)}
 	aria-label={ariaLabel}
 >
-	<header class="flex min-h-10 shrink-0 items-center justify-between gap-2 border-b px-3 py-1.5">
-		{@render header()}
+	<header class="shrink-0 border-b border-border-subtle">
+		<div
+			class={cn(
+				'mx-auto flex w-full items-center justify-between gap-2 px-[var(--layout-page-padding)] py-3',
+				wide ? 'max-w-[75rem]' : 'max-w-[var(--layout-inspector)]'
+			)}
+		>
+			{@render header()}
+		</div>
 	</header>
 
 	<div class="min-h-0 flex-1 overflow-y-auto">
 		<div
-			class={cn(MEASURE, 'px-6 py-5', aside ? '@container min-h-full' : 'flex min-h-full flex-col gap-5')}
+			class={cn(
+				MEASURE,
+				'px-[var(--layout-page-padding)] py-5',
+				aside ? '@container min-h-full' : 'flex min-h-full flex-col gap-[var(--space-6)]'
+			)}
 			use:codeBlocks={contentKey}
 			use:mermaidDiagrams={contentKey}
 		>
 			{#if aside}
 				<div
-					class="grid grid-cols-1 items-start gap-x-10 gap-y-5 @min-[900px]:grid-cols-[minmax(0,1fr)_minmax(0,22rem)]"
+					class="grid grid-cols-1 items-start gap-x-10 gap-y-[var(--space-6)] @min-[900px]:grid-cols-[minmax(0,1fr)_minmax(0,22rem)]"
 				>
-					<div class="flex min-w-0 flex-col gap-5">{@render children()}</div>
-					<div class="flex min-w-0 flex-col gap-5">{@render aside()}</div>
+					<div class="flex min-w-0 flex-col gap-[var(--space-6)]">{@render children()}</div>
+					<div class="flex min-w-0 flex-col gap-[var(--space-6)]">{@render aside()}</div>
 				</div>
 			{:else}
 				{@render children()}
@@ -83,8 +94,8 @@
 	</div>
 
 	{#if footer}
-		<footer class="bg-background shrink-0 border-t">
-			<div class={cn(MEASURE, 'px-6 py-3')}>
+		<footer class="shrink-0 border-t border-border-subtle bg-canvas">
+			<div class={cn(MEASURE, 'px-[var(--layout-page-padding)] py-2')}>
 				{@render footer()}
 			</div>
 		</footer>

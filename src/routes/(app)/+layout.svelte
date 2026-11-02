@@ -2,9 +2,7 @@
 	import { onMount, tick } from 'svelte';
 	import { goto, refreshAll } from '$app/navigation';
 	import { createHotkeys, getAppHotkeys } from '@tanstack/svelte-hotkeys';
-	import AppSidebar from '#lib/components/app-sidebar.svelte';
-	import FooterNav from '#lib/components/nav/footer-nav.svelte';
-	import * as Sidebar from '#lib/components/ui/sidebar/index.js';
+	import AppShell from '#lib/components/shell/AppShell.svelte';
 	import { actionableCount, classifyAttention, toISODate } from '#lib/attention';
 	import { connectEvents, type FunnelEvent } from '#lib/client/events';
 	import { startNativeNotifications } from '#lib/client/native-notifications';
@@ -156,34 +154,12 @@
 	]);
 </script>
 
-<Sidebar.Provider class="h-svh overflow-hidden" style="--sidebar-width: 220px">
-	<AppSidebar
-		user={data.user}
-		{dueCount}
-		inboxCount={data.inboxCount}
-		onSearch={focusSearch}
-		onNewIssue={openNew}
-	/>
-
-	<div class="relative flex min-h-0 min-w-0 flex-1 overflow-hidden">
-		<Sidebar.Inset class="min-h-0 overflow-hidden">
-			<!-- Below `md` the sidebar renders as a Sheet with no other affordance,
-			     so the cockpit needs its own trigger. -->
-			<div class="flex shrink-0 items-center gap-2 border-b p-2 md:hidden">
-				<Sidebar.Trigger />
-				<span class="text-muted-foreground text-sm font-medium">funnel</span>
-				<a
-					href="/attention"
-					class="hover:underline focus-visible:ring-ring/50 ms-auto rounded-none text-xs outline-none focus-visible:ring-1"
-					aria-label={dueCount > 0 ? `Attention: ${dueCount} due` : 'Attention'}
-				>
-					Attention{#if dueCount > 0}<span class="text-muted-foreground"> ({dueCount})</span>{/if}
-				</a>
-			</div>
-
-			{@render children()}
-
-			<FooterNav version={__APP_VERSION__} />
-		</Sidebar.Inset>
-	</div>
-</Sidebar.Provider>
+<AppShell
+	user={data.user}
+	{dueCount}
+	inboxCount={data.inboxCount}
+	unread={data.unreadNotifications}
+	onSearch={focusSearch}
+>
+	{@render children()}
+</AppShell>

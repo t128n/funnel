@@ -3,14 +3,10 @@
 	import { cn } from '#lib/utils';
 
 	/**
-	 * Master–detail split for the Inbox and Issues views: a fixed-width feed
-	 * column on the left and a flexible document canvas on the right. The canvas
-	 * is always present; with no selection it shows an empty state instead of
-	 * collapsing the column.
-	 *
-	 * Both columns are supplied as snippets so the view's `+layout.svelte` owns
-	 * its feed chrome and lets `{@render children()}` fill the detail canvas from
-	 * the matched child route.
+	 * Master–detail split. Above 1024px the feed keeps a fixed 26rem column and
+	 * the document canvas takes the rest. Below that, only one surface is shown
+	 * at a time: the feed is full width, and opening an issue replaces it with
+	 * the full-width detail route.
 	 */
 	interface Props {
 		/** Whether a child route selected something; drives the responsive layout. */
@@ -24,23 +20,22 @@
 	let { detailOpen, feed, detail }: Props = $props();
 </script>
 
-<div class="relative flex min-h-0 min-w-0 flex-1">
+<div class="relative flex min-h-0 min-w-0 flex-1 overflow-hidden">
 	<section
 		class={cn(
-			'flex w-96 shrink-0 flex-col overflow-hidden border-r',
-			detailOpen && 'max-[1000px]:w-auto max-[1000px]:flex-1'
+			'flex min-h-0 flex-col overflow-hidden bg-canvas',
+			detailOpen
+				? 'hidden lg:flex lg:w-[var(--layout-feed)] lg:shrink-0 lg:border-r lg:border-border-subtle'
+				: 'w-full flex-1 lg:w-[var(--layout-feed)] lg:flex-none lg:border-r lg:border-border-subtle'
 		)}
 	>
 		{@render feed()}
 	</section>
 
-	<!-- Below the widescreen breakpoint the detail canvas floats over the feed
-	     rather than squeezing it. -->
 	<aside
 		class={cn(
-			'flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden',
-			'max-[1000px]:bg-background max-[1000px]:absolute max-[1000px]:inset-y-0 max-[1000px]:right-0 max-[1000px]:z-40 max-[1000px]:w-[min(560px,100%)] max-[1000px]:border-l max-[1000px]:shadow-lg',
-			!detailOpen && 'max-[1000px]:hidden'
+			'flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-canvas',
+			!detailOpen && 'hidden lg:flex'
 		)}
 	>
 		{@render detail()}

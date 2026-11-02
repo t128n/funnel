@@ -6,27 +6,35 @@ const root = join(import.meta.dir, "..");
 const doc = readFileSync(join(root, "docs/DESIGN.md"), "utf8");
 
 describe("DESIGN.md", () => {
-  test("documents the Bugzilla palette", () => {
-    expect(doc).toContain("#0060df");
-    expect(doc).toContain("--primary");
-    expect(doc).toContain("--comment-reporter");
+  test("documents the t128n palette by role", () => {
+    expect(doc).toContain("t128n");
+    expect(doc).toContain("--color-canvas");
+    expect(doc).toContain("--color-surface");
+    expect(doc).toContain("--color-primary");
+    expect(doc).toContain("--color-border-subtle");
+    expect(doc).toContain("--color-text-primary");
   });
 
-  test("documents the shared primitives", () => {
-    expect(doc).toContain(".bug-table");
-    expect(doc).toContain(".bug-meta");
-    expect(doc).toContain(".bug-comment");
-    expect(doc).toContain(".bug-chrome");
-    expect(doc).toContain(".flag");
-    expect(doc).toContain(".link");
+  test("documents the shell and density", () => {
+    expect(doc).toContain("3rem dark app bar");
+    expect(doc).toContain("15rem");
+    expect(doc).toContain("Default");
+    expect(doc).toContain("2px primary leading bar");
   });
 
-  test("uses Bugzilla vocabulary", () => {
-    expect(doc).toContain("UNCONFIRMED");
+  test("documents the shared application components", () => {
+    expect(doc).toContain("PageHeader");
+    expect(doc).toContain("StatusText");
+    expect(doc).toContain("PriorityText");
+    expect(doc).toContain("InlineStatus");
+    expect(doc).toContain("EmptyState");
+  });
+
+  test("uses the current vocabulary and no Bugzilla leftovers", () => {
+    expect(doc).toContain("issue");
     expect(doc).toContain("P1");
-  });
-
-  test("carries no leftovers from the previous palette", () => {
+    expect(doc).not.toContain("Bugzilla");
+    expect(doc).not.toContain(".bug-table");
     expect(doc).not.toContain("#5e6ad2");
     expect(doc).not.toContain("Linear");
   });

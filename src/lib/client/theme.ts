@@ -1,10 +1,13 @@
 /**
  * Client-side theme controller (System / Dark / Light).
  *
- * The pre-paint script in `src/app.html` sets the initial `.dark` class; this
- * module owns every subsequent change, persists the choice to `localStorage`
- * under `funnel:theme`, and keeps a `system` choice in sync with the OS via
- * `prefers-color-scheme`.
+ * The pre-paint script in `src/app.html` sets `data-theme` before the first
+ * paint; this module owns every subsequent change, persists the choice to
+ * `localStorage` under `funnel:theme`, keeps a `system` choice in sync with
+ * the OS, and updates the browser theme-color to the active canvas.
+ *
+ * `.dark` is kept as a compatibility class for third-party widgets during the
+ * migration; component styling keys off `[data-theme="dark"]`.
  */
 import { get, writable } from "svelte/store";
 
@@ -17,38 +20,39 @@ function isBrowser(): boolean {
   return typeof window !== "undefined";
 }
 
-function prefersLight(): boolean {
-  return (
-    isBrowser() &&
-    window.matchMedia("(prefers-color-scheme: light)").matches
-  );
+function systemTheme(): ResolvedTheme {
+  if (!isBrowser()) return "light";
+  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
 }
 
 function readStored(): ThemeChoice {
   if (!isBrowser()) return "system";
   const value = window.localStorage.getItem(STORAGE_KEY);
-  return value === "dark" || value === "light" || value === "system"
-    ? value
-    : "system";
+  return value === "dark" || value === "light" || value === "system" ? value : "system";
 }
 
 function resolve(choice: ThemeChoice): ResolvedTheme {
-  if (choice === "system") return prefersLight() ? "light" : "dark";
-  return choice;
+  return choice === "system" ? systemTheme() : choice;
 }
 
 function apply(theme: ResolvedTheme): void {
   if (!isBrowser()) return;
-  document.documentElement.classList.toggle("dark", theme === "dark");
+  const root = document.documentElement;
+  root.setAttribute("data-theme", theme);
+  root.style.colorScheme = theme;
+  root.classList.toggle("dark", theme === "dark");
+
+  // Read the active token rather than hard-coding a canvas value.
+  const canvas = getComputedStyle(root).getPropertyValue("--color-canvas").trim();
+  const meta = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
+  if (meta && canvas) meta.content = canvas;
 }
 
 /** The user's chosen preference (what the switcher highlights). */
 export const themeChoice = writable<ThemeChoice>(readStored());
 
 /** The concrete theme currently painted (`dark` | `light`). */
-export const resolvedTheme = writable<ResolvedTheme>(
-  resolve(get(themeChoice)),
-);
+export const resolvedTheme = writable<ResolvedTheme>(resolve(get(themeChoice)));
 
 /** Update the theme, persist it, and repaint. */
 export function setTheme(choice: ThemeChoice): void {
@@ -72,7 +76,7 @@ export function setTheme(choice: ThemeChoice): void {
 export function initTheme(): () => void {
   if (!isBrowser()) return () => {};
 
-  const media = window.matchMedia("(prefers-color-scheme: light)");
+  const media = window.matchMedia("(prefers-color-scheme: dark)");
   const onMediaChange = () => {
     if (get(themeChoice) === "system") {
       const theme = resolve("system");
@@ -81,17 +85,17 @@ export function initTheme(): () => void {
     }
   };
   const onStorage = (event: StorageEvent) => {
-    if (event.key === STORAGE_KEY) {
-      const next = readStored();
-      themeChoice.set(next);
-      const theme = resolve(next);
-      resolvedTheme.set(theme);
-      apply(theme);
-    }
+    if (event.key !== STORAGE_KEY) return;
+    const next = readStored();
+    themeChoice.set(next);
+    const theme = resolve(next);
+    resolvedTheme.set(theme);
+    apply(theme);
   };
 
   media.addEventListener("change", onMediaChange);
   window.addEventListener("storage", onStorage);
+
   // Re-assert on mount in case the inline script was stripped.
   const theme = resolve(get(themeChoice));
   resolvedTheme.set(theme);

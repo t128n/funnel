@@ -1,9 +1,9 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
 	import { enhance } from '$app/forms';
+	import InlineStatus from '#lib/components/common/InlineStatus.svelte';
 	import Spinner from '#lib/components/common/Spinner.svelte';
 	import SingleSelect from '#lib/components/common/SingleSelect.svelte';
-	import * as Alert from '#lib/components/ui/alert';
 	import { Button } from '#lib/components/ui/button';
 	import * as Dialog from '#lib/components/ui/dialog';
 	import * as Field from '#lib/components/ui/field';
@@ -108,8 +108,8 @@
 >
 	<Dialog.Content aria-describedby={undefined} class="sm:max-w-md">
 		<Dialog.Header>
-			<Dialog.Title class="text-base font-semibold">Duplicate submission</Dialog.Title>
-			<Dialog.Description class="text-muted-foreground text-xs">
+			<Dialog.Title>Mark as duplicate</Dialog.Title>
+			<Dialog.Description>
 				The submission text is posted as a comment on an existing issue, then cleared from the
 				queue.
 			</Dialog.Description>
@@ -172,7 +172,7 @@
 							Loading issues…
 						</Field.Description>
 					{:else if issuesError}
-						<Field.Description class="text-destructive">{issuesError}</Field.Description>
+						<Field.Description class="text-error">{issuesError}</Field.Description>
 					{:else if issueOptions.length === 0}
 						<Field.Description>No mirrored issues in this repository.</Field.Description>
 					{/if}
@@ -180,9 +180,7 @@
 			</div>
 
 			{#if error}
-				<Alert.Root variant="destructive" class="mt-4">
-					<Alert.Description>{error}</Alert.Description>
-				</Alert.Root>
+				<InlineStatus tone="error" message={error} class="mt-4" />
 			{/if}
 
 			<Dialog.Footer class="mt-4">
@@ -197,7 +195,7 @@
 							<Spinner size={13} />
 						</span>
 					{/if}
-					Duplicate
+					Mark duplicate
 				</Button>
 			</Dialog.Footer>
 		</form>

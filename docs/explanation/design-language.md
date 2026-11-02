@@ -1,185 +1,110 @@
 # Design language
 
-Funnel tracks work that lives in a forge, and its interface takes its cues from the oldest public issue
-tracker in daily use: Bugzilla. The previous look borrowed Linear's spacing and JetBrains Islands'
-translucent surfaces — pleasant on a marketing page, expensive on a screen whose job is to answer what is
-broken, who owns it, and what changed. The bet is that a bug tracker should read like a record.
+Funnel is an issue cockpit: a place to answer what is broken, who owns it, and
+what fits in the week. Its interface now follows **t128n**, a calm, compact,
+technical system built for tools used under pressure. The visual language is
+deliberately quiet; the data is the interface.
 
-## Density is the feature
+The application profile is [DESIGN.md](../DESIGN.md). The canonical values are
+[`src/lib/styles/tokens.css`](../../src/lib/styles/tokens.css), bridged to
+Tailwind and shadcn-svelte in
+[`theme.css`](../../src/lib/styles/theme.css). The full redesign plan is
+[`plans/2026-11-02-t128n-redesign.md`](../plans/2026-11-02-t128n-redesign.md).
 
-A maintainer scanning forty issues cares about how many fit on screen, not how much air surrounds each
-one. Tight rows, tabular alignment and short paddings put more decisions in one glance. Whitespace that
-once signalled calm now signals distance: the further apart two values sit, the more eye travel it takes
-to compare them. Density is also honesty — a list that shows twenty rows is telling you it has twenty,
-while a padded card grid makes the same data feel curated and incomplete.
+## Density with air where it matters
 
-Three commitments follow. **Function over polish**: a control looks like a control, with a border and a
-label, not a glass panel with a gradient. **Everything linkable**: a bug number, product, milestone or
-comment is an anchor with a URL, so it opens in a new tab and pastes into chat. **Transparency**: status,
-resolution, severity and authorship are shown as data, including the inconvenient values.
+A maintainer scanning forty issues needs comparison, not decoration. Rows are
+2.25rem, table headers sit on `surface-2`, and every metadata column keeps its
+slot. Density is carried by alignment and 1px rules, not by shrinking type:
+nothing renders below 0.75rem.
+
+Whitespace does the grouping. A page title is separated from its toolbar by
+1.5rem, a toolbar from its table by a rule, and a table from its footer by a
+rule. There are no cards around data. A table is the page structure.
 
 ## One accent, two themes
 
-A single accent carries every link and primary action. Structure comes from 1px `--border` rules, never
-from translucent tone, so a row reads the same whether it sits on the page canvas or inside a card.
+A single blue accent carries links, the primary action, focus, and the current
+state. Selection is a 2px leading bar; vertical navigation also takes
+`surface-3`. No row is filled with the accent.
 
-| Token                | Light     | Dark      |
-| :------------------- | :-------- | :-------- |
-| `--background`       | `#ffffff` | `#1c1b22` |
-| `--foreground`       | `#15141a` | `#fbfbfe` |
-| `--card`             | `#ffffff` | `#2b2a33` |
-| `--popover`          | `#ffffff` | `#2b2a33` |
-| `--muted`            | `#f0f0f4` | `#2b2a33` |
-| `--muted-foreground` | `#5b5b66` | `#bfbfc9` |
-| `--border`           | `#cfcfd8` | `#52525e` |
-| `--input`            | `#b1b1bd` | `#6f6f7b` |
-| `--primary`          | `#0060df` | `#8cb4ff` |
-| `--accent`           | `#e0eaff` | `#3a3944` |
-| `--destructive`      | `#d70022` | `#ff6a75` |
-| `--success`          | `#058b00` | `#3fe1b0` |
-| `--warning`          | `#a47f00` | `#ffd567` |
-| `--sidebar`          | `#f9f9fb` | `#23222a` |
-| `--comment-header`   | `#f0f0f4` | `#2b2a33` |
-| `--comment-reporter` | `#fffbe6` | `#2e2b22` |
-| `--radius`           | `0.25rem` | `0.25rem` |
+Light and dark are complete palettes driven by `data-theme`. The app bar is
+dark in both themes, with `accent-on-dark` for the wordmark and focus rings.
+Status colours (error, warning, success) are text and icons; colour is never
+the only channel.
 
-Green means done or fixed, red means blocker or severity, amber means in progress, review or pending,
-and grey means backlog, closed or minor. Colour goes on the token, never on the row behind it.
+## Structure, not elevation
 
-## Type and shape
+Content is separated by 1px `border-subtle` rules and `surface` tints. Menus
+and popovers get the `raised` shadow; dialogs and drawers get the `overlay`
+shadow. Rows, inputs, cards, and buttons never cast a shadow.
 
-The system sans stack sets prose and UI; monospace sets IDs, flags, dates and comment bodies. The scale
-runs 10 / 11 / 13 / 14 / 15 / 17 / 20px. Ten pixels is the micro floor and only counts use it. Page titles
-are 17px/600, table headers 11px/600 uppercase, meta 11px, comment bodies 13px/1.55.
-
-Cells, inputs, buttons and selects have no radius; cards and popovers get 4px; nothing exceeds 8px. Every
-structural edge is a real 1px border. Shadows appear only on popovers and dialogs, where they signal a
-layer above the page rather than decoration. Buttons look native: 1px border, muted fill, 2px radius,
-with the primary action filled in the accent.
+Controls are 1.75rem in the cockpit and 2.25rem in focused flows, with
+0.125rem radius for controls and 0.375rem for dialogs. Icons are Lucide
+outline, 1rem inline and 1.25rem in controls.
 
 ## The issue page
 
-The page opens with the record's identity: `Bug 1 – Widget grid collapses below 480px (IN PROGRESS)` at
-17px/600, with a missing status rendered as `UNCONFIRMED`. Beneath it sits a metadata table — right-aligned
-11px/600 muted labels and 13px values separated by 1px rules. Status, resolution, product/component,
-milestone, priority, severity, size, assignee, reporter, labels, blocked, watching and CC are all rows.
-There are no pills. A value is still click-to-edit, but at rest it is plain text, so the table compares
-like a table.
+The record opens with its identity: ref in mono, title at 1.5rem/600, and a
+status/priority/assignee line. Properties are label–value rows under a top
+rule; a value is still click-to-edit, but at rest it is plain text, so the
+metadata compares like a table.
 
-Discussion is numbered and monospaced. Each comment carries a `#c1` anchor and a grey header bar with
-author, time and a `reply` link; the body is monospace at 13px with preserved whitespace, which keeps
-pasted logs and stack traces readable. Reporter comments take a warm tint, and internal notes get an
-amber left rule with an `Internal` flag. The composer is a plain textarea and a `Save Changes` button.
+Description and comments use 1rem/1.6 prose, capped at 72 characters per line.
+Activity is a ruled list, not chat bubbles. Internal work notes get a lock icon
+and an “Internal” label on `surface`. Work notes and attachments sit inline
+after Activity. The composer closes the page with comment/internal-note modes,
+attachments, and a primary submit.
 
-## What board and plan keep
+## Board, matrix, and plan
 
-Bugzilla has no kanban board and no calendar, and Funnel keeps both anyway. They are not borrowed chrome;
-they answer questions the issue list cannot — what is in flight across statuses, and what one person can
-finish this week. The pivot changes how they look, not what they do. Lanes are bordered with a grey header
-cell holding the name and count. Cards keep a 1px border, a monospace reference, a title and a plain token
-row. Dragging still works, but the lift-and-tilt is replaced by a 2px accent insertion line that states
-where the card will land.
+The board keeps its kanban function with flat cards, 1px borders, a mono ref,
+and icon+text status. Dragging still works, and every drag has a keyboard and
+menu equivalent. The matrix is a real table; its rating guide is a dialog. Plan
+lanes are ruled sections with capacity bars and over-cap warnings, not cards.
+
+## Feedback and motion
+
+Feedback appears where the action happened: field errors under fields, save
+confirmations beside the submit, mutation failures in the region they affect
+with Retry. Floating toasts are reserved for background events with no
+persistent region.
+
+Motion is rationed: 120ms hover, 180ms expand, 240ms overlays. Row and focus
+state changes are instant. `prefers-reduced-motion`, `prefers-contrast`, and
+forced-colors are honored.
 
 ## The gallery
 
-Ten views, before and after, captured on the same seeded data and viewport. The "before" halves come from
-the unmodified tree; `issue-activity` and `board` also carry dark pairs, showing the theme is a palette swap.
+The redesigned views are captured by `scripts/screenshots/capture.ts` against
+the seeded demo database, in light and dark. The committed gallery lives in
+[`assets/t128n-redesign`](../assets/t128n-redesign/). It is evidence for the PR,
+not a separate source of truth; the application profile and tokens decide.
 
-**Issues.** A table with an 11px uppercase header on muted, zebra rows and 1px rules. Closed rows are
-struck through, and severity colour appears only on the `P1`–`P3` and severity token.
-
-| Before | After |
+| Issues | Issue detail |
 | :--- | :--- |
-| ![issues before](../assets/design-pivot/before/issues-light.png) | ![issues after](../assets/design-pivot/after/issues-light.png) |
+| ![Issues list in light mode](../assets/t128n-redesign/issues-light.png) | ![Issue detail in light mode](../assets/t128n-redesign/issue-light.png) |
 
-**Issue detail.** The title states bug number, title and status in one line, followed by the metadata
-table. The inspector is no longer a stack of cards with pill values.
-
-| Before | After |
+| Board | Plan |
 | :--- | :--- |
-| ![issue before](../assets/design-pivot/before/issue-light.png) | ![issue after](../assets/design-pivot/after/issue-light.png) |
+| ![Board in light mode](../assets/t128n-redesign/board-light.png) | ![Week plan in light mode](../assets/t128n-redesign/plan-light.png) |
 
-**Issue activity.** Comments are numbered `#cN`, headered in grey and set in monospace, with the reporter
-tint and an amber rule for internal notes.
-
-| Before | After |
+| Settings | Intake |
 | :--- | :--- |
-| ![issue activity before](../assets/design-pivot/before/issue-activity-light.png) | ![issue activity after](../assets/design-pivot/after/issue-activity-light.png) |
+| ![Appearance settings in light mode](../assets/t128n-redesign/settings-light.png) | ![Public intake form in light mode](../assets/t128n-redesign/intake-light.png) |
 
-| Before (dark) | After (dark) |
+| Issues, dark | Issue detail, dark |
 | :--- | :--- |
-| ![issue activity before, dark](../assets/design-pivot/before/issue-activity-dark.png) | ![issue activity after, dark](../assets/design-pivot/after/issue-activity-dark.png) |
+| ![Issues list in dark mode](../assets/t128n-redesign/issues-dark.png) | ![Issue detail in dark mode](../assets/t128n-redesign/issue-dark.png) |
 
-**Board.** Bordered lanes with a grey header cell; cards are flat and token-only, and the insertion line
-replaces the tilt.
-
-| Before | After |
+| Board, dark | Plan, dark |
 | :--- | :--- |
-| ![board before](../assets/design-pivot/before/board-light.png) | ![board after](../assets/design-pivot/after/board-light.png) |
+| ![Board in dark mode](../assets/t128n-redesign/board-dark.png) | ![Week plan in dark mode](../assets/t128n-redesign/plan-dark.png) |
 
-| Before (dark) | After (dark) |
+| Settings, dark | Intake, dark |
 | :--- | :--- |
-| ![board before, dark](../assets/design-pivot/before/board-dark.png) | ![board after, dark](../assets/design-pivot/after/board-dark.png) |
+| ![Appearance settings in dark mode](../assets/t128n-redesign/settings-dark.png) | ![Public intake form in dark mode](../assets/t128n-redesign/intake-dark.png) |
 
-**Plan.** Plan lanes reuse the board's header cell and day blocks become bordered rows, so intent and
-capacity read as a schedule rather than a set of floating chips.
-
-| Before | After |
+| Issues, mobile | Plan, mobile |
 | :--- | :--- |
-| ![plan before](../assets/design-pivot/before/plan-light.png) | ![plan after](../assets/design-pivot/after/plan-light.png) |
-
-**Epics.** Epics keep their rollup figures but present children as a bordered table; avatars drop out of
-list rows and every action stays.
-
-| Before | After |
-| :--- | :--- |
-| ![epics before](../assets/design-pivot/before/epics-light.png) | ![epics after](../assets/design-pivot/after/epics-light.png) |
-
-**Milestones.** Names, dates and progress are a plain table with links underlined in the accent, not
-cards.
-
-| Before | After |
-| :--- | :--- |
-| ![milestones before](../assets/design-pivot/before/milestones-light.png) | ![milestones after](../assets/design-pivot/after/milestones-light.png) |
-
-**Attention.** Rows are zebra table rows; urgency colour sits on its token and the re-check date is
-monospace, so the page scans as a work queue.
-
-| Before | After |
-| :--- | :--- |
-| ![attention before](../assets/design-pivot/before/attention-light.png) | ![attention after](../assets/design-pivot/after/attention-light.png) |
-
-**Inbox.** Submissions use the issue list primitives, so triage is the same gesture everywhere: read a
-row, open a link, change a value.
-
-| Before | After |
-| :--- | :--- |
-| ![inbox before](../assets/design-pivot/before/inbox-light.png) | ![inbox after](../assets/design-pivot/after/inbox-light.png) |
-
-**Settings — appearance.** Theme and density controls become native radios and labels, matching the rest
-of the application instead of previewing themselves in cards.
-
-| Before | After |
-| :--- | :--- |
-| ![settings appearance before](../assets/design-pivot/before/settings-appearance-light.png) | ![settings appearance after](../assets/design-pivot/after/settings-appearance-light.png) |
-
-## Recapturing
-
-The pairs are reproducible rather than curated. `scripts/screenshots/README.md` documents the harness:
-seed a throwaway database, then capture all ten views in both themes from the same data.
-
-```sh
-COOKIE="$(bun scripts/screenshots/seed.ts --out /tmp/funnel-shots)"
-FUNNEL_DB=/tmp/funnel-shots/funnel.db \
-FUNNEL_SECRET=funnel-screenshots-secret-0123456789abcdef \
-bun scripts/screenshots/capture.ts --out /tmp/funnel-shots/out --cookie "$COOKIE"
-```
-
-Copy the `<view>-<light|dark>.png` files into `before/` or `after/` depending on which tree you captured.
-If only one surface moved, recapture that view; `docs/assets/design-pivot/README.md` maps files to pages.
-
-## Related
-
-- [Design system baseline](../plans/2026-10-25-design-system-baseline.md) — the cross-app rules this Funnel profile implements.
-- [Funnel application profile](../DESIGN.md) — the exact tokens, status mapping and surface rules for this app.
-- [Design principles](./design-principles.md) — the reasoning behind the baseline and the profile.
+| ![Issues list at 390px](../assets/t128n-redesign/issues-mobile.png) | ![Week plan at 390px](../assets/t128n-redesign/plan-mobile.png) |

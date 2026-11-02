@@ -29,17 +29,24 @@
 		repoShortcodes: Record<string, string>;
 		/** Signed-in viewer for the card's quick assign action. */
 		viewer?: UserRef | null;
+		/** The docked detail's issue, highlighted with a 2px leading bar. */
+		selected?: { repo: string; number: number } | null;
 		/** RBAC `read`: disable dragging and the per-column new-issue link. */
 		readonly?: boolean;
 	}
 
-	let { board, wipLimits = {}, doneDays, repoShortcodes, viewer = null, readonly = false }: Props =
-		$props();
+	let {
+		board,
+		wipLimits = {},
+		doneDays,
+		repoShortcodes,
+		viewer = null,
+		selected = null,
+		readonly = false
+	}: Props = $props();
 
 	const columns = $derived(board.columns.filter((column) => column.key !== 'backlog'));
-	const showRepo = $derived(
-		new Set(columns.flatMap((column) => column.issues.map((issue) => issue.repo))).size > 1
-	);
+	const selectedKey = $derived(selected ? `${selected.repo}#${selected.number}` : null);
 
 	/** Identity shared with `data-board-card`. */
 	function cardKey(issue: IssueListItem): string {
@@ -260,7 +267,7 @@
 <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 <div
 	bind:this={grid}
-	class="flex min-h-0 flex-1 gap-2 overflow-x-auto overflow-y-hidden px-3 pt-2 pb-3"
+	class="flex min-h-0 flex-1 snap-x snap-mandatory gap-4 overflow-x-auto overflow-y-hidden scroll-pl-[var(--layout-page-padding)] px-[var(--layout-page-padding)] py-4 md:snap-none"
 	role="region"
 	aria-label="Status board"
 	data-keyboard-move={keyboard.active}
@@ -282,8 +289,8 @@
 			limit={wipLimits[column.key]}
 			{doneDays}
 			{repoShortcodes}
-			{showRepo}
 			{viewer}
+			{selectedKey}
 			{readonly}
 			activeKey={effectiveActive}
 			draggingKey={draggingKey}

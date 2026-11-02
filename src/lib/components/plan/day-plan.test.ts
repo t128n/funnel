@@ -51,7 +51,12 @@ describe('plan surfaces', () => {
 		for (const file of [dayPlan, lanes, page]) {
 			expect(file).not.toContain('var(--surface-');
 		}
-		expect(lanes).toContain('bug-table-head');
-		expect(dayPlan).toContain('border-[color:var(--border)]');
+		// Lanes are ruled sections with quiet headings, not filled header bars or cards.
+		expect(lanes).not.toContain('bg-surface-2');
+		expect(lanes).toContain('border-b border-border-subtle');
+		expect(lanes).not.toContain('bug-table-head');
+		// Blocks get a 2px primary leading edge and 1px structural rules.
+		expect(dayPlan).toContain('border-border-subtle');
+		expect(dayPlan).toContain('border-s-primary');
 	});
 });

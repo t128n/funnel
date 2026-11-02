@@ -1,4 +1,4 @@
-import { describe, expect, mock, test } from "bun:test";
+import { describe, expect, test } from "bun:test";
 import { appendUnique, mergeFirstPage } from "./feed-merge";
 import {
   flattenInboxRows,
@@ -7,12 +7,6 @@ import {
   feedUrl,
 } from "#lib/feeds";
 import type { IssueListItem, RenderedInboxEntry } from "#lib/server/issues/types";
-
-// The board-feed store reaches `svelte-sonner` (through the optimistic overlay);
-// its precompiled components do not load under `bun test`, so stub the toasts.
-mock.module("svelte-sonner", () => ({
-  toast: Object.assign(() => {}, { error: () => {}, success: () => {} }),
-}));
 
 /** Minimal issue fixture; overrides supply the fields a test cares about. */
 function issue(overrides: Partial<IssueListItem> & { number: number }): IssueListItem {

@@ -1,10 +1,12 @@
 <script lang="ts">
 	import { invalidateAll } from '$app/navigation';
 	import Spinner from '#lib/components/common/Spinner.svelte';
+	import InlineStatus from '#lib/components/common/InlineStatus.svelte';
 	import { Button } from '#lib/components/ui/button';
 	import type { DelayItem } from '#lib/server/actuals/store';
 	import { absoluteTime } from '#lib/time';
-	import { cn } from '#lib/utils';
+	import BanIcon from '@lucide/svelte/icons/ban';
+	import ClockIcon from '@lucide/svelte/icons/clock';
 	import {
 		canCloseDelay,
 		canDeleteDelay,
@@ -79,10 +81,10 @@
 </script>
 
 <section class="flex flex-col gap-2" aria-label="Delays">
-	<div class="flex items-center justify-between">
-		<div class="flex items-center gap-2">
-			<h2 class="text-foreground text-sm font-semibold">Delays</h2>
-			<span class="mono text-muted-foreground text-xs">{delays.length}</span>
+	<div class="flex items-center justify-between gap-3 border-t border-border-subtle pt-3">
+		<div class="flex items-baseline gap-2">
+			<h2 class="text-heading-sm font-semibold text-fg">Delays</h2>
+			<span class="text-caption tabular-nums text-fg-secondary">{delays.length}</span>
 		</div>
 		{#if mayWrite}
 			<Button variant="ghost" size="xs" onclick={onrecord}>Record delay</Button>
@@ -90,48 +92,44 @@
 	</div>
 
 	{#if delays.length === 0}
-		<div
-			class="border-border text-muted-foreground rounded-lg border border-dashed px-3 py-4 text-center text-xs"
-		>
-			No delays recorded.
-		</div>
+		<p class="text-body text-fg-secondary">No delays recorded.</p>
 	{:else}
-		<ul class="flex flex-col gap-1.5">
+		<ul class="flex flex-col">
 			{#each delays as row (row.id)}
-				<li
-					class={cn(
-						'border-border flex flex-col gap-1 rounded-lg border px-3 py-2 text-xs',
-						row.source === 'blocked' && 'bg-destructive/5'
-					)}
-				>
-					<div class="flex min-w-0 items-center gap-2">
-						<span class="text-foreground font-medium">{delayReasonLabel(row.reason)}</span>
+				<li class="flex flex-col gap-1 border-t border-border-subtle py-2 text-body first:border-t-0">
+					<div class="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+						<span class="font-semibold text-fg">{delayReasonLabel(row.reason)}</span>
 						<span
-							class={cn(
-								'mono rounded px-1.5 py-0.5 text-[10px] uppercase tracking-wide',
-								row.source === 'blocked'
-									? 'bg-destructive/10 text-destructive'
-									: 'bg-accent text-muted-foreground'
-							)}
+							class={row.source === 'blocked'
+								? 'status status-error'
+								: 'status status-muted'}
 						>
-							{row.source === 'blocked' ? 'Blocked' : 'Manual'}
+							{#if row.source === 'blocked'}
+								<BanIcon aria-hidden="true" />
+								Blocked
+							{:else}
+								<ClockIcon aria-hidden="true" />
+								Manual
+							{/if}
 						</span>
-						<span class="mono text-muted-foreground ml-auto">{delayDuration(row)}</span>
+						<span class="ml-auto text-caption tabular-nums text-fg-secondary">
+							{delayDuration(row)}
+						</span>
 					</div>
-					<div class="text-muted-foreground flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+					<div class="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-caption text-fg-secondary">
 						<span title={absoluteTime(row.startedAt)}>
 							{absoluteTime(row.startedAt)}
 						</span>
 						<span aria-hidden="true">→</span>
 						<span>
-							{row.endedAt === null ? 'ongoing' : absoluteTime(row.endedAt)}
+							{row.endedAt === null ? 'Ongoing' : absoluteTime(row.endedAt)}
 						</span>
 					</div>
 					{#if row.note.trim().length > 0}
-						<p class="text-foreground">{row.note}</p>
+						<p class="text-body text-fg">{row.note}</p>
 					{/if}
 					{#if canCloseDelay(row, mayWrite) || canDeleteDelay(row, mayWrite)}
-						<div class="mt-0.5 flex items-center gap-1">
+						<div class="flex items-center gap-1">
 							{#if canCloseDelay(row, mayWrite)}
 								<Button
 									variant="ghost"
@@ -163,11 +161,11 @@
 	{/if}
 
 	{#if grouped.automatic.length > 0 && mayWrite}
-		<p class="text-muted-foreground text-[11px]">
+		<p class="text-caption text-fg-muted">
 			Blocked delays follow the blocked flag and are read-only.
 		</p>
 	{/if}
 	{#if error}
-		<p class="text-destructive text-xs" role="alert">{error}</p>
+		<InlineStatus tone="error" message={error} />
 	{/if}
 </section>

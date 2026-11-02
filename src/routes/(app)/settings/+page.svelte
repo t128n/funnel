@@ -1,12 +1,10 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import ArrowLeftIcon from '@lucide/svelte/icons/arrow-left';
 	import ExternalLinkIcon from '@lucide/svelte/icons/external-link';
 	import LogOutIcon from '@lucide/svelte/icons/log-out';
-	import * as Avatar from '#lib/components/ui/avatar';
 	import { Button } from '#lib/components/ui/button';
-	import * as Card from '#lib/components/ui/card';
 	import { signOut } from '#lib/client/auth';
+	import { ROLES } from '#lib/roles';
 	import type { PageProps } from './$types';
 
 	/**
@@ -16,9 +14,17 @@
 	 */
 	let { data }: PageProps = $props();
 
-	const initial = $derived(data.user.name.slice(0, 1).toUpperCase() || '?');
 	const githubProfile = $derived(
 		data.viewerGithub ? `${data.githubUrl}/${data.viewerGithub.login}` : null
+	);
+	const roleLabel = $derived(
+		data.user.role === ROLES[0]
+			? 'Read'
+			: data.user.role === ROLES[1]
+				? 'Write'
+				: data.user.role === ROLES[2]
+					? 'Admin'
+					: data.user.role
 	);
 
 	async function handleSignOut() {
@@ -27,65 +33,51 @@
 	}
 </script>
 
-<div class="mx-auto flex w-full max-w-3xl flex-col gap-5">
-	<header class="flex flex-col gap-1">
-		<h1 class="text-sm font-medium">Account</h1>
-		<p class="text-muted-foreground text-xs leading-relaxed">
-			Your profile and how you sign in to Funnel.
-		</p>
-	</header>
+<div class="flex w-full max-w-[var(--layout-form-max)] flex-col gap-6">
+	<section class="border-t border-border-subtle pt-4">
+		<h2 class="text-heading-sm font-semibold leading-heading-sm text-fg">Profile</h2>
 
-	<Card.Root>
-		<Card.Content class="flex flex-wrap items-center gap-4 pt-6">
-			<Avatar.Root class="size-14 shrink-0 rounded-xl">
-				{#if data.user.image}
-					<Avatar.Image src={data.user.image} alt={data.user.name} />
-				{/if}
-				<Avatar.Fallback class="rounded-xl">{initial}</Avatar.Fallback>
-			</Avatar.Root>
+		<dl class="label-value mt-4">
+			<dt>Name</dt>
+			<dd class="truncate">{data.user.name}</dd>
 
-			<div class="flex min-w-0 flex-1 flex-col gap-1">
-				<span class="truncate text-sm font-medium">{data.user.name}</span>
-				<a
-					href={`mailto:${data.user.email}`}
-					class="text-muted-foreground hover:text-foreground focus-visible:ring-ring/50 w-fit truncate rounded text-xs outline-none focus-visible:ring-2"
-				>
-					{data.user.email}
-				</a>
+			<dt>Email</dt>
+			<dd class="min-w-0">
+				<a class="link truncate" href={`mailto:${data.user.email}`}>{data.user.email}</a>
+			</dd>
 
-				{#if data.viewerGithub && githubProfile}
+			<dt>Role</dt>
+			<dd>{roleLabel}</dd>
+
+			{#if data.viewerGithub && githubProfile}
+				<dt>GitHub</dt>
+				<dd class="min-w-0">
 					<a
 						href={githubProfile}
 						target="_blank"
 						rel="noreferrer"
-						class="text-muted-foreground hover:text-foreground focus-visible:ring-ring/50 mt-0.5 inline-flex w-fit items-center gap-1.5 rounded text-xs outline-none focus-visible:ring-2"
+						class="link inline-flex min-w-0 items-center gap-1.5"
 					>
-						<Avatar.Root class="size-4 shrink-0 rounded-full">
-							<Avatar.Image src={data.viewerGithub.avatarUrl} alt="" />
-							<Avatar.Fallback class="rounded-full text-[0.5rem]">gh</Avatar.Fallback>
-						</Avatar.Root>
-						<span>@{data.viewerGithub.login}</span>
-						<ExternalLinkIcon class="size-3" />
+						<span class="truncate">@{data.viewerGithub.login}</span>
+						<ExternalLinkIcon class="size-3.5 shrink-0" aria-hidden="true" />
 					</a>
-				{/if}
-			</div>
+				</dd>
+			{/if}
+		</dl>
+	</section>
 
-			<Button
-				variant="outline"
-				size="sm"
-				class="ms-auto shrink-0"
-				onclick={() => void handleSignOut()}
-			>
+	<section class="border-t border-border-subtle pt-4">
+		<h2 class="text-heading-sm font-semibold leading-heading-sm text-fg">Session</h2>
+		<p class="mt-1 text-body leading-body text-fg-secondary">
+			Signing out ends this browser session. You can sign back in with GitHub.
+		</p>
+		<div class="mt-4">
+			<Button variant="outline" onclick={() => void handleSignOut()}>
 				<LogOutIcon />
-				Sign out
+				Sign Out
 			</Button>
-		</Card.Content>
-	</Card.Root>
+		</div>
+	</section>
 
-	<div>
-		<Button variant="ghost" size="sm" href="/issues">
-			<ArrowLeftIcon />
-			Back to cockpit
-		</Button>
-	</div>
+	<a class="link w-fit text-body" href="/issues">Back to Issues</a>
 </div>

@@ -1,22 +1,22 @@
 <script lang="ts">
+	import StatusText from '#lib/components/common/StatusText.svelte';
 	import { barPercent, formatMinutes } from '#lib/planning';
 	import type { EpicSummary } from '#lib/server/epics/queries';
+	import ProgressBar from './ProgressBar.svelte';
 
 	/**
 	 * Epic rows in the order `listEpics` returns them: open before closed.
 	 * Progress, estimate, actual and delay are rollups over resolved children.
 	 *
-	 * Each row is a Bugzilla result-table row: mono reference, 13px title,
-	 * `.flag` state and plain mono numbers. Zebra stripes and 1px rules replace
-	 * the old card border, radius and hover lift.
+	 * The list is page structure, not a card: a ruled table with a `surface-2`
+	 * header, 2.25 rem rows and right-aligned numerals. The epic cell stacks the
+	 * mono reference, title and optional milestone.
 	 */
 	interface Props {
 		epics: EpicSummary[];
 	}
 
 	let { epics }: Props = $props();
-
-	const GRID = 'grid grid-cols-[minmax(0,1fr)_5rem_4rem_4.5rem_4.5rem_4.5rem] items-center gap-2';
 
 	function href(epic: EpicSummary): string {
 		const slash = epic.repo.indexOf('/');
@@ -30,68 +30,60 @@
 	}
 </script>
 
-<div class="border border-border" data-testid="epic-list">
-	<div class={`bug-table-head ${GRID}`} aria-hidden="true">
-		<span>Epic</span>
-		<span>Status</span>
-		<span class="text-end">Progress</span>
-		<span class="text-end">Estimate</span>
-		<span class="text-end">Actual</span>
-		<span class="text-end">Delay</span>
-	</div>
-
-	{#each epics as epic (epic.ref)}
-		<a href={href(epic)} class={`epic-row group/row border-b border-border px-2 py-1.5 last:border-b-0 ${GRID}`}>
-			<span class="flex min-w-0 flex-col">
-				<span class="min-w-0 truncate text-sm">
-					<span class="mono text-muted-foreground me-2 text-xs">{epic.repo}#{epic.number}</span>
-					<span class="text-foreground">{epic.title || 'Untitled epic'}</span>
-				</span>
-				{#if epic.milestone}
-					<span class="text-muted-foreground truncate text-xs" title="Milestone">
-						{epic.milestone.title}
-						{#if epic.milestone.dueOn !== null}
-							· {dueLabel(epic.milestone.dueOn)}
-						{/if}
-					</span>
-				{/if}
-			</span>
-
-			<span class={epic.state === 'closed' ? 'flag flag-muted' : 'flag flag-warning'}>
-				{epic.state === 'closed' ? 'closed' : 'open'}
-			</span>
-
-			<span
-				class="mono text-muted-foreground text-end text-xs whitespace-nowrap"
-				title={`${barPercent(epic.closedChildCount, epic.childCount)}% complete`}
-			>
-				{epic.closedChildCount}/{epic.childCount}
-			</span>
-			<span class="mono text-end text-xs whitespace-nowrap">
-				{formatMinutes(epic.estimateMinutes)}
-			</span>
-			<span class="mono text-end text-xs whitespace-nowrap">
-				{formatMinutes(epic.actualMinutes)}
-			</span>
-			<span class="mono text-end text-xs whitespace-nowrap">
-				{formatMinutes(epic.delayMinutes)}
-			</span>
-		</a>
-	{/each}
+<div class="overflow-x-auto" data-testid="epic-list">
+	<table class="data-table">
+		<thead>
+			<tr>
+				<th>Epic</th>
+				<th>Status</th>
+				<th class="text-end">Progress</th>
+				<th class="text-end">Estimate</th>
+				<th class="text-end">Actual</th>
+				<th class="text-end">Delay</th>
+			</tr>
+		</thead>
+		<tbody>
+			{#each epics as epic (epic.ref)}
+				<tr class="relative">
+					<td class="min-w-0 py-1">
+						<a href={href(epic)} class="flex min-w-0 flex-col gap-0.5 after:absolute after:inset-0 after:content-['']">
+							<span class="flex min-w-0 items-baseline gap-2">
+								<span class="mono shrink-0 text-fg-secondary">
+									{epic.repo}#{epic.number}
+								</span>
+								<span class="min-w-0 truncate text-body text-fg">
+									{epic.title || 'Untitled epic'}
+								</span>
+							</span>
+							{#if epic.milestone}
+								<span class="truncate text-caption text-fg-secondary">
+									{epic.milestone.title}
+									{#if epic.milestone.dueOn !== null}
+										· {dueLabel(epic.milestone.dueOn)}
+									{/if}
+								</span>
+							{/if}
+						</a>
+					</td>
+					<td>
+						<StatusText status={epic.state === 'closed' ? 'done' : 'open'} state={epic.state} />
+					</td>
+					<td class="whitespace-nowrap">
+						<span class="flex items-center justify-end gap-2">
+							<span class="tabular-nums text-body text-fg-secondary">
+								{epic.closedChildCount} / {epic.childCount}
+							</span>
+							<ProgressBar
+								value={barPercent(epic.closedChildCount, epic.childCount)}
+								class="w-10"
+							/>
+						</span>
+					</td>
+					<td class="mono text-end whitespace-nowrap">{formatMinutes(epic.estimateMinutes)}</td>
+					<td class="mono text-end whitespace-nowrap">{formatMinutes(epic.actualMinutes)}</td>
+					<td class="mono text-end whitespace-nowrap">{formatMinutes(epic.delayMinutes)}</td>
+				</tr>
+			{/each}
+		</tbody>
+	</table>
 </div>
-
-<style>
-	.epic-row {
-		color: var(--foreground);
-		transition: background-color 120ms;
-	}
-
-	.epic-row:nth-of-type(even) {
-		background: color-mix(in srgb, var(--muted) 45%, transparent);
-	}
-
-	.epic-row:hover,
-	.epic-row:nth-of-type(even):hover {
-		background: var(--accent);
-	}
-</style>

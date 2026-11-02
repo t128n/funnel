@@ -1,56 +1,48 @@
 /**
- * Prose styling for rendered Markdown (SPEC §2.2).
+ * Rendered Markdown prose.
  *
- * The HTML is produced server-side by `#lib/server/markdown/render` and injected
- * with `{@html}`, so Svelte's scoped component styles cannot reach these
- * elements — they are styled globally here instead, tagged `.markdown`.
- *
- * Colors and radii come from the stock shadcn-svelte theme variables in
- * `global.css`, so the prose flips with the `.dark` class automatically.
+ * The server emits sanitized HTML and the Inspector injects it with
+ * `{@html}`, so these rules are global and tagged `.markdown`. Everything
+ * consumes the same t128n tokens as the rest of the app.
  */
 
 .markdown {
   overflow-wrap: anywhere;
   word-break: break-word;
-  line-height: 1.7;
-}
+  color: var(--color-text-primary);
+  font-family: var(--font-sans);
+  font-size: var(--font-size-body-content);
+  line-height: var(--font-leading-body-content);
 
-/* ── Mermaid diagrams (Pele) ──────────────────────────────────────────────
-   `#lib/client/mermaid` mounts a Pele diagram in place of each sanitized
-   `pre > code.language-mermaid` the server emits. Pele takes its colors and
-   fonts from CSS variables and repaints them on change, so mapping the theme
-   tokens here is what makes diagrams follow the `.dark` class. `--pele-bg`
-   doubles as text color on some filled shapes, so it must stay opaque. */
-.markdown {
-  --pele-bg: var(--background);
-  --pele-fg: var(--foreground);
-  --pele-muted: var(--muted-foreground);
-  --pele-line: var(--muted-foreground);
-  --pele-surface: var(--muted);
-  --pele-surface-alt: var(--accent);
-  --pele-border: var(--border);
-  --pele-accent: var(--primary);
-  --pele-critical: var(--destructive);
-  --pele-error: var(--destructive);
-  --pele-radius: var(--radius);
-  --pele-font: var(--font-sans, "Inter Variable", sans-serif);
-  --pele-font-mono: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
-  --pele-series-1: var(--chart-1);
-  --pele-series-2: var(--chart-2);
-  --pele-series-3: var(--chart-3);
-  --pele-series-4: var(--chart-4);
-  --pele-series-5: var(--chart-5);
-  --pele-series-6: var(--syntax-string);
+  /* Pele diagrams read their colors from these variables. */
+  --pele-bg: var(--color-canvas);
+  --pele-fg: var(--color-text-primary);
+  --pele-muted: var(--color-text-secondary);
+  --pele-line: var(--color-text-muted);
+  --pele-surface: var(--color-surface);
+  --pele-surface-alt: var(--color-surface-2);
+  --pele-border: var(--color-border-subtle);
+  --pele-accent: var(--color-primary);
+  --pele-critical: var(--color-error);
+  --pele-error: var(--color-error);
+  --pele-radius: var(--radius-md);
+  --pele-font: var(--font-sans);
+  --pele-font-mono: var(--font-mono);
+  --pele-series-1: var(--color-chart-1);
+  --pele-series-2: var(--color-chart-2);
+  --pele-series-3: var(--color-chart-3);
+  --pele-series-4: var(--color-chart-4);
+  --pele-series-5: var(--color-chart-5);
+  --pele-series-6: var(--color-chart-6);
   --pele-series-7: var(--syntax-constant);
   --pele-series-8: var(--syntax-number);
 }
 
 .markdown .pele-diagram {
-  margin: 0 0 1rem;
+  margin: 0 0 var(--space-4);
   min-width: 0;
 }
 
-/* Collapse the outer margins so the document sits flush in its pane. */
 .markdown > :first-child {
   margin-top: 0;
 }
@@ -60,7 +52,7 @@
 }
 
 .markdown p {
-  margin: 0 0 1rem;
+  margin: 0 0 var(--space-4);
 }
 
 .markdown h1,
@@ -69,51 +61,55 @@
 .markdown h4,
 .markdown h5,
 .markdown h6 {
-  margin: 1.5rem 0 0.75rem;
-  font-weight: 600;
-  line-height: 1.3;
-  color: var(--foreground);
+  margin: var(--space-5) 0 var(--space-3);
+  color: var(--color-text-primary);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--font-leading-heading-sm);
 }
 
 .markdown h1 {
-  font-size: 1.5rem;
+  font-size: var(--font-size-heading-md);
+  line-height: var(--font-leading-heading-md);
+  letter-spacing: var(--font-tracking-heading-md);
 }
 
 .markdown h2 {
-  font-size: 1.25rem;
+  font-size: var(--font-size-heading-sm);
 }
 
-.markdown h3 {
-  font-size: 1.125rem;
-}
-
+.markdown h3,
 .markdown h4,
 .markdown h5,
 .markdown h6 {
-  font-size: 1rem;
+  font-size: var(--font-size-body-content);
 }
 
 .markdown h1,
 .markdown h2 {
-  padding-bottom: 0.5rem;
-  border-bottom: 1px solid var(--border);
+  padding-bottom: var(--space-2);
+  border-bottom: 1px solid var(--color-border-subtle);
 }
 
 .markdown strong {
-  font-weight: 600;
-  color: var(--foreground);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
 }
 
 .markdown a {
-  color: var(--primary);
+  color: var(--color-primary);
   text-decoration: underline;
-  text-underline-offset: 4px;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+}
+
+.markdown a:hover {
+  color: var(--color-primary-hover);
 }
 
 .markdown ul,
 .markdown ol {
-  margin: 0 0 1rem;
-  padding-left: 1.5rem;
+  margin: 0 0 var(--space-4);
+  padding-left: var(--space-5);
 }
 
 .markdown ul {
@@ -125,67 +121,63 @@
 }
 
 .markdown li {
-  margin: 0.25rem 0;
+  margin: var(--space-1) 0;
 }
 
 .markdown li > p {
-  margin: 0 0 0.5rem;
+  margin: 0 0 var(--space-2);
 }
 
-/* GFM task lists: drop the marker and let the checkbox sit inline. */
 .markdown ul.contains-task-list {
-  padding-left: 0.5rem;
+  padding-left: var(--space-2);
   list-style: none;
 }
 
 .markdown li.task-list-item {
   display: flex;
   align-items: baseline;
-  gap: 0.5rem;
+  gap: var(--space-2);
 }
 
 .markdown li.task-list-item > input[type="checkbox"] {
-  margin: 0;
   flex: none;
-  transform: translateY(1px);
-  accent-color: var(--primary);
+  margin: 0;
+  accent-color: var(--color-primary);
 }
 
 .markdown blockquote {
-  margin: 0 0 1rem;
-  padding: 0.25rem 1rem;
-  border-left: 3px solid var(--border);
-  color: var(--muted-foreground);
+  margin: 0 0 var(--space-4);
+  padding: var(--space-1) var(--space-4);
+  border-left: 2px solid var(--color-border-strong);
+  color: var(--color-text-secondary);
 }
 
-.markdown code:not([data-slot='code-block-code']) {
-  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
-  font-size: 0.875em;
+.markdown code:not([data-slot="code-block-code"]) {
   padding: 0.1em 0.35em;
-  background: var(--muted);
-  border-radius: var(--radius);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  font-family: var(--font-mono);
+  font-size: 0.875em;
 }
 
-.markdown pre:not([data-slot='code-block-content']) {
-  margin: 0 0 1rem;
-  padding: 0.75rem 1rem;
-  background: var(--muted);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
+.markdown pre:not([data-slot="code-block-content"]) {
+  margin: 0 0 var(--space-4);
+  padding: var(--space-3) var(--space-4);
   overflow-x: auto;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
 }
 
-.markdown pre:not([data-slot='code-block-content']) code {
+.markdown pre:not([data-slot="code-block-content"]) code {
   padding: 0;
   background: none;
-  font-size: 0.8125rem;
-  line-height: 1.5;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-mono);
+  line-height: var(--font-leading-mono);
   white-space: pre;
 }
 
-/* ── Syntax highlighting ──────────────────────────────────────────────────
-   `hljs-*` token classes emitted server-side by `#lib/server/markdown/highlight`
-   are mapped onto the Islands syntax tokens so code flips with the theme. */
 .hljs-comment,
 .hljs-quote {
   color: var(--syntax-comment);
@@ -237,75 +229,76 @@
 }
 
 .hljs-strong {
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
 }
 
 .hljs-deletion {
-  color: var(--destructive);
+  color: var(--color-error);
 }
 
 .markdown kbd,
 .markdown samp {
-  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
-  font-size: 0.875em;
   padding: 0.05em 0.35em;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-size: 0.875em;
 }
 
 .markdown hr {
-  margin: 1.5rem 0;
+  margin: var(--space-5) 0;
   border: 0;
-  border-top: 1px solid var(--border);
+  border-top: 1px solid var(--color-border-subtle);
 }
 
 .markdown img {
   max-width: 100%;
   height: auto;
-  border-radius: var(--radius);
+  border-radius: var(--radius-md);
 }
 
 .markdown table {
-  margin: 0 0 1rem;
-  border-collapse: collapse;
   display: block;
   max-width: 100%;
+  margin: 0 0 var(--space-4);
   overflow-x: auto;
+  border-collapse: collapse;
+  font-size: var(--font-size-body);
 }
 
 .markdown th,
 .markdown td {
-  padding: 0.5rem 0.75rem;
-  border: 1px solid var(--border);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border-subtle);
 }
 
 .markdown thead th {
-  background: var(--muted);
-  font-weight: 600;
+  background: var(--color-surface-2);
+  font-weight: var(--font-weight-semibold);
 }
 
 .markdown details {
-  margin: 0 0 1rem;
-  padding: 0.5rem 0.75rem;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
+  margin: 0 0 var(--space-4);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
 }
 
 .markdown summary {
   cursor: pointer;
-  font-weight: 500;
-  color: var(--foreground);
+  color: var(--color-text-primary);
+  font-weight: var(--font-weight-semibold);
   user-select: none;
 }
 
 .markdown dl {
-  margin: 0 0 1rem;
+  margin: 0 0 var(--space-4);
 }
 
 .markdown dt {
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
 }
 
 .markdown dd {
-  margin: 0 0 0.5rem 1.5rem;
+  margin: 0 0 var(--space-2) var(--space-5);
 }

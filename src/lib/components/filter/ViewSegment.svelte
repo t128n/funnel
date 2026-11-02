@@ -1,10 +1,12 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
+	import { cn } from '#lib/utils';
 
 	/**
-	 * All / Mine scope switch for the Issues view, rendered as pipe-separated
-	 * text links (Bugzilla chrome carries no bordered segments).
+	 * All / Mine scope switch for the Issues view, rendered as a compact
+	 * segmented control. Selection is `surface-2` with a 600 label — never a
+	 * blue fill or a pill.
 	 *
 	 * "Mine" is not a separate route — it maps onto the `assignee=me` filter the
 	 * server already resolves to the signed-in viewer (SPEC §9.2). This control
@@ -53,14 +55,20 @@
 	}
 </script>
 
-<nav class="flex items-center gap-1.5 text-sm" aria-label="Issue view">
+<nav
+	class="inline-flex h-(--size-control-md) shrink-0 overflow-hidden rounded-sm border border-border-strong bg-canvas"
+	aria-label="Issue scope"
+>
 	{#each items as item, index (item.label)}
-		{#if index > 0}
-			<span class="text-muted-foreground" aria-hidden="true">|</span>
-		{/if}
 		<a
 			href={item.href}
-			class={item.active ? 'link font-semibold' : 'text-muted-foreground hover:underline'}
+			class={cn(
+				'inline-flex items-center px-3 text-body',
+				index > 0 && 'border-l border-border-subtle',
+				item.active
+					? 'bg-surface-2 font-semibold text-fg'
+					: 'text-fg-secondary hover:bg-surface hover:text-fg'
+			)}
 			aria-current={item.active ? 'page' : undefined}
 			onclick={(event) => select(event, item)}
 		>

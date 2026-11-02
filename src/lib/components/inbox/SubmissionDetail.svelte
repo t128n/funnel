@@ -2,11 +2,12 @@
 	import { untrack } from 'svelte';
 	import { enhance } from '$app/forms';
 	import Spinner from '#lib/components/common/Spinner.svelte';
-	import IntakeTag from '#lib/components/common/IntakeTag.svelte';
 	import SingleSelect from '#lib/components/common/SingleSelect.svelte';
 	import DetailShell from '#lib/components/detail/DetailShell.svelte';
 	import DuplicateDialog from '#lib/components/inbox/DuplicateDialog.svelte';
 	import { Button } from '#lib/components/ui/button';
+	import * as Dialog from '#lib/components/ui/dialog';
+	import * as Field from '#lib/components/ui/field';
 	import { SIZE_OPTIONS, labelTint } from '#lib/labels';
 	import { removeSubmission, restoreSubmission } from '#lib/client/optimistic.svelte';
 	import { clearSelection } from '#lib/client/selection.svelte';
@@ -14,15 +15,16 @@
 	import { absoluteTime } from '#lib/time';
 	import type { RenderedSubmission } from '#lib/server/issues/types';
 	import GitBranchIcon from '@lucide/svelte/icons/git-branch';
+	import InboxIcon from '@lucide/svelte/icons/inbox';
 	import RulerIcon from '@lucide/svelte/icons/ruler';
 	import XIcon from '@lucide/svelte/icons/x';
 
 	/**
-	 * Document-style detail pane for a staged intake submission (SPEC §6.2).
-	 * Mirrors the Inspector Pane: a two-line header (identity + source, title,
-	 * meta), a borderless description, a pill property strip, and triage actions
-	 * pinned at the base. The accept / dismiss / duplicate forms post to the
-	 * Inbox page actions.
+	 * Document pane for a staged intake submission (SPEC §6.2). A compact
+	 * status line (icon + word), the submission title, its source and received
+	 * time, borderless prose, and the three triage decisions. The accept,
+	 * duplicate and dismiss forms post to this route's actions; destructive
+	 * dismiss is confirmed by name first.
 	 */
 	interface Props {
 		submission: RenderedSubmission;
@@ -34,6 +36,8 @@
 
 	type Pending = 'accept' | 'dismiss' | null;
 	let pending = $state<Pending>(null);
+	let confirmingDismiss = $state(false);
+	let dismissForm: HTMLFormElement | undefined = $state();
 
 	let acceptRepo = $state(untrack(() => defaultRepo || repos[0] || ''));
 	let size = $state('');
@@ -51,7 +55,7 @@
 	 * the SSE reconciliation and flicker the queue. The row was already removed
 	 * optimistically, so success only needs to clear the selection; a failure
 	 * restores the row (the pane stayed open throughout). The Inbox's inline
-	 * `formError` alert surfaces the reason, with or without JavaScript.
+	 * `formError` status surfaces the reason, with or without JavaScript.
 	 */
 	async function settle(
 		result: { type: string },
@@ -65,6 +69,11 @@
 		}
 		restoreSubmission(submission.id);
 	}
+
+	function confirmDismiss() {
+		confirmingDismiss = false;
+		dismissForm?.requestSubmit();
+	}
 </script>
 
 <DetailShell
@@ -74,29 +83,32 @@
 >
 	{#snippet header()}
 		<div class="flex min-w-0 flex-1 flex-col gap-1 py-0.5">
-			<div class="flex min-w-0 items-center gap-2">
-				<IntakeTag />
+			<div class="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5">
+				<span class="status status-muted">
+					<InboxIcon aria-hidden="true" />
+					<span>Staged submission</span>
+				</span>
 				{#if submission.source}
-					<span
-						class="mono text-muted-foreground min-w-0 truncate text-sm font-medium"
-						title={submission.source}
-					>
+					<span class="mono min-w-0 truncate text-caption text-fg-secondary" title={submission.source}>
 						{submission.source}
 					</span>
 				{/if}
-				<h1
-					class="min-w-0 flex-1 truncate text-xl leading-tight font-semibold tracking-tight"
-					title={submission.title}
-				>
-					{submission.title}
-				</h1>
 			</div>
-			<div class="text-muted-foreground flex min-w-0 items-center gap-1.5 text-xs">
-				<span class="shrink-0">Staged</span>
-				<span aria-hidden="true">·</span>
-				<span class="shrink-0" title={absoluteTime(submission.createdAt)}>
+			<h1
+				class="min-w-0 truncate text-heading-sm font-semibold leading-heading-sm tracking-[-0.01em] text-fg"
+				title={submission.title}
+			>
+				{submission.title.trim() || 'Untitled submission'}
+			</h1>
+			<div class="flex min-w-0 items-center gap-1.5 text-caption text-fg-secondary">
+				<span class="shrink-0">Received</span>
+				<time
+					class="shrink-0 tabular-nums"
+					datetime={new Date(submission.createdAt).toISOString()}
+					title={absoluteTime(submission.createdAt)}
+				>
 					{timeAgo(submission.createdAt)}
-				</span>
+				</time>
 			</div>
 		</div>
 		<Button
@@ -112,49 +124,56 @@
 
 	<section class="flex flex-col" aria-label="Description">
 		{#if submission.body.trim().length > 0}
-			<div class="markdown text-foreground text-sm leading-relaxed">{@html submission.bodyHtml}</div>
+			<div class="markdown">{@html submission.bodyHtml}</div>
 		{:else}
-			<div class="text-muted-foreground text-sm">No description provided.</div>
+			<p class="text-body text-fg-secondary">No description provided.</p>
 		{/if}
 	</section>
 
-	<section class="flex flex-wrap items-center gap-1.5" aria-label="Triage">
-		{#if repoOptions.length > 0}
-			<SingleSelect
-				variant="pill"
-				label="Repository"
-				options={repoOptions}
-				value={acceptRepo}
-				onselect={(value) => (acceptRepo = value ?? '')}
-				disabled={pending !== null}
-			>
-				{#snippet icon()}
-					<GitBranchIcon class="size-3.5" />
-				{/snippet}
-			</SingleSelect>
-		{/if}
+	<section class="flex flex-col gap-3 border-t border-border-subtle pt-4" aria-label="Triage">
+		<div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+			{#if repoOptions.length > 0}
+				<Field.Field>
+					<Field.Label>Repository</Field.Label>
+					<SingleSelect
+						label="Repository"
+						options={repoOptions}
+						value={acceptRepo}
+						onselect={(value) => (acceptRepo = value ?? '')}
+						disabled={pending !== null}
+					>
+						{#snippet icon()}
+							<GitBranchIcon class="size-4" />
+						{/snippet}
+					</SingleSelect>
+				</Field.Field>
+			{/if}
 
-		<SingleSelect
-			variant="pill"
-			label="No size"
-			options={SIZE_OPTIONS}
-			value={size || null}
-			onselect={(value) => (size = value ?? '')}
-			allowClear
-			disabled={pending !== null}
-		>
-			{#snippet icon()}
-				<RulerIcon class="size-3.5" style={labelTint(size)} />
-			{/snippet}
-		</SingleSelect>
+			<Field.Field>
+				<Field.Label>Size</Field.Label>
+				<SingleSelect
+					label="No size"
+					options={SIZE_OPTIONS}
+					value={size || null}
+					onselect={(value) => (size = value ?? '')}
+					allowClear
+					disabled={pending !== null}
+				>
+					{#snippet icon()}
+						<RulerIcon class="size-4" style={labelTint(size)} />
+					{/snippet}
+				</SingleSelect>
+			</Field.Field>
+		</div>
 	</section>
 
 	{#snippet footer()}
 		<div class="flex flex-wrap items-center justify-between gap-2">
-			<div class="flex items-center gap-1">
+			<div class="flex flex-wrap items-center gap-2">
 				<form
 					method="POST"
 					action="?/dismiss"
+					bind:this={dismissForm}
 					use:enhance={() => {
 						pending = 'dismiss';
 						begin();
@@ -164,13 +183,23 @@
 					}}
 				>
 					<input type="hidden" name="id" value={submission.id} />
-					<Button variant="outline" size="sm" type="submit" disabled={pending !== null}>
+					<Button
+						variant="destructive"
+						size="sm"
+						type="submit"
+						disabled={pending !== null}
+						onclick={(event) => {
+							if (confirmingDismiss) return;
+							event.preventDefault();
+							confirmingDismiss = true;
+						}}
+					>
 						{#if pending === 'dismiss'}
 							<span data-icon="inline-start" class="inline-flex items-center">
 								<Spinner size={12} />
 							</span>
 						{/if}
-						Dismiss
+						Dismiss submission
 					</Button>
 				</form>
 
@@ -180,7 +209,7 @@
 					onclick={() => (duplicating = true)}
 					disabled={pending !== null}
 				>
-					Duplicate
+					Mark duplicate
 				</Button>
 			</div>
 
@@ -204,7 +233,7 @@
 							<Spinner size={12} />
 						</span>
 					{/if}
-					Accept
+					Triage as issue
 				</Button>
 			</form>
 		</div>
@@ -223,3 +252,32 @@
 		else restoreSubmission(submission.id);
 	}}
 />
+
+<Dialog.Root
+	open={confirmingDismiss}
+	onOpenChange={(open) => {
+		if (pending === null) confirmingDismiss = open;
+	}}
+>
+	<Dialog.Content aria-describedby={undefined} class="sm:max-w-md">
+		<Dialog.Header>
+			<Dialog.Title>Dismiss submission?</Dialog.Title>
+			<Dialog.Description>
+				This removes “{submission.title.trim() || 'Untitled submission'}” from the intake queue.
+				The submission cannot be recovered.
+			</Dialog.Description>
+		</Dialog.Header>
+		<Dialog.Footer>
+			<Dialog.Close type="button">
+				{#snippet child({ props })}
+					<Button variant="outline" {...props} type="button" disabled={pending !== null}>
+						Keep submission
+					</Button>
+				{/snippet}
+			</Dialog.Close>
+			<Button variant="destructive" onclick={confirmDismiss} disabled={pending !== null}>
+				Dismiss submission
+			</Button>
+		</Dialog.Footer>
+	</Dialog.Content>
+</Dialog.Root>

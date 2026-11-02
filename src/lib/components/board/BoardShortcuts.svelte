@@ -32,22 +32,20 @@
 
 <Popover.Root>
 	<Popover.Trigger
-		class="text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:ring-ring/50 inline-flex size-7 items-center justify-center rounded outline-none focus-visible:ring-1"
+		class="inline-flex size-(--size-control-sm) items-center justify-center rounded-sm text-fg-secondary hover:bg-surface hover:text-fg"
 		aria-label="Keyboard shortcuts"
 	>
-		<KeyboardIcon class="size-3.5" />
+		<KeyboardIcon class="size-4" />
 	</Popover.Trigger>
-	<Popover.Content align="end" class="w-64 gap-2 p-2">
-		<span class="text-muted-foreground text-xs font-medium tracking-wider uppercase">
-			Keyboard
-		</span>
+	<Popover.Content align="end" class="w-72">
+		<span class="text-caption font-semibold text-fg-secondary">Keyboard shortcuts</span>
 		<ul class="flex flex-col gap-1.5">
 			{#each rows as row (row.label)}
 				<li class="flex items-center justify-between gap-3">
-					<span class="text-xs">{row.label}</span>
+					<span class="text-body">{row.label}</span>
 					<KbdGroup class="gap-1">
 						{#each row.keys as key (key)}
-							<Kbd class="h-4 min-w-4 px-1 text-[10px]">{displayKey(key)}</Kbd>
+							<Kbd>{displayKey(key)}</Kbd>
 						{/each}
 					</KbdGroup>
 				</li>

@@ -1,17 +1,19 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
-	import { goto } from '$app/navigation';
+	import { beforeNavigate, goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import { onDestroy, onMount, tick, untrack } from 'svelte';
-	import { toast } from 'svelte-sonner';
-	import Spinner from '#lib/components/common/Spinner.svelte';
-	import IntakeTag from '#lib/components/common/IntakeTag.svelte';
+	import CircleAlertIcon from '@lucide/svelte/icons/circle-alert';
+	import CircleCheckIcon from '@lucide/svelte/icons/circle-check';
+	import CopyIcon from '@lucide/svelte/icons/copy';
+	import LinkIcon from '@lucide/svelte/icons/link';
+	import FocusedShell from '#lib/components/onboarding/focused-shell.svelte';
+	import InlineStatus from '#lib/components/common/InlineStatus.svelte';
 	import PageHead from '#lib/components/common/PageHead.svelte';
-	import SingleSelect from '#lib/components/common/SingleSelect.svelte';
-	import * as Alert from '#lib/components/ui/alert';
 	import { Button } from '#lib/components/ui/button';
+	import * as Field from '#lib/components/ui/field';
 	import { Input } from '#lib/components/ui/input';
-	import * as Kbd from '#lib/components/ui/kbd';
+	import * as NativeSelect from '#lib/components/ui/native-select';
 	import { Textarea } from '#lib/components/ui/textarea';
 	import { encodeSubmitDeeplinkQuery } from '#lib/client/intake-deeplink';
 	import {
@@ -21,12 +23,6 @@
 		INTAKE_TITLE_MAX,
 		normalizeIntakeSource
 	} from '#lib/intake-prefill';
-	import CheckIcon from '@lucide/svelte/icons/check';
-	import CircleAlertIcon from '@lucide/svelte/icons/circle-alert';
-	import CircleCheckIcon from '@lucide/svelte/icons/circle-check';
-	import CopyIcon from '@lucide/svelte/icons/copy';
-	import FunnelIcon from '@lucide/svelte/icons/funnel';
-	import LinkIcon from '@lucide/svelte/icons/link';
 	import type { PageProps } from './$types';
 
 	/**
@@ -47,6 +43,8 @@
 	let titleEl = $state<HTMLElement | null>(null);
 	let bodyEl = $state<HTMLElement | null>(null);
 	let successEl = $state<HTMLHeadingElement | null>(null);
+	let copyMessage = $state<string | null>(null);
+	let copyFailed = $state(false);
 
 	// Initial values only; the effect below keeps them in step with the action
 	// result and same-route navigations.
@@ -54,6 +52,11 @@
 	let body = $state(untrack(() => form?.body ?? data.prefill.body));
 	let source = $state(
 		untrack(() => normalizeIntakeSource(form?.source ?? data.prefill.source))
+	);
+
+	const submitted = $derived(Boolean(form?.submitted));
+	const submittedRef = $derived(
+		(form as { submitted?: boolean; ref?: string } | null)?.ref ?? null
 	);
 
 	// The strip marks a shared prefilled link. It follows the loaded prefill
@@ -65,7 +68,15 @@
 	const showCounter = $derived(titleLength >= INTAKE_TITLE_MAX - 56);
 	const hasContent = $derived(Boolean(title.trim() || body.trim() || source));
 
-	/** Keep unknown prefill sources selectable instead of silently dropping them. */
+	const titleError = $derived(form?.error && !title.trim() ? form.error : null);
+	const bodyError = $derived(
+		form?.error && body.length > INTAKE_BODY_MAX ? form.error : null
+	);
+	const formError = $derived(
+		form?.error && !titleError && !bodyError ? form.error : null
+	);
+
+	/** Resolve canonical source labels and keep unknown prefill values intact. */
 	const sourceOptions = $derived.by((): { value: string; label: string }[] => {
 		const options: { value: string; label: string }[] = INTAKE_SOURCES.map((option) => ({
 			...option
@@ -77,6 +88,10 @@
 
 		return options;
 	});
+
+	const sourceLabel = $derived(
+		sourceOptions.find((option) => option.value === source)?.label ?? source
+	);
 
 	/**
 	 * Follow server-provided values on action failures and same-route
@@ -130,23 +145,47 @@
 		return () => el.removeEventListener('keydown', onKeydown);
 	});
 
+	/**
+	 * Warn before leaving a dirty draft. Same-path navigations are the page's
+	 * own URL mirroring; they must never prompt.
+	 */
+	beforeNavigate(({ cancel, to }) => {
+		if (!dirty || !hasContent || submitted || submitting) return;
+		if (to?.url.pathname === page.url.pathname) return;
+		if (!window.confirm('Discard this draft?')) cancel();
+	});
+
 	/** Move focus into the composer when the page is opened for writing. */
 	onMount(() => {
 		isMac = /Mac|iPhone|iPad|iPod/.test(navigator.userAgent);
 
-		if (form?.submitted || form?.error) return;
-		if (!window.matchMedia('(pointer: fine)').matches) return;
+		const onBeforeUnload = (event: BeforeUnloadEvent) => {
+			if (!dirty || !hasContent || submitted) return;
+			event.preventDefault();
+			event.returnValue = '';
+		};
+		window.addEventListener('beforeunload', onBeforeUnload);
+
+		if (form?.submitted || form?.error) {
+			return () => window.removeEventListener('beforeunload', onBeforeUnload);
+		}
+		if (!window.matchMedia('(pointer: fine)').matches) {
+			return () => window.removeEventListener('beforeunload', onBeforeUnload);
+		}
 
 		if (title.length > 0) {
 			const el = bodyEl;
-			if (!el) return;
-			el.focus();
-			if (el instanceof HTMLTextAreaElement) {
-				el.setSelectionRange(el.value.length, el.value.length);
+			if (el) {
+				el.focus();
+				if (el instanceof HTMLTextAreaElement) {
+					el.setSelectionRange(el.value.length, el.value.length);
+				}
 			}
 		} else {
 			titleEl?.focus();
 		}
+
+		return () => window.removeEventListener('beforeunload', onBeforeUnload);
 	});
 
 	/** The form unmounts on success; keep keyboard focus and announcement intact. */
@@ -195,14 +234,25 @@
 		});
 	}
 
+	function showCopyMessage(message: string, failed = false) {
+		copyMessage = message;
+		copyFailed = failed;
+		clearTimeout(copyTimeout);
+		copyTimeout = setTimeout(() => {
+			copyMessage = null;
+			copyFailed = false;
+		}, 3000);
+	}
+
 	/** Copy a shareable link that reopens the composer with the current values. */
 	async function copyDeeplink() {
 		const query = await encodeSubmitDeeplinkQuery({ title, body, source });
 		if (!query) {
-			toast.error(
+			showCopyMessage(
 				hasContent
 					? 'This submission is too large to share as a link.'
-					: 'Add a title, description, or source first.'
+					: 'Add a title, description, or source first.',
+				true
 			);
 			return;
 		}
@@ -214,9 +264,20 @@
 			await navigator.clipboard.writeText(url.toString());
 			copied = true;
 			clearTimeout(copyTimeout);
-			copyTimeout = setTimeout(() => (copied = false), 2000);
+			copyTimeout = setTimeout(() => (copied = false), 3000);
+			showCopyMessage('Draft link copied.');
 		} catch {
-			toast.error("Couldn't copy the link.");
+			showCopyMessage("Couldn't copy the link.", true);
+		}
+	}
+
+	/** Success action: copy the URL that holds the staged submission. */
+	async function copyCurrentLink() {
+		try {
+			await navigator.clipboard.writeText(window.location.href);
+			showCopyMessage('Link copied.');
+		} catch {
+			showCopyMessage("Couldn't copy the link.", true);
 		}
 	}
 
@@ -224,252 +285,233 @@
 </script>
 
 <PageHead
-	title={form?.submitted ? 'Submission received' : 'Submit an issue'}
+	title={submitted ? 'Issue Submitted' : 'Submit an Issue'}
 	description="Submit an issue for triage. Nothing is created on GitHub until it is accepted."
 />
 
-<main
-	class="surface-shell bg-[color:var(--background)] flex min-h-svh items-center justify-center p-4 sm:p-6"
-	aria-labelledby="submit-heading"
->
-	<div class="w-full max-w-2xl">
-		<div
-			class="bg-[color:var(--card)] border-[color:var(--border)] overflow-hidden rounded border shadow-sm dark:shadow-none"
-		>
-			<header
-				class="border-[color:var(--border)] flex h-11 items-center gap-2 border-b px-4"
-			>
-				<span
-					class="bg-primary text-primary-foreground inline-flex size-5 shrink-0 items-center justify-center rounded-md"
-				>
-					<FunnelIcon class="size-3" />
-				</span>
-				<span
-					class="text-muted-foreground text-[11px] font-medium tracking-tight dark:text-[#9ca3af]"
-				>
-					Funnel
-				</span>
-				<span class="text-muted-foreground/50 dark:text-[#6b6e76]" aria-hidden="true">/</span>
-				<h1
-					id="submit-heading"
-					class="text-foreground truncate text-[13px] font-medium tracking-tight dark:text-[#f3f4f6]"
-				>
-					{form?.submitted ? 'Submission received' : 'New submission'}
-				</h1>
-				<span class="ml-auto flex shrink-0 items-center gap-1">
-					<Button
-						variant="ghost"
-						size="icon-sm"
-						title="Copy deeplink"
-						aria-label="Copy deeplink"
-						disabled={!hasContent}
-						onclick={copyDeeplink}
-						class="focus-visible:outline-[color:var(--primary)] focus-visible:ring-0 focus-visible:outline focus-visible:outline-[1.5px] focus-visible:outline-offset-2"
+<FocusedShell>
+	{#if submitted}
+		<section class="flex flex-col gap-4" role="status">
+			<div class="flex flex-wrap items-start gap-3">
+				<CircleCheckIcon class="mt-0.5 size-5 shrink-0 text-success" aria-hidden="true" />
+				<div class="flex min-w-0 flex-col gap-2">
+					<h1
+						bind:this={successEl}
+						tabindex="-1"
+						class="break-words text-heading-md font-semibold leading-heading-md text-fg outline-none"
 					>
-						{#if copied}
-							<CheckIcon class="size-3.5" />
-						{:else}
-							<CopyIcon class="size-3.5" />
-						{/if}
-					</Button>
-					<IntakeTag />
-				</span>
-				<span class="sr-only" aria-live="polite">{copied ? 'Deeplink copied' : ''}</span>
-			</header>
-
-			{#if form?.submitted}
-				<div class="flex flex-col gap-4 px-4 py-5 sm:px-5" role="status">
-					<div class="flex items-start gap-3">
-						<span
-							class="bg-success/10 text-success mt-0.5 inline-flex size-7 shrink-0 items-center justify-center rounded-md"
-						>
-							<CircleCheckIcon class="size-4" />
-						</span>
-						<div class="flex min-w-0 flex-col gap-1">
-							<h2
-								bind:this={successEl}
-								tabindex="-1"
-								class="text-foreground text-sm font-medium tracking-tight outline-none dark:text-[#f3f4f6]"
-							>
-								Thanks — your submission is in.
-							</h2>
-							<p
-								class="text-muted-foreground text-[13px] leading-relaxed dark:text-[#9ca3af]"
-							>
-								A triager will review it shortly. Nothing is created on GitHub until it's accepted,
-								so there's nothing else you need to do.
-							</p>
-						</div>
-					</div>
+						Issue Submitted
+					</h1>
+					<p class="text-body leading-body text-fg-secondary">
+						Your submission is staged for triage. Nothing is created on GitHub until a triager
+						accepts it.
+					</p>
 				</div>
-				<footer
-					class="border-[color:var(--border)] flex items-center justify-end border-t px-4 py-3"
-				>
-					<Button
-						href="/intake"
-						class="focus-visible:outline-[color:var(--primary)] focus-visible:ring-0 focus-visible:outline focus-visible:outline-[1.5px] focus-visible:outline-offset-2"
-					>
-						Submit another
-					</Button>
-				</footer>
-			{:else}
-				<form
-					bind:this={formEl}
-					method="POST"
-					autocomplete="off"
-					aria-labelledby="submit-heading"
-					use:enhance={() => {
-						submitting = true;
-						return async ({ update }) => {
-							try {
-								await update();
-							} finally {
-								submitting = false;
-							}
-						};
-					}}
-				>
-					{#if showPrefillStrip}
-						<div
-							class="border-[color:var(--border)] text-muted-foreground flex h-8 items-center gap-1.5 border-b px-4 text-xs dark:text-[#9ca3af]"
-						>
-							<LinkIcon class="size-3 shrink-0" aria-hidden="true" />
-							<span>Prefilled from link</span>
-							<a
-								href="/intake"
-								class="hover:text-foreground focus-visible:outline-[color:var(--primary)] ml-auto rounded px-1.5 py-1 underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-[1.5px] focus-visible:outline-offset-2 dark:hover:text-[#f3f4f6]"
-							>
-								Clear
-							</a>
-						</div>
-					{/if}
+			</div>
 
-					<!-- Seamless writing canvas: no interior borders, one shared left edge. -->
-					<div class="flex flex-col gap-0.5 px-3 pt-2.5 pb-2 sm:px-4">
-						{#if form?.error}
-							<Alert.Root
-								id="submit-error"
-								variant="destructive"
-								class="border-destructive/25 bg-destructive/5 mb-2"
-							>
-								<CircleAlertIcon />
-								<Alert.Title>Couldn't submit</Alert.Title>
-								<Alert.Description>{form.error}</Alert.Description>
-							</Alert.Root>
-						{/if}
+			<dl class="label-value max-sm:grid-cols-[auto_1fr]">
+				{#if submittedRef}
+					<dt>Reference</dt>
+					<dd><span class="mono">{submittedRef}</span></dd>
+				{/if}
+				<dt>Status</dt>
+				<dd>
+					<span class="status status-success whitespace-normal">
+						<CircleCheckIcon aria-hidden="true" />
+						Staged for triage
+					</span>
+				</dd>
+				{#if source}
+					<dt>Source</dt>
+					<dd>
+						<span class="min-w-0 break-words">{sourceLabel}</span>
+					</dd>
+				{/if}
+			</dl>
 
-						<div class="relative">
-							<label class="sr-only" for="submission-title">Issue title</label>
-							<Input
-								bind:ref={titleEl}
-								bind:value={title}
-								id="submission-title"
-								name="title"
-								type="text"
-								required
-								maxlength={INTAKE_TITLE_MAX}
-								placeholder="Issue title"
-								aria-invalid={form?.error ? true : undefined}
-								aria-errormessage={form?.error ? 'submit-error' : undefined}
-								onkeydown={onTitleKeydown}
-								oninput={markDirty}
-								class="[@media(hover:hover)]:hover:bg-[color:var(--accent)] focus-visible:outline-[color:var(--primary)] h-auto rounded-md border-transparent bg-transparent px-2 py-1.5 text-lg font-medium tracking-tight shadow-none transition-colors duration-150 ease-out placeholder:text-muted-foreground focus-visible:border-transparent focus-visible:ring-0 focus-visible:outline focus-visible:outline-[1.5px] focus-visible:outline-offset-2 md:text-lg dark:bg-transparent dark:text-[#f3f4f6] dark:placeholder:text-[#6b6e76] {showCounter
-									? 'pr-16'
-									: ''}"
-							/>
-							{#if showCounter}
-								<span
-									class="mono text-muted-foreground pointer-events-none absolute top-1/2 right-2 -translate-y-1/2 text-[10px] tabular-nums dark:text-[#9ca3af]"
-									aria-hidden="true"
-								>
-									{titleLength}/{INTAKE_TITLE_MAX}
-								</span>
-							{/if}
-						</div>
-
-						<div class="relative">
-							<label class="sr-only" for="submission-body">Description</label>
-							<Textarea
-								bind:ref={bodyEl}
-								bind:value={body}
-								id="submission-body"
-								name="body"
-								maxlength={INTAKE_BODY_MAX}
-								placeholder="Add a description…"
-								oninput={markDirty}
-								class="focus-visible:outline-[color:var(--primary)] min-h-44 resize-none rounded-md border-transparent bg-transparent px-2 py-2 text-base leading-relaxed shadow-none transition-colors duration-150 ease-out placeholder:text-muted-foreground focus-visible:border-transparent focus-visible:ring-0 focus-visible:outline focus-visible:outline-[1.5px] focus-visible:outline-offset-2 md:text-sm dark:bg-transparent dark:text-[#d4d6db] dark:placeholder:text-[#6b6e76]"
-							></Textarea>
-						</div>
-					</div>
-
-					<footer
-						class="border-[color:var(--border)] flex flex-wrap items-center justify-between gap-2 border-t px-3 py-2 sm:px-4"
-					>
-						<!--
-							The SingleSelect is JavaScript-only; the hidden input keeps the
-							source in the payload for the no-JS path (where it stays empty).
-						-->
-						<div
-							class="flex min-w-0 items-center [&_[data-slot=select-trigger]]:focus-visible:ring-0 [&_[data-slot=select-trigger]]:focus-visible:outline [&_[data-slot=select-trigger]]:focus-visible:outline-[1.5px] [&_[data-slot=select-trigger]]:focus-visible:outline-offset-2 [&_[data-slot=select-trigger]]:focus-visible:outline-[color:var(--primary)]"
-						>
-							<input type="hidden" name="source" value={source} />
-							<SingleSelect
-								variant="pill"
-								label="Add source…"
-								options={sourceOptions}
-								value={source || null}
-								onselect={(value) => {
-									source = value ?? '';
-									markDirty();
-								}}
-								allowClear
-								clearLabel="No source"
-								disabled={submitting}
-							>
-								{#snippet icon()}
-									<LinkIcon class="size-3.5" />
-								{/snippet}
-							</SingleSelect>
-						</div>
-
-						<div class="ml-auto flex items-center gap-3">
-							<span class="text-muted-foreground hidden text-[11px] dark:text-[#9ca3af] sm:inline">
-								Markdown supported
-							</span>
-							<Button
-								type="submit"
-								disabled={submitting}
-								aria-busy={submitting}
-								aria-keyshortcuts="Meta+Enter Control+Enter"
-								class="focus-visible:outline-[color:var(--primary)] active:scale-[0.98] focus-visible:ring-0 focus-visible:outline focus-visible:outline-[1.5px] focus-visible:outline-offset-2"
-							>
-								Submit
-								<span class="inline-flex h-4 w-7 items-center justify-center">
-									{#if submitting}
-										<Spinner size={11} label="Submitting" />
-									{:else}
-										<Kbd.Root
-											class="border-primary-foreground/30 text-primary-foreground/80 h-4 min-w-4 border bg-transparent px-1 text-[0.625rem] leading-none font-normal"
-											aria-hidden="true"
-										>
-											{isMac ? '⌘' : 'Ctrl'}↵
-										</Kbd.Root>
-									{/if}
-								</span>
-							</Button>
-						</div>
-					</footer>
-				</form>
-			{/if}
+			<div class="flex flex-wrap items-center gap-2">
+				<Button onclick={() => void copyCurrentLink()}>
+					<CopyIcon />
+					Copy Link
+				</Button>
+				<Button variant="outline" href="/intake">Submit Another</Button>
+			</div>
+			<p class="min-h-4 text-caption" aria-live="polite">
+				{#if copyMessage}
+					<span class="status" class:status-error={copyFailed} class:status-success={!copyFailed}>
+						{copyMessage}
+					</span>
+				{/if}
+			</p>
+		</section>
+	{:else}
+		<div class="flex flex-col gap-2">
+			<h1 class="text-heading-md font-semibold leading-heading-md text-fg">Submit an Issue</h1>
+			<p class="max-w-[var(--layout-measure)] text-body leading-body text-fg-secondary">
+				Your submission goes to the intake queue for triage. Nothing is created on GitHub
+				until it is accepted.
+			</p>
 		</div>
 
-		<p class="text-muted-foreground mt-4 text-center text-[11px] dark:text-[#9ca3af]">
-			Funnel v{__APP_VERSION__}. <a
-				href="/login"
-				class="hover:text-foreground focus-visible:outline-[color:var(--primary)] rounded underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-[1.5px] focus-visible:outline-offset-2 dark:hover:text-[#f3f4f6]"
+		{#if showPrefillStrip}
+			<div
+				class="flex flex-wrap items-center gap-2 border-y border-border-subtle py-2 text-caption text-fg-secondary"
 			>
-				Login
-			</a>
-		</p>
-	</div>
-</main>
+				<span class="flex min-w-0 items-center gap-2">
+					<LinkIcon class="size-4 shrink-0" aria-hidden="true" />
+					<span>Prefilled from a shared link</span>
+				</span>
+				<a href="/intake" class="link ms-auto" onclick={() => (dirty = false)}>Clear</a>
+			</div>
+		{/if}
+
+		<form
+			bind:this={formEl}
+			method="POST"
+			autocomplete="off"
+			class="flex flex-col gap-6"
+			use:enhance={() => {
+				submitting = true;
+				copyMessage = null;
+				copyFailed = false;
+				copied = false;
+				return async ({ update }) => {
+					try {
+						await update();
+					} finally {
+						submitting = false;
+					}
+				};
+			}}
+		>
+			{#if formError}
+				<InlineStatus tone="error" message={formError} />
+			{/if}
+
+			<Field.Field data-invalid={titleError ? true : undefined}>
+				<div class="flex items-baseline justify-between gap-3">
+					<Field.Label for="submission-title">Title</Field.Label>
+					{#if showCounter}
+						<span class="mono text-caption text-fg-muted" aria-hidden="true">
+							{titleLength}/{INTAKE_TITLE_MAX}
+						</span>
+					{/if}
+				</div>
+				<Input
+					bind:ref={titleEl}
+					bind:value={title}
+					id="submission-title"
+					name="title"
+					type="text"
+					required
+					maxlength={INTAKE_TITLE_MAX}
+					placeholder="A short summary of the problem"
+					aria-invalid={titleError ? true : undefined}
+					aria-describedby={titleError ? 'submission-title-error' : undefined}
+					onkeydown={onTitleKeydown}
+					oninput={markDirty}
+				/>
+				{#if titleError}
+					<p
+						id="submission-title-error"
+						class="flex items-center gap-1 text-caption text-error"
+						role="alert"
+					>
+						<CircleAlertIcon class="size-4 shrink-0" aria-hidden="true" />
+						{titleError}
+					</p>
+				{/if}
+			</Field.Field>
+
+			<Field.Field data-invalid={bodyError ? true : undefined}>
+				<Field.Label for="submission-body">Description</Field.Label>
+				<Textarea
+					bind:ref={bodyEl}
+					bind:value={body}
+					id="submission-body"
+					name="body"
+					maxlength={INTAKE_BODY_MAX}
+					rows={8}
+					class="min-h-40"
+					placeholder="What happened, what you expected, and anything that would help a triager."
+					aria-invalid={bodyError ? true : undefined}
+					aria-describedby={bodyError ? 'submission-body-error' : undefined}
+					oninput={markDirty}
+				/>
+				{#if bodyError}
+					<p
+						id="submission-body-error"
+						class="flex items-center gap-1 text-caption text-error"
+						role="alert"
+					>
+						<CircleAlertIcon class="size-4 shrink-0" aria-hidden="true" />
+						{bodyError}
+					</p>
+				{/if}
+			</Field.Field>
+
+			{#if source}
+				<p class="break-words text-body leading-body text-fg-secondary">
+					Source: <span class="text-fg">{sourceLabel}</span>
+				</p>
+				<input type="hidden" name="source" value={source} />
+			{:else}
+				<Field.Field>
+					<Field.Label for="submission-source">Source</Field.Label>
+					<NativeSelect.Root
+						id="submission-source"
+						name="source"
+						bind:value={source}
+						onchange={markDirty}
+					>
+						<NativeSelect.Option value="">No source</NativeSelect.Option>
+						{#each sourceOptions as option (option.value)}
+							<NativeSelect.Option value={option.value}>{option.label}</NativeSelect.Option>
+						{/each}
+					</NativeSelect.Root>
+					<Field.Description>Where this request came from.</Field.Description>
+				</Field.Field>
+			{/if}
+
+			<footer class="flex flex-wrap items-center justify-between gap-3 border-t border-border-subtle pt-4">
+				<div class="flex min-w-0 flex-wrap items-center gap-2">
+					<Button
+						type="button"
+						variant="ghost"
+						size="xs"
+						onclick={copyDeeplink}
+						disabled={!hasContent}
+					>
+						<CopyIcon />
+						{copied ? 'Copied' : 'Copy Draft Link'}
+					</Button>
+					<p class="min-h-4 min-w-0 text-caption" aria-live="polite">
+						{#if copyMessage}
+							<span
+								class="status"
+								class:status-error={copyFailed}
+								class:status-success={!copyFailed}
+							>
+								{copyMessage}
+							</span>
+						{/if}
+					</p>
+				</div>
+				<div class="flex min-w-0 flex-wrap items-center justify-end gap-3">
+					<span class="text-caption text-fg-secondary" aria-hidden="true">
+						{isMac ? '⌘' : 'Ctrl'} Enter
+					</span>
+					<Button
+						type="submit"
+						disabled={submitting}
+						aria-busy={submitting}
+						aria-keyshortcuts="Meta+Enter Control+Enter"
+						class="min-w-28"
+					>
+						{submitting ? 'Submitting…' : 'Submit Issue'}
+					</Button>
+				</div>
+			</footer>
+		</form>
+	{/if}
+</FocusedShell>

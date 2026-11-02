@@ -59,10 +59,10 @@ test("the screenshots exist and are embedded", () => {
   expect(inspector).toContain("../../assets/screenshots/inspector-blocked.png");
 });
 
-test("every design-pivot screenshot referenced by the gallery exists", () => {
+test("every t128n gallery screenshot referenced by the design language exists", () => {
   const gallery = readFileSync("docs/explanation/design-language.md", "utf8");
   const references = [
-    ...gallery.matchAll(/\]\((\.\.\/assets\/design-pivot\/[^)]+\.png)\)/g),
+    ...gallery.matchAll(/\]\((\.\.\/assets\/t128n-redesign\/[^)]+\.png)\)/g),
   ].map((match) => match[1]);
   expect(references.length).toBeGreaterThanOrEqual(12);
   for (const reference of references) {

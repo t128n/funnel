@@ -1,9 +1,11 @@
 <script lang="ts">
 	import { invalidateAll } from '$app/navigation';
+	import CheckIcon from '@lucide/svelte/icons/check';
+	import EmptyState from '#lib/components/common/EmptyState.svelte';
+	import InlineStatus from '#lib/components/common/InlineStatus.svelte';
 	import Spinner from '#lib/components/common/Spinner.svelte';
 	import { Button } from '#lib/components/ui/button';
 	import * as Dialog from '#lib/components/ui/dialog';
-	import * as Empty from '#lib/components/ui/empty';
 	import * as Field from '#lib/components/ui/field';
 	import { Input } from '#lib/components/ui/input';
 	import { cn } from '#lib/utils';
@@ -67,12 +69,7 @@
 		if (selected === null || busy) return;
 		busy = true;
 		error = null;
-		const request = addChildRequest(
-			epicRepo,
-			epicNumber,
-			children,
-			selected.ref
-		);
+		const request = addChildRequest(epicRepo, epicNumber, children, selected.ref);
 		try {
 			const response = await fetch(request.url, {
 				method: request.method,
@@ -95,10 +92,10 @@
 </script>
 
 <Dialog.Root {open} onOpenChange={close}>
-	<Dialog.Content class="sm:max-w-lg" aria-describedby={undefined}>
+	<Dialog.Content class="sm:max-w-(--layout-form-max)" aria-describedby={undefined}>
 		<Dialog.Header>
-			<Dialog.Title class="text-base font-semibold">Add child</Dialog.Title>
-			<Dialog.Description class="text-muted-foreground text-xs">
+			<Dialog.Title>Add child</Dialog.Title>
+			<Dialog.Description>
 				Open issues that are not already in another epic. The full child list is written to the
 				epic issue body.
 			</Dialog.Description>
@@ -117,16 +114,15 @@
 			</Field.Field>
 
 			{#if candidates.length === 0}
-				<Empty.Root class="border-0 p-4">
-					<Empty.Description>
-						No open issues are available. Create an issue or remove it from another epic first.
-					</Empty.Description>
-				</Empty.Root>
+				<EmptyState
+					description="No open issues are available. Create an issue or remove it from another epic first."
+					class="border-y border-border-subtle py-8"
+				/>
 			{:else if filtered.length === 0}
-				<p class="text-muted-foreground py-3 text-xs">No issue matches “{query}”.</p>
+				<p class="py-3 text-body text-fg-secondary">No issue matches “{query}”.</p>
 			{:else}
 				<ul
-					class="border-[color:var(--border)] max-h-64 overflow-y-auto rounded border"
+					class="max-h-64 overflow-y-auto border-y border-border-subtle"
 					aria-label="Epic candidates"
 				>
 					{#each filtered as candidate (candidate.ref)}
@@ -134,10 +130,8 @@
 							<button
 								type="button"
 								class={cn(
-									'focus-visible:ring-ring/50 flex w-full min-w-0 items-center gap-2 border-b border-[color:var(--border)] px-2.5 py-1.5 text-start text-xs outline-none last:border-b-0 focus-visible:ring-2',
-									selectedRef === candidate.ref
-										? 'bg-[var(--accent)]'
-										: 'hover:bg-[var(--accent)]'
+									'candidate flex min-h-(--size-row-compact) w-full min-w-0 items-center gap-2 border-b border-border-subtle px-3 py-1 text-start text-body last:border-b-0',
+									selectedRef === candidate.ref && 'bg-surface-2'
 								)}
 								aria-pressed={selectedRef === candidate.ref}
 								onclick={() => {
@@ -145,7 +139,12 @@
 									error = null;
 								}}
 							>
-								<span class="text-muted-foreground shrink-0 tabular-nums">
+								<span class="w-(--icon-sm) shrink-0 text-primary">
+									{#if selectedRef === candidate.ref}
+										<CheckIcon class="size-(--icon-sm)" aria-hidden="true" />
+									{/if}
+								</span>
+								<span class="mono shrink-0 text-fg-secondary">
 									{candidate.repo}#{candidate.number}
 								</span>
 								<span class="min-w-0 flex-1 truncate">{candidate.title}</span>
@@ -156,20 +155,28 @@
 			{/if}
 
 			{#if error}
-				<p class="text-destructive text-xs" role="alert" data-testid="epic-child-error">{error}</p>
+				<div data-testid="epic-child-error">
+					<InlineStatus tone="error" message={error} />
+				</div>
 			{/if}
 		</div>
 
 		<Dialog.Footer>
-			<Button variant="outline" size="sm" disabled={busy} onclick={() => close(false)}>
-				Cancel
-			</Button>
-			<Button size="sm" disabled={busy || selected === null} onclick={() => void submit()}>
+			<Button variant="outline" disabled={busy} onclick={() => close(false)}>Cancel</Button>
+			<Button disabled={busy || selected === null} onclick={() => void submit()}>
 				{#if busy}
-					<Spinner />
+					<Spinner label="Adding child" />
 				{/if}
-				Add child
+				{busy ? 'Adding…' : 'Add child'}
 			</Button>
 		</Dialog.Footer>
 	</Dialog.Content>
 </Dialog.Root>
+
+<style>
+	@media (hover: hover) and (pointer: fine) {
+		.candidate:not([aria-pressed='true']):hover {
+			background: var(--color-surface);
+		}
+	}
+</style>

@@ -1,120 +1,125 @@
 <script lang="ts">
 	import ExternalLinkIcon from '@lucide/svelte/icons/external-link';
-	import { Badge } from '#lib/components/ui/badge';
+	import CircleAlertIcon from '@lucide/svelte/icons/circle-alert';
+	import CircleCheckIcon from '@lucide/svelte/icons/circle-check';
 	import { Button } from '#lib/components/ui/button';
-	import * as Card from '#lib/components/ui/card';
+	import ConfirmDialog from '#lib/components/settings/confirm-dialog.svelte';
+	import Section from '#lib/components/settings/section.svelte';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
+
+	let resetForm = $state<HTMLFormElement | null>(null);
+	let confirmOpen = $state(false);
+	let confirmed = $state(false);
+
+	function onResetSubmit(event: SubmitEvent): void {
+		if (confirmed) return;
+		event.preventDefault();
+		confirmOpen = true;
+	}
+
+	function confirmReset(): void {
+		confirmed = true;
+		resetForm?.requestSubmit();
+	}
 </script>
 
-<div class="mx-auto flex w-full max-w-3xl flex-col gap-5">
-	<header class="flex flex-col gap-1">
-		<h1 class="text-sm font-medium">GitHub App</h1>
-		<p class="text-muted-foreground text-xs leading-relaxed">
-			The App Funnel created and uses to mirror issues and post writes. Credentials are
-			stored encrypted in the database.
-		</p>
-	</header>
-
+<div class="flex w-full max-w-[var(--layout-form-max)] flex-col gap-6">
 	{#if !data.configured || !data.credentials}
-		<Card.Root>
-			<Card.Header>
-				<Card.Title>No GitHub App</Card.Title>
-				<Card.Description>
-					Funnel has not been onboarded yet. Run the wizard to create and install an
-					App.
-				</Card.Description>
-			</Card.Header>
-			<Card.Content>
-				<Button href="/onboarding">Start onboarding</Button>
-			</Card.Content>
-		</Card.Root>
+		<Section
+			title="GitHub App"
+			description="Funnel has not been onboarded yet. Run the wizard to create and install an App."
+		>
+			<div>
+				<Button href="/onboarding">Start Onboarding</Button>
+			</div>
+		</Section>
 	{:else}
-		<Card.Root>
-			<Card.Header>
-				<Card.Title>{data.credentials.name}</Card.Title>
-				<Card.Description>
-					Owned by <code>{data.credentials.ownerLogin || '—'}</code>
-				</Card.Description>
-				<Card.Action>
+		<Section
+			title="Application"
+			description="Credentials are stored encrypted in the database."
+		>
+			<dl class="label-value">
+				<dt>Status</dt>
+				<dd>
 					{#if data.credentials.installationId}
-						<Badge class="bg-emerald-500/15 text-emerald-400">Installed</Badge>
+						<span class="status status-success">
+							<CircleCheckIcon aria-hidden="true" />
+							Installed
+						</span>
 					{:else}
-						<Badge variant="destructive">Not installed</Badge>
+						<span class="status status-error">
+							<CircleAlertIcon aria-hidden="true" />
+							Not Installed
+						</span>
 					{/if}
-				</Card.Action>
-			</Card.Header>
-			<Card.Content class="grid gap-4 sm:grid-cols-2">
-				<div class="flex flex-col gap-1">
-					<span class="text-muted-foreground text-xs">App ID</span>
-					<span class="font-mono text-sm">{data.credentials.appId}</span>
-				</div>
-				<div class="flex flex-col gap-1">
-					<span class="text-muted-foreground text-xs">Slug</span>
-					<span class="font-mono text-sm">{data.credentials.slug}</span>
-				</div>
-				<div class="flex flex-col gap-1">
-					<span class="text-muted-foreground text-xs">Client ID</span>
-					<span class="truncate font-mono text-sm">{data.credentials.clientId}</span>
-				</div>
-				<div class="flex flex-col gap-1">
-					<span class="text-muted-foreground text-xs">Installation</span>
-					<span class="font-mono text-sm">
-						{data.credentials.installationId ?? '—'}
-					</span>
-				</div>
+				</dd>
+				<dt>App name</dt>
+				<dd class="truncate">{data.credentials.name}</dd>
+				<dt>Owner</dt>
+				<dd class="truncate">{data.credentials.ownerLogin || '—'}</dd>
+				<dt>App ID</dt>
+				<dd><span class="mono">{data.credentials.appId}</span></dd>
+				<dt>Slug</dt>
+				<dd><span class="mono break-all">{data.credentials.slug}</span></dd>
+				<dt>Client ID</dt>
+				<dd><span class="mono break-all">{data.credentials.clientId}</span></dd>
+				<dt>Installation</dt>
+				<dd><span class="mono">{data.credentials.installationId ?? '—'}</span></dd>
 				{#if data.credentials.htmlUrl}
-					<div class="flex flex-col gap-1">
-						<span class="text-muted-foreground text-xs">On GitHub</span>
+					<dt>On GitHub</dt>
+					<dd>
 						<a
 							href={data.credentials.htmlUrl}
 							target="_blank"
 							rel="noreferrer"
-							class="text-foreground hover:text-muted-foreground inline-flex items-center gap-1 text-sm"
+							class="link inline-flex items-center gap-1.5"
 						>
 							Open App
-							<ExternalLinkIcon class="size-3" />
+							<ExternalLinkIcon class="size-3.5" aria-hidden="true" />
 						</a>
-					</div>
+					</dd>
 				{/if}
-			</Card.Content>
-			<Card.Footer class="justify-between gap-2">
-				<span class="text-muted-foreground text-xs">
-					{data.credentials.installationId
-						? 'Repositories are managed in Settings → Repositories.'
-						: 'Install the App to grant access to repositories.'}
-				</span>
-				{#if data.installUrl}
-					<Button href={data.installUrl} variant="outline" size="sm">
-						<ExternalLinkIcon />
-						{data.credentials.installationId ? 'Manage installation' : 'Install'}
-					</Button>
-				{/if}
-			</Card.Footer>
-		</Card.Root>
+			</dl>
 
-		<Card.Root>
-			<Card.Header>
-				<Card.Title>Reset</Card.Title>
-				<Card.Description>
-					Forget the App credentials and return to onboarding. This cannot be undone;
-					you will need to create and install the App again.
-				</Card.Description>
-			</Card.Header>
-			<Card.Footer>
-				<form
-					method="POST"
-					action="?/reset"
-					onsubmit={(event) => {
-						if (!confirm('Clear the GitHub App credentials and re-run onboarding?')) {
-							event.preventDefault();
-						}
-					}}
-				>
-					<Button type="submit" variant="destructive">Reset GitHub App</Button>
-				</form>
-			</Card.Footer>
-		</Card.Root>
+			<p class="text-body text-fg-secondary">
+				{data.credentials.installationId
+					? 'Repositories are managed in Settings → Repositories.'
+					: 'Install the App to grant access to repositories.'}
+			</p>
+
+			{#if data.installUrl}
+				<div>
+					<Button href={data.installUrl} variant="outline">
+						<ExternalLinkIcon />
+						{data.credentials.installationId ? 'Manage Installation' : 'Install on GitHub'}
+					</Button>
+				</div>
+			{/if}
+		</Section>
+
+		<Section
+			title="Danger zone"
+			description="Forget the App credentials and return to onboarding. This cannot be undone; you will need to create and install the App again."
+			danger
+		>
+			<form
+				method="POST"
+				action="?/reset"
+				bind:this={resetForm}
+				onsubmit={onResetSubmit}
+			>
+				<Button type="submit" variant="destructive">Reset GitHub App</Button>
+			</form>
+		</Section>
 	{/if}
 </div>
+
+<ConfirmDialog
+	bind:open={confirmOpen}
+	title="Reset GitHub App"
+	description="This clears the App credentials and returns Funnel to onboarding. Issues already mirrored stay in place, but GitHub writes stop until you install an App again."
+	confirmLabel="Reset GitHub App"
+	onconfirm={confirmReset}
+/>

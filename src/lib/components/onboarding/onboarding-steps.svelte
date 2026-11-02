@@ -9,35 +9,30 @@
 
 	let { active }: Props = $props();
 
-	const steps = ['Create app', 'Install', 'Repositories'];
+	const steps = ['Create app', 'Install', 'Ready'];
 </script>
 
-<ol class="text-muted-foreground flex items-center justify-center gap-2 text-xs">
-	{#each steps as label, index (label)}
-		{@const step = index + 1}
-		{@const done = step < active}
-		{@const current = step === active}
-		<li class="flex items-center gap-2">
-			<span
-				class={cn(
-					'flex size-5 shrink-0 items-center justify-center rounded-full border text-[0.625rem] font-medium',
-					done && 'border-transparent bg-emerald-500/15 text-emerald-400',
-					current && 'border-primary text-foreground',
-					!done && !current && 'border-transparent'
-				)}
-			>
+<nav aria-label="Setup progress">
+	<ol class="flex flex-wrap items-center gap-x-3 gap-y-2 text-caption text-fg-secondary">
+		{#each steps as label, index (label)}
+			{@const step = index + 1}
+			{@const done = step < active}
+			{@const current = step === active}
+			<li class="flex items-center gap-1.5" aria-current={current ? 'step' : undefined}>
 				{#if done}
-					<CheckIcon class="size-3" />
+					<CheckIcon class="size-3.5 shrink-0 text-success" aria-hidden="true" />
 				{:else}
-					{step}
+					<span class="mono" aria-hidden="true">{step}</span>
 				{/if}
-			</span>
-			<span class={cn('hidden sm:inline', current && 'text-foreground font-medium')}>
-				{label}
-			</span>
-		</li>
-		{#if step < steps.length}
-			<span class="bg-border h-px w-6" aria-hidden="true"></span>
-		{/if}
-	{/each}
-</ol>
+				<span class={cn(current && 'font-semibold text-fg', done && 'text-fg')}>
+					{label}
+				</span>
+			</li>
+			{#if step < steps.length}
+				<li class="list-none" aria-hidden="true">
+					<span class="block h-px w-4 bg-border-subtle"></span>
+				</li>
+			{/if}
+		{/each}
+	</ol>
+</nav>

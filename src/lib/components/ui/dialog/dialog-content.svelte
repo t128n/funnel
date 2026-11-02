@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { Dialog as DialogPrimitive } from "bits-ui";
-	import XIcon from '@lucide/svelte/icons/x';
+	import XIcon from "@lucide/svelte/icons/x";
 	import { Button } from "#lib/components/ui/button/index.js";
 	import { cn, type WithoutChildrenOrChild } from "#lib/utils.js";
 	import * as Dialog from "./index.js";
@@ -28,7 +28,11 @@
 		bind:ref
 		data-slot="dialog-content"
 		class={cn(
-			"bg-popover text-popover-foreground data-open:animate-in data-closed:animate-out data-closed:fade-out-0 data-open:fade-in-0 data-closed:zoom-out-95 data-open:zoom-in-95 ring-foreground/10 grid max-w-[calc(100%_-_2rem)] gap-4 rounded-xl p-4 text-sm ring-1 duration-100 sm:max-w-sm fixed top-1/2 left-1/2 z-50 w-full -translate-x-1/2 -translate-y-1/2 outline-none",
+			"fixed left-1/2 top-1/2 z-[var(--z-dialog)] grid w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2",
+			"gap-4 overflow-y-auto overscroll-contain rounded-lg bg-canvas p-6 text-body text-fg shadow-overlay outline-hidden",
+			"max-h-[80vh] sm:max-w-[var(--layout-dialog-width)]",
+			"data-open:animate-in data-closed:animate-out data-closed:fade-out-0 data-open:fade-in-0 data-closed:zoom-out-95 data-open:zoom-in-95",
+			"duration-[var(--motion-overlay)]",
 			className
 		)}
 		{...restProps}
@@ -37,8 +41,8 @@
 		{#if showCloseButton}
 			<DialogPrimitive.Close data-slot="dialog-close">
 				{#snippet child({ props })}
-					<Button variant="ghost" class="absolute top-2 right-2" size="icon-sm" {...props}>
-						<XIcon  />
+					<Button variant="ghost" class="absolute right-3 top-3" size="icon-sm" {...props}>
+						<XIcon />
 						<span class="sr-only">Close</span>
 					</Button>
 				{/snippet}

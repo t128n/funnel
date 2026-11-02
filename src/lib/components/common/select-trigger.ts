@@ -5,22 +5,18 @@ export type SelectTriggerVariant = 'default' | 'ghost' | 'pill';
 /**
  * Canonical trigger geometry for every single/multi select in the app, so the
  * Inspector's attribute strip and the filter toolbars read as one family.
- *
- * These are the values shadcn's `Select.Trigger` resolves to for `size="sm"`,
- * which keeps that primitive the implicit reference for `SingleSelect` while
- * giving `MultiSelect` an identical box to mirror.
  */
 export const selectTriggerBase =
-	'flex h-7 shrink-0 items-center gap-1.5 rounded-[min(var(--radius-md),10px)] border pr-2 pl-2.5 text-sm transition-colors outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-1 disabled:pointer-events-none disabled:opacity-50';
+	'flex h-(--size-control-sm) shrink-0 items-center gap-1.5 rounded-sm border px-2 text-body transition-colors outline-none focus-visible:border-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:pointer-events-none disabled:bg-surface-2 disabled:text-fg-disabled';
 
 /** Matches the chevron baked into `Select.Trigger`. */
-export const selectTriggerChevron = 'size-4 shrink-0 text-muted-foreground';
+export const selectTriggerChevron = 'size-4 shrink-0 text-fg-muted';
 
 const variantColors: Record<SelectTriggerVariant, string> = {
-	default: 'bg-background border-input text-muted-foreground hover:bg-muted',
+	default: 'border-border-strong bg-canvas text-fg-secondary hover:bg-surface',
 	ghost:
-		'border-transparent bg-transparent text-muted-foreground hover:bg-accent hover:text-foreground',
-	pill: 'border-border bg-muted/50 text-muted-foreground hover:bg-accent hover:text-foreground'
+		'border-transparent bg-transparent text-fg-secondary hover:bg-surface hover:text-fg',
+	pill: 'border-border-subtle bg-surface text-fg-secondary hover:bg-surface-2 hover:text-fg'
 };
 
 /**

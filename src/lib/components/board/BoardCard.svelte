@@ -20,6 +20,10 @@
 <script lang="ts">
 	import * as DropdownMenu from '#lib/components/ui/dropdown-menu/index.js';
 	import * as Tooltip from '#lib/components/ui/tooltip/index.js';
+	import { Button } from '#lib/components/ui/button';
+	import PriorityText from '#lib/components/common/PriorityText.svelte';
+	import RefText from '#lib/components/common/RefText.svelte';
+	import StatusText from '#lib/components/common/StatusText.svelte';
 	import {
 		clearFocusedCard,
 		clearMenuRequest,
@@ -38,8 +42,7 @@
 	} from '#lib/client/issue-actions.svelte';
 	import { selectIssue } from '#lib/client/selection.svelte';
 	import { issueRef } from '#lib/issue-ref';
-	import { canonicalLabel, STATUS_OPTIONS } from '#lib/labels';
-	import { isRetiredPriorityLabel, priorityMeta } from '#lib/priority';
+	import { STATUS_OPTIONS } from '#lib/labels';
 	import type { IssueListItem, UserRef } from '#lib/server/issues/types';
 	import { cn } from '#lib/utils';
 	import { cardData, draggableCard } from './dnd';
@@ -52,16 +55,14 @@
 	import UserPlusIcon from '@lucide/svelte/icons/user-plus';
 
 	/**
-	 * One draggable board card in the Bugzilla idiom: a flat bordered article
-	 * with a mono reference, a clamped title and a plain token row. There are no
-	 * chips, glyphs or avatars — priority, size, labels and assignees read as
-	 * text, the same way the issue list does. The column already carries the
-	 * workflow status, so the card only marks a blocked issue.
+	 * One draggable board card in the t128n idiom: a canvas article with a 1px
+	 * subtle rule and no shadow. The column already carries the workflow status,
+	 * so the card only marks a blocked issue (icon + word).
 	 *
-	 * - **Head** — the blocked marker (when flagged) and the mono reference,
-	 *   with a right gutter reserved for the hover tray.
-	 * - **Title** — 13px, two lines; closed cards strike it through.
-	 * - **Tokens** — `P1`–`P3`, size, comma-separated labels, assignee logins.
+	 * - **Head** — mono reference and the always available actions menu.
+	 * - **Title** — 0.875 rem / 600, clamped to two lines; the full title stays
+	 *   available on hover and through the card's accessible name.
+	 * - **Metadata** — priority and size, with the assignee trailing.
 	 */
 	interface Props {
 		issue: IssueListItem;
@@ -69,10 +70,10 @@
 		columnKey: string;
 		/** `owner/name` → project key from instance settings. */
 		repoShortcodes: Record<string, string>;
-		/** Show the repository context tag when the board spans multiple repos. */
-		showRepo?: boolean;
 		/** Signed-in viewer, when their GitHub identity is mirrored. */
 		viewer?: UserRef | null;
+		/** The docked detail's issue; draws a 2px primary leading bar. */
+		selected?: boolean;
 		/** Roving tab index owned by the board. */
 		tabIndex?: number;
 		/** Dim the card while it is the source of an active drag. */
@@ -85,8 +86,8 @@
 		issue,
 		columnKey,
 		repoShortcodes,
-		showRepo = false,
 		viewer = null,
+		selected = false,
 		tabIndex = -1,
 		dragging = false,
 		readonly = false
@@ -97,39 +98,18 @@
 	const dragPayload = $derived(readonly ? null : cardData(key, columnKey));
 	const ref = $derived(issueRef(issue.repo, issue.number, repoShortcodes));
 	const closed = $derived(issue.state === 'closed');
-	const shortRepo = $derived(issue.repo.split('/')[1] ?? issue.repo);
-
-	/** Non-reserved labels only; reserved groups render as dedicated affordances. */
-	const labels = $derived(
-		issue.labels.filter(
-			(label) => !canonicalLabel(label) && !isRetiredPriorityLabel(label)
-		)
-	);
-	const labelText = $derived(labels.join(', '));
 
 	const sizeText = $derived(
 		issue.size === 'sm' ? 'S' : issue.size === 'md' ? 'M' : issue.size === 'lg' ? 'L' : null
 	);
 
-	/** Priority reads as text on a card: `P1`/`P2`/`P3`. */
-	const priorityDisplay = $derived(priorityMeta(issue.priority));
-	const priorityLabel = $derived(priorityDisplay?.value ?? null);
-	const priorityTitle = $derived(
-		priorityDisplay
-			? `Priority ${priorityDisplay.value} · ${priorityDisplay.name}`
-			: 'No priority'
-	);
-	const priorityClass = $derived(
-		closed
-			? 'flag-muted'
-			: priorityLabel === 'P1'
-				? 'flag-danger'
-				: priorityLabel === 'P2'
-					? 'flag-warning'
-					: 'flag-muted'
-	);
-
 	const assigneeText = $derived(issue.assignees.map((person) => person.login).join(', '));
+	const hasMetadata = $derived(
+		issue.blocked ||
+			Boolean(issue.priority) ||
+			Boolean(sizeText) ||
+			Boolean(assigneeText)
+	);
 
 	const stage = $derived(closed ? 'done' : (issue.status ?? ''));
 	const stageOptions = $derived([
@@ -173,16 +153,16 @@
 	}
 </script>
 
-<!-- The card itself is the interactive open/drag target; `<article>` is required
-     by the Bugzilla card layout, so the role is intentional. -->
+<!-- The card itself is the interactive open/drag target; `<article>` is the
+     card container, so the role is intentional. Actions stay in the menu (never
+     hover-only) so every drag has a keyboard- and touch-reachable equivalent. -->
 <!-- svelte-ignore a11y_no_noninteractive_element_to_interactive_role -->
 <article
 	class={cn(
-		'board-card group/card relative flex flex-col border-[color:var(--border)] bg-[var(--card)] p-2 transition-colors',
-		'rounded-none shadow-none',
-		'hover:border-[color:var(--muted-foreground)]',
-		'focus-visible:outline-[1.5px] focus-visible:outline-offset-1 focus-visible:outline-[color:var(--primary)]',
+		'board-card group/card relative flex flex-col gap-1 rounded-md border border-border-subtle bg-canvas px-3 py-3',
+		'hover:border-border-strong',
 		!readonly && 'cursor-grab active:cursor-grabbing',
+		selected && 'is-selected-row',
 		dragging && 'opacity-50'
 	)}
 	use:draggableCard={dragPayload}
@@ -201,49 +181,35 @@
 	onfocusin={() => setFocusedCard(key)}
 	onfocusout={onFocusOut}
 >
-	<!-- Head: blocked marker only when flagged, mono reference, reserved tray gutter. -->
-	<div class="flex min-w-0 items-center gap-1.5 pr-12">
-		{#if issue.blocked}
-			<BanIcon class="text-destructive size-3.5 shrink-0" role="img" aria-label="Blocked" />
-		{/if}
+	<!-- Head: mono reference, always-visible menu. -->
+	<div class="flex min-w-0 items-center gap-1.5">
 		<Tooltip.Root>
 			<Tooltip.Trigger>
 				{#snippet child({ props })}
-					<span {...props} class="mono text-muted-foreground shrink-0 text-xs">
-						{ref}
+					<span {...props} class="inline-flex min-w-0 shrink-0">
+						<RefText value={ref} title={`${issue.repo}#${issue.number}`} />
 					</span>
 				{/snippet}
 			</Tooltip.Trigger>
 			<Tooltip.Content>{issue.repo}#{issue.number}</Tooltip.Content>
 		</Tooltip.Root>
-		{#if showRepo}
-			<span class="text-muted-foreground truncate text-xs">{shortRepo}</span>
-		{/if}
-	</div>
 
-	<div
-		class="absolute top-1 right-1 flex items-center gap-0.5 opacity-100 transition-opacity md:opacity-0 md:group-hover/card:opacity-100 md:group-focus-within/card:opacity-100"
-	>
-		{#if canAssign}
-			<button
-				type="button"
-				class="text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:ring-ring/50 inline-flex size-5 items-center justify-center rounded-none outline-none focus-visible:ring-1"
-				title="Assign to me"
-				aria-label="Assign to me"
-				onclick={() => void assignToMe(issue, viewer!)}
-			>
-				<UserPlusIcon class="size-3.5" />
-			</button>
-		{/if}
 		<DropdownMenu.Root bind:open={menuOpen}>
-			<DropdownMenu.Trigger
-				class="text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:ring-ring/50 inline-flex size-5 items-center justify-center rounded-none outline-none focus-visible:ring-1"
-			>
-				<EllipsisIcon class="size-3.5" />
-				<span class="sr-only">Issue actions</span>
+			<DropdownMenu.Trigger>
+				{#snippet child({ props })}
+					<Button
+						variant="ghost"
+						size="icon-sm"
+						class="ml-auto shrink-0 text-fg-secondary"
+						aria-label="Issue actions"
+						{...props}
+					>
+						<EllipsisIcon />
+					</Button>
+				{/snippet}
 			</DropdownMenu.Trigger>
-			<DropdownMenu.Content align="start" class="w-52">
-				<DropdownMenu.Label>Move to</DropdownMenu.Label>
+			<DropdownMenu.Content align="start" class="w-56">
+				<DropdownMenu.Label>Move to…</DropdownMenu.Label>
 				<DropdownMenu.RadioGroup
 					value={stage}
 					onValueChange={(value) => void moveToStatus(issue, value)}
@@ -256,11 +222,17 @@
 				</DropdownMenu.RadioGroup>
 
 				<DropdownMenu.Separator />
+				{#if canAssign}
+					<DropdownMenu.Item class="gap-2" onSelect={() => void assignToMe(issue, viewer!)}>
+						<UserPlusIcon class="size-4" />
+						Assign to me
+					</DropdownMenu.Item>
+				{/if}
 				<DropdownMenu.Item
 					class="gap-2"
 					onSelect={() => (issue.blocked ? requestUnblock(issue) : requestBlock(issue))}
 				>
-					<BanIcon class="text-destructive size-3.5" />
+					<BanIcon class="text-error size-4" />
 					{issue.blocked ? 'Unblock…' : 'Block…'}
 				</DropdownMenu.Item>
 				<DropdownMenu.Item
@@ -268,58 +240,49 @@
 					onSelect={() => (closed ? requestReopen(issue) : requestClose(issue))}
 				>
 					{#if closed}
-						<RotateCcwIcon class="size-3.5" />
+						<RotateCcwIcon class="size-4" />
 						Reopen issue
 					{:else}
-						<CircleCheckIcon class="size-3.5" />
+						<CircleCheckIcon class="size-4" />
 						Close issue
 					{/if}
 				</DropdownMenu.Item>
 
 				<DropdownMenu.Separator />
 				<DropdownMenu.Item class="gap-2" onSelect={open}>
-					<ExternalLinkIcon class="size-3.5" />
+					<ExternalLinkIcon class="size-4" />
 					Open details
 				</DropdownMenu.Item>
 			</DropdownMenu.Content>
 		</DropdownMenu.Root>
 	</div>
 
-	<h3 class="mt-1 flex items-start gap-1 text-sm leading-[1.35] font-medium">
-		<span
-			class={cn(
-				'line-clamp-2 min-w-0 break-words',
-				closed ? 'text-muted-foreground line-through' : 'text-foreground'
-			)}
-		>
+	<h3 class="flex items-start gap-1 text-body leading-[1.35] font-semibold">
+		<span class="line-clamp-2 min-w-0 break-words text-fg" title={issue.title}>
 			{issue.title}
 		</span>
 		{#if issue.labelConflict}
-			<TriangleAlertIcon
-				class="text-warning mt-0.5 size-3.5 shrink-0"
-				title="Conflicting reserved label or retired priority label on GitHub"
-			/>
+			<TriangleAlertIcon class="mt-0.5 size-4 shrink-0 text-warning" aria-hidden="true" />
+			<span class="sr-only">Conflicting reserved label or retired priority label on GitHub</span>
 		{/if}
 	</h3>
 
-	<!-- Token row: priority, size, labels, then assignee logins at the far right. -->
-	<div class="mt-1.5 flex min-w-0 items-baseline gap-x-1.5">
-		{#if priorityLabel}
-			<span class={cn('flag shrink-0', priorityClass)} title={priorityTitle}>{priorityLabel}</span>
-		{/if}
-		{#if sizeText}
-			<span class="flag flag-muted shrink-0" title={`Size: ${issue.size}`}>{sizeText}</span>
-		{/if}
-		{#if labelText}
-			<span class="flag flag-muted min-w-0 truncate" title={labelText}>{labelText}</span>
-		{/if}
-		{#if assigneeText}
-			<span
-				class="ml-auto min-w-0 max-w-[45%] shrink-0 truncate text-right text-xs text-[color:var(--muted-foreground)]"
-				title={assigneeText}
-			>
-				{assigneeText}
-			</span>
-		{/if}
-	</div>
+	{#if hasMetadata}
+		<div class="flex min-w-0 items-baseline gap-x-2 text-caption text-fg-secondary">
+			{#if issue.blocked}
+				<StatusText blocked class="shrink-0" />
+			{/if}
+			{#if issue.priority}
+				<PriorityText priority={issue.priority} class="shrink-0" />
+			{/if}
+			{#if sizeText}
+				<span class="shrink-0" title={`Size: ${issue.size}`}>{sizeText}</span>
+			{/if}
+			{#if assigneeText}
+				<span class="ml-auto min-w-0 max-w-[45%] truncate text-right" title={assigneeText}>
+					{assigneeText}
+				</span>
+			{/if}
+		</div>
+	{/if}
 </article>

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import Spinner from '#lib/components/common/Spinner.svelte';
-	import * as Alert from '#lib/components/ui/alert';
+	import InlineStatus from '#lib/components/common/InlineStatus.svelte';
 	import { Button } from '#lib/components/ui/button';
 	import * as Dialog from '#lib/components/ui/dialog';
 	import * as Field from '#lib/components/ui/field';
@@ -8,7 +8,7 @@
 	import type { CloseReason } from '#lib/client/mutations';
 
 	/**
-	 * SNOW-style structured close/reopen dialog (SPEC §5.2.3). Closing requires a
+	 * Structured close/reopen dialog (SPEC §5.2.3). Closing requires a
 	 * resolution (Completed / Not planned -> GitHub `state_reason`) and a note;
 	 * reopening requires a note. The caller performs the mutation (comment first,
 	 * then the state change) and closes the dialog on success.
@@ -54,10 +54,10 @@
 >
 	<Dialog.Content aria-describedby={undefined} class="sm:max-w-md">
 		<Dialog.Header>
-			<Dialog.Title class="text-base font-semibold">
+			<Dialog.Title class="text-heading-sm font-semibold">
 				{isClose ? 'Close issue' : 'Reopen issue'}
 			</Dialog.Title>
-			<Dialog.Description class="text-muted-foreground text-xs">
+			<Dialog.Description class="text-body text-fg-secondary">
 				{#if isClose}
 					Closing records a resolution. The note is posted as a comment on GitHub before the
 					issue is closed.
@@ -74,7 +74,7 @@
 					<Field.Legend variant="label">Resolution</Field.Legend>
 					<div class="flex gap-2" role="radiogroup" aria-label="Resolution">
 						<Field.Label
-							class="has-data-checked:border-ring flex-1 cursor-pointer flex-row items-center gap-2 rounded-md border p-2 text-xs font-normal"
+							class="flex flex-1 cursor-pointer flex-row items-center gap-2 rounded-sm border border-border-strong p-2 text-body font-normal has-[:checked]:border-primary has-[:checked]:bg-surface-2"
 						>
 							<input
 								type="radio"
@@ -86,7 +86,7 @@
 							<span>Completed</span>
 						</Field.Label>
 						<Field.Label
-							class="has-data-checked:border-ring flex-1 cursor-pointer flex-row items-center gap-2 rounded-md border p-2 text-xs font-normal"
+							class="flex flex-1 cursor-pointer flex-row items-center gap-2 rounded-sm border border-border-strong p-2 text-body font-normal has-[:checked]:border-primary has-[:checked]:bg-surface-2"
 						>
 							<input
 								type="radio"
@@ -104,7 +104,7 @@
 			<Field.Field>
 				<Field.Label for="resolve-note">
 					{isClose ? 'Resolution note' : 'Reopen note'}
-					<span class="text-destructive font-normal">required</span>
+					<span class="font-normal text-error">required</span>
 				</Field.Label>
 				<Textarea
 					id="resolve-note"
@@ -117,9 +117,7 @@
 		</div>
 
 		{#if error}
-			<Alert.Root variant="destructive">
-				<Alert.Description>{error}</Alert.Description>
-			</Alert.Root>
+			<InlineStatus tone="error" message={error} />
 		{/if}
 
 		<Dialog.Footer>
@@ -128,13 +126,17 @@
 					<Button variant="outline" {...props} type="button" disabled={busy}>Cancel</Button>
 				{/snippet}
 			</Dialog.Close>
-			<Button onclick={confirm} disabled={!canConfirm}>
+			<Button onclick={confirm} disabled={!canConfirm} class="min-w-28">
 				{#if busy}
-					<span data-icon="inline-start" class="inline-flex items-center">
-						<Spinner size={13} />
-					</span>
+					<Spinner size={13} />
 				{/if}
-				{isClose ? 'Close issue' : 'Reopen issue'}
+				{busy
+					? isClose
+						? 'Closing…'
+						: 'Reopening…'
+					: isClose
+						? 'Close issue'
+						: 'Reopen issue'}
 			</Button>
 		</Dialog.Footer>
 	</Dialog.Content>

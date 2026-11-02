@@ -1,8 +1,8 @@
 /**
- * Bugzilla comment thread contracts (plan T5).
+ * Issue thread contracts.
  *
  * Bun cannot import a Svelte component's `<script module>` exports, so the pure
- * helper is transpiled out of the component source and evaluated. The compact
+ * helper is transpiled out of the component source and evaluated. The ruled
  * markup is checked by source read, the same way `plan-ui.test.ts` checks
  * components.
  */
@@ -20,16 +20,16 @@ function moduleExport(source: string, name: string): unknown {
 
 const commentNumber = moduleExport(timeline, "commentNumber") as (index: number) => string;
 
-describe("bug comment thread", () => {
+describe("issue comment thread", () => {
 	test("test_comment_numbers_are_one_based_anchors", () => {
 		expect(commentNumber(0)).toBe("#c1");
 		expect(commentNumber(11)).toBe("#c12");
 	});
 
-	test("test_compact_thread_uses_bug_comment_articles", () => {
+	test("test_thread_uses_ruled_activity_entries", () => {
 		// Entries are stable anchors and the body keeps the sanitized HTML.
-		expect(timeline).toContain('class="bug-comment-head"');
-		expect(timeline).toContain('class="bug-comment-body markdown"');
+		expect(timeline).toContain('class="activity-entry');
+		expect(timeline).toContain('class="markdown"');
 		expect(timeline).toContain("data-index={index}");
 		expect(timeline).toContain("{@html entry.comment.bodyHtml}");
 	});
