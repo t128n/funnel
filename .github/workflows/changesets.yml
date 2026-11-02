@@ -23,6 +23,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
         with:
+          # `changeset publish-plan` compares package versions with existing
+          # tags; a shallow checkout hides them and would select publish on
+          # every push after a release.
+          fetch-depth: 0
           persist-credentials: false
 
       - name: Setup Node
