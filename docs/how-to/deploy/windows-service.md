@@ -26,7 +26,23 @@ Build on Windows for Windows. Cross-compiling with `--target=bun-windows-x64` re
 
 ## 2. Install the service
 
-Run from an elevated PowerShell prompt:
+The wizard needs the Windows desktop stack (Windows 10/11 or Server with
+Desktop Experience). On Server Core, skip it and use `install-service.ps1`
+below.
+
+From a release folder, double-click `setup.cmd` (or run
+`powershell -ExecutionPolicy Bypass -File .\setup.ps1`). The wizard:
+
+- creates `.env` from the shipped `.env.example`, preserving comments;
+- generates a random `FUNNEL_SECRET` and lets you set the public URL, port,
+  directories and optional onboarding token;
+- installs the `Funnel` service or starts a portable copy without a service;
+- opens `/onboarding` when the health check passes.
+
+Service installation needs administrator rights; the wizard offers a
+**Restart as admin** button. Portable mode does not.
+
+You can still install non-interactively from an elevated PowerShell prompt:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File packaging\windows\install-service.ps1
@@ -40,10 +56,12 @@ powershell -ExecutionPolicy Bypass -File .\install-service.ps1 -ExePath .\funnel
 
 The installer:
 
-- copies `funnel.exe` to the install directory;
+- copies `funnel.exe` to the install directory, stopping and unregistering an
+  existing service first so a running executable is not locked;
 - downloads WinSW 2.12.0 as `funnel-service.exe` (use `-WinSwPath` on an air-gapped host);
 - writes `funnel-service.xml` next to the WinSW host;
-- generates the data directory's `.env` (by default `C:\ProgramData\Funnel\.env`) with a random `FUNNEL_SECRET` and a blank `FUNNEL_URL`;
+- creates the data directory's `.env` from `.env.example` with a random
+  `FUNNEL_SECRET` and the requested `FUNNEL_URL`;
 - adds an inbound firewall rule named `Funnel (TCP <port>)` for any profile;
 - registers a service named `Funnel`, running as `LocalSystem`, with automatic delayed start and restart-on-failure, and starts it unless `-NoStart` is given.
 
@@ -56,12 +74,22 @@ Useful parameters:
 | `-DataDir` | same as `-InstallDir` | Database, uploads and `.env`; also the service working directory. |
 | `-Port` | `3000` | Listen port in the service definition and firewall rule. |
 | `-LogLevel` | `info` | `LOG_LEVEL` written into the service definition. |
+| `-PublicUrl` | empty | Exact public origin written to `FUNNEL_URL`. |
+| `-OnboardingToken` | empty | Optional value for `FUNNEL_ONBOARDING_TOKEN`. |
+| `-EnvTemplate` | auto-detected | Path to `.env.example`. |
+| `-ForceEnv` | off | Back up and regenerate `.env` (the existing `FUNNEL_SECRET` is preserved). |
+| `-ForceServiceConfig` | off | Rewrite `funnel-service.xml` with the new port/log level. |
 | `-SkipFirewall` | off | Do not create the inbound rule. |
 | `-NoStart` | off | Register the service without starting it. |
 
-The installer **does not overwrite** an existing `funnel-service.xml` or `.env`. On a re-run, `-Port` and `-LogLevel` do not change the existing service definition, and `-Port` can add a second firewall rule. Edit the XML and the firewall rule explicitly after a re-run.
+Without `-ForceEnv` / `-ForceServiceConfig`, the installer keeps an existing
+`.env` and service definition. Use them when intentionally reconfiguring an
+instance.
 
-Do not delete `.env` to reset the configuration. A re-run would generate a new `FUNNEL_SECRET`, and the existing GitHub App credentials and OAuth tokens in the database would no longer decrypt.
+Do not change `FUNNEL_SECRET` after onboarding: it encrypts the GitHub App
+credentials and OAuth tokens in the database. The wizard and `-ForceEnv` back up
+the old `.env` and preserve the existing secret unless you explicitly ask for a
+new one.
 
 ## 3. Configure `.env`
 
@@ -73,6 +101,7 @@ FUNNEL_URL=https://funnel.example.com
 ```
 
 - The generated `FUNNEL_SECRET` is required and must not be changed once the instance is in use. It encrypts GitHub App credentials and OAuth tokens and signs sessions.
+- The data directory also holds `.env`, which contains that secret. Restrict its ACL to the service account (`LocalSystem`) and local administrators if other users can sign in to the host.
 - Leave `FUNNEL_URL` blank only for a local-only test. For GitHub OAuth and onboarding, set the exact origin users will browse.
 - If the instance is reachable before it has been claimed, add `FUNNEL_ONBOARDING_TOKEN=<token>` to `.env` and restart. Without it, anyone who can reach a fresh instance can complete onboarding.
 - For GitHub Enterprise Server, also set both host variables:

@@ -97,6 +97,9 @@ if (isWindows) {
 
   // The service installer resolves funnel.exe and funnel-service.xml next to
   // itself; install-intake.ps1 resolves funnel-intake.exe next to itself.
+  stageFile("packaging/windows/setup.cmd", "setup.cmd");
+  stageFile("packaging/windows/setup.ps1", "setup.ps1");
+  stageFile("packaging/windows/install-common.ps1", "install-common.ps1");
   stageFile("packaging/windows/install-service.ps1", "install-service.ps1");
   stageFile("packaging/windows/uninstall-service.ps1", "uninstall-service.ps1");
   stageFile("packaging/windows/funnel-service.xml", "funnel-service.xml");
@@ -111,7 +114,17 @@ Self-contained server. The Bun runtime, SvelteKit server, client assets, native
 Markdown addon and database migrations are embedded in funnel.exe; no Bun,
 Node.js, or container runtime is required.
 
-Quick start (PowerShell):
+Guided setup (recommended):
+
+  Double-click setup.cmd, or run:
+  powershell -ExecutionPolicy Bypass -File .\\setup.ps1
+
+The wizard creates .env from .env.example, lets you choose the port, data
+directory and optional public URL, then installs the Windows service or starts
+a portable copy. Service installation needs the Restart as administrator button.
+On Server Core, use install-service.ps1 instead.
+
+Manual quick start (PowerShell):
 
   .\\funnel.exe --version
   .\\funnel.exe --help

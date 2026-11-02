@@ -4,8 +4,9 @@
 
 .DESCRIPTION
   Copies the standalone `funnel.exe` and a WinSW host into an install
-  directory, writes the WinSW service definition, opens the firewall, generates
-  a starter `.env`, and registers + starts the service.
+  directory, writes the WinSW service definition, opens the firewall, creates
+  `.env` from the shipped `.env.example` (preserving an existing secret), and
+  registers + starts the service.
 
   Run from an elevated PowerShell prompt. The service runs as LocalSystem by
   default and keeps all state under `-DataDir` (default C:\ProgramData\Funnel),
@@ -28,12 +29,23 @@ param(
   [string]$LogLevel = "info",
   [string]$WinSwPath,
   [string]$WinSwVersion = "2.12.0",
+  [string]$PublicUrl = "",
+  [string]$OnboardingToken = "",
+  [string]$EnvTemplate,
+  [switch]$ForceEnv,
+  [switch]$ForceServiceConfig,
   [switch]$SkipFirewall,
   [switch]$NoStart
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
+
+$common = Join-Path $PSScriptRoot "install-common.ps1"
+if (-not (Test-Path -LiteralPath $common -PathType Leaf)) {
+  throw "install-common.ps1 is missing next to install-service.ps1."
+}
+. $common
 
 function Assert-Administrator {
   $identity = [Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()
@@ -72,13 +84,6 @@ function Get-OrDownloadWinSw {
   return $Target
 }
 
-function New-FunnelSecret {
-  $bytes = New-Object byte[] 32
-  $rng = [System.Security.Cryptography.RandomNumberGenerator]::Create()
-  try { $rng.GetBytes($bytes) } finally { $rng.Dispose() }
-  return [Convert]::ToBase64String($bytes)
-}
-
 Assert-Administrator
 
 if (-not $DataDir) { $DataDir = $InstallDir }
@@ -91,49 +96,62 @@ $serviceExe = Join-Path $InstallDir "funnel-service.exe"
 $serviceXml = Join-Path $InstallDir "funnel-service.xml"
 $installedExe = Join-Path $InstallDir "funnel.exe"
 
+# Validate the inputs that do not need the service to be stopped first.
+$envFile = Join-Path $DataDir ".env"
+$envTemplatePath = Find-FunnelEnvTemplate -Candidate $EnvTemplate
+if (-not $envTemplatePath) {
+  throw "Could not find .env.example. Pass -EnvTemplate <path> next to the installer."
+}
+$resolvedUrl = Resolve-FunnelPublicUrl $PublicUrl
+
 $winsw = Get-OrDownloadWinSw -Candidate $WinSwPath -Version $WinSwVersion -Target $serviceExe
+
+# Stop an existing service before replacing its executable: Windows locks a
+# running image, so a reinstall/upgrade would otherwise fail on the copy.
+Push-Location $InstallDir
+try {
+  & $winsw stop 2>$null | Out-Null
+  & $winsw uninstall 2>$null | Out-Null
+} finally {
+  Pop-Location
+}
 
 if ((Resolve-Path -LiteralPath $resolvedExe).Path -ne $installedExe) {
   Copy-Item -LiteralPath $resolvedExe -Destination $installedExe -Force
 }
 
 # --- service definition ----------------------------------------------------
-if (-not (Test-Path -LiteralPath $serviceXml)) {
-  $template = Join-Path $PSScriptRoot "funnel-service.xml"
-  if (-not (Test-Path -LiteralPath $template -PathType Leaf)) {
+if (-not (Test-Path -LiteralPath $serviceXml) -or $ForceServiceConfig) {
+  $serviceTemplate = Join-Path $PSScriptRoot "funnel-service.xml"
+  if (-not (Test-Path -LiteralPath $serviceTemplate -PathType Leaf)) {
     throw "funnel-service.xml template not found next to this script."
   }
-  $xml = Get-Content -LiteralPath $template -Raw
-  $xml = $xml.Replace("%%EXE_PATH%%", $installedExe)
-  $xml = $xml.Replace("%%DATA_DIR%%", $DataDir)
-  $xml = $xml.Replace("%%PORT%%", "$Port")
-  $xml = $xml.Replace("%%LOG_LEVEL%%", $LogLevel)
+  $xml = Get-Content -LiteralPath $serviceTemplate -Raw
+  $xml = $xml.Replace("%%EXE_PATH%%", [System.Security.SecurityElement]::Escape($installedExe))
+  $xml = $xml.Replace("%%DATA_DIR%%", [System.Security.SecurityElement]::Escape($DataDir))
+  $xml = $xml.Replace("%%PORT%%", [System.Security.SecurityElement]::Escape("$Port"))
+  $xml = $xml.Replace("%%LOG_LEVEL%%", [System.Security.SecurityElement]::Escape($LogLevel))
   Set-Content -LiteralPath $serviceXml -Value $xml -Encoding UTF8
   Write-Host "Wrote service definition: $serviceXml"
 } else {
   Write-Host "Keeping existing service definition: $serviceXml"
 }
 
-# --- starter .env ----------------------------------------------------------
-$envFile = Join-Path $DataDir ".env"
-if (-not (Test-Path -LiteralPath $envFile)) {
-  $secret = New-FunnelSecret
-  @(
-    "# Funnel configuration. Read on start; restart the service after edits.",
-    "# Public URL (set this when behind a reverse proxy, e.g. https://funnel.example.com)",
-    "FUNNEL_URL=",
-    "",
-    "# Encryption secret (generated). Do not change once in use.",
-    "FUNNEL_SECRET=$secret",
-    "",
-    "# Optional one-time token gating the first-run /onboarding wizard.",
-    "# FUNNEL_ONBOARDING_TOKEN=",
-    "",
-    "# GitHub Enterprise Server only:",
-    "# GITHUB_URL=https://acme.ghe.com",
-    "# GITHUB_API_URL=https://acme.ghe.com/api/v3"
-  ) | Set-Content -LiteralPath $envFile -Encoding UTF8
-  Write-Host "Wrote starter configuration: $envFile (edit FUNNEL_URL before first use)"
+# --- .env from the shipped template ---------------------------------------
+$wroteEnv = Write-FunnelEnvFile `
+  -Path $envFile `
+  -TemplatePath $envTemplatePath `
+  -Secret (Get-FunnelSecret) `
+  -PublicUrl $resolvedUrl `
+  -OnboardingToken $OnboardingToken `
+  -LogLevel $LogLevel `
+  -Force:$ForceEnv
+
+if ($wroteEnv) {
+  Write-Host "Wrote configuration from .env.example: $envFile"
+  if ($ForceEnv) {
+    Write-Host "A backup of the previous configuration was kept next to it."
+  }
 } else {
   Write-Host "Keeping existing configuration: $envFile"
 }
@@ -151,8 +169,6 @@ if (-not $SkipFirewall) {
 # --- register + start ------------------------------------------------------
 Push-Location $InstallDir
 try {
-  & $winsw stop 2>$null | Out-Null
-  & $winsw uninstall 2>$null | Out-Null
   & $winsw install
   if ($LASTEXITCODE -ne 0) { throw "WinSW install failed (exit $LASTEXITCODE)." }
 
@@ -167,7 +183,7 @@ try {
 
 Write-Host ""
 Write-Host "Installed. Next steps:"
-Write-Host "  1. Edit $envFile (at minimum set FUNNEL_URL)."
-Write-Host "  2. Restart the service:  cd `"$InstallDir`"; .\funnel-service.exe restart"
+Write-Host "  1. Review $envFile (set FUNNEL_URL when using a public hostname)."
+Write-Host "  2. Restart the service after edits:  cd `"$InstallDir`"; .\funnel-service.exe restart"
 Write-Host "  3. Open the instance and finish onboarding: http://<host>:$Port/"
 Write-Host "  4. Health probes: /healthz (liveness), /readyz (readiness)"

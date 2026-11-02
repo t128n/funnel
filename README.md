@@ -59,7 +59,7 @@ Funnel is a single long-lived process that owns a SQLite database and an uploads
 | Standalone executable | `mise run exe` → `dist/funnel` (or `dist\funnel.exe`) | Self-contained: Bun runtime, server, client assets, migrations, and the native Markdown addon. |
 | Desktop intake helper | `mise run intake:exe`, then `scripts\install-intake.ps1` | Optional per-user Windows helper: a global hotkey opens a prefilled `/intake` draft for the current selection. See [`scripts/README.md`](scripts/README.md). |
 | Container | `mise run docker` or `docker build -t funnel .` | Wraps the same Linux executable; mount a volume at `/data` for the database and uploads. |
-| Windows service | `mise run exe`, then `packaging\windows\install-service.ps1` | WinSW wrapper; state lives in `C:\ProgramData\Funnel`. |
+| Windows service | `mise run exe`, then `packaging\windows\setup.cmd` (or `install-service.ps1`) | Guided setup or WinSW wrapper; state lives in `C:\ProgramData\Funnel`. |
 | Adapter-node build | `bun run build`, then `bun run release` and `bun run start` | `bun ./build/index.js`; still a long-lived process. Run the release step against the same `FUNNEL_DB` first — this path does not migrate on boot. |
 
 The packaged executable (and therefore the container) applies pending migrations on boot. Health probes are `/healthz` (liveness) and `/readyz` (readiness; it reports `503` until every committed migration is applied). `funnel --help`, `--version`, `--migrate`, and `--healthcheck` cover the packaged binary's CLI.
