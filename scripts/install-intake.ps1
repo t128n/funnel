@@ -80,12 +80,22 @@ if ($Uninstall) {
   exit 0
 }
 
-$repoRoot = Split-Path -Parent $PSScriptRoot
 if (-not $ExePath) {
-  $ExePath = Join-Path $repoRoot "dist\funnel-intake.exe"
+  # A release archive has the helper next to this script; a repo checkout keeps
+  # it in dist/. Try the release layout first, then the build output.
+  $candidates = @(
+    (Join-Path $PSScriptRoot "funnel-intake.exe"),
+    (Join-Path (Split-Path -Parent $PSScriptRoot) "dist\funnel-intake.exe")
+  )
+  foreach ($candidate in $candidates) {
+    if (Test-Path -LiteralPath $candidate -PathType Leaf) {
+      $ExePath = $candidate
+      break
+    }
+  }
 }
-if (-not (Test-Path -LiteralPath $ExePath -PathType Leaf)) {
-  throw "Cannot find $ExePath. Build it first with 'mise run intake:exe'."
+if (-not $ExePath -or -not (Test-Path -LiteralPath $ExePath -PathType Leaf)) {
+  throw "Cannot find funnel-intake.exe. Build it first with 'mise run intake:exe', or pass -ExePath."
 }
 
 Stop-Intake

@@ -15,6 +15,7 @@
 		"start": "bun ./build/index.js",
 		"release": "bun scripts/release.ts",
 		"build:standalone": "bun scripts/build-standalone.ts",
+		"package:release": "bun scripts/package-release.ts",
 		"prepare": "bun --bun svelte-kit sync || echo ''",
 		"check": "bun --bun svelte-kit sync && bun --bun svelte-check --tsconfig ./tsconfig.json",
 		"check:watch": "bun --bun svelte-kit sync && bun --bun svelte-check --tsconfig ./tsconfig.json --watch",

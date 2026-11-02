@@ -1,0 +1,225 @@
+name: release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validate version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      tag: ${{ steps.version.outputs.tag }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Check tag against package.json
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(jq -r .version package.json)"
+          tag="${GITHUB_REF_NAME}"
+          if [[ "${tag}" != "v${version}" ]]; then
+            echo "::error::Tag ${tag} does not match package.json version ${version}."
+            exit 1
+          fi
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          echo "tag=${tag}" >> "$GITHUB_OUTPUT"
+
+  verify:
+    name: Verify
+    needs: validate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.3
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: tools/funnel-intake/go.mod
+          cache-dependency-path: tools/funnel-intake/go.sum
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Type-check
+        run: bun run check
+
+      - name: Test
+        run: bun run test
+
+      - name: Vet intake helper
+        run: go -C tools/funnel-intake vet -unsafeptr=false ./...
+
+      - name: Test intake helper
+        run: go -C tools/funnel-intake test ./...
+
+  build:
+    name: Build ${{ matrix.platform }}
+    needs: validate
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: bun-linux-x64
+            platform: linux-x64
+            outfile: funnel
+          - os: ubuntu-latest
+            target: bun-linux-arm64
+            platform: linux-arm64
+            outfile: funnel
+            cross_arm64: true
+          - os: macos-15
+            target: bun-darwin-arm64
+            platform: darwin-arm64
+            outfile: funnel
+          - os: macos-15-intel
+            target: bun-darwin-x64
+            platform: darwin-x64
+            outfile: funnel
+          - os: windows-latest
+            target: bun-windows-x64
+            platform: windows-x64
+            outfile: funnel.exe
+            build_intake: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.3
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Install Linux arm64 native addon
+        if: matrix.cross_arm64
+        run: bun install --frozen-lockfile --os=linux --cpu=arm64
+
+      - name: Build server
+        run: bun run build
+
+      - name: Build standalone executable
+        run: >-
+          bun scripts/build-standalone.ts
+          --target=${{ matrix.target }}
+          --outdir=dist
+          --outfile=${{ matrix.outfile }}
+
+      - name: Setup Go
+        if: matrix.build_intake
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: tools/funnel-intake/go.mod
+          cache-dependency-path: tools/funnel-intake/go.sum
+
+      - name: Build Windows intake helper
+        if: matrix.build_intake
+        run: bun scripts/build-intake.ts
+
+      - name: Smoke test (Unix)
+        if: runner.os != 'Windows' && matrix.platform != 'linux-arm64'
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./dist/${{ matrix.outfile }} --version
+          FUNNEL_DATA_DIR="$RUNNER_TEMP/funnel-smoke" ./dist/${{ matrix.outfile }} --migrate
+
+      - name: Smoke test (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          .\dist\funnel.exe --version
+          $env:FUNNEL_DATA_DIR = Join-Path $env:RUNNER_TEMP "funnel-smoke"
+          .\dist\funnel.exe --migrate
+
+      - name: Verify Linux arm64 executable
+        if: matrix.platform == 'linux-arm64'
+        shell: bash
+        run: file dist/funnel | grep -q 'ARM aarch64'
+
+      - name: Package release archive
+        run: >-
+          bun scripts/package-release.ts
+          --version=${{ needs.validate.outputs.version }}
+          --platform=${{ matrix.platform }}
+
+      - name: Upload release artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: funnel-${{ matrix.platform }}
+          path: release/funnel-${{ needs.validate.outputs.version }}-${{ matrix.platform }}.*
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    name: Publish pre-release
+    needs: [validate, build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Download release artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release
+          pattern: funnel-*
+          merge-multiple: true
+
+      - name: Merge checksums
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd release
+          ls -l
+          cat ./*.sha256 | sort -k2 > SHA256SUMS.txt
+          rm -f ./*.sha256
+          cat SHA256SUMS.txt
+
+      - name: Create GitHub pre-release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.validate.outputs.tag }}
+          VERSION: ${{ needs.validate.outputs.version }}
+        run: |
+          set -euo pipefail
+          notes_file=".github/release-notes/${TAG}.md"
+          if [[ -f "${notes_file}" ]]; then
+            gh release create "${TAG}" release/* \
+              --title "Funnel ${VERSION}" \
+              --prerelease \
+              --notes-file "${notes_file}" \
+              --verify-tag
+          else
+            gh release create "${TAG}" release/* \
+              --title "Funnel ${VERSION}" \
+              --prerelease \
+              --generate-notes \
+              --verify-tag
+          fi

@@ -8,6 +8,8 @@ node_modules
 /.svelte-kit
 /build
 /dist
+# Release archives assembled by scripts/package-release.ts
+/release
 
 # Generated during the standalone build only (see scripts/build-standalone.ts)
 /src/standalone-entry.ts

@@ -87,17 +87,46 @@ The executable also handles `--migrate`, `--healthcheck` (probes `/healthz`), `-
 1. Bump `version` in `package.json`.
 2. If the schema changed, run `bun run db:generate` and commit the new `drizzle/<timestamp>_<name>/` directory.
 3. Run `mise run verify` locally (check + test + intake:check + build + exe).
-4. Build the artefacts: `mise run build`, `mise run exe`, and `mise run docker --version=<version>`.
-5. Deploy the executable or image:
+4. Build the artefacts locally if you need them now: `mise run build`, `mise run exe`, and `mise run docker --version=<version>`.
+5. Commit the version bump and push it to `main`.
+6. Create and push the matching tag. The tag is what publishes the release:
+
+   ```sh
+   git tag -a v0.0.1 -m "Funnel 0.0.1"
+   git push origin v0.0.1
+   ```
+
+7. Deploy the executable or image:
    - **Windows:** stop the service, replace `funnel.exe`, start it — migrations run automatically on boot.
    - **Container / PaaS:** mount the `/data` volume, or run the separate release phase (`mise run release` against the same `FUNNEL_DB`, or `<image> --migrate`) before starting the new version.
-6. Confirm `/healthz` (liveness) and `/readyz` (readiness, `503` until migrations are applied) after the rollout.
+8. Confirm `/healthz` (liveness) and `/readyz` (readiness, `503` until migrations are applied) after the rollout.
 
 Funnel is a **single instance**: it owns one SQLite file, so do not scale it horizontally or run multiple replicas against one volume.
 
-## CI guidance
+## Release pipeline
 
-There is no committed pipeline configuration; `mise.toml` is the contract. Have CI run `mise run verify` for correctness and `mise run docker --version=<version>` (or `mise run exe`) to produce artefacts, so local and CI builds are identical. Run `mise trust` once per checkout before invoking the tasks.
+`.github/workflows/release.yml` is the committed GitHub Actions pipeline. Pushing
+a tag that matches `package.json` (for example `v0.0.1`) runs:
+
+1. **Validate** — rejects a tag that does not match the `version` in `package.json`.
+2. **Verify** — `bun run check`, `bun run test`, and the intake helper's `go vet`
+   and `go test`.
+3. **Build** — native executables for Linux x64, Linux arm64, macOS Apple
+   silicon, macOS Intel, and Windows x64. Linux arm64 is cross-compiled on the
+   x64 runner after installing that target's `satteri` optional package. Each job
+   runs `--version` and `--migrate` as a smoke test before packaging.
+4. **Package** — `bun run package:release` (`scripts/package-release.ts`) writes
+   `funnel-<version>-<platform>.tar.gz` (`.zip` on Windows) and a per-asset
+   `.sha256`.
+5. **Publish** — merges the checksums into `SHA256SUMS.txt` and creates a
+   GitHub **pre-release** named `Funnel <version>`. Release notes come from
+   `.github/release-notes/<tag>.md` when present; otherwise GitHub generates
+   them from the commits since the previous tag.
+
+Build jobs call the same `bun run build` and `bun scripts/build-standalone.ts`
+commands as `mise run exe`, so a release artefact is the same build a local
+checkout produces. The container image is not published by this workflow; build
+it with `mise run docker --version=<version>` where you deploy it.
 
 ## Related
 
