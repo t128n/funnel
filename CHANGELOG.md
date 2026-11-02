@@ -1,5 +1,11 @@
 # funnel
 
+## 0.0.3
+
+### Patch Changes
+
+- 840528a: Fix onboarding form submissions and state cookies when Funnel is opened directly over HTTP, including `http://127.0.0.1:3000`.
+
 ## 0.0.2
 
 ### Patch Changes
