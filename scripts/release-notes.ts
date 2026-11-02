@@ -91,9 +91,11 @@ sha256sum -c SHA256SUMS.txt
 Linux and macOS: extract the archive, copy \`.env.example\` to \`.env\`, set
 \`FUNNEL_SECRET\`, then run \`./funnel\` and open the onboarding URL.
 
-Windows: extract the archive and run \`funnel.exe\`, or install it as a service
-from an elevated prompt with \`powershell -ExecutionPolicy Bypass -File .\\install-service.ps1\`.
-The installer generates a starter \`.env\` with a random secret.
+Windows: extract the archive and double-click \`setup.cmd\` (or run
+\`powershell -ExecutionPolicy Bypass -File .\\setup.ps1\`). The wizard creates
+\`.env\` from \`.env.example\`, generates \`FUNNEL_SECRET\`, and installs the
+Windows service or starts a portable copy. You can also run \`funnel.exe\`
+directly; the service installer remains available as \`install-service.ps1\`.
 
 See the [getting started guide](https://github.com/t128n/funnel/blob/main/docs/tutorials/getting-started.md)
 for the GitHub App onboarding flow and the [deployment guides](https://github.com/t128n/funnel/blob/main/docs/README.md#how-to-guides)
