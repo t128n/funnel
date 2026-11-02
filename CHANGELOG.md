@@ -1,5 +1,11 @@
 # funnel
 
+## 0.0.5
+
+### Patch Changes
+
+- 41863a9: Add a Windows setup wizard that creates `.env` from `.env.example`, validates the port and public URL, installs the service or starts a portable copy, and preserves an existing `FUNNEL_SECRET`.
+
 ## 0.0.4
 
 ### Patch Changes
