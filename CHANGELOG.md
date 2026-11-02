@@ -1,5 +1,11 @@
 # funnel
 
+## 0.0.4
+
+### Patch Changes
+
+- eb9e756: Add the read-only milestone timeline with the Apache ECharts Gantt chart, accessible milestone column, and sidebar entry.
+
 ## 0.0.3
 
 ### Patch Changes
