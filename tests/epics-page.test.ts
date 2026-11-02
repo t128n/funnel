@@ -192,7 +192,7 @@ describe("epics list", () => {
     expect(data.epics[0].ref).toBe("epicpage/core#20");
 
     // Both pages label the collection, even when it is empty.
-    expect(source("src/routes/(app)/epics/+page.svelte")).toContain("<h1");
+    expect(source("src/routes/(app)/epics/+page.svelte")).toContain("PageHeader title=\"Epics\"");
   });
 
   test("test_epics_list_rollups", async () => {
@@ -403,13 +403,10 @@ describe("epic child mutations", () => {
 
 describe("epics navigation and access", () => {
   test("test_sidebar_epics_active", () => {
-    const sidebar = source("src/lib/components/app-sidebar.svelte");
+    const sidebar = source("src/lib/components/shell/SidebarNav.svelte");
     expect(sidebar).toContain('label: "Epics"');
-    expect(sidebar).toContain('{ href: "/epics", label: "Epics"');
-    expect(sidebar).toContain(
-      'const epicsActive = $derived(path.startsWith("/epics"));',
-    );
-    expect(sidebar).toContain("active: epicsActive");
+    expect(sidebar).toContain('href: "/epics"');
+    expect(sidebar).toContain('active: path.startsWith("/epics")');
     // The item belongs to the Workspace section, not the personal block.
     const workspace = sidebar.slice(sidebar.indexOf("const workspace"));
     expect(workspace).toContain('label: "Epics"');

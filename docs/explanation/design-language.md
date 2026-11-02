@@ -80,3 +80,27 @@ The redesigned views are captured by `scripts/screenshots/capture.ts` against
 the seeded demo database, in light and dark. The committed gallery lives in
 [`assets/t128n-redesign`](../assets/t128n-redesign/). It is evidence for the PR,
 not a separate source of truth; the application profile and tokens decide.
+
+| Issues | Issue detail |
+| :--- | :--- |
+| ![Issues list in light mode](../assets/t128n-redesign/issues-light.png) | ![Issue detail in light mode](../assets/t128n-redesign/issue-light.png) |
+
+| Board | Plan |
+| :--- | :--- |
+| ![Board in light mode](../assets/t128n-redesign/board-light.png) | ![Week plan in light mode](../assets/t128n-redesign/plan-light.png) |
+
+| Settings | Intake |
+| :--- | :--- |
+| ![Appearance settings in light mode](../assets/t128n-redesign/settings-light.png) | ![Public intake form in light mode](../assets/t128n-redesign/intake-light.png) |
+
+| Issues, dark | Issue detail, dark |
+| :--- | :--- |
+| ![Issues list in dark mode](../assets/t128n-redesign/issues-dark.png) | ![Issue detail in dark mode](../assets/t128n-redesign/issue-dark.png) |
+
+| Board, dark | Plan, dark |
+| :--- | :--- |
+| ![Board in dark mode](../assets/t128n-redesign/board-dark.png) | ![Week plan in dark mode](../assets/t128n-redesign/plan-dark.png) |
+
+| Settings, dark | Intake, dark |
+| :--- | :--- |
+| ![Appearance settings in dark mode](../assets/t128n-redesign/settings-dark.png) | ![Public intake form in dark mode](../assets/t128n-redesign/intake-dark.png) |

@@ -245,6 +245,8 @@ export const load: PageServerLoad = async ({ locals, url }) => {
     _dayView(viewer.id, dayDate),
   ] as const);
 
+  const currentWeek = weekStartOf(new Date());
+
   const previous =
     horizon === "week"
       ? addWeeks(week, -1)
@@ -274,6 +276,16 @@ export const load: PageServerLoad = async ({ locals, url }) => {
     candidates: listPlanCandidates(),
     maintainers: planning.maintainers,
     allocationPercent: planning.allocation_percent,
+    sizeMinutes: planning.size_minutes,
+    today: {
+      week: currentWeek,
+      cycle: cycleForWeek(
+        currentWeek,
+        planning.cycle_anchor,
+        planning.cycle_weeks,
+      ).key,
+      day: localDateOf(Date.now(), viewerHours.timezone),
+    },
     dayView: day,
   };
 };

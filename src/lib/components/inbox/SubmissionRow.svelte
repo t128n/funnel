@@ -2,13 +2,13 @@
 	import { selectSubmission } from '#lib/client/selection.svelte';
 	import { timeAgo } from '#lib/client/clock.svelte';
 	import type { StagedSubmission } from '#lib/server/intake/staging';
+	import { absoluteTime } from '#lib/time';
 	import { cn } from '#lib/utils';
 
 	/**
-	 * One staged intake submission in the Inbox feed. Shares `.issue-grid` with
-	 * the mirrored issue rows around it, so the columns stay aligned: mono
-	 * source reference, 13px title, muted submitted time. No intake pill or
-	 * avatar chip; selection is a flat accent fill.
+	 * One staged intake submission in the Inbox's own Submissions section.
+	 * Compact, ruled row: source, title, received time. Selection is the shared
+	 * 2 px primary leading bar, never a fill; the row is itself the hit target.
 	 */
 	interface Props {
 		submission: StagedSubmission;
@@ -18,6 +18,7 @@
 	let { submission, selected = false }: Props = $props();
 
 	const title = $derived(submission.title.trim() || 'Untitled');
+	const source = $derived(submission.source?.trim() || 'Intake');
 
 	function select() {
 		selectSubmission(submission.id);
@@ -26,9 +27,9 @@
 
 <div
 	class={cn(
-		'submission-row issue-grid group/row cursor-pointer border-b border-border px-2 py-1.5 select-none transition-colors duration-[120ms] last:border-b-0',
-		'focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ring',
-		selected && 'is-selected'
+		'group/row flex min-h-(--size-row-compact) cursor-pointer select-none items-center gap-3 border-b border-border-subtle px-3 text-body last:border-b-0',
+		'hover:bg-surface-2 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ring',
+		selected && 'is-selected-row'
 	)}
 	role="button"
 	tabindex={0}
@@ -42,44 +43,20 @@
 		}
 	}}
 >
-	<span aria-hidden="true"></span>
-
 	<span
-		class="mono text-muted-foreground min-w-0 truncate text-xs"
-		title={submission.source ?? 'via intake'}
+		class="mono w-24 min-w-0 shrink-0 truncate text-caption text-fg-secondary"
+		title={source}
 	>
-		{submission.source ?? 'intake'}
+		{source}
 	</span>
 
-	<span class="text-foreground min-w-0 truncate text-sm" title={title}>{title}</span>
+	<span class="min-w-0 flex-1 truncate text-body text-fg" title={title}>{title}</span>
 
-	<span class="issue-col-labels"></span>
-	<span></span>
-	<span></span>
-
-	<span
-		class="text-muted-foreground justify-self-end truncate text-xs tabular-nums"
-		title={new Date(submission.createdAt).toLocaleString()}
+	<time
+		class="w-20 shrink-0 truncate text-right text-caption text-fg-secondary tabular-nums"
+		datetime={new Date(submission.createdAt).toISOString()}
+		title={absoluteTime(submission.createdAt)}
 	>
 		{timeAgo(submission.createdAt)}
-	</span>
-
-	<span></span>
+	</time>
 </div>
-
-<style>
-	:global(div:nth-child(even) > .submission-row) {
-		background: color-mix(in srgb, var(--muted) 45%, transparent);
-	}
-
-	.submission-row:hover,
-	:global(div:nth-child(even) > .submission-row):hover {
-		background: var(--accent);
-	}
-
-	.submission-row.is-selected,
-	.submission-row.is-selected:hover {
-		background: var(--accent);
-		box-shadow: none;
-	}
-</style>

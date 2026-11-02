@@ -1,49 +1,64 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import type { Component } from 'svelte';
 	import { goto, invalidateAll } from '$app/navigation';
-	import Avatar from '#lib/components/common/Avatar.svelte';
+	import EmptyState from '#lib/components/common/EmptyState.svelte';
+	import InlineStatus from '#lib/components/common/InlineStatus.svelte';
 	import PageHead from '#lib/components/common/PageHead.svelte';
 	import Spinner from '#lib/components/common/Spinner.svelte';
-	import * as Empty from '#lib/components/ui/empty';
+	import PageHeader from '#lib/components/shell/PageHeader.svelte';
 	import { Button } from '#lib/components/ui/button';
 	import { timeAgo } from '#lib/client/clock.svelte';
 	import { markNotificationsRead } from '#lib/client/mutations';
 	import { enableNativeNotifications, NATIVE_NOTIFICATIONS_KEY } from '#lib/client/native-notifications';
-	import { notifyFailure } from '#lib/client/optimistic.svelte';
-	import type {
-		NotificationItem,
-		NotificationKind
-	} from '#lib/server/notifications/types';
+	import type { NotificationItem, NotificationKind } from '#lib/server/notifications/types';
 	import { absoluteTime } from '#lib/time';
 	import { cn } from '#lib/utils';
+	import AtSignIcon from '@lucide/svelte/icons/at-sign';
 	import BellRingIcon from '@lucide/svelte/icons/bell-ring';
 	import CheckCheckIcon from '@lucide/svelte/icons/check-check';
+	import CircleDotIcon from '@lucide/svelte/icons/circle-dot';
+	import FlagIcon from '@lucide/svelte/icons/flag';
+	import InboxIcon from '@lucide/svelte/icons/inbox';
+	import MessageSquareIcon from '@lucide/svelte/icons/message-square';
+	import RefreshCwIcon from '@lucide/svelte/icons/refresh-cw';
+	import UserRoundPlusIcon from '@lucide/svelte/icons/user-round-plus';
 	import type { PageProps } from './$types';
 
 	/**
-	 * Notification center (SPEC §3.3). Unread rows lead, read rows follow, and
-	 * each row carries the actor, the issue/intake link, and a relative time.
-	 * Marking one or all read persists server-side and re-runs both this load and
-	 * the shared layout, so the sidebar badge cannot drift from the list.
+	 * Notification center (SPEC §3.3). Unread rows lead, read rows follow, in
+	 * ruled lists rather than cards. Each row carries its kind as icon + word,
+	 * the actor, the target link, and a relative time with the absolute value in
+	 * `title`. Unread is a dot, 600 weight, and an sr-only "Unread" — never a
+	 * coloured fill. Marking one or all read persists server-side and re-runs
+	 * both this load and the shared layout, so the sidebar badge cannot drift.
 	 */
 	let { data }: PageProps = $props();
 
-	const KIND_LABEL: Record<NotificationKind, string> = {
-		assigned: 'Assigned',
-		mentioned: 'Mentioned',
-		comment: 'Comment',
-		status: 'Status',
-		priority: 'Priority',
-		state: 'State',
-		new_intake: 'New intake'
+	const KIND_META: Record<NotificationKind, { label: string; icon: Component }> = {
+		assigned: { label: 'Assigned', icon: UserRoundPlusIcon },
+		mentioned: { label: 'Mentioned', icon: AtSignIcon },
+		comment: { label: 'Comment', icon: MessageSquareIcon },
+		status: { label: 'Status', icon: CircleDotIcon },
+		priority: { label: 'Priority', icon: FlagIcon },
+		state: { label: 'State', icon: RefreshCwIcon },
+		new_intake: { label: 'New intake', icon: InboxIcon }
 	};
 
 	const unread = $derived(data.items.filter((item) => item.readAt === null));
 	const read = $derived(data.items.filter((item) => item.readAt !== null));
 	const unreadCount = $derived(data.unreadCount);
+	const groups = $derived([
+		{ key: 'unread', label: 'Unread', items: unread },
+		{ key: 'read', label: 'Read', items: read }
+	]);
 
 	/** The id being marked (or `all`) so every control shares one busy state. */
 	let busy = $state<string | null>(null);
+	type Retry = { kind: 'one'; id: string } | { kind: 'all' } | null;
+	let error = $state<string | null>(null);
+	let retryAction = $state<Retry>(null);
+
 	type NativeState = 'unknown' | 'requesting' | 'granted' | 'denied' | 'unsupported';
 	let nativeState = $state<NativeState>('unknown');
 
@@ -65,15 +80,22 @@
 		nativeState = Notification.permission === 'granted' && optedIn ? 'granted' : 'unknown';
 	});
 
+	function report(message: string, retry: Retry) {
+		error = message;
+		retryAction = retry;
+	}
+
 	async function markRead(id: string) {
 		if (busy !== null) return;
 		busy = id;
 		const result = await markNotificationsRead({ id });
 		busy = null;
 		if (!result.ok) {
-			notifyFailure('Could not mark notification read', result.error);
+			report(`Could not mark the notification read. ${result.error}`, { kind: 'one', id });
 			return;
 		}
+		error = null;
+		retryAction = null;
 		await invalidateAll();
 	}
 
@@ -83,10 +105,18 @@
 		const result = await markNotificationsRead({ all: true });
 		busy = null;
 		if (!result.ok) {
-			notifyFailure('Could not mark notifications read', result.error);
+			report(`Could not mark notifications read. ${result.error}`, { kind: 'all' });
 			return;
 		}
+		error = null;
+		retryAction = null;
 		await invalidateAll();
+	}
+
+	function retry() {
+		if (retryAction === null) return;
+		if (retryAction.kind === 'all') void markAllRead();
+		else void markRead(retryAction.id);
 	}
 
 	/**
@@ -95,12 +125,25 @@
 	 * browser's own new-tab behaviour and skip the write.
 	 */
 	async function openItem(item: NotificationItem, event: MouseEvent) {
-		if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+		if (
+			event.button !== 0 ||
+			event.metaKey ||
+			event.ctrlKey ||
+			event.shiftKey ||
+			event.altKey
+		) {
+			return;
+		}
 		if (item.readAt !== null) return;
 
 		event.preventDefault();
 		const result = await markNotificationsRead({ id: item.id });
-		if (!result.ok) notifyFailure('Could not mark notification read', result.error);
+		if (!result.ok) {
+			report(`Could not mark the notification read. ${result.error}`, {
+				kind: 'one',
+				id: item.id
+			});
+		}
 		await invalidateAll();
 		await goto(item.url);
 	}
@@ -118,9 +161,12 @@
 		nativeState = 'requesting';
 		try {
 			nativeState = await enableNativeNotifications();
-		} catch (error) {
+		} catch (nativeError) {
 			nativeState = 'unsupported';
-			notifyFailure('Could not enable browser notifications', (error as Error).message);
+			report(
+				`Could not enable browser notifications. ${(nativeError as Error).message}`,
+				null
+			);
 		}
 	}
 
@@ -145,15 +191,12 @@
 	description="Assignments, mentions, watched-issue changes, and new intake submissions."
 />
 
-<div class="surface-shell bg-[var(--background)] flex min-h-0 min-w-0 flex-1 flex-col">
-	<header
-		class="border-[color:var(--border)] flex h-11 shrink-0 items-center gap-2 border-b px-3"
+<div class="flex min-h-0 min-w-0 flex-1 flex-col bg-canvas">
+	<PageHeader
+		title="Notifications"
+		count={unreadCount > 0 ? `${unreadCount} unread` : undefined}
 	>
-		<h1 class="text-base font-semibold tracking-tight">Notifications</h1>
-		{#if unreadCount > 0}
-			<span class="mono text-muted-foreground text-xs">{unreadCount} unread</span>
-		{/if}
-		<div class="ml-auto flex shrink-0 items-center gap-1">
+		{#snippet actions()}
 			<Button
 				variant="outline"
 				size="sm"
@@ -161,109 +204,108 @@
 				onclick={() => void markAllRead()}
 			>
 				{#if busy === 'all'}
-					<Spinner size={13} />
+					<Spinner size={13} label="Marking all read" />
 				{:else}
-					<CheckCheckIcon class="size-3.5" />
+					<CheckCheckIcon class="size-4" aria-hidden="true" />
 				{/if}
 				Mark all read
 			</Button>
-		</div>
-	</header>
+		{/snippet}
+	</PageHeader>
 
 	{#if data.nativeNotifications}
 		<div
-			class="border-[color:var(--border)] bg-[var(--muted)] flex shrink-0 items-center gap-2 border-b px-3 py-2"
+			class="flex shrink-0 flex-wrap items-center gap-3 border-b border-border-subtle bg-surface px-(--layout-page-padding) py-2"
 		>
-			<BellRingIcon class="text-muted-foreground size-3.5 shrink-0" />
-			<p class="text-muted-foreground min-w-0 flex-1 text-xs">{nativeCopy}</p>
+			<BellRingIcon class="size-4 shrink-0 text-fg-secondary" aria-hidden="true" />
+			<p class="min-w-0 flex-1 text-body text-fg-secondary">{nativeCopy}</p>
 			{#if nativeState === 'unknown'}
-				<Button variant="outline" size="xs" onclick={() => void requestNative()}>
-					Enable
+				<Button variant="outline" size="sm" onclick={() => void requestNative()}>
+					Enable browser notifications
 				</Button>
 			{:else if nativeState === 'requesting'}
-				<Spinner size={12} label="Requesting permission" />
+				<Spinner size={13} label="Requesting permission" />
 			{/if}
 		</div>
 	{:else}
 		<div
-			class="border-[color:var(--border)] flex shrink-0 items-center gap-2 border-b px-3 py-2"
+			class="flex shrink-0 items-center gap-3 border-b border-border-subtle bg-surface px-(--layout-page-padding) py-2"
 		>
-			<BellRingIcon class="text-muted-foreground size-3.5 shrink-0" />
-			<p class="text-muted-foreground text-xs">
-				Browser notifications are turned off in settings. In-app notifications still appear here.
+			<BellRingIcon class="size-4 shrink-0 text-fg-secondary" aria-hidden="true" />
+			<p class="text-body text-fg-secondary">
+				Browser notifications are off. In-app notifications still appear here.
 			</p>
+		</div>
+	{/if}
+
+	{#if error}
+		<div class="border-b border-border-subtle px-(--layout-page-padding) py-2">
+			<InlineStatus tone="error" message={error}>
+				{#snippet action()}
+					<Button variant="link" size="sm" onclick={retry} disabled={busy !== null}>
+						Retry
+					</Button>
+				{/snippet}
+			</InlineStatus>
 		</div>
 	{/if}
 
 	<div class="min-h-0 flex-1 overflow-y-auto">
 		{#if data.items.length === 0}
-			<Empty.Root class="border-0">
-				<Empty.Media>
-					<BellRingIcon class="text-muted-foreground size-8" />
-				</Empty.Media>
-				<Empty.Title>You're all caught up</Empty.Title>
-				<Empty.Description>
-					Assignments, mentions, watched-issue changes, and new intake submissions show up
-					here.
-				</Empty.Description>
-			</Empty.Root>
+			<EmptyState
+				title="You're all caught up."
+				description="Assignments, mentions, status changes, and new intake submissions appear here."
+			>
+				{#snippet action()}
+					<Button variant="outline" size="sm" href="/issues">View issues</Button>
+				{/snippet}
+			</EmptyState>
 		{:else}
-			{#each [{ key: 'unread', label: 'Unread', items: unread }, { key: 'read', label: 'Read', items: read }] as group (group.key)}
+			{#each groups as group (group.key)}
 				{#if group.items.length > 0}
-					<section aria-label={group.label}>
+					<section aria-labelledby={`notifications-${group.key}`}>
 						<div
-							class="bg-[var(--background)] sticky top-0 z-20 flex items-center gap-1.5 border-b border-[color:var(--border)] px-3 py-1.5"
+							class="sticky top-0 z-10 flex h-8 items-center gap-2 border-b border-border-subtle bg-canvas px-(--layout-page-padding)"
 						>
-							<h2 class="text-xs font-semibold">{group.label}</h2>
-							<span class="text-muted-foreground/50 text-xs" aria-hidden="true">·</span>
-							<span class="mono text-muted-foreground text-xs">{group.items.length}</span>
+							<h2
+								id={`notifications-${group.key}`}
+								class="text-caption font-semibold text-fg-secondary"
+							>
+								{group.label}
+							</h2>
+							<span class="text-caption text-fg-muted tabular-nums">
+								{group.items.length}
+							</span>
 						</div>
-						<ul class="divide-y divide-[color:var(--border)]" role="list">
+						<ul>
 							{#each group.items as item (item.id)}
+								{@const meta = KIND_META[item.kind]}
+								{@const KindIcon = meta.icon}
+								{@const isUnread = item.readAt === null}
 								<li
-									class={cn(
-										'group/row flex items-start gap-3 px-3 py-3 transition-colors hover:bg-[var(--accent)]',
-										item.readAt !== null && 'opacity-65'
-									)}
+									class="group/row flex items-start gap-3 border-b border-border-subtle px-3 py-2 hover:bg-surface-2"
 								>
-									<span
-										class={cn(
-											'mt-2 size-2 shrink-0 rounded-full',
-											item.readAt === null
-												? 'bg-[var(--primary)]'
-												: 'bg-transparent'
-										)}
-										aria-hidden="true"
-									></span>
-
-									{#if item.actorLogin}
-										<Avatar
-											login={item.actorLogin}
-											avatarUrl={item.actorAvatarUrl}
-											size={24}
-										/>
-									{:else}
-										<span
-											class="bg-[var(--muted)] text-muted-foreground mt-0.5 flex size-6 shrink-0 items-center justify-center rounded"
-										>
-											<BellRingIcon class="size-3.5" />
-										</span>
-									{/if}
+									<span class="flex w-4 shrink-0 justify-center pt-1.5">
+										{#if isUnread}
+											<span class="size-2 rounded-full bg-primary" aria-hidden="true"></span>
+											<span class="sr-only">Unread</span>
+										{/if}
+									</span>
 
 									<div class="min-w-0 flex-1">
 										<div class="flex min-w-0 items-baseline gap-2">
 											<a
 												href={item.url}
-												class="text-foreground hover:underline min-w-0 truncate text-sm font-medium"
+												class={cn(
+													'min-w-0 truncate text-body text-fg hover:underline',
+													isUnread && 'font-semibold'
+												)}
 												onclick={(event) => void openItem(item, event)}
 											>
-												{item.title || KIND_LABEL[item.kind]}
+												{item.title || meta.label}
 											</a>
-											<span class="text-muted-foreground shrink-0 text-[11px]">
-												{KIND_LABEL[item.kind]}
-											</span>
 											<time
-												class="text-muted-foreground ml-auto shrink-0 text-[11px] tabular-nums"
+												class="ml-auto shrink-0 text-caption text-fg-secondary tabular-nums"
 												datetime={new Date(item.createdAt).toISOString()}
 												title={absoluteTime(item.createdAt)}
 											>
@@ -271,32 +313,45 @@
 											</time>
 										</div>
 
-										<div class="text-muted-foreground mt-0.5 flex min-w-0 items-center gap-1.5 text-xs">
+										<div
+											class="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5 text-caption text-fg-secondary"
+										>
+											<span class="inline-flex shrink-0 items-center gap-1">
+												<KindIcon class="size-3.5" aria-hidden="true" />
+												{meta.label}
+											</span>
 											{#if item.actorLogin}
-												<span class="truncate font-medium">{item.actorLogin}</span>
 												<span aria-hidden="true">·</span>
+												<span class="truncate" title={item.actorLogin}>{item.actorLogin}</span>
 											{/if}
-											<span class="truncate">{targetLabel(item.url)}</span>
+											<span aria-hidden="true">·</span>
+											<a
+												href={item.url}
+												class="link min-w-0 truncate"
+												onclick={(event) => void openItem(item, event)}
+											>
+												{targetLabel(item.url)}
+											</a>
 										</div>
 
 										{#if item.body}
-											<p class="text-muted-foreground mt-1 line-clamp-2 text-xs">
+											<p class="mt-1 line-clamp-2 text-caption text-fg-secondary">
 												{item.body}
 											</p>
 										{/if}
 									</div>
 
-									{#if item.readAt === null}
+									{#if isUnread}
 										<Button
 											variant="ghost"
-											size="xs"
+											size="sm"
 											class="shrink-0"
 											disabled={busy !== null}
-											aria-label={`Mark ${item.title || KIND_LABEL[item.kind]} read`}
+											aria-label={`Mark ${item.title || meta.label} read`}
 											onclick={() => void markRead(item.id)}
 										>
 											{#if busy === item.id}
-												<Spinner size={12} />
+												<Spinner size={12} label="Marking read" />
 											{:else}
 												Mark read
 											{/if}

@@ -4,27 +4,25 @@
 	import { page } from '$app/state';
 	import FeedSearch from '#lib/components/filter/FeedSearch.svelte';
 	import FilterPopover from '#lib/components/filter/FilterPopover.svelte';
-	import GroupByControl from '#lib/components/issue/GroupByControl.svelte';
 	import IssueGroupHeader from '#lib/components/issue/IssueGroupHeader.svelte';
 	import IssueListHeader from '#lib/components/issue/IssueListHeader.svelte';
 	import PageHead from '#lib/components/common/PageHead.svelte';
+	import EmptyState from '#lib/components/common/EmptyState.svelte';
+	import InlineStatus from '#lib/components/common/InlineStatus.svelte';
+	import PageHeader from '#lib/components/shell/PageHeader.svelte';
 	import SplitView from '#lib/components/shell/SplitView.svelte';
+	import Toolbar from '#lib/components/shell/Toolbar.svelte';
 	import SubmissionRow from '#lib/components/inbox/SubmissionRow.svelte';
 	import IssueRow from '#lib/components/issue/IssueRow.svelte';
-	import * as Alert from '#lib/components/ui/alert';
-	import * as Empty from '#lib/components/ui/empty';
+	import { Button } from '#lib/components/ui/button';
 	import { createFeed } from '#lib/client/feed.svelte';
-	import {
-		isGroupCollapsed,
-		toggleGroup,
-		getGroupBy
-	} from '#lib/client/list-prefs.svelte';
+	import { isGroupCollapsed, toggleGroup } from '#lib/client/list-prefs.svelte';
 	import {
 		projectInboxEntries,
 		reconcileIssues,
 		reconcileSubmissions
 	} from '#lib/client/optimistic.svelte';
-	import { FEED_ENDPOINTS, flattenInboxRows } from '#lib/feeds';
+	import { FEED_ENDPOINTS, flattenIssueRows } from '#lib/feeds';
 	import { parseIssueParams, type IssueParams } from '#lib/issue-url';
 	import type { IssueListItem, RenderedInboxEntry } from '#lib/server/issues/types';
 	import type { LayoutProps } from './$types';
@@ -55,24 +53,35 @@
 	});
 
 	const entries = $derived(projectInboxEntries(inboxFeed.items));
-	const requested = $derived(getGroupBy());
-	// A stored `project` preference with no configured projects renders flat.
-	const groupBy = $derived(
-		requested === 'project' && data.projects.length === 0 ? 'none' : requested
-	);
-	const rows = $derived(
-		flattenInboxRows(
-			entries,
-			groupBy,
-			data.repoShortcodes,
-			data.projects,
-			(key) => isGroupCollapsed(key)
+	const submissions = $derived(
+		entries.filter(
+			(entry): entry is Extract<RenderedInboxEntry, { kind: 'submission' }> =>
+				entry.kind === 'submission'
 		)
 	);
+	const issues = $derived(
+		entries.flatMap((entry) => (entry.kind === 'issue' ? [entry.issue] : []))
+	);
+
+	// Inbox is already one status bucket (untriaged), so grouping would only
+	// repeat the section heading. Keep the queue flat.
+	const rows = $derived(
+		flattenIssueRows(issues, 'none', data.repoShortcodes, data.projects, () => false)
+	);
+
 	// The server total covers the whole queue; the optimistic projection may
 	// hide loaded rows, so subtract exactly those from the head count.
 	const hidden = $derived(Math.max(0, inboxFeed.items.length - entries.length));
 	const total = $derived(Math.max(0, inboxFeed.total - hidden));
+	const untriagedTotal = $derived(Math.max(0, total - submissions.length));
+
+	function countOf(count: number, noun: string): string {
+		return `${count} ${noun}${count === 1 ? '' : 's'}`;
+	}
+
+	const summary = $derived(
+		`${countOf(submissions.length, 'submission')} · ${countOf(untriagedTotal, 'untriaged issue')}`
+	);
 
 	// The open issue and staged submission are route params.
 	const selectedIssue = $derived(parseIssueParams(page.params as IssueParams));
@@ -83,13 +92,13 @@
 	// Drop overlays and submission hides once the authoritative queue reflects
 	// them; a stale refresh leaves them in place.
 	$effect(() => {
-		const issues: IssueListItem[] = [];
+		const issueItems: IssueListItem[] = [];
 		const submissionIds: string[] = [];
 		for (const entry of data.inbox.items) {
-			if (entry.kind === 'issue') issues.push(entry.issue);
+			if (entry.kind === 'issue') issueItems.push(entry.issue);
 			else submissionIds.push(entry.submission.id);
 		}
-		reconcileIssues(issues);
+		reconcileIssues(issueItems);
 		reconcileSubmissions(submissionIds);
 	});
 
@@ -137,87 +146,142 @@
 
 <SplitView detailOpen={selectedIssue !== null || selectedSubmissionId !== null}>
 	{#snippet feed()}
-		<div class="bg-background flex min-h-0 flex-1 flex-col">
-			<header
-				class="border-[color:var(--border)] flex min-h-11 shrink-0 flex-wrap items-center gap-2 border-b px-3 py-1.5 sm:py-0"
-			>
-				<h1 class="text-xl font-semibold tracking-tight">Inbox</h1>
-				<span class="text-muted-foreground text-xs">{total}</span>
-				<div
-					class="order-last w-full min-w-0 sm:order-none sm:mx-auto sm:w-auto sm:max-w-md sm:flex-1 sm:px-2"
-				>
+		<div class="flex min-h-0 flex-1 flex-col bg-canvas">
+			<PageHeader
+				title="Inbox"
+				count={summary}
+				level={selectedIssue !== null || selectedSubmissionId !== null ? 2 : 1}
+			/>
+
+			<Toolbar>
+				<div class="min-w-0 flex-1">
 					<FeedSearch />
 				</div>
-				<div class="ml-auto flex shrink-0 items-center gap-2">
-					<GroupByControl projects={data.projects} hasMilestones={data.options.milestones.length > 0} />
+				{#snippet actions()}
 					<FilterPopover options={data.options} />
-				</div>
-			</header>
+				{/snippet}
+			</Toolbar>
 
 			{#if formError}
-				<div class="p-2">
-					<Alert.Root variant="destructive">
-						<Alert.Description>{formError}</Alert.Description>
-					</Alert.Root>
+				<div class="border-b border-border-subtle px-(--layout-page-padding) py-2">
+					<InlineStatus tone="error" message={formError} />
 				</div>
 			{/if}
 
 			{#if entries.length === 0}
-				<Empty.Root class="flex-1 border-0">
-					<Empty.Description>Inbox zero. Nothing staged or untriaged.</Empty.Description>
-				</Empty.Root>
+				<EmptyState
+					title="Inbox zero"
+					description="Nothing staged or untriaged."
+					class="flex-1"
+				>
+					{#snippet action()}
+						<Button variant="outline" size="sm" href="/issues">View all issues</Button>
+					{/snippet}
+				</EmptyState>
 			{:else}
-				<div class="issue-list flex min-h-0 flex-1 flex-col">
-					<IssueListHeader />
-					<div class="issue-feed-scroller min-h-0 flex-1 overflow-y-auto" bind:this={scroller}>
-						<Virtualizer
-							data={rows}
-							getKey={(row) => row.key}
-							bind:this={handle}
-							onscroll={maybeLoadMore}
-							onresize={maybeLoadMore}
-						>
-							{#snippet children(row)}
-								{#if row.kind === 'group'}
-									<IssueGroupHeader
-										label={row.label}
-										count={row.count}
-										collapsed={isGroupCollapsed(row.key)}
-										ontoggle={() => toggleGroup(row.key)}
-									/>
-								{:else if row.item.kind === 'submission'}
-									<SubmissionRow
-										submission={row.item.submission}
-										selected={selectedSubmissionId === row.item.submission.id}
-									/>
-								{:else}
-									<IssueRow
-										issue={row.item.issue}
-										selected={isSelectedIssue(row.item.issue.repo, row.item.issue.number)}
-										repoShortcodes={data.repoShortcodes}
-										groupedBy={groupBy}
-									/>
-								{/if}
-							{/snippet}
-						</Virtualizer>
-
-						{#if inboxFeed.loading}
-							<div class="text-muted-foreground px-3 py-2 text-xs" role="status">
-								Loading more…
-							</div>
-						{:else if inboxFeed.error !== null}
-							<div class="flex items-center gap-2 px-3 py-2 text-xs">
-								<span class="text-destructive">{inboxFeed.error}</span>
-								<button
-									type="button"
-									class="text-foreground underline underline-offset-2"
-									onclick={() => void inboxFeed.loadMore()}
+				<div class="min-h-0 flex-1 overflow-y-auto" bind:this={scroller}>
+					{#if submissions.length > 0}
+						<section aria-labelledby="inbox-submissions-heading">
+							<div class="flex items-center justify-between gap-2 px-3 pb-1 pt-3">
+								<h2
+									id="inbox-submissions-heading"
+									class="text-caption font-semibold text-fg-secondary"
 								>
-									Retry
-								</button>
+									Submissions
+								</h2>
+								<span class="text-caption text-fg-muted tabular-nums">
+									{submissions.length}
+								</span>
 							</div>
-						{/if}
-					</div>
+
+							<div
+								class="flex h-(--size-row-compact) items-center gap-3 border-y border-border-subtle bg-surface-2 px-3 text-caption font-semibold text-fg"
+								aria-hidden="true"
+							>
+								<span class="w-24 shrink-0">Source</span>
+								<span class="min-w-0 flex-1">Title</span>
+								<span class="w-20 shrink-0 text-right">Received</span>
+							</div>
+
+							{#each submissions as entry (entry.submission.id)}
+								<SubmissionRow
+									submission={entry.submission}
+									selected={selectedSubmissionId === entry.submission.id}
+								/>
+							{/each}
+						</section>
+					{/if}
+
+					{#if issues.length > 0}
+						<section
+							class="[container-type:inline-size]"
+							aria-labelledby="inbox-issues-heading"
+						>
+							<div class="flex items-center justify-between gap-2 px-3 pb-1 pt-3">
+								<h2
+									id="inbox-issues-heading"
+									class="text-caption font-semibold text-fg-secondary"
+								>
+									Untriaged Issues
+								</h2>
+								<span class="text-caption text-fg-muted tabular-nums">
+									{untriagedTotal}
+								</span>
+							</div>
+
+							<IssueListHeader class="sticky top-0 z-10" />
+
+							<Virtualizer
+								data={rows}
+								getKey={(row) => row.key}
+								bind:this={handle}
+								onscroll={maybeLoadMore}
+								onresize={maybeLoadMore}
+							>
+								{#snippet children(row, index)}
+									{#if row.kind === 'group'}
+										<IssueGroupHeader
+											label={row.label}
+											count={row.count}
+											collapsed={isGroupCollapsed(row.key)}
+											ontoggle={() => toggleGroup(row.key)}
+										/>
+									{:else}
+										<IssueRow
+											issue={row.item}
+											selected={isSelectedIssue(
+												row.item.repo,
+												row.item.number
+											)}
+											repoShortcodes={data.repoShortcodes}
+											groupedBy="status"
+											{index}
+										/>
+									{/if}
+								{/snippet}
+							</Virtualizer>
+						</section>
+					{/if}
+
+					{#if inboxFeed.loading}
+						<div class="border-t border-border-subtle px-3 py-2">
+							<InlineStatus tone="info" message="Loading more…" />
+						</div>
+					{:else if inboxFeed.error !== null}
+						<div class="border-t border-border-subtle px-3 py-2">
+							<InlineStatus tone="error" message={inboxFeed.error}>
+								{#snippet action()}
+									<Button
+										variant="link"
+										size="sm"
+										onclick={() => void inboxFeed.loadMore()}
+									>
+										Retry
+									</Button>
+								{/snippet}
+							</InlineStatus>
+						</div>
+					{/if}
 				</div>
 			{/if}
 		</div>
@@ -227,12 +291,3 @@
 		{@render children()}
 	{/snippet}
 </SplitView>
-
-<style>
-	/* Virtua wraps every row in its own element, so a row is always the
-	   `:last-child`; restore the divider that the row's `last:border-b-0`
-	   would otherwise remove. */
-	.issue-feed-scroller :global(.issue-grid:last-child) {
-		border-bottom-width: 1px;
-	}
-</style>

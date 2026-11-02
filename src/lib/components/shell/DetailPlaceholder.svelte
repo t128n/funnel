@@ -20,7 +20,7 @@
 <Empty.Root class="h-full">
 	<Empty.Header>
 		<Empty.Media variant="icon">
-			<ArrowRightIcon />
+			<ArrowRightIcon class="text-fg-muted" aria-hidden="true" />
 		</Empty.Media>
 		<Empty.Title>{title}</Empty.Title>
 		<Empty.Description>{description}</Empty.Description>

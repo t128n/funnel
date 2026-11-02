@@ -3,10 +3,13 @@
 	import { page } from '$app/state';
 	import AttentionRow from '#lib/components/attention/AttentionRow.svelte';
 	import PageHead from '#lib/components/common/PageHead.svelte';
+	import EmptyState from '#lib/components/common/EmptyState.svelte';
 	import BlockActionDialog from '#lib/components/board/BlockActionDialog.svelte';
 	import ViewSegment from '#lib/components/filter/ViewSegment.svelte';
 	import IssueActionDialog from '#lib/components/issue/IssueActionDialog.svelte';
-	import * as Empty from '#lib/components/ui/empty';
+	import PageHeader from '#lib/components/shell/PageHeader.svelte';
+	import Toolbar from '#lib/components/shell/Toolbar.svelte';
+	import { Button } from '#lib/components/ui/button';
 	import { classifyAttention, toISODate, type AttentionBuckets } from '#lib/attention';
 	import { clockTick } from '#lib/client/clock.svelte';
 	import type { CloseReason } from '#lib/client/mutations';
@@ -20,17 +23,16 @@
 		type BlockPayload
 	} from '#lib/client/issue-actions.svelte';
 	import type { AttentionItem } from '#lib/server/issues/types';
-	import { cn } from '#lib/utils';
 	import type { PageProps } from './$types';
 
 	/**
 	 * Attention (SPEC §5.1): blocked issues grouped overdue → due today → the next
-	 * 7 days → no re-check date, as dense, scannable rows. Reached from the
+	 * 7 days → no re-check date, as ruled, scannable rows. Reached from the
 	 * sidebar; rows link into the Issues view and can be triaged in place
-	 * (reschedule, priority, assignee, done). Dates are compared in the browser's
-	 * timezone, and the shared clock re-evaluates "today" at midnight. The
-	 * All/Mine switch reuses the `assignee=me` scope, so the sidebar badge stays
-	 * global (and counts only overdue + due today).
+	 * (reschedule, assignee, done). Dates are compared in the browser's timezone,
+	 * and the shared clock re-evaluates "today" at midnight. The All/Mine switch
+	 * reuses the `assignee=me` scope, so the sidebar badge stays global (and
+	 * counts only overdue + due today).
 	 */
 	let { data }: PageProps = $props();
 
@@ -53,27 +55,15 @@
 	const buckets: AttentionBuckets<AttentionItem> = $derived(classifyAttention(items, today, 7));
 
 	const groups = $derived([
-		{
-			key: 'overdue',
-			label: 'Overdue',
-			items: buckets.overdue,
-			tone: 'text-destructive'
-		},
-		{ key: 'today', label: 'Due Today', items: buckets.today, tone: 'text-warning' },
-		{
-			key: 'upcoming',
-			label: 'Upcoming',
-			items: buckets.upcoming,
-			tone: 'text-muted-foreground'
-		},
-		{
-			key: 'unscheduled',
-			label: 'No re-check date',
-			items: buckets.unscheduled,
-			tone: 'text-muted-foreground'
-		}
+		{ key: 'overdue', label: 'Overdue', items: buckets.overdue },
+		{ key: 'today', label: 'Due today', items: buckets.today },
+		{ key: 'upcoming', label: 'Upcoming 7 days', items: buckets.upcoming },
+		{ key: 'unscheduled', label: 'No re-check date', items: buckets.unscheduled }
 	]);
 	const total = $derived(groups.reduce((sum, group) => sum + group.items.length, 0));
+	const countLabel = $derived(
+		total === 1 ? '1 blocked issue' : `${total} blocked issues`
+	);
 
 	// One structured dialog set for the page; the row menus raise the action.
 	const pending = $derived(getPendingAction());
@@ -123,38 +113,42 @@
 	description="Blocked issues grouped by re-check date, including those without one."
 />
 
-<div class="bg-background flex min-h-0 min-w-0 flex-1 flex-col">
-	<header
-		class="border-[color:var(--border)] flex h-11 shrink-0 items-center gap-2 border-b px-3"
-	>
-		<h1 class="text-xl font-semibold tracking-tight">Attention</h1>
-		<span class="sr-only">Blocked issues grouped by re-check date, including those without one.</span>
-		<div class="ml-auto flex shrink-0 items-center gap-2">
-			<ViewSegment />
-		</div>
-	</header>
+<div class="flex min-h-0 min-w-0 flex-1 flex-col bg-canvas">
+	<PageHeader title="Attention" count={countLabel} />
+
+	<Toolbar>
+		<ViewSegment />
+	</Toolbar>
 
 	<div class="min-h-0 flex-1 overflow-y-auto">
 		{#if total === 0}
-			<Empty.Root class="border-0">
-				<Empty.Description>
-					{mine
-						? 'No blocked issues assigned to you.'
-						: 'No blocked issues need attention.'}
-				</Empty.Description>
-			</Empty.Root>
+			<EmptyState
+				title={mine ? 'No blocked issues assigned to you.' : 'No blocked issues need attention.'}
+			>
+				{#snippet action()}
+					{#if mine}
+						<Button variant="outline" size="sm" href="/attention">Show all</Button>
+					{:else}
+						<Button variant="outline" size="sm" href="/issues">View all issues</Button>
+					{/if}
+				{/snippet}
+			</EmptyState>
 		{:else}
 			{#each groups as group (group.key)}
 				{#if group.items.length > 0}
-					<section aria-label={group.label}>
+					<section aria-labelledby={`attention-${group.key}`}>
 						<div
-							class="bg-[var(--background)] sticky top-0 z-20 flex items-center gap-1.5 border-b border-[color:var(--border)] px-3 py-1.5"
+							class="sticky top-0 z-10 flex h-8 items-center gap-2 border-b border-border-subtle bg-canvas px-(--layout-page-padding)"
 						>
-							<h2 class={cn('text-xs font-semibold', group.tone)}>{group.label}</h2>
-							<span class="text-muted-foreground/50 text-xs" aria-hidden="true">·</span>
-							<span class="mono text-muted-foreground text-xs">{group.items.length}</span>
+							<h2
+								id={`attention-${group.key}`}
+								class="text-caption font-semibold text-fg-secondary"
+							>
+								{group.label}
+							</h2>
+							<span class="text-caption text-fg-muted tabular-nums">{group.items.length}</span>
 						</div>
-						<div class="divide-y divide-[color:var(--border)]" role="list">
+						<div class="divide-y divide-border-subtle" role="list">
 							{#each group.items as item (`${item.issue.repoId}:${item.issue.number}`)}
 								<AttentionRow
 									{item}

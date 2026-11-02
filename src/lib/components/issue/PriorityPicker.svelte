@@ -1,5 +1,5 @@
 <script lang="ts">
-	import PriorityIcon from '#lib/components/common/PriorityIcon.svelte';
+	import PriorityText from '#lib/components/common/PriorityText.svelte';
 	import { selectTriggerClass } from '#lib/components/common/select-trigger';
 	import * as Popover from '#lib/components/ui/popover';
 	import {
@@ -93,17 +93,14 @@
 <Popover.Root bind:open>
 	<Popover.Trigger
 		{disabled}
-		class={selectTriggerClass('pill', cn('gap-1.5', priority && 'text-foreground'))}
+		class={selectTriggerClass('ghost', cn('gap-1.5', priority && 'text-fg'))}
 		title="Priority"
 	>
-		<PriorityIcon priority={priority} />
-		<span class="max-w-40 truncate">
-			{#if currentMeta}
-				{currentMeta.value} · {currentMeta.name}
-			{:else}
-				No priority
-			{/if}
-		</span>
+		{#if currentMeta}
+			<PriorityText priority={currentMeta.value} showName />
+		{:else}
+			<span class="text-fg-muted">No priority</span>
+		{/if}
 	</Popover.Trigger>
 
 	<Popover.Content align="start" sideOffset={6} preventScroll={false} class="w-80 max-h-[70vh] overflow-y-auto gap-3">
@@ -114,30 +111,21 @@
 			</Popover.Description>
 		</Popover.Header>
 
-		<div
-			class="border-border bg-muted/40 flex items-center justify-between rounded-md border px-2.5 py-1.5"
-		>
-			<span class="text-muted-foreground text-[10px] font-medium tracking-wide uppercase">
-				Result
-			</span>
+		<div class="flex items-center justify-between gap-3 border-t border-border-subtle pt-2">
+			<span class="text-caption font-semibold text-fg-secondary">Result</span>
 			<span class="inline-flex min-w-0 items-center gap-1.5">
-				<PriorityIcon priority={preview} />
 				{#if previewMeta}
-					<span class="text-foreground text-xs font-medium">
-						{previewMeta.value} · {previewMeta.name}
-					</span>
+					<PriorityText priority={previewMeta.value} showName />
 				{:else}
-					<span class="text-muted-foreground text-xs">No priority</span>
+					<span class="text-caption text-fg-muted">No priority</span>
 				{/if}
 			</span>
 		</div>
 
 		<div class="flex flex-col gap-1.5">
 			<div class="flex items-baseline justify-between gap-2">
-				<span class="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">
-					Impact
-				</span>
-				<span class="text-muted-foreground text-xs">
+				<span class="text-caption font-semibold text-fg-secondary">Impact</span>
+				<span class="text-caption text-fg-muted">
 					{impactLevel ? `${impactLevel.value} · ${impactLevel.name}` : 'Not assessed'}
 				</span>
 			</div>
@@ -149,20 +137,19 @@
 				value={localImpact ?? 0}
 				{disabled}
 				aria-label="Impact"
-				style="accent-color: var(--primary)"
-				class="w-full"
+				class="w-full accent-primary"
 				oninput={(event) => onAxisInput('impact', event)}
 				onchange={() => void commit('impact')}
 			/>
 			{#if impactLevel}
 				<div class="flex flex-col gap-1">
-					<p class="text-muted-foreground text-xs leading-snug">
+					<p class="text-caption leading-caption text-fg-secondary">
 						{impactLevel.definition}
 					</p>
-					<ul class="text-muted-foreground flex flex-col gap-0.5 pl-3 text-xs leading-snug">
+					<ul class="text-caption flex flex-col gap-0.5 pl-3 leading-caption text-fg-muted">
 						{#each impactLevel.criteria as criterion (criterion.label)}
 							<li>
-								<span class="text-foreground/80 font-medium">{criterion.label}</span>
+								<span class="font-semibold text-fg-secondary">{criterion.label}</span>
 								<span aria-hidden="true"> — </span>
 								{criterion.anchor}
 							</li>
@@ -170,7 +157,7 @@
 					</ul>
 				</div>
 			{:else}
-				<p class="text-muted-foreground min-h-8 text-xs leading-snug">
+				<p class="min-h-8 text-caption leading-caption text-fg-muted">
 					Reach, data loss, money, locations, workaround
 				</p>
 			{/if}
@@ -178,10 +165,8 @@
 
 		<div class="flex flex-col gap-1.5">
 			<div class="flex items-baseline justify-between gap-2">
-				<span class="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">
-					Urgency
-				</span>
-				<span class="text-muted-foreground text-xs">
+				<span class="text-caption font-semibold text-fg-secondary">Urgency</span>
+				<span class="text-caption text-fg-muted">
 					{urgencyLevel ? `${urgencyLevel.value} · ${urgencyLevel.name}` : 'Not assessed'}
 				</span>
 			</div>
@@ -193,20 +178,19 @@
 				value={localUrgency ?? 0}
 				{disabled}
 				aria-label="Urgency"
-				style="accent-color: var(--primary)"
-				class="w-full"
+				class="w-full accent-primary"
 				oninput={(event) => onAxisInput('urgency', event)}
 				onchange={() => void commit('urgency')}
 			/>
 			{#if urgencyLevel}
 				<div class="flex flex-col gap-1">
-					<p class="text-muted-foreground text-xs leading-snug">
+					<p class="text-caption leading-caption text-fg-secondary">
 						{urgencyLevel.definition}
 					</p>
-					<ul class="text-muted-foreground flex flex-col gap-0.5 pl-3 text-xs leading-snug">
+					<ul class="text-caption flex flex-col gap-0.5 pl-3 leading-caption text-fg-muted">
 						{#each urgencyLevel.criteria as criterion (criterion.label)}
 							<li>
-								<span class="text-foreground/80 font-medium">{criterion.label}</span>
+								<span class="font-semibold text-fg-secondary">{criterion.label}</span>
 								<span aria-hidden="true"> — </span>
 								{criterion.anchor}
 							</li>
@@ -214,7 +198,7 @@
 					</ul>
 				</div>
 			{:else}
-				<p class="text-muted-foreground min-h-8 text-xs leading-snug">
+				<p class="min-h-8 text-caption leading-caption text-fg-muted">
 					Harm now, data or money at risk, spread, blocked people, deadline
 				</p>
 			{/if}
@@ -223,7 +207,7 @@
 		{#if localImpact !== null || localUrgency !== null}
 			<button
 				type="button"
-				class="text-muted-foreground hover:text-foreground self-start text-xs transition-colors"
+				class="self-start text-caption text-fg-muted hover:text-fg"
 				{disabled}
 				onclick={() => void clear()}
 			>

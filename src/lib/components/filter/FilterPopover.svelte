@@ -6,6 +6,8 @@
 	import { SIZE_OPTIONS, STATUS_OPTIONS } from '#lib/labels';
 	import { PRIORITY_SCALE } from '#lib/priority';
 	import type { FilterOptions } from '#lib/server/issues/types';
+	import { cn } from '#lib/utils';
+	import ListFilterIcon from '@lucide/svelte/icons/list-filter';
 	import {
 		activeFilterCount,
 		buildFilterUrl,
@@ -16,8 +18,9 @@
 
 	/**
 	 * Compact, single-trigger filter control for the narrow feed column.
-	 * Collapses the six multi-selects behind a "Filter" button so the master list
-	 * stays legible.
+	 * Collapses the six multi-selects behind a `Filters` button so the master
+	 * list stays legible. The long-tail dimensions live here; the primary
+	 * controls stay visible in the toolbar.
 	 */
 	interface Props {
 		options: FilterOptions;
@@ -141,32 +144,41 @@
 </script>
 
 <Popover.Root bind:open>
-	<Popover.Trigger class="link text-sm">
-		Filter{#if count > 0} ({count}){/if}
+	<Popover.Trigger
+		class="inline-flex h-(--size-control-sm) shrink-0 items-center gap-1.5 rounded-sm border border-border-strong bg-canvas px-2 text-body text-fg-secondary hover:bg-surface hover:text-fg data-[state=open]:bg-surface-2 data-[state=open]:text-fg"
+	>
+		<ListFilterIcon class="size-4 shrink-0" aria-hidden="true" />
+		<span>Filters</span>
+		{#if count > 0}
+			<span class="tabular-nums text-fg">{count}</span>
+		{/if}
 	</Popover.Trigger>
 
-	<Popover.Content align="end" class="w-65 gap-2 p-2" {onInteractOutside}>
-		<div class="flex items-center justify-between">
-			<span class="text-muted-foreground text-xs font-medium tracking-wider uppercase">
-				Filters
-			</span>
+	<Popover.Content
+		align="end"
+		class="w-80 max-w-[calc(100vw-2rem)] gap-3 p-3"
+		{onInteractOutside}
+	>
+		<div class="flex items-center justify-between gap-3">
+			<span class="text-body font-semibold text-fg">Filters</span>
 			{#if count > 0}
-				<button type="button" class="link text-xs" onclick={clearAll}>Clear</button>
+				<button type="button" class="link text-caption" onclick={clearAll}>Clear</button>
 			{/if}
 		</div>
 		{#if showState}
-			<div class="flex items-center justify-between">
-				<span class="text-muted-foreground text-xs">State</span>
-				<div class="flex items-center gap-1.5 text-sm">
+			<div class="flex flex-col gap-1">
+				<span class="text-caption font-semibold text-fg-secondary">State</span>
+				<div class="inline-flex overflow-hidden rounded-sm border border-border-strong">
 					{#each STATE_OPTIONS as option, index (option.value)}
-						{#if index > 0}
-							<span class="text-muted-foreground" aria-hidden="true">|</span>
-						{/if}
 						<button
 							type="button"
-							class={currentState === option.value
-								? 'link font-semibold'
-								: 'text-muted-foreground hover:underline'}
+							class={cn(
+								'inline-flex h-(--size-control-sm) flex-1 items-center justify-center px-2 text-body',
+								index > 0 && 'border-l border-border-subtle',
+								currentState === option.value
+									? 'bg-surface-2 font-semibold text-fg'
+									: 'text-fg-secondary hover:bg-surface hover:text-fg'
+							)}
 							aria-pressed={currentState === option.value}
 							onclick={() => setState(option.value)}
 						>
@@ -176,7 +188,7 @@
 				</div>
 			</div>
 		{/if}
-		<div class="flex flex-wrap gap-1">
+		<div class="flex flex-wrap gap-2">
 			<MultiSelect
 				label="Repo"
 				options={repoOptions}

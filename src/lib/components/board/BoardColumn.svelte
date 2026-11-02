@@ -3,13 +3,14 @@
 	import { Virtualizer, type VirtualizerHandle } from 'virtua/svelte';
 	import BoardCard from './BoardCard.svelte';
 	import { droppableLane, type LaneHandlers } from './dnd';
+	import { Button } from '#lib/components/ui/button';
+	import InlineStatus from '#lib/components/common/InlineStatus.svelte';
 	import type { IssueListItem, UserRef } from '#lib/server/issues/types';
 	import { cn } from '#lib/utils';
+	import TriangleAlertIcon from '@lucide/svelte/icons/triangle-alert';
 
 	/**
-	 * One workflow lane, drawn as a Bugzilla frame: a 1px border around a flat
-	 * card-coloured body with a grey header cell (uppercase lane name left,
-	 * `(count)` right, `+ New` revealed on hover).
+	 * One workflow lane: a ruled `--layout-board-lane` column on the canvas.
 	 *
 	 * The lane is its own scroll container (the header stays fixed) and the
 	 * cards inside it are virtualized with Virtua, so a 500-card lane mounts
@@ -40,6 +41,8 @@
 		activeKey?: string | null;
 		/** Card key currently being dragged anywhere on the board. */
 		draggingKey?: string | null;
+		/** Card key of the docked detail, marked with a 2px leading bar. */
+		selectedKey?: string | null;
 		/** Optional Work-in-Progress cap; `undefined` means unlimited. */
 		limit?: number;
 		/** Done retention window, surfaced as the Done column's tooltip. */
@@ -66,6 +69,7 @@
 		onDrop,
 		activeKey = null,
 		draggingKey = null,
+		selectedKey = null,
 		limit,
 		doneDays,
 		repoShortcodes = {},
@@ -87,6 +91,9 @@
 	let indicator = $state<number | null>(null);
 	/** Guards against a burst of scroll events issuing several page requests. */
 	let loadRequested = $state(false);
+
+	/** A drag is hovering this lane; the body takes `surface-2`. */
+	const isDropTarget = $derived(indicator !== null);
 
 	const cardKey = (issue: IssueListItem) => `${issue.repo}#${issue.number}`;
 
@@ -148,39 +155,47 @@
 </script>
 
 <section
-	class="group/column flex min-h-0 w-[19rem] shrink-0 flex-col overflow-hidden border border-[color:var(--border)] bg-[var(--card)] shadow-none"
+	class="group/column flex min-h-0 w-[var(--layout-board-lane)] max-w-full shrink-0 snap-start flex-col overflow-hidden rounded-md border border-border-subtle bg-canvas"
 	aria-label={label}
 	data-board-column={statusKey}
 	title={isDone && doneDays !== undefined ? `Issues closed in the last ${doneDays} days` : undefined}
 >
-	<!-- Fixed header cell: the lane's scroll happens below this grey bar. -->
-	<header class="flex h-7 shrink-0 items-center gap-2 border-b border-border bg-[var(--muted)] px-2">
-		<span class="min-w-0 flex-1 truncate text-xs font-semibold tracking-wide uppercase">
-			{label}
-		</span>
-		{#if !isDone && !readonly}
-			<a
-				href="/intake"
-				class="link shrink-0 text-xs opacity-100 transition-opacity md:opacity-0 md:group-hover/column:opacity-100 md:group-focus-within/column:opacity-100"
-				title="New issue"
-				aria-label={`New issue in ${label}`}
+	<!-- Fixed header cell: stage, count, and WIP; the lane scrolls below it. -->
+	<header
+		class="flex min-h-9 shrink-0 flex-wrap items-center gap-x-2 gap-y-1 border-b border-border-subtle bg-surface-2 px-3 py-1.5"
+	>
+		<h2 class="min-w-0 flex-1 truncate text-body font-semibold text-fg">{label}</h2>
+		{#if limit !== undefined}
+			<span
+				class={cn(
+					'text-caption tabular-nums',
+					overLimit ? 'font-semibold text-warning' : 'text-fg-secondary'
+				)}
+				title={`${total} of ${limit} (WIP limit)`}
 			>
-				+ New
-			</a>
+				{total} / {limit}
+			</span>
+			{#if overLimit}
+				<span class="status status-warning">
+					<TriangleAlertIcon aria-hidden="true" />
+					<span>Over WIP</span>
+				</span>
+			{/if}
+		{:else}
+			<span class="mono shrink-0 text-caption text-fg-secondary tabular-nums" title={`${total} issues`}>
+				{total}
+			</span>
 		{/if}
-		<span
-			class={cn('mono text-muted-foreground shrink-0 text-xs', overLimit && 'text-warning font-medium')}
-			title={limit !== undefined ? `${total} of ${limit} (WIP limit)` : undefined}
-		>
-			({total}{limit !== undefined ? ` / ${limit}` : ''})
-		</span>
 	</header>
 
 	<!-- The lane's own scroller. Virtua measures the cards inside it; the drop
 	     target and auto-scroll attach here so dragging works while scrolled. -->
 	<div
 		bind:this={scroller}
-		class="relative min-h-0 flex-1 overflow-y-auto overscroll-contain px-2 pt-2 pb-2"
+		class={cn(
+			'relative min-h-0 flex-1 overflow-y-auto overscroll-contain px-2 py-2',
+			isDropTarget && 'bg-surface-2'
+		)}
 		use:droppableLane={laneHandlers}
 		onscroll={handleScroll}
 	>
@@ -191,13 +206,14 @@
 			keepMounted={activeIndex >= 0 ? [activeIndex] : []}
 		>
 			{#snippet children(item, index)}
-				<div class="pb-1.5" data-board-card-index={index}>
+				<div class="pb-2" data-board-card-index={index}>
 					<BoardCard
 						issue={item}
 						columnKey={statusKey}
 						{repoShortcodes}
 						{showRepo}
 						{viewer}
+						selected={selectedKey === cardKey(item)}
 						tabIndex={cardKey(item) === activeKey ? 0 : -1}
 						dragging={draggingKey === cardKey(item)}
 						{readonly}
@@ -208,15 +224,25 @@
 
 		{#if empty}
 			<div
-				class="text-muted-foreground pointer-events-none absolute inset-x-0 top-0 flex items-start justify-center pt-6 text-xs"
+				class="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-1 px-3 text-center"
 			>
-				No issues
+				<p class="text-caption text-fg-secondary">No issues</p>
+				{#if !readonly}
+					<Button
+						href="/intake"
+						variant="ghost"
+						size="sm"
+						class="pointer-events-auto"
+					>
+						New Issue
+					</Button>
+				{/if}
 			</div>
 		{/if}
 
 		{#if indicatorTop !== null}
 			<div
-				class="bg-primary pointer-events-none absolute inset-x-0 z-10 h-0.5"
+				class="pointer-events-none absolute inset-x-0 z-10 h-0.5 bg-primary"
 				style:top={`${indicatorTop}px`}
 				aria-hidden="true"
 				data-board-drop-indicator
@@ -224,22 +250,20 @@
 		{/if}
 
 		{#if loading}
-			<div class="text-muted-foreground flex items-center justify-center py-3 text-xs" role="status">
-				Loading…
+			<div class="flex items-center justify-center py-3" role="status">
+				<span class="text-caption text-fg-secondary">Loading…</span>
 			</div>
 		{/if}
 
 		{#if error}
-			<div class="text-destructive flex items-center justify-center gap-2 py-3 text-xs" role="alert">
-				<span class="min-w-0 truncate">{error}</span>
-				<button
-					type="button"
-					class="text-foreground hover:bg-accent focus-visible:ring-ring/50 shrink-0 rounded-[2px] px-1.5 py-0.5 font-medium underline-offset-2 outline-none hover:underline focus-visible:ring-1"
-					onclick={onLoadMore}
-					disabled={loading}
-				>
-					Retry
-				</button>
+			<div class="px-1 py-2">
+				<InlineStatus tone="error" message={error}>
+					{#snippet action()}
+						<Button variant="ghost" size="xs" onclick={onLoadMore} disabled={loading}>
+							Retry
+						</Button>
+					{/snippet}
+				</InlineStatus>
 			</div>
 		{/if}
 	</div>

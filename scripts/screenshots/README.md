@@ -1,6 +1,6 @@
 # Screenshot harness
 
-Reproducible 1440×900 captures of the twelve cockpit views, in light and dark,
+Reproducible 1440×900 captures of the fifteen cockpit views, in light and dark,
 against a throwaway database. Used for the before/after design gallery.
 
 Both scripts run under Bun outside Vite. They import only `bun:sqlite`,
@@ -76,9 +76,10 @@ bun scripts/screenshots/capture.ts \
 
 `--db` and `--secret` are accepted as flags for the self-starting path.
 
-Output is 24 PNGs named `<view>-<light|dark>.png`: `issues`, `issue`,
+Output is 30 PNGs named `<view>-<light|dark>.png`: `issues`, `issue`,
 `issue-activity`, `board`, `plan`, `epics`, `milestones`, `attention`, `inbox`,
-`settings-appearance`, `matrix`, `priority-guidance`.
+`notifications`, `settings-appearance`, `settings-repositories`, `matrix`,
+`priority-guidance`, `intake`.
 The viewport is 1440×900 at `deviceScaleFactor: 2` by default; pass
 `--scale 1` for lighter previews. The theme is driven by `data-theme` on
 `<html>`, set from `funnel:theme` and `prefers-color-scheme` emulated per theme.

@@ -1,26 +1,33 @@
 <script lang="ts">
-	import * as Empty from '#lib/components/ui/empty';
-	import type { PlanningIssue } from '#lib/server/planning/queries';
-	import type { PlanLane, PlanUnassigned } from '#lib/server/planning/plans';
+	import EllipsisIcon from '@lucide/svelte/icons/ellipsis';
+	import TriangleAlertIcon from '@lucide/svelte/icons/triangle-alert';
+	import EmptyState from '#lib/components/common/EmptyState.svelte';
+	import { Button } from '#lib/components/ui/button';
+	import * as DropdownMenu from '#lib/components/ui/dropdown-menu';
 	import { issuePath } from '#lib/issue-url';
 	import { formatMinutes } from '#lib/planning';
+	import type { PlanningIssue } from '#lib/server/planning/queries';
+	import type { PlanLane, PlanUnassigned } from '#lib/server/planning/plans';
 	import CapacityBar from './CapacityBar.svelte';
 
 	/**
-	 * Maintainer lanes for one week or cycle. Each lane is a 1px-bordered
-	 * column with a grey header cell: the person's login on the left and the
-	 * committed/cap totals as plain text on the right. Work with no active
-	 * maintainer sits in an unassigned bucket; unestimated issues are listed
-	 * separately because they contribute no committed minutes. Empty lanes keep
-	 * their header and fixed height so the column stays legible.
+	 * Maintainer lanes for one week or cycle. Each lane is a ruled section with
+	 * a `surface-2` header: the person's login, net capacity, committed/cap and
+	 * an icon plus word when over. Work with no active maintainer sits in its own
+	 * unassigned section; unestimated issues are listed separately because they
+	 * contribute no committed minutes.
 	 */
 	interface Props {
 		lanes: PlanLane[];
 		unassigned: PlanUnassigned;
 		unestimated: PlanningIssue[];
 		allocationPercent?: number;
+		/** Size label → minutes, supplied by the server's planning settings. */
+		sizeMinutes?: Record<string, number>;
 		/** Writers get a remove control on every planned issue. */
 		mayWrite?: boolean;
+		/** Opens the schedule dialog from the empty state. */
+		onschedule?: () => void;
 		onremove?: (issue: PlanningIssue) => void;
 		removing?: string | null;
 		emptyLabel?: string;
@@ -31,71 +38,103 @@
 		unassigned,
 		unestimated,
 		allocationPercent = 60,
+		sizeMinutes = {},
 		mayWrite = false,
+		onschedule,
 		onremove,
 		removing = null,
-		emptyLabel = 'Nothing is planned for this window yet.'
+		emptyLabel = 'Nothing is planned for this window.'
 	}: Props = $props();
+
+	const plannedCount = $derived(
+		lanes.reduce((total, lane) => total + lane.issues.length, 0) + unassigned.issues.length
+	);
 
 	function issueKey(issue: PlanningIssue): string {
 		return `${issue.repo}#${issue.number}`;
 	}
 
 	function sizeLabel(size: string | null): string {
-		return size === null ? '—' : size.toUpperCase();
+		if (size === null) return '—';
+		if (size === 'sm') return 'S';
+		if (size === 'md') return 'M';
+		if (size === 'lg') return 'L';
+		return size.toUpperCase();
+	}
+
+	function estimateLabel(issue: PlanningIssue): string {
+		if (issue.size === null) return '—';
+		const minutes = sizeMinutes[issue.size] ?? sizeMinutes[issue.size.toLowerCase()];
+		return minutes === undefined ? '—' : formatMinutes(minutes);
+	}
+
+	function overBy(lane: PlanLane): number {
+		return Math.max(0, lane.committedMinutes - lane.capMinutes);
 	}
 </script>
 
-<div class="flex flex-col gap-3" data-testid="plan-lanes">
+<div class="flex flex-col" data-testid="plan-lanes">
+	{#if lanes.length > 0 && plannedCount === 0}
+		<EmptyState
+			title={emptyLabel}
+			description="Schedule an issue to commit work to a maintainer."
+			class="border-y border-border-subtle py-6"
+		>
+			{#snippet action()}
+				{#if mayWrite && onschedule}
+					<Button size="sm" onclick={onschedule}>Schedule Issue</Button>
+				{/if}
+			{/snippet}
+		</EmptyState>
+	{/if}
+
 	{#if lanes.length === 0}
-		<Empty.Root class="border-0 py-8">
-			<Empty.Description>{emptyLabel}</Empty.Description>
-		</Empty.Root>
+		<EmptyState
+			title="No capacity lanes."
+			description="Add active maintainers in Planning settings to open capacity lanes."
+			class="border-y border-border-subtle py-10"
+		/>
 	{:else}
 		{#each lanes as lane (lane.maintainer.externalId)}
-			<section
-				class="flex min-h-28 flex-col border border-[color:var(--border)]"
-				data-lane={lane.maintainer.login}
-			>
-				<div class="bug-table-head flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
-					<span class="flex min-w-0 items-baseline gap-2">
-						<a
-							class="link focus-visible:ring-ring/50 min-w-0 truncate outline-none focus-visible:ring-2"
-							href={`https://github.com/${lane.maintainer.login}`}
-							target="_blank"
-							rel="noreferrer"
-						>
-							@{lane.maintainer.login}
-						</a>
-						<span class="flag flag-muted shrink-0">
-							{formatMinutes(lane.maintainer.weeklyMinutes)} net
-						</span>
+			<section class="flex flex-col border-t border-border-subtle" data-lane={lane.maintainer.login}>
+				<header class="flex flex-wrap items-center gap-x-3 gap-y-1 bg-surface-2 px-3 py-2">
+					<a
+						class="min-w-0 truncate text-body font-semibold text-fg hover:underline"
+						href={`https://github.com/${lane.maintainer.login}`}
+						target="_blank"
+						rel="noreferrer"
+					>
+						@{lane.maintainer.login}
+					</a>
+					<span class="text-caption text-fg-secondary tabular-nums">
+						{formatMinutes(lane.maintainer.weeklyMinutes)} net
 					</span>
-					<span class="flex shrink-0 items-baseline gap-2 text-xs">
-						<span class="mono tabular-nums">
-							{formatMinutes(lane.committedMinutes)} committed · {formatMinutes(lane.capMinutes)} cap
-						</span>
-						{#if lane.over}
-							<span class="flag flag-danger">over</span>
-						{/if}
+					<span class="ms-auto text-caption text-fg-secondary tabular-nums">
+						{formatMinutes(lane.committedMinutes)} / {formatMinutes(lane.capMinutes)}
 					</span>
-				</div>
+					{#if lane.over}
+						<span class="status status-error shrink-0">
+							<TriangleAlertIcon aria-hidden="true" />
+							<span>Over by {formatMinutes(overBy(lane))}</span>
+						</span>
+					{/if}
+				</header>
 
-				<div class="border-b border-[color:var(--border)] px-2 py-1.5">
+				<div class="px-3 py-2">
 					<CapacityBar
-						class="max-w-64"
 						committedMinutes={lane.committedMinutes}
 						capMinutes={lane.capMinutes}
 						{allocationPercent}
+						showValue={false}
 					/>
 				</div>
 
 				{#if lane.issues.length === 0}
-					<p class="text-muted-foreground px-2 py-2 text-xs">No planned issues.</p>
+					<p class="px-3 pb-2 text-caption text-fg-secondary">No planned issues.</p>
 				{:else}
 					<ul class="flex flex-col">
 						{#each lane.issues as issue (issueKey(issue))}
-							{@render issueRow(issue)}
+							{@render issueRow(issue, true)}
 						{/each}
 					</ul>
 				{/if}
@@ -103,70 +142,103 @@
 		{/each}
 	{/if}
 
-	<section
-		class="flex min-h-24 flex-col border border-[color:var(--border)]"
-		data-testid="unassigned"
-	>
-		<div class="bug-table-head flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
-			<span class="min-w-0 truncate">Unassigned</span>
-			<span class="mono shrink-0 text-xs tabular-nums">
-				{formatMinutes(unassigned.committedMinutes)} committed · no active maintainer
+	<section class="mt-4 flex flex-col border-t border-border-subtle" data-testid="unassigned">
+		<header class="flex flex-wrap items-center gap-x-3 gap-y-1 bg-surface-2 px-3 py-2">
+			<h2 class="text-body font-semibold text-fg">Unassigned</h2>
+			<span class="ms-auto text-caption text-fg-secondary tabular-nums">
+				{formatMinutes(unassigned.committedMinutes)} committed
 			</span>
-		</div>
+		</header>
 		{#if unassigned.issues.length === 0}
-			<p class="text-muted-foreground px-2 py-2 text-xs">No unassigned work.</p>
+			<p class="px-3 py-2 text-caption text-fg-secondary">No unassigned work.</p>
 		{:else}
+			<p class="px-3 py-2 text-caption text-fg-secondary">
+				No active maintainer. Assign these issues to a configured maintainer to place them
+				in a lane.
+			</p>
 			<ul class="flex flex-col">
 				{#each unassigned.issues as issue (issueKey(issue))}
-					{@render issueRow(issue)}
+					{@render issueRow(issue, true)}
 				{/each}
 			</ul>
 		{/if}
 	</section>
 
-	{#if unestimated.length > 0}
-		<section
-			class="flex min-h-24 flex-col border border-[color:var(--border)]"
-			data-testid="unestimated"
-		>
-			<div class="bug-table-head flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
-				<span class="min-w-0 truncate">Unestimated</span>
-				<span class="text-muted-foreground shrink-0 text-xs">
-					Add a size label to schedule these.
-				</span>
-			</div>
+	<section class="mt-4 flex flex-col border-t border-border-subtle" data-testid="unestimated">
+		<header class="flex flex-wrap items-center gap-x-3 gap-y-1 bg-surface-2 px-3 py-2">
+			<h2 class="text-body font-semibold text-fg">Unestimated</h2>
+			<span class="ms-auto text-caption text-fg-secondary tabular-nums">
+				{unestimated.length}
+			</span>
+		</header>
+		{#if unestimated.length === 0}
+			<p class="px-3 py-2 text-caption text-fg-secondary">Every open issue has an estimate.</p>
+		{:else}
+			<p class="px-3 py-2 text-caption text-fg-secondary">
+				These open issues have no size label. Add a size to make them schedulable.
+			</p>
 			<ul class="flex flex-col">
 				{#each unestimated as issue (issueKey(issue))}
-					{@render issueRow(issue)}
+					{@render issueRow(issue, false)}
 				{/each}
 			</ul>
-		</section>
-	{/if}
+		{/if}
+	</section>
 </div>
 
-{#snippet issueRow(issue: PlanningIssue)}
+{#snippet issueRow(issue: PlanningIssue, removable: boolean)}
 	<li
-		class="group/issue flex min-w-0 items-baseline gap-2 border-b border-[color:var(--border)] px-2 py-1 last:border-b-0"
+		class="group/issue flex min-h-(--size-row-compact) min-w-0 items-center gap-2 border-b border-border-subtle px-3 last:border-b-0"
 	>
 		<a
-			class="focus-visible:ring-ring/50 flex min-w-0 flex-1 items-baseline gap-2 outline-none focus-visible:ring-2"
+			class="flex min-w-0 flex-1 items-center gap-2 hover:underline"
 			href={issuePath('issues', issue.repo, issue.number)}
 		>
-			<span class="flag flag-muted shrink-0">{issue.repo}#{issue.number}</span>
-			<span class="min-w-0 truncate text-sm">{issue.title}</span>
+			<span class="mono shrink-0 text-fg-secondary">{issue.repo}#{issue.number}</span>
+			<span class="min-w-0 truncate text-body text-fg">{issue.title}</span>
 		</a>
-		<span class="flag flag-muted shrink-0">{sizeLabel(issue.size)}</span>
-		{#if mayWrite && onremove}
+		<span class="w-8 shrink-0 text-end text-caption text-fg-secondary" title="Size">
+			{sizeLabel(issue.size)}
+		</span>
+		<span class="w-12 shrink-0 text-end text-caption text-fg-secondary tabular-nums" title="Estimate">
+			{estimateLabel(issue)}
+		</span>
+		{#if mayWrite && onremove && removable}
 			<button
 				type="button"
-				class="text-muted-foreground hover:text-destructive shrink-0 text-2xs opacity-0 group-hover/issue:opacity-100 focus-visible:opacity-100"
+				class="shrink-0 text-caption text-fg-secondary opacity-0 hover:text-error focus-visible:opacity-100 group-hover/issue:opacity-100 group-focus-within/issue:opacity-100"
 				disabled={removing === issueKey(issue)}
-				title="Remove from plan"
 				aria-label={`Remove ${issue.repo}#${issue.number} from the plan`}
 				onclick={() => onremove?.(issue)}
 			>
 				Remove
 			</button>
+			<DropdownMenu.Root>
+				<DropdownMenu.Trigger
+					class="inline-flex size-(--size-control-sm) shrink-0 items-center justify-center rounded-sm text-fg-secondary hover:bg-surface-2 hover:text-fg"
+				>
+					<EllipsisIcon class="size-4" aria-hidden="true" />
+					<span class="sr-only">Actions for {issue.repo}#{issue.number}</span>
+				</DropdownMenu.Trigger>
+				<DropdownMenu.Content align="end" class="w-52">
+					<DropdownMenu.Item
+						variant="destructive"
+						disabled={removing === issueKey(issue)}
+						onSelect={() => onremove?.(issue)}
+					>
+						Remove from plan
+					</DropdownMenu.Item>
+				</DropdownMenu.Content>
+			</DropdownMenu.Root>
+		{:else if mayWrite && onremove && !removable}
+			<Button
+				variant="ghost"
+				size="xs"
+				href={issuePath('issues', issue.repo, issue.number)}
+				aria-label={`Estimate ${issue.repo}#${issue.number}`}
+			>
+				Estimate
+			</Button>
 		{/if}
 	</li>
 {/snippet}

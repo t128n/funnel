@@ -15,7 +15,7 @@
  */
 import { untrack } from "svelte";
 import { SvelteMap, SvelteSet } from "svelte/reactivity";
-import { toast } from "svelte-sonner";
+import { notifyFailure } from "#lib/client/status.svelte";
 import type { MutationResult } from "#lib/client/mutations";
 import { STATUS_OPTIONS, isUntriaged } from "#lib/labels";
 import type {
@@ -120,17 +120,14 @@ export async function mutate<T>(
   const result = await commit();
   if (!result.ok) {
     restoreOverlay(key, snapshot);
-    if (notify) toast.error(failure, { description: result.error });
+    if (notify) notifyFailure(failure, result.error);
     return { ok: false, error: result.error };
   }
 
   return { ok: true };
 }
 
-/** Surface a failure from the `use:enhance` path as a toast. */
-export function notifyFailure(title: string, description?: string): void {
-  toast.error(title, description ? { description } : undefined);
-}
+export { notifyFailure } from "#lib/client/status.svelte";
 
 // --- Reconciliation ---------------------------------------------------------
 

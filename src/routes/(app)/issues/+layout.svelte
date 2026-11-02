@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
+	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import FeedSearch from '#lib/components/filter/FeedSearch.svelte';
 	import FilterPopover from '#lib/components/filter/FilterPopover.svelte';
@@ -7,11 +8,20 @@
 	import GroupByControl from '#lib/components/issue/GroupByControl.svelte';
 	import IssueList from '#lib/components/issue/IssueList.svelte';
 	import PageHead from '#lib/components/common/PageHead.svelte';
+	import PageHeader from '#lib/components/shell/PageHeader.svelte';
+	import Toolbar from '#lib/components/shell/Toolbar.svelte';
 	import SplitView from '#lib/components/shell/SplitView.svelte';
+	import { Button } from '#lib/components/ui/button';
 	import { createFeed } from '#lib/client/feed.svelte';
 	import { projectIssues, reconcileIssues } from '#lib/client/optimistic.svelte';
 	import { FEED_ENDPOINTS } from '#lib/feeds';
 	import { parseIssueParams, type IssueParams } from '#lib/issue-url';
+	import {
+		activeFilterCount,
+		buildFilterUrl,
+		EMPTY_CLIENT_FILTER,
+		parseFilterParams
+	} from '#lib/url-filter';
 	import type { IssueListItem } from '#lib/server/issues/types';
 	import type { LayoutProps } from './$types';
 
@@ -35,6 +45,47 @@
 	// query-parameter state.
 	const selected = $derived(parseIssueParams(page.params as IssueParams));
 
+	const filter = $derived(parseFilterParams(page.url.searchParams));
+	const mine = $derived(
+		filter.assignees.length === 1 && filter.assignees[0] === 'me'
+	);
+	// `assignee=me` is the All/Mine scope, not one of the popover's filters.
+	const filterCount = $derived(
+		activeFilterCount({
+			...filter,
+			assignees: filter.assignees.filter((value) => value !== 'me')
+		})
+	);
+
+	const stateLabel = $derived.by(() => {
+		const states = new Set(filter.states);
+		if (states.has('open') && states.has('closed')) return 'Open and closed';
+		if (states.has('closed')) return 'Closed';
+		return 'Open';
+	});
+
+	const scopeLine = $derived(
+		[
+			stateLabel,
+			mine ? 'Assigned to you' : null,
+			filterCount > 0
+				? `${filterCount} ${filterCount === 1 ? 'filter' : 'filters'}`
+				: null
+		]
+			.filter((value): value is string => value !== null)
+			.join(' · ')
+	);
+
+	function clearFilters() {
+		void goto(
+			buildFilterUrl(page.url.pathname, page.url.searchParams, {
+				...EMPTY_CLIENT_FILTER,
+				assignees: filter.assignees.filter((value) => value === 'me')
+			}),
+			{ reset: false }
+		);
+	}
+
 	// Merge each fresh first page into the loaded window; SSE refreshes keep the
 	// rows already scrolled past, and a filter change resets the window.
 	$effect(() => {
@@ -46,34 +97,42 @@
 </script>
 
 <PageHead
-	title="Issues"
+	title={mine ? 'My Issues' : 'Issues'}
 	description="Every mirrored GitHub issue, filtered and grouped."
 />
 
 <SplitView detailOpen={selected !== null}>
 	{#snippet feed()}
-		<div class="bg-background flex min-h-0 flex-1 flex-col">
-			<header
-				class="border-[color:var(--border)] flex min-h-11 shrink-0 flex-wrap items-center gap-2 border-b px-3 py-1.5 sm:py-0"
+		<div class="flex min-h-0 flex-1 flex-col bg-canvas">
+			<PageHeader
+				title={mine ? 'My Issues' : 'Issues'}
+				count={issueFeed.total.toLocaleString()}
+				description={scopeLine}
+				level={selected ? 2 : 1}
 			>
-				<h1 class="text-xl font-semibold tracking-tight">Issues</h1>
-				<span class="text-muted-foreground text-xs">{issueFeed.total}</span>
-				<div
-					class="order-last w-full min-w-0 sm:order-none sm:mx-auto sm:w-auto sm:max-w-md sm:flex-1 sm:px-2"
-				>
-					<FeedSearch />
-				</div>
-				<div class="ml-auto flex shrink-0 items-center gap-2">
-					<ViewSegment />
-					<GroupByControl projects={data.projects} hasMilestones={data.options.milestones.length > 0} />
-					<FilterPopover options={data.options} allowNoStatus={false} showState />
-				</div>
-			</header>
+				{#snippet actions()}
+					{#if filterCount > 0}
+						<Button variant="ghost" size="sm" onclick={clearFilters}>Clear filters</Button>
+					{/if}
+				{/snippet}
+			</PageHeader>
+
+			<Toolbar>
+				<FeedSearch />
+				<ViewSegment />
+				<GroupByControl
+					projects={data.projects}
+					hasMilestones={data.options.milestones.length > 0}
+				/>
+				<FilterPopover options={data.options} allowNoStatus={false} showState />
+			</Toolbar>
 
 			<IssueList
 				feed={issueFeed}
 				{selected}
-				empty="No issues match these filters."
+				empty={filterCount === 0 && filter.states.length === 0
+					? 'No issues yet.'
+					: 'No issues match these filters.'}
 				repoShortcodes={data.repoShortcodes}
 				projects={data.projects}
 				project={projectIssues}

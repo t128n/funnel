@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
-	import * as Card from '#lib/components/ui/card';
 	import * as Field from '#lib/components/ui/field';
 	import { Input } from '#lib/components/ui/input';
+	import Section from '#lib/components/settings/section.svelte';
 	import SettingsForm from '#lib/components/settings/settings-form.svelte';
 	import type { SettingsFormResult } from '#lib/components/settings/sections';
 	import type { PageProps } from './$types';
@@ -32,25 +32,34 @@
 </script>
 
 <SettingsForm
-	title="Board"
-	description="The Done-column retention window and optional per-stage Work-in-Progress caps. Leave a cap blank for no limit; Done is never capped."
 	form={form as SettingsFormResult | null}
 	{payload}
 >
-	<Card.Root>
-		<Card.Content class="flex flex-col gap-4 pt-6">
-			<Field.Field class="max-w-[12rem]">
-				<Field.Label>Done retention (days)</Field.Label>
-				<Input type="number" min="0" bind:value={doneDays} />
+	<Section
+		title="Done column"
+		description="Issues that moved to Done longer ago than this window are hidden from the board."
+	>
+		<Field.Field>
+			<Field.Label for="board-done-days">Done retention (days)</Field.Label>
+			<Input id="board-done-days" type="number" min="0" bind:value={doneDays} />
+		</Field.Field>
+	</Section>
+
+	<Section
+		title="Work in progress"
+		description="Optional caps per stage. Leave a cap blank for no limit; Done is never capped."
+	>
+		{#each wipStages as stage (stage)}
+			<Field.Field>
+				<Field.Label for={`board-wip-${stage}`} class="capitalize">{stage}</Field.Label>
+				<Input
+					id={`board-wip-${stage}`}
+					type="number"
+					min="0"
+					placeholder="No limit"
+					bind:value={wipLimits[stage]}
+				/>
 			</Field.Field>
-			<div class="grid gap-4 sm:grid-cols-4">
-				{#each wipStages as stage (stage)}
-					<Field.Field>
-						<Field.Label class="capitalize">{stage}</Field.Label>
-						<Input type="number" min="0" placeholder="No limit" bind:value={wipLimits[stage]} />
-					</Field.Field>
-				{/each}
-			</div>
-		</Card.Content>
-	</Card.Root>
+		{/each}
+	</Section>
 </SettingsForm>

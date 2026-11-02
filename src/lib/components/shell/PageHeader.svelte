@@ -6,11 +6,13 @@
 		description?: string;
 		/** Live count or scope summary shown beside the title. */
 		count?: string | number;
+		/** Demote the title to h2 when a split-view detail owns the screen h1. */
+		level?: 1 | 2;
 		/** Primary and secondary page actions, right-aligned on the title baseline. */
 		actions?: Snippet;
 	}
 
-	let { title, description, count, actions }: Props = $props();
+	let { title, description, count, level = 1, actions }: Props = $props();
 </script>
 
 <header
@@ -18,11 +20,14 @@
 >
 	<div class="min-w-0">
 		<div class="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-			<h1
-				class="min-w-0 text-heading-md font-semibold leading-heading-md tracking-[-0.01em] text-fg"
+			<svelte:element
+				this={level === 1 ? "h1" : "h2"}
+				class={level === 1
+					? "min-w-0 text-heading-md font-semibold leading-heading-md tracking-[-0.01em] text-fg"
+					: "min-w-0 text-heading-sm font-semibold leading-heading-sm text-fg"}
 			>
 				{title}
-			</h1>
+			</svelte:element>
 			{#if count !== undefined && count !== ""}
 				<span class="text-body text-fg-secondary tabular-nums">{count}</span>
 			{/if}

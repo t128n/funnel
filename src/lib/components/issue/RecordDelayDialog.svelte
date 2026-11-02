@@ -1,10 +1,11 @@
 <script lang="ts">
 	import { invalidateAll } from '$app/navigation';
 	import Spinner from '#lib/components/common/Spinner.svelte';
-	import * as Alert from '#lib/components/ui/alert';
+	import InlineStatus from '#lib/components/common/InlineStatus.svelte';
 	import { Button } from '#lib/components/ui/button';
 	import * as Dialog from '#lib/components/ui/dialog';
 	import * as Field from '#lib/components/ui/field';
+	import { Input } from '#lib/components/ui/input';
 	import * as NativeSelect from '#lib/components/ui/native-select';
 	import { Textarea } from '#lib/components/ui/textarea';
 	import {
@@ -103,8 +104,8 @@
 <Dialog.Root {open} onOpenChange={close}>
 	<Dialog.Content aria-describedby={undefined} class="sm:max-w-md">
 		<Dialog.Header>
-			<Dialog.Title class="text-base font-semibold">Record delay</Dialog.Title>
-			<Dialog.Description class="text-muted-foreground text-xs">
+			<Dialog.Title class="text-heading-sm font-semibold">Record delay</Dialog.Title>
+			<Dialog.Description class="text-body text-fg-secondary">
 				Manual delays are local to Funnel. They may overlap a blocked delay; total delay time
 				is the union of the intervals.
 			</Dialog.Description>
@@ -113,7 +114,7 @@
 		<div class="flex flex-col gap-4">
 			<Field.Field>
 				<Field.Label for="delay-reason">
-					Reason <span class="text-destructive font-normal">required</span>
+					Reason <span class="font-normal text-error">required</span>
 				</Field.Label>
 				<NativeSelect.Root id="delay-reason" bind:value={reason}>
 					<NativeSelect.Option value="">Select a reason</NativeSelect.Option>
@@ -125,24 +126,14 @@
 
 			<Field.Field>
 				<Field.Label for="delay-start">
-					Started <span class="text-destructive font-normal">required</span>
+					Started <span class="font-normal text-error">required</span>
 				</Field.Label>
-				<input
-					id="delay-start"
-					type="datetime-local"
-					bind:value={started}
-					class="border-input dark:bg-input/30 h-8 rounded-lg border bg-transparent px-2.5 text-sm"
-				/>
+				<Input id="delay-start" type="datetime-local" bind:value={started} />
 			</Field.Field>
 
 			<Field.Field>
 				<Field.Label for="delay-end">Ended</Field.Label>
-				<input
-					id="delay-end"
-					type="datetime-local"
-					bind:value={ended}
-					class="border-input dark:bg-input/30 h-8 rounded-lg border bg-transparent px-2.5 text-sm"
-				/>
+				<Input id="delay-end" type="datetime-local" bind:value={ended} />
 			</Field.Field>
 
 			<Field.Field>
@@ -151,9 +142,7 @@
 			</Field.Field>
 
 			{#if error}
-				<Alert.Root variant="destructive">
-					<Alert.Description>{error}</Alert.Description>
-				</Alert.Root>
+				<InlineStatus tone="error" message={error} />
 			{/if}
 		</div>
 
@@ -163,13 +152,11 @@
 					<Button variant="outline" {...props} type="button" disabled={busy}>Cancel</Button>
 				{/snippet}
 			</Dialog.Close>
-			<Button onclick={confirm} disabled={!canConfirm}>
+			<Button onclick={confirm} disabled={!canConfirm} class="min-w-28">
 				{#if busy}
-					<span data-icon="inline-start" class="inline-flex items-center">
-						<Spinner size={13} />
-					</span>
+					<Spinner size={13} />
 				{/if}
-				Record delay
+				{busy ? 'Recording…' : 'Record delay'}
 			</Button>
 		</Dialog.Footer>
 	</Dialog.Content>

@@ -64,12 +64,12 @@
 </script>
 
 {#if propertyState === 'epic'}
-	<div class="flex items-center gap-1.5">
+	<div class="flex flex-wrap items-center gap-2">
 		<a
 			href={epicHref(repo, number)}
-			class="text-foreground border-border bg-accent/60 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium"
+			class="inline-flex items-center gap-1.5 text-body font-semibold text-fg hover:text-primary"
 		>
-			<LayersIcon class="size-3.5" />
+			<LayersIcon class="size-4" aria-hidden="true" />
 			Epic
 		</a>
 		{#if mayWrite}
@@ -82,20 +82,20 @@
 {:else if propertyState === 'child' && parent}
 	<a
 		href={epicHref(parent.repo, parent.number)}
-		class="text-muted-foreground hover:text-foreground inline-flex min-w-0 items-center gap-1 text-xs"
+		class="inline-flex min-w-0 items-center gap-1.5 text-body text-fg-secondary hover:text-fg"
 		title={`${parent.repo}#${parent.number}`}
 	>
-		<LayersIcon class="size-3.5 shrink-0" />
+		<LayersIcon class="size-4 shrink-0" aria-hidden="true" />
 		<span class="truncate">Child of {parent.repo}#{parent.number} · {parent.title}</span>
 	</a>
 {:else if mayWrite}
 	<Button variant="ghost" size="xs" disabled={!editable} onclick={toggle}>
 		{#if busy}<Spinner size={12} />{/if}
-		<LayersIcon class="size-3.5" />
+		<LayersIcon class="size-4" aria-hidden="true" />
 		Mark as epic
 	</Button>
 {/if}
 
 {#if error}
-	<p class="text-destructive w-full text-xs" role="alert">{error}</p>
+	<p class="w-full text-caption text-error" role="alert">{error}</p>
 {/if}

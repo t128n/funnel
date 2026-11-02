@@ -66,7 +66,7 @@ for descriptions, errors, and statuses. No all-caps. No type below 0.75rem.
 
 ## 4. Density and shape
 
-The cockpit declares **compact** density: 1.75rem controls and 2.25rem rows.
+The cockpit declares **Compact** density: 1.75rem controls and 2.25rem rows.
 Focused flows use default density (2.25rem controls, 2.75rem rows). Below
 768px, controls and rows are at least 2.75rem.
 
@@ -105,7 +105,7 @@ Focused flows use default density (2.25rem controls, 2.75rem rows). Below
 
 ## 7. Issue page
 
-- Title 1.5rem/600; ref mono + GitHub link; status/priority/assignee line.
+- Title 1.5rem/600; ref mono + GitHub link; status/priority/assignee line. Priority renders as P1–P3 with an accessible name.
 - Properties are label–value rows under a top rule. Values are buttons that
   open the existing pickers and render as plain text at rest.
 - Description and comments use 1rem/1.6 prose, max 72ch, with the shared

@@ -11,7 +11,7 @@ light and dark; the files here are the preview set used in the pull request.
 - `settings-light.png`, `settings-dark.png`
 - `intake-light.png`, `intake-dark.png`
 
-Regenerate the full 24-view gallery:
+Regenerate the full 30-view gallery:
 
 ```sh
 COOKIE="$(bun scripts/screenshots/seed.ts --out /tmp/funnel-shots)"

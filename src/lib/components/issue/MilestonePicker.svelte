@@ -103,7 +103,7 @@
 <Popover.Root bind:open>
 	<Popover.Trigger
 		{disabled}
-		class={selectTriggerClass('pill', cn('gap-1.5', value && 'text-foreground'))}
+		class={selectTriggerClass('ghost', cn('gap-1.5', value && 'text-fg'))}
 	>
 		<span class="inline-flex size-4 shrink-0 items-center justify-center" aria-hidden="true">
 			<MilestoneIcon class="size-3.5" />
@@ -139,7 +139,7 @@
 					}}
 				/>
 				{#if error}
-					<p class="text-destructive text-xs">{error}</p>
+					<p class="text-caption text-error" role="alert">{error}</p>
 				{/if}
 				<div class="flex items-center justify-end gap-1">
 					<Button
@@ -161,7 +161,7 @@
 				</div>
 			</div>
 		{:else}
-			<Command.Root class="rounded-lg! bg-transparent">
+			<Command.Root class="border-0! bg-transparent!">
 				<Command.Input placeholder="Search milestones…" />
 				<Command.List class="max-h-72 overflow-x-hidden overflow-y-auto">
 					<Command.Empty>No milestones</Command.Empty>
@@ -174,7 +174,7 @@
 							>
 								<span class="flex-1 truncate">{milestone.title}</span>
 								{#if milestone.state === 'closed'}
-									<span class="text-muted-foreground shrink-0 text-[10px]">closed</span>
+									<span class="shrink-0 text-caption text-fg-secondary">closed</span>
 								{/if}
 							</Command.Item>
 						{/each}
@@ -182,11 +182,11 @@
 				</Command.List>
 				<Command.Separator />
 				<Command.Item value="__new__" onSelect={startCreating}>
-					<span class="text-muted-foreground">New milestone…</span>
+					<span class="text-fg-secondary">New milestone…</span>
 				</Command.Item>
 				{#if value}
 					<Command.Item value="__clear__" onSelect={clear}>
-						<span class="text-muted-foreground">No milestone</span>
+						<span class="text-fg-secondary">No milestone</span>
 					</Command.Item>
 				{/if}
 			</Command.Root>

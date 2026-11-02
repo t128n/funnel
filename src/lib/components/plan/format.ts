@@ -8,6 +8,94 @@
 /** How a lane's committed load compares with its cap. */
 export type CapacityTone = "empty" | "near" | "over";
 
+const MONTHS = [
+	"Jan",
+	"Feb",
+	"Mar",
+	"Apr",
+	"May",
+	"Jun",
+	"Jul",
+	"Aug",
+	"Sep",
+	"Oct",
+	"Nov",
+	"Dec",
+] as const;
+
+const WEEKDAYS = [
+	"Monday",
+	"Tuesday",
+	"Wednesday",
+	"Thursday",
+	"Friday",
+	"Saturday",
+	"Sunday",
+] as const;
+
+interface CalendarDay {
+	year: number;
+	month: number;
+	day: number;
+}
+
+/** Parse a `YYYY-MM-DD` date into its UTC calendar parts. */
+function calendarDay(value: string): CalendarDay | null {
+	const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+	if (!match) return null;
+	const year = Number(match[1]);
+	const month = Number(match[2]);
+	const day = Number(match[3]);
+	const ms = Date.UTC(year, month - 1, day);
+	const date = new Date(ms);
+	if (
+		date.getUTCFullYear() !== year ||
+		date.getUTCMonth() !== month - 1 ||
+		date.getUTCDate() !== day
+	) {
+		return null;
+	}
+	return { year, month, day };
+}
+
+/** `2026-11-02` → `Week of 2 Nov 2026`. */
+export function weekHeadline(week: string): string {
+	const date = calendarDay(week);
+	if (date === null) return week;
+	return `Week of ${date.day} ${MONTHS[date.month - 1]} ${date.year}`;
+}
+
+/** ISO-8601 week number and week-year for a `YYYY-MM-DD` date. */
+function isoWeek(value: string): { year: number; week: number } | null {
+	const date = calendarDay(value);
+	if (date === null) return null;
+	const utc = new Date(Date.UTC(date.year, date.month - 1, date.day));
+	const day = utc.getUTCDay() || 7;
+	utc.setUTCDate(utc.getUTCDate() + 4 - day);
+	const year = utc.getUTCFullYear();
+	const yearStart = Date.UTC(year, 0, 1);
+	const week = Math.ceil(((utc.getTime() - yearStart) / 86_400_000 + 1) / 7);
+	return { year, week };
+}
+
+/** `2026-11-02` → `Cycle 2026-W45`. */
+export function cycleHeadline(cycleStart: string): string {
+	const iso = isoWeek(cycleStart);
+	if (iso === null) return `Cycle ${cycleStart}`;
+	return `Cycle ${iso.year}-W${String(iso.week).padStart(2, "0")}`;
+}
+
+/** `2026-11-02` → `Day: Monday 2 Nov`. */
+export function dayHeadline(date: string): string {
+	const parsed = calendarDay(date);
+	if (parsed === null) return "Day";
+	const weekdayIndex = new Date(
+		Date.UTC(parsed.year, parsed.month - 1, parsed.day),
+	).getUTCDay();
+	const weekday = WEEKDAYS[(weekdayIndex + 6) % 7];
+	return `Day: ${weekday} ${parsed.day} ${MONTHS[parsed.month - 1]}`;
+}
+
 /**
  * Traffic-light tone for a capacity bar.
  *

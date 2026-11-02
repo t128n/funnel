@@ -1,6 +1,9 @@
 <script lang="ts">
+	import EmptyState from '#lib/components/common/EmptyState.svelte';
 	import PageHead from '#lib/components/common/PageHead.svelte';
-	import * as Empty from '#lib/components/ui/empty';
+	import StatusText from '#lib/components/common/StatusText.svelte';
+	import PageHeader from '#lib/components/shell/PageHeader.svelte';
+	import { barPercent } from '#lib/planning';
 	import type { MilestoneItem } from '#lib/server/issues/types';
 	import type { PageProps } from './$types';
 
@@ -19,75 +22,85 @@
 	}
 </script>
 
-<PageHead
-	title="Milestones"
-	description="GitHub milestones across the configured repositories, with progress and due dates."
-/>
+<PageHead title="Milestones" />
 
 <div class="flex min-h-0 flex-1 flex-col overflow-y-auto">
-	<header class="bug-chrome flex min-h-11 shrink-0 items-center gap-2 px-3">
-		<h1 class="text-base font-semibold tracking-tight">Milestones</h1>
-	</header>
+	<PageHeader title="Milestones" />
 
 	{#if data.groups.length === 0}
-		<Empty.Root class="flex-1 border-0">
-			<Empty.Description>
-				No milestones yet. Create one from an issue, or on GitHub.
-			</Empty.Description>
-		</Empty.Root>
+		<EmptyState
+			title="No milestones yet."
+			description="Create one from an issue, or on GitHub."
+			class="flex-1"
+		/>
 	{:else}
-		<div class="mx-auto flex w-full max-w-4xl flex-col gap-6 p-4">
+		<div class="flex flex-col gap-6 px-[var(--layout-page-padding)] pb-8">
 			{#each data.groups as group (group.repo)}
 				<section class="flex flex-col gap-2">
-					<h2 class="text-muted-foreground text-xs font-semibold tracking-[0.04em] uppercase">
-						{group.repo}
-					</h2>
-					<table class="bug-table border border-border">
-						<thead>
-							<tr>
-								<th>Milestone</th>
-								<th class="text-end">Due</th>
-								<th class="text-end">Progress</th>
-								<th>Created by</th>
-							</tr>
-						</thead>
-						<tbody>
-							{#each group.milestones as milestone (milestone.number)}
-								<tr class={milestone.state === 'closed' ? 'text-muted-foreground' : ''}>
-									<td class="min-w-0">
-										<a
-											href={href(milestone)}
-											class={milestone.state === 'closed' ? 'line-through' : 'link'}
-										>
-											{milestone.title || 'Untitled milestone'}
-										</a>
-										{#if milestone.state === 'closed'}
-											<span class="flag flag-muted ms-2">closed</span>
-										{/if}
-									</td>
-									<td class="mono text-end whitespace-nowrap">{dueLabel(milestone.dueOn)}</td>
-									<td class="mono text-end whitespace-nowrap">
-										{milestone.closedIssues}/{milestone.closedIssues + milestone.openIssues}
-									</td>
-									<td class="text-muted-foreground text-xs">
-										{milestone.creator?.login ?? ''}
-									</td>
+					<h2 class="text-body font-semibold text-fg">{group.repo}</h2>
+					<div class="overflow-x-auto">
+						<table class="data-table">
+							<thead>
+								<tr>
+									<th>Milestone</th>
+									<th class="text-end">Due</th>
+									<th class="text-end">Progress</th>
+									<th>Created by</th>
 								</tr>
-							{/each}
-						</tbody>
-					</table>
+							</thead>
+							<tbody>
+								{#each group.milestones as milestone (milestone.number)}
+									<tr
+										class={milestone.state === 'closed'
+											? 'relative text-fg-muted'
+											: 'relative'}
+									>
+										<td class="min-w-0">
+											<a
+												href={href(milestone)}
+												class="flex min-w-0 items-center gap-2 after:absolute after:inset-0 after:content-['']"
+											>
+												<span class="min-w-0 truncate text-body">
+													{milestone.title || 'Untitled milestone'}
+												</span>
+												{#if milestone.state === 'closed'}
+													<StatusText state="closed" class="shrink-0" />
+												{/if}
+											</a>
+										</td>
+										<td class="tabular-nums text-end whitespace-nowrap">
+											{dueLabel(milestone.dueOn)}
+										</td>
+										<td class="whitespace-nowrap">
+											<span class="flex items-center justify-end gap-2">
+												<span class="tabular-nums text-body">
+													{milestone.closedIssues} / {milestone.closedIssues +
+														milestone.openIssues}
+												</span>
+												<span
+													class="inline-flex h-(--size-capacity-bar) w-10 shrink-0 overflow-hidden rounded-full bg-surface-2"
+													aria-hidden="true"
+												>
+													<span
+														class="block h-full bg-primary"
+														style={`width: ${barPercent(
+															milestone.closedIssues,
+															milestone.closedIssues + milestone.openIssues
+														)}%`}
+													></span>
+												</span>
+											</span>
+										</td>
+										<td class="text-body text-fg-secondary">
+											{milestone.creator?.login ?? '—'}
+										</td>
+									</tr>
+								{/each}
+							</tbody>
+						</table>
+					</div>
 				</section>
 			{/each}
 		</div>
 	{/if}
 </div>
-
-<style>
-	.bug-table thead th.text-end {
-		text-align: right;
-	}
-
-	.bug-table tbody tr:hover {
-		background: var(--accent);
-	}
-</style>

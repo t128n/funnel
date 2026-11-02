@@ -1,5 +1,5 @@
 /**
- * Capture the twelve cockpit views in light and dark at 1440×900 (DPR 2).
+ * Capture the fifteen cockpit views in light and dark at 1440×900 (DPR 2).
  *
  * This script runs outside Vite, so it must not import `$app/*` or `#lib/*`.
  * It seeds nothing itself; pair it with `seed.ts`:
@@ -32,17 +32,17 @@ export const VIEWS = [
   {
     name: "issues",
     path: "/issues",
-    ready: "div.issue-grid:not(.sticky)",
+    ready: ".issue-feed",
   },
   {
     name: "issue",
     path: "/issues/acme/widgets/1",
-    ready: '[aria-label="Issue inspector"] h2',
+    ready: '[aria-label="Issue inspector"] h1',
   },
   {
     name: "issue-activity",
     path: "/issues/acme/widgets/1",
-    ready: '[aria-label="Issue inspector"] h2',
+    ready: '[aria-label="Issue inspector"] h1',
     scrollTo: "Activity",
   },
   { name: "board", path: "/board", ready: "[data-board-card] h3" },
@@ -65,12 +65,22 @@ export const VIEWS = [
   {
     name: "inbox",
     path: "/inbox",
-    ready: "div.issue-grid:not(.sticky)",
+    ready: "#inbox-issues-heading",
+  },
+  {
+    name: "notifications",
+    path: "/notifications",
+    ready: "h1",
   },
   {
     name: "settings-appearance",
     path: "/settings/appearance",
     ready: "h1, h2",
+  },
+  {
+    name: "settings-repositories",
+    path: "/settings/repositories",
+    ready: "h1",
   },
   {
     name: "matrix",
@@ -83,6 +93,11 @@ export const VIEWS = [
     ready: '[aria-label="Issue inspector"] h2',
     click: '[title="Change priority"]',
     readyAfter: '[data-slot="popover-content"]',
+  },
+  {
+    name: "intake",
+    path: "/intake",
+    ready: "form",
   },
 ] as const;
 

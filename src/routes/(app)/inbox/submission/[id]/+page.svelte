@@ -1,6 +1,7 @@
 <script lang="ts">
-	import * as Empty from '#lib/components/ui/empty';
+	import EmptyState from '#lib/components/common/EmptyState.svelte';
 	import PageHead from '#lib/components/common/PageHead.svelte';
+	import { Button } from '#lib/components/ui/button';
 	import SubmissionDetail from '#lib/components/inbox/SubmissionDetail.svelte';
 	import type { RenderedSubmission } from '#lib/server/issues/types';
 	import type { PageProps } from './$types';
@@ -27,10 +28,13 @@
 	<SubmissionDetail {submission} {repos} defaultRepo={data.defaultRepo} />
 {:else}
 	<PageHead title="Submission · Inbox" />
-	<Empty.Root class="h-full">
-		<Empty.Header>
-			<Empty.Title>Submission unavailable</Empty.Title>
-			<Empty.Description>This submission is no longer staged.</Empty.Description>
-		</Empty.Header>
-	</Empty.Root>
+	<EmptyState
+		title="Submission unavailable"
+		description="This submission is no longer staged."
+		class="h-full"
+	>
+		{#snippet action()}
+			<Button variant="outline" size="sm" href="/inbox">Back to Inbox</Button>
+		{/snippet}
+	</EmptyState>
 {/if}

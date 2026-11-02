@@ -3,7 +3,7 @@
 	import { HotkeysProvider } from '@tanstack/svelte-hotkeys';
 	import { appHotkeys } from '#lib/client/hotkeys';
 	import { initTheme } from '#lib/client/theme';
-	import { Toaster } from '#lib/components/ui/sonner';
+	import * as Tooltip from '#lib/components/ui/tooltip';
 	import '#lib/styles/global.css';
 	import '#lib/styles/markdown.css';
 	import type { LayoutProps } from './$types';
@@ -15,6 +15,7 @@
 </script>
 
 <HotkeysProvider {appHotkeys}>
-	{@render children()}
-	<Toaster />
+	<Tooltip.Provider delayDuration={0}>
+		{@render children()}
+	</Tooltip.Provider>
 </HotkeysProvider>

@@ -4,14 +4,13 @@
 	import { Button } from '#lib/components/ui/button';
 	import * as InputGroup from '#lib/components/ui/input-group';
 	import * as Kbd from '#lib/components/ui/kbd';
+	import { cn } from '#lib/utils';
+	import PaperclipIcon from '@lucide/svelte/icons/paperclip';
 
 	/**
-	 * The embedded action composer: a plain bordered textarea with text-link
-	 * submit, attachment and channel affordances in the bottom row.
-	 *
-	 * With `showModeToggle` it doubles as the issue's Comment / Work note
-	 * switch; the parent owns which mutation `onsubmit` performs. `onattach`
-	 * enables the attach link (files are handed back to the parent to upload).
+	 * The embedded action composer: a 3-row textarea with an attachment control,
+	 * a Comment / Internal note segmented switch, a primary submit and a
+	 * `⌘ Enter` hint. The parent owns which mutation `onsubmit` performs.
 	 *
 	 * ⌘/Ctrl+Enter submits. `value` is bindable so the parent owns the draft.
 	 */
@@ -25,9 +24,9 @@
 		label?: string;
 		/** Which channel the draft targets, when the toggle is shown. */
 		mode?: 'comment' | 'note';
-		/** Render the Comment / Work note switch. */
+		/** Render the Comment / Internal note switch. */
 		showModeToggle?: boolean;
-		/** Enables the attach link; receives the picked files. */
+		/** Enables the attach control; receives the picked files. */
 		onattach?: (files: File[]) => void;
 		onsubmit: () => void;
 	}
@@ -54,7 +53,7 @@
 	const effectivePlaceholder = $derived(
 		placeholder ?? (mode === 'note' ? 'Add an internal work note…' : 'Add a comment…')
 	);
-	const effectiveLabel = $derived(mode === 'note' ? 'Work note' : label);
+	const effectiveLabel = $derived(mode === 'note' ? 'Internal note' : label);
 	const canSubmit = $derived(!disabled && !busy && value.trim().length > 0);
 
 	function onKeydown(event: KeyboardEvent) {
@@ -71,30 +70,29 @@
 	}
 </script>
 
-<InputGroup.Root
-	class="border-border bg-background hover:border-input has-[[data-slot=input-group-control]:focus-visible]:border-primary h-auto flex-col rounded-none border transition-colors duration-150 ease-out has-[[data-slot=input-group-control]:focus-visible]:ring-0"
->
+<InputGroup.Root class="border-border-strong bg-canvas">
 	<InputGroup.Textarea
-		class="min-h-16 px-3 py-2.5 text-[13px] leading-relaxed"
+		class="min-h-24 resize-y px-3 py-2 text-body leading-body"
 		placeholder={effectivePlaceholder}
 		value={value}
 		oninput={(event) => (value = event.currentTarget.value)}
 		onkeydown={onKeydown}
-		rows={2}
+		rows={3}
 		aria-label={effectiveLabel}
 	></InputGroup.Textarea>
 
 	<InputGroup.Addon align="block-end" class="cursor-default justify-between gap-3 px-2 pt-1 pb-2">
-		<div class="flex items-center gap-2">
+		<div class="flex min-w-0 items-center gap-2">
 			<button
 				type="button"
-				class="link text-xs disabled:pointer-events-none disabled:opacity-50 disabled:no-underline"
+				class="inline-flex h-(--size-control-sm) items-center gap-1.5 rounded-sm px-2 text-caption text-fg-secondary hover:bg-surface hover:text-fg disabled:pointer-events-none disabled:text-fg-disabled"
 				disabled={!onattach}
-				title={onattach ? 'Attach file' : 'Attachments coming soon'}
+				title={onattach ? 'Attach files' : 'Attachments are unavailable'}
 				tabindex={onattach ? undefined : -1}
 				onclick={() => fileInput?.click()}
 			>
-				Attach file
+				<PaperclipIcon class="size-4 shrink-0" aria-hidden="true" />
+				Attach
 			</button>
 			{#if onattach}
 				<input
@@ -108,14 +106,21 @@
 				/>
 			{/if}
 		</div>
-		<div class="flex items-center gap-3">
+		<div class="flex min-w-0 flex-wrap items-center justify-end gap-2">
 			{#if showModeToggle}
-				<div class="flex items-center gap-2" role="group" aria-label="Submission channel">
+				<div
+					class="inline-flex overflow-hidden rounded-sm border border-border-strong"
+					role="group"
+					aria-label="Submission channel"
+				>
 					<button
 						type="button"
-						class="flag"
-						class:font-semibold={mode === 'comment'}
-						class:flag-muted={mode !== 'comment'}
+						class={cn(
+							'inline-flex h-(--size-control-sm) items-center px-2 text-caption',
+							mode === 'comment'
+								? 'bg-surface-2 font-semibold text-fg'
+								: 'text-fg-secondary hover:bg-surface hover:text-fg'
+						)}
 						aria-pressed={mode === 'comment'}
 						onclick={() => (mode = 'comment')}
 					>
@@ -123,27 +128,25 @@
 					</button>
 					<button
 						type="button"
-						class="flag"
-						class:font-semibold={mode === 'note'}
-						class:flag-muted={mode !== 'note'}
+						class={cn(
+							'inline-flex h-(--size-control-sm) items-center border-l border-border-subtle px-2 text-caption',
+							mode === 'note'
+								? 'bg-surface-2 font-semibold text-fg'
+								: 'text-fg-secondary hover:bg-surface hover:text-fg'
+						)}
 						aria-pressed={mode === 'note'}
 						onclick={() => (mode = 'note')}
 					>
-						Note
+						Internal note
 					</button>
 				</div>
-			{:else}
-				<Kbd.Root
-					class="text-muted-foreground hidden h-auto min-w-0 rounded-none bg-transparent px-0 font-sans text-[11px] font-normal sm:inline-flex"
-					aria-hidden="true"
-				>
-					{isMac ? '⌘' : 'Ctrl'}↵
-				</Kbd.Root>
 			{/if}
+			<Kbd.Root class="hidden sm:inline-flex" aria-hidden="true">
+				{isMac ? '⌘' : 'Ctrl'}&nbsp;Enter
+			</Kbd.Root>
 			<Button
-				variant={canSubmit ? 'default' : 'ghost'}
 				size="sm"
-				class="rounded-none"
+				class="min-w-20"
 				onclick={onsubmit}
 				disabled={!canSubmit}
 				title={effectiveLabel}
@@ -152,7 +155,7 @@
 				{#if busy}
 					<Spinner size={13} />
 				{/if}
-				Save Changes
+				{busy ? (mode === 'note' ? 'Saving…' : 'Posting…') : mode === 'note' ? 'Add note' : 'Comment'}
 			</Button>
 		</div>
 	</InputGroup.Addon>

@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { Badge } from '#lib/components/ui/badge';
 	import * as Command from '#lib/components/ui/command';
 	import * as Popover from '#lib/components/ui/popover';
 	import {
@@ -111,8 +110,8 @@
 			variant,
 			cn(
 				'w-auto',
-				variant === 'default' && selected.length > 0 && 'border-primary text-foreground',
-				variant === 'pill' && selected.length > 0 && 'text-foreground'
+				variant === 'default' && selected.length > 0 && 'bg-surface-2 text-fg',
+				variant === 'pill' && selected.length > 0 && 'text-fg'
 			)
 		)}
 	>
@@ -125,9 +124,9 @@
 			{triggerText}
 		</span>
 		{#if !hideCount && selected.length > 0}
-			<Badge variant="secondary" class="mono h-4 min-w-4 rounded-sm px-1 text-caption">
+			<span class="text-caption tabular-nums text-fg-secondary" aria-label={`${selected.length} selected`}>
 				{selected.length}
-			</Badge>
+			</span>
 		{/if}
 		<ChevronDownIcon class={selectTriggerChevron} />
 	</Popover.Trigger>
@@ -139,7 +138,7 @@
 		class="w-auto min-w-50 gap-0 p-0"
 		{onInteractOutside}
 	>
-		<Command.Root class="rounded-none! border-0! bg-transparent!">
+		<Command.Root class="border-0! bg-transparent!">
 			<Command.Input placeholder="Search…" />
 			<Command.List class="max-h-80 overflow-x-hidden overflow-y-auto">
 				<Command.Empty>No options</Command.Empty>

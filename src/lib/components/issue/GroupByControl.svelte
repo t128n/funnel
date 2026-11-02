@@ -2,6 +2,8 @@
 	import { getGroupBy, setGroupBy } from '#lib/client/list-prefs.svelte';
 	import * as DropdownMenu from '#lib/components/ui/dropdown-menu/index.js';
 	import type { GroupKey, ProjectOption } from '#lib/components/issue/grouping';
+	import ChevronDownIcon from '@lucide/svelte/icons/chevron-down';
+	import Rows3Icon from '@lucide/svelte/icons/rows-3';
 
 	interface Props {
 		/** Configured project indicators; the Project option hides when empty. */
@@ -31,8 +33,14 @@
 </script>
 
 <DropdownMenu.Root>
-	<DropdownMenu.Trigger class="link text-sm">Group</DropdownMenu.Trigger>
-	<DropdownMenu.Content align="end" class="w-44">
+	<DropdownMenu.Trigger
+		class="inline-flex h-(--size-control-sm) shrink-0 items-center gap-1.5 rounded-sm border border-border-strong bg-canvas px-2 text-body text-fg-secondary hover:bg-surface hover:text-fg data-[state=open]:bg-surface-2 data-[state=open]:text-fg"
+	>
+		<Rows3Icon class="size-4 shrink-0" aria-hidden="true" />
+		<span>Group</span>
+		<ChevronDownIcon class="size-3.5 shrink-0 text-fg-muted" aria-hidden="true" />
+	</DropdownMenu.Trigger>
+	<DropdownMenu.Content align="end" class="w-48">
 		<DropdownMenu.Label>Group by</DropdownMenu.Label>
 		<DropdownMenu.RadioGroup
 			value={group}

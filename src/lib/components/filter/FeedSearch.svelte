@@ -2,6 +2,7 @@
 	import { untrack } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
+	import { Input } from '#lib/components/ui/input';
 	import { buildFilterUrl, parseFilterParams } from '#lib/url-filter';
 
 	/**
@@ -38,14 +39,17 @@
 	}
 </script>
 
-<input
-	id="issue-search"
-	type="search"
-	class="border-[color:var(--input)] placeholder:text-muted-foreground h-7 w-full rounded-none border bg-transparent px-2 text-sm focus-visible:border-[color:var(--primary)]"
-	placeholder="Search title, body, comments…"
-	value={search}
-	oninput={(e) => onInput(e.currentTarget.value)}
-	onfocus={() => (focused = true)}
-	onblur={() => (focused = false)}
-	aria-label="Search issues"
-/>
+<label class="flex w-full min-w-0 flex-col gap-1 sm:w-[var(--layout-search-field)] sm:flex-none">
+	<span class="text-caption font-semibold text-fg-secondary">Search</span>
+	<Input
+		id="issue-search"
+		type="search"
+		class="min-w-0"
+		placeholder="Title, body, comments…"
+		value={search}
+		oninput={(e) => onInput(e.currentTarget.value)}
+		onfocus={() => (focused = true)}
+		onblur={() => (focused = false)}
+		aria-label="Search issues"
+	/>
+</label>

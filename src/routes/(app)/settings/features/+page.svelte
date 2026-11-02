@@ -1,24 +1,26 @@
 <script lang="ts">
 	import { invalidateAll } from '$app/navigation';
 	import { untrack } from 'svelte';
+	import CircleCheckIcon from '@lucide/svelte/icons/circle-check';
 	import {
 		FEATURE_FLAGS,
 		FEATURES_COOKIE,
 		serializeFeatureOverrides,
 		type FeatureOverrides
 	} from '#lib/features';
-	import * as Item from '#lib/components/ui/item';
+	import * as Switch from '#lib/components/ui/switch';
 	import type { PageProps } from './$types';
 
 	/**
 	 * Feature flags (SPEC §4). Every flag lives in `#lib/features`; this page
-	 * renders one toggle per flag. Values are stored per browser in a single
+	 * renders one switch per flag. Values are stored per browser in a single
 	 * cookie, then `invalidateAll()` re-runs the layout load so the flag is
 	 * re-evaluated server-side.
 	 */
 	let { data }: PageProps = $props();
 
 	let overrides = $state<FeatureOverrides>(untrack(() => ({ ...data.overrides })));
+	let savedKey = $state<string | null>(null);
 
 	/** Effective value: a browser override, else the instance default. */
 	function effective(key: string, fallback: boolean): boolean {
@@ -34,6 +36,7 @@
 			next[key] = value;
 		}
 		overrides = next;
+		savedKey = key;
 		document.cookie = `${FEATURES_COOKIE}=${encodeURIComponent(
 			serializeFeatureOverrides(next)
 		)}; path=/; max-age=31536000; samesite=lax`;
@@ -41,51 +44,44 @@
 	}
 </script>
 
-<div class="mx-auto flex w-full max-w-3xl flex-col gap-5">
-	<header class="flex flex-col gap-1">
-		<h1 class="text-sm font-medium">Features</h1>
-		<p class="text-muted-foreground text-xs leading-relaxed">
-			Toggle functionality on or off. Choices are saved in this browser; the instance default comes
-			from the deployment environment.
+<div class="flex w-full max-w-[var(--layout-form-max)] flex-col gap-6">
+	<section class="border-t border-border-subtle pt-4">
+		<h2 class="text-heading-sm font-semibold leading-heading-sm text-fg">Browser overrides</h2>
+		<p class="mt-1 text-body leading-body text-fg-secondary">
+			Choices apply to this browser only. The instance default comes from the deployment
+			environment.
 		</p>
-	</header>
 
-	{#if FEATURE_FLAGS.length === 0}
-		<p class="text-muted-foreground text-sm">No feature flags are available.</p>
-	{:else}
-		<div class="flex flex-col gap-3">
-			{#each FEATURE_FLAGS as flag (flag.key)}
-				{@const on = effective(flag.key, flag.default)}
-				<Item.Root variant="outline" class="items-start gap-4 p-4">
-					<Item.Content class="gap-0.5">
-						<Item.Title>{flag.name}</Item.Title>
-						<Item.Description class="text-xs leading-relaxed">
-							{flag.description}
-						</Item.Description>
-					</Item.Content>
-					<Item.Actions class="gap-2.5">
-						<span class="text-muted-foreground text-xs" aria-hidden="true">
-							{on ? flag.onLabel : flag.offLabel}
-						</span>
-						<button
-							type="button"
-							role="switch"
-							aria-checked={on}
-							aria-label={flag.name}
-							class="focus-visible:ring-ring/50 inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full outline-none transition-colors focus-visible:ring-3 {on
-								? 'bg-primary'
-								: 'bg-muted-foreground/30'}"
-							onclick={() => setFlag(flag.key, !on, flag.default)}
-						>
-							<span
-								class="bg-background pointer-events-none inline-block size-4 rounded-full shadow-sm transition-transform {on
-									? 'translate-x-[1.125rem]'
-									: 'translate-x-0.5'}"
-							></span>
-						</button>
-					</Item.Actions>
-				</Item.Root>
-			{/each}
-		</div>
-	{/if}
+		{#if FEATURE_FLAGS.length === 0}
+			<p class="mt-4 text-body text-fg-secondary">No feature flags are available.</p>
+		{:else}
+			<div class="mt-4 border-t border-border-subtle">
+				{#each FEATURE_FLAGS as flag (flag.key)}
+					{@const on = effective(flag.key, flag.default)}
+					<div class="flex items-start gap-4 border-b border-border-subtle py-3">
+						<div class="flex min-w-0 flex-1 flex-col gap-0.5">
+							<span class="text-body font-semibold text-fg">{flag.name}</span>
+							<span class="text-body leading-body text-fg-secondary">{flag.description}</span>
+							<span class="text-caption text-fg-muted">{on ? flag.onLabel : flag.offLabel}</span>
+						</div>
+						<div class="flex shrink-0 items-center gap-3">
+							<span class="min-w-16 text-right" aria-live="polite">
+								{#if savedKey === flag.key}
+									<span class="status status-success">
+										<CircleCheckIcon aria-hidden="true" />
+										Saved.
+									</span>
+								{/if}
+							</span>
+							<Switch.Root
+								checked={on}
+								onCheckedChange={(next) => setFlag(flag.key, next, flag.default)}
+								aria-label={flag.name}
+							/>
+						</div>
+					</div>
+				{/each}
+			</div>
+		{/if}
+	</section>
 </div>

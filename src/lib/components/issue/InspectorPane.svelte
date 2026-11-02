@@ -1,16 +1,19 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { onDestroy, tick, untrack } from 'svelte';
-	import { toast } from 'svelte-sonner';
 	import MultiSelect from '#lib/components/common/MultiSelect.svelte';
 	import SingleSelect from '#lib/components/common/SingleSelect.svelte';
 	import Spinner from '#lib/components/common/Spinner.svelte';
+	import InlineStatus from '#lib/components/common/InlineStatus.svelte';
+	import PriorityText from '#lib/components/common/PriorityText.svelte';
+	import RefText from '#lib/components/common/RefText.svelte';
+	import StatusText from '#lib/components/common/StatusText.svelte';
 	import BlockActionDialog from '#lib/components/board/BlockActionDialog.svelte';
 	import Composer from '#lib/components/detail/Composer.svelte';
 	import DetailShell from '#lib/components/detail/DetailShell.svelte';
 	import ActivityTimeline from '#lib/components/issue/ActivityTimeline.svelte';
 	import AttachmentDropbox from '#lib/components/issue/AttachmentDropbox.svelte';
-	import { resolutionFor, severityWord, statusToken } from '#lib/components/issue/bug-vocabulary';
+	import { severityWord } from '#lib/components/issue/bug-vocabulary';
 	import DelayList from '#lib/components/issue/DelayList.svelte';
 	import EpicProperty from '#lib/components/issue/EpicProperty.svelte';
 	import IssueActionDialog from '#lib/components/issue/IssueActionDialog.svelte';
@@ -19,7 +22,6 @@
 	import RecordDelayDialog from '#lib/components/issue/RecordDelayDialog.svelte';
 	import { delayReasonLabel } from '#lib/components/issue/inspector-format';
 	import PriorityPicker from '#lib/components/issue/PriorityPicker.svelte';
-	import * as Alert from '#lib/components/ui/alert';
 	import { Button } from '#lib/components/ui/button';
 	import { Input } from '#lib/components/ui/input';
 	import { Textarea } from '#lib/components/ui/textarea';
@@ -45,7 +47,6 @@
 	} from '#lib/client/mutations';
 	import {
 		mutate,
-		notifyFailure,
 		overlayKey,
 		projectDetail,
 		reconcileIssues,
@@ -86,6 +87,7 @@
 	} from '#lib/server/issues/types';
 	import { cn } from '#lib/utils';
 	import BanIcon from '@lucide/svelte/icons/ban';
+	import ExternalLinkIcon from '@lucide/svelte/icons/external-link';
 	import XIcon from '@lucide/svelte/icons/x';
 
 	interface Props {
@@ -156,6 +158,26 @@
 	let copied = $state(false);
 	let copyTimeout: ReturnType<typeof setTimeout> | undefined;
 
+	/**
+	 * Inline write feedback. Issue mutations never raise a floating toast; the
+	 * last outcome sits above the composer until the next change, with an
+	 * optional undo affordance.
+	 */
+	type WriteStatus = {
+		tone: 'error' | 'success' | 'info';
+		message: string;
+		undo?: () => void;
+	};
+	let writeStatus = $state<WriteStatus | null>(null);
+
+	function setWriteError(message: string) {
+		writeStatus = { tone: 'error', message };
+	}
+
+	function setWriteSuccess(message: string, undo?: () => void) {
+		writeStatus = { tone: 'success', message, undo };
+	}
+
 	onDestroy(() => clearTimeout(copyTimeout));
 
 	// Feature flags are shared per-browser; the local features default to on so a
@@ -210,23 +232,7 @@
 	const milestoneOptions = $derived(detail?.milestoneOptions ?? []);
 
 	/** Plain-text tokens rendered by the metadata table. */
-	const statusDisplay = $derived(issue ? statusToken(issue.status, issue.state) : '—');
-	const resolutionDisplay = $derived(resolutionFor(issue?.stateReason ?? null));
 	const severityDisplay = $derived(severityWord(impactValue));
-	const priorityTone = $derived(
-		priorityValue === 'P1'
-			? 'flag flag-danger'
-			: priorityValue === 'P2'
-				? 'flag flag-warning'
-				: 'flag flag-muted'
-	);
-	const severityTone = $derived(
-		impactValue === 1
-			? 'flag flag-danger'
-			: impactValue === 2
-				? 'flag flag-warning'
-				: 'flag flag-muted'
-	);
 	const sizeDisplay = $derived(
 		SIZE_OPTIONS.find((option) => option.value === sizeValue)?.label ?? '—'
 	);
@@ -251,8 +257,19 @@
 	const githubLink = $derived(`${githubUrl}/${repo}/issues/${number}`);
 	/** Only show the composer once the issue has loaded. */
 	const canEdit = $derived(issue !== null && detail !== null);
-	/** Split into the two-column layout only when the side column has content. */
-	const hasAside = $derived(canEdit && (workNotesEnabled || attachmentsEnabled));
+
+	/** Label for the mobile back link; the Issues route says “← Issues”. */
+	const backLabel = $derived.by(() => {
+		const view = viewOf(page.url.pathname);
+		const names: Record<string, string> = {
+			issues: 'Issues',
+			board: 'Board',
+			matrix: 'Matrix',
+			inbox: 'Inbox'
+		};
+		return `← ${view ? names[view] : 'Issues'}`;
+	});
+	const backHref = $derived(`/${viewOf(page.url.pathname) ?? 'issues'}`);
 
 	/** Guards against an out-of-order fetch clobbering a newer one. */
 	let loadSeq = 0;
@@ -344,6 +361,7 @@
 			loadedSeq = signal.seq;
 			pendingReload = false;
 			commentLimit = DEFAULT_COMMENT_LIMIT;
+			writeStatus = null;
 			void load();
 			return;
 		}
@@ -413,16 +431,21 @@
 
 	async function runPatch(patch: UpdateIssuePatch, op: string): Promise<boolean> {
 		if (!detail) return false;
+		writeStatus = null;
 		busy = op;
 		const issuePatch = toIssuePatch(patch);
 		const outcome = await mutate({
 			key: overlayKey(repo, number),
 			patch: issuePatch,
 			failure: 'Could not update issue',
+			notify: false,
 			commit: () => updateIssue(repo, number, patch)
 		});
 		busy = null;
-		if (!outcome.ok) return false;
+		if (!outcome.ok) {
+			setWriteError(outcome.error);
+			return false;
+		}
 		bake(issuePatch);
 		// The body lives only in the detail payload, so reflect it locally.
 		if (patch.body !== undefined) {
@@ -599,7 +622,7 @@
 		try {
 			await navigator.clipboard.writeText(markdown);
 		} catch {
-			notifyFailure('Could not copy issue', 'Clipboard access was denied');
+			setWriteError('Could not copy the issue. Clipboard access was denied.');
 			return;
 		}
 		copied = true;
@@ -669,14 +692,7 @@
 		const wasUntriaged = issue?.status == null;
 		const ok = await runPatch({ status: value }, 'status');
 		if (ok && wasUntriaged && viewOf(page.url.pathname) === 'inbox') {
-			toast('Triaged · moved to Issues', {
-				description: `${repo}#${number}`,
-				duration: 6000,
-				action: {
-					label: 'Undo',
-					onClick: () => void runPatch({ status: null }, 'status')
-				}
-			});
+			setWriteSuccess('Triaged · moved to Issues', () => void runPatch({ status: null }, 'status'));
 		}
 	}
 
@@ -700,15 +716,20 @@
 			urgency: nextUrgency,
 			priority: derived
 		};
+		writeStatus = null;
 		busy = 'priority';
 		const outcome = await mutate({
 			key: overlayKey(repo, number),
 			patch: issuePatch,
 			failure: 'Could not update priority',
+			notify: false,
 			commit: () => updateIssue(repo, number, patch)
 		});
 		busy = null;
-		if (!outcome.ok) return false;
+		if (!outcome.ok) {
+			setWriteError(outcome.error);
+			return false;
+		}
 		bake(issuePatch);
 		return true;
 	}
@@ -738,14 +759,20 @@
 	async function setMilestone(milestone: RepoMilestoneRef | null) {
 		if (!detail) return;
 		const issuePatch: IssuePatch = { milestone };
+		writeStatus = null;
 		busy = 'milestone';
 		const outcome = await mutate({
 			key: overlayKey(repo, number),
 			patch: issuePatch,
 			failure: 'Could not update milestone',
+			notify: false,
 			commit: () => updateIssue(repo, number, { milestone: milestone ? milestone.number : null })
 		});
 		busy = null;
+		if (!outcome.ok) {
+			setWriteError(outcome.error);
+			return;
+		}
 		if (outcome.ok) {
 			bake(issuePatch);
 			// Re-read the detail so a freshly created milestone joins the options.
@@ -805,11 +832,12 @@
 	async function toggleWatch() {
 		if (watchBusy) return;
 		const next = !watching;
+		writeStatus = null;
 		watchBusy = true;
 		const result = await setIssueWatching(repo, number, next);
 		watchBusy = false;
 		if (!result.ok) {
-			notifyFailure(next ? 'Could not watch issue' : 'Could not unwatch issue', result.error);
+			setWriteError(result.error);
 			return;
 		}
 		watching = result.value?.watching ?? next;
@@ -827,11 +855,13 @@
 			(name) => canonicalLabel(name) || isRetiredPriorityLabel(name)
 		);
 		const issuePatch: IssuePatch = { labels: [...reserved, ...next] };
+		writeStatus = null;
 		busy = 'labels';
 		const outcome = await mutate({
 			key: overlayKey(repo, number),
 			patch: issuePatch,
 			failure: 'Could not update labels',
+			notify: false,
 			commit: async () => {
 				if (added.length > 0) {
 					const result = await addIssueLabels(repo, number, added);
@@ -845,37 +875,45 @@
 			}
 		});
 		busy = null;
-		if (outcome.ok) bake(issuePatch);
+		if (!outcome.ok) {
+			setWriteError(outcome.error);
+			return;
+		}
+		bake(issuePatch);
 	}
 
 	async function submitComment() {
 		const text = comment.trim();
 		if (!text || busy) return;
+		writeStatus = null;
 		busy = 'comment';
 		const result = await addIssueComment(repo, number, text);
 		busy = null;
 		if (!result.ok) {
-			notifyFailure('Could not post comment', result.error);
+			setWriteError(`Could not post the comment. ${result.error}`);
 			return;
 		}
 		comment = '';
 		// The mirror updates in the background; refetch to show the new comment.
 		await load();
+		setWriteSuccess('Comment posted.');
 	}
 
 	/** Create an internal work note from the shared composer draft. */
 	async function submitWorkNote() {
 		const text = comment.trim();
 		if (!text || noteBusy) return;
+		writeStatus = null;
 		noteBusy = 'note:new';
 		const result = await addWorkNote(repo, number, text);
 		noteBusy = null;
 		if (!result.ok) {
-			notifyFailure('Could not add work note', result.error);
+			setWriteError(`Could not add the work note. ${result.error}`);
 			return;
 		}
 		comment = '';
 		await load();
+		setWriteSuccess('Work note added.');
 	}
 
 	function submitComposer() {
@@ -884,47 +922,53 @@
 	}
 
 	async function editWorkNote(id: string, text: string) {
+		writeStatus = null;
 		noteBusy = `note:${id}`;
 		const result = await updateWorkNote(repo, number, id, text);
 		noteBusy = null;
 		if (!result.ok) {
-			notifyFailure('Could not update work note', result.error);
+			setWriteError(`Could not update the work note. ${result.error}`);
 			return;
 		}
 		await load();
+		setWriteSuccess('Work note updated.');
 	}
 
 	async function removeWorkNote(id: string) {
+		writeStatus = null;
 		noteBusy = `note:${id}`;
 		const result = await deleteWorkNote(repo, number, id);
 		noteBusy = null;
 		if (!result.ok) {
-			notifyFailure('Could not delete work note', result.error);
+			setWriteError(`Could not delete the work note. ${result.error}`);
 			return;
 		}
 		await load();
+		setWriteSuccess('Work note deleted.');
 	}
 
 	async function publishNote(id: string) {
+		writeStatus = null;
 		noteBusy = `note:${id}`;
 		const result = await publishWorkNote(repo, number, id);
 		noteBusy = null;
 		if (!result.ok) {
-			notifyFailure('Could not publish work note', result.error);
+			setWriteError(`Could not publish the work note. ${result.error}`);
 			return;
 		}
-		toast('Work note published as a comment');
 		await load();
+		setWriteSuccess('Work note published as a comment.');
 	}
 
 	async function uploadFiles(files: File[]) {
 		if (files.length === 0) return;
+		writeStatus = null;
 		uploading += files.length;
 		let changed = false;
 		for (const file of files) {
 			const result = await uploadAttachment(repo, number, file);
 			if (result.ok) changed = true;
-			else notifyFailure(`Could not upload ${file.name}`, result.error);
+			else setWriteError(`Could not upload ${file.name}. ${result.error}`);
 		}
 		uploading -= files.length;
 		if (changed) await load();
@@ -932,16 +976,25 @@
 
 	async function removeAttachment(item: AttachmentItem) {
 		if (deletingId) return;
+		writeStatus = null;
 		deletingId = item.id;
 		const result = await deleteAttachment(item.id);
 		deletingId = null;
 		if (!result.ok) {
-			notifyFailure('Could not delete attachment', result.error);
+			setWriteError(`Could not delete the attachment. ${result.error}`);
 			return;
 		}
 		await load();
 	}
 </script>
+
+{#snippet undoAction()}
+	<Button variant="ghost" size="xs" onclick={() => writeStatus?.undo?.()}>Undo</Button>
+{/snippet}
+
+{#snippet retryLoad()}
+	<Button variant="ghost" size="xs" onclick={() => void load()}>Retry</Button>
+{/snippet}
 
 {#snippet composer()}
 	<Composer
@@ -955,71 +1008,42 @@
 	/>
 {/snippet}
 
-{#snippet aside()}
-	{#if detail}
-		{#if workNotesEnabled}
-			<section class="flex flex-col gap-3" aria-label="Work notes">
-				<div class="flex items-center justify-between">
-					<h2 class="text-foreground text-base font-semibold">Work notes</h2>
-					<span class="mono text-muted-foreground text-xs">{detail.workNotes.length}</span>
-				</div>
-				{#if detail.workNotes.length === 0}
-					<div
-						class="border-border text-muted-foreground rounded-lg border border-dashed px-3 py-6 text-center text-xs"
-					>
-						No work notes yet. Internal notes stay in Funnel unless you publish them.
-					</div>
-				{:else}
-					<ActivityTimeline
-						comments={[]}
-						workNotes={detail.workNotes}
-						filter="notes"
-						viewerLogin={viewerLogin}
-						reporterLogin={detail.issue.author?.login ?? null}
-						readonly={!mayWrite}
-						busyId={noteBusy}
-						onreply={() => focusComposer()}
-						onedit={editWorkNote}
-						ondelete={removeWorkNote}
-						onpublish={publishNote}
-					/>
-				{/if}
-			</section>
-		{/if}
-
-		{#if attachmentsEnabled}
-			<AttachmentDropbox
-				attachments={detail.attachments}
-				uploading={uploading}
-				busyId={deletingId}
-				readonly={!mayWrite}
-				onupload={(files) => void uploadFiles(files)}
-				ondelete={(item) => void removeAttachment(item)}
-			/>
-		{/if}
-	{/if}
-{/snippet}
-
 <DetailShell
 	bind:element={paneEl}
 	ariaLabel="Issue inspector"
-	class={cn(
-		fill
-			? 'min-w-0 flex-1 border-l-0'
-			: 'w-120 border-l max-[1100px]:absolute max-[1100px]:inset-y-0 max-[1100px]:right-0 max-[1100px]:z-40 max-[1100px]:w-[min(480px,100%)] max-[1100px]:shadow-lg'
-	)}
+	class={cn('min-w-0 flex-1', !fill && 'border-l border-border-subtle')}
 	contentKey={`${repo}#${number}:${detail?.bodyHtml ?? ''}:${detail?.comments.length ?? 0}:${detail?.workNotes.length ?? 0}`}
-	wide={fill}
-	aside={hasAside ? aside : undefined}
 	footer={canEdit && mayWrite ? composer : undefined}
 >
 	{#snippet header()}
-		<div class="flex min-w-0 flex-1 flex-col gap-1 py-0.5">
+		<div class="flex min-w-0 flex-1 flex-col gap-1.5">
+			<div class="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-caption text-fg-secondary">
+				<a href={backHref} class="link lg:hidden">{backLabel}</a>
+				<RefText value={`${repo}#${number}`} />
+				<a
+					href={githubLink}
+					target="_blank"
+					rel="noreferrer"
+					class="link inline-flex items-center gap-1"
+				>
+					GitHub
+					<ExternalLinkIcon class="size-3" aria-hidden="true" />
+				</a>
+				<button
+					type="button"
+					class="link"
+					title={copied ? 'Copied' : 'Copy issue as Markdown'}
+					onclick={() => void copyThread()}
+				>
+					{copied ? 'Copied' : 'Copy as Markdown'}
+				</button>
+			</div>
+
 			{#if issue}
 				<div class="flex min-w-0 items-center gap-2">
 					{#if editingTitle}
 						<Input
-							class="hover:bg-accent/50 h-auto -ml-1 min-w-0 flex-1 rounded-sm border-0 bg-transparent px-1 text-xl leading-tight font-semibold tracking-tight shadow-none md:text-xl dark:bg-transparent"
+							class="h-auto min-w-0 flex-1 border-0 bg-transparent px-0 text-heading-md font-semibold leading-heading-md tracking-[-0.01em] shadow-none"
 							value={title}
 							oninput={(e) => (title = e.currentTarget.value)}
 							onblur={saveTitle}
@@ -1046,11 +1070,11 @@
 							part of a text selection, so Mod+A could never include it.
 						-->
 						<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
-						<h2
+						<h1
 							bind:this={titleEl}
 							class={cn(
-								'text-foreground -ml-1 h-auto min-w-0 flex-1 rounded-sm px-1 text-xl leading-tight font-semibold tracking-tight md:text-xl',
-								mayWrite && 'hover:bg-[var(--accent)] cursor-text'
+								'min-w-0 flex-1 text-heading-md font-semibold leading-heading-md tracking-[-0.01em] text-fg',
+								mayWrite && '-ml-1 cursor-text rounded-sm px-1 hover:bg-surface-2'
 							)}
 							tabindex={mayWrite ? 0 : undefined}
 							role={mayWrite ? 'button' : undefined}
@@ -1063,30 +1087,42 @@
 								}
 							}}
 						>
-							Bug {number} – {title}
-							<span class="text-muted-foreground">(<span class="flag">{statusDisplay}</span>)</span>
-						</h2>
+							{title}
+						</h1>
 					{/if}
 				</div>
-			{/if}
-			<div class="text-muted-foreground flex min-w-0 items-center gap-3 text-xs">
-				<span class="min-w-0 truncate font-medium" title={`${repo}#${number}`}>
-					{repo}#{number}
-				</span>
-				{#if issue}
-					{#if issue.author}
-						<span class="truncate">
-							opened by <strong class="text-foreground font-medium">{issue.author.login}</strong>
-						</span>
+
+				<div class="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-caption text-fg-secondary">
+					<StatusText
+						status={issue.status}
+						state={issue.state}
+						blocked={issue.blocked}
+					/>
+					{#if issue.priority}
+						<PriorityText priority={issue.priority} showName />
 					{/if}
-					<span class="shrink-0" title={absoluteTime(issue.createdAt)}>
-						{timeAgo(issue.createdAt)}
+					<span class="truncate" title={assigneeDisplay || 'Unassigned'}>
+						{assigneeDisplay || 'Unassigned'}
 					</span>
-					<span class="shrink-0" title={absoluteTime(issue.updatedAt)}>
-						last updated {timeAgo(issue.updatedAt)}
+					<span class="ml-auto shrink-0" title={absoluteTime(issue.updatedAt)}>
+						Updated {timeAgo(issue.updatedAt)}
 					</span>
+				</div>
+
+				{#if writeStatus}
+					<div class="pt-1">
+						{#if writeStatus.undo}
+							<InlineStatus
+								tone={writeStatus.tone}
+								message={writeStatus.message}
+								action={undoAction}
+							/>
+						{:else}
+							<InlineStatus tone={writeStatus.tone} message={writeStatus.message} />
+						{/if}
+					</div>
 				{/if}
-			</div>
+			{/if}
 		</div>
 		<div class="flex shrink-0 items-center gap-1">
 			<Button variant="ghost" size="icon-sm" title="Close inspector" onclick={onclose}>
@@ -1096,39 +1132,35 @@
 	{/snippet}
 
 	{#if loading && !detail}
-		<div class="text-muted-foreground flex flex-1 items-center justify-center p-6">
+		<div class="flex flex-1 items-center justify-center p-6 text-fg-secondary">
 			<Spinner size={16} label="Loading issue" />
 		</div>
 	{:else if error}
-		<div class="flex flex-1 items-start justify-center">
-			<Alert.Root variant="destructive">
-				<Alert.Description>{error}</Alert.Description>
-			</Alert.Root>
+		<div class="flex flex-1 items-start justify-center p-6">
+			<InlineStatus tone="error" message={error} action={retryLoad} class="max-w-md" />
 		</div>
 	{:else if issue && detail}
 		{#if issue.labelConflict}
-			<Alert.Root>
-				<Alert.Description>
-					GitHub carries a conflicting reserved label or a retired priority label. Funnel uses
-					the derived priority and does not trust the label.
-				</Alert.Description>
-			</Alert.Root>
+			<InlineStatus
+				tone="warning"
+				message="GitHub carries a conflicting reserved label or a retired priority label. Funnel uses the derived priority and does not trust the label."
+			/>
 		{/if}
 
 		<section bind:this={metaEl} class="flex flex-col" aria-label="Issue properties">
-			<dl class="bug-meta">
-				<div class="bug-meta-row contents">
-					<dt class="bug-meta-label">Status</dt>
-					<dd class="bug-meta-value">
-						<div class="relative min-w-0">
+			<dl class="label-value">
+				<dt>Status</dt>
+				<dd>
+					<div class="relative min-w-0 flex-1">
+						{#if mayWrite}
 							<button
 								type="button"
-								class="text-foreground hover:text-primary text-left disabled:opacity-60"
-								disabled={busy === 'status' || !mayWrite}
+								class="inline-flex min-w-0 items-center gap-1 text-left text-body text-fg hover:text-primary disabled:pointer-events-none disabled:text-fg-disabled"
+								disabled={busy === 'status'}
 								title="Change status"
 								onclick={() => openPicker('status')}
 							>
-								<span class="flag">{statusDisplay}</span>
+								<StatusText status={issue.status} state={issue.state} />
 							</button>
 							<div
 								class="pointer-events-none invisible absolute top-0 left-0"
@@ -1139,31 +1171,110 @@
 									options={statusOptions}
 									value={statusValue}
 									onselect={setStatus}
-									disabled={busy === 'status' || !mayWrite}
+									disabled={busy === 'status'}
 								/>
 							</div>
-						</div>
-					</dd>
-				</div>
+						{:else}
+							<StatusText status={issue.status} state={issue.state} />
+						{/if}
+					</div>
+				</dd>
 
-				<div class="bug-meta-row contents">
-					<dt class="bug-meta-label">Resolution</dt>
-					<dd class="bug-meta-value">{resolutionDisplay}</dd>
-				</div>
-
-				<div class="bug-meta-row contents">
-					<dt class="bug-meta-label">Product/Component</dt>
-					<dd class="bug-meta-value"><span class="mono">{repo}</span></dd>
-				</div>
-
-				<div class="bug-meta-row contents">
-					<dt class="bug-meta-label">Milestone</dt>
-					<dd class="bug-meta-value">
-						<div class="relative min-w-0">
+				<dt>Priority</dt>
+				<dd>
+					<div class="relative min-w-0 flex-1">
+						{#if mayWrite}
 							<button
 								type="button"
-								class="text-foreground hover:text-primary text-left disabled:opacity-60"
-								disabled={busy === 'milestone' || !mayWrite}
+								class="inline-flex min-w-0 items-center gap-1 text-left text-body text-fg hover:text-primary disabled:pointer-events-none disabled:text-fg-disabled"
+								disabled={busy === 'priority'}
+								title="Change priority"
+								onclick={() => openPicker('priority')}
+							>
+								{#if priorityValue}
+									<PriorityText priority={priorityValue} showName />
+								{:else}
+									<span class="text-fg-secondary">No priority</span>
+								{/if}
+							</button>
+							<div
+								class="pointer-events-none invisible absolute top-0 left-0"
+								data-picker="priority"
+							>
+								<PriorityPicker
+									impact={impactValue}
+									urgency={urgencyValue}
+									priority={priorityValue}
+									disabled={busy === 'priority'}
+									oncommit={commitPriorityAxis}
+									onclear={clearPriority}
+								/>
+							</div>
+						{:else if priorityValue}
+							<PriorityText priority={priorityValue} showName />
+						{:else}
+							<span class="text-fg-secondary">No priority</span>
+						{/if}
+					</div>
+				</dd>
+
+				<dt>Severity</dt>
+				<dd>
+					{#if mayWrite}
+						<button
+							type="button"
+							class="text-left text-body text-fg hover:text-primary disabled:pointer-events-none disabled:text-fg-disabled"
+							disabled={busy === 'priority'}
+							title="Change severity"
+							onclick={() => openPicker('priority')}
+						>
+							{severityDisplay}
+						</button>
+					{:else}
+						<span>{severityDisplay}</span>
+					{/if}
+				</dd>
+
+				<dt>Size</dt>
+				<dd>
+					<div class="relative min-w-0 flex-1">
+						{#if mayWrite}
+							<button
+								type="button"
+								class="text-left text-body text-fg hover:text-primary disabled:pointer-events-none disabled:text-fg-disabled"
+								disabled={busy === 'size'}
+								title="Change size"
+								onclick={() => openPicker('size')}
+							>
+								{sizeDisplay}
+							</button>
+							<div
+								class="pointer-events-none invisible absolute top-0 left-0"
+								data-picker="size"
+							>
+								<SingleSelect
+									label="No size"
+									options={SIZE_OPTIONS}
+									value={sizeValue}
+									onselect={setSize}
+									allowClear
+									disabled={busy === 'size'}
+								/>
+							</div>
+						{:else}
+							<span>{sizeDisplay}</span>
+						{/if}
+					</div>
+				</dd>
+
+				<dt>Milestone</dt>
+				<dd>
+					<div class="relative min-w-0 flex-1">
+						{#if mayWrite}
+							<button
+								type="button"
+								class="text-left text-body text-fg hover:text-primary disabled:pointer-events-none disabled:text-fg-disabled"
+								disabled={busy === 'milestone'}
 								title="Change milestone"
 								onclick={() => openPicker('milestone')}
 							>
@@ -1177,97 +1288,24 @@
 									{repo}
 									value={milestoneValue}
 									options={milestoneOptions}
-									disabled={busy === 'milestone' || !mayWrite}
+									disabled={busy === 'milestone'}
 									onselect={(milestone) => void setMilestone(milestone)}
 								/>
 							</div>
-						</div>
-					</dd>
-				</div>
+						{:else}
+							<span>{milestoneValue?.title ?? '—'}</span>
+						{/if}
+					</div>
+				</dd>
 
-				<div class="bug-meta-row contents">
-					<dt class="bug-meta-label">Priority</dt>
-					<dd class="bug-meta-value">
-						<div class="relative min-w-0">
+				<dt>Assignee</dt>
+				<dd>
+					<div class="relative min-w-0 flex-1">
+						{#if mayWrite}
 							<button
 								type="button"
-								class="hover:text-primary text-left disabled:opacity-60"
-								disabled={!mayWrite || busy === 'priority'}
-								title="Change priority"
-								onclick={() => openPicker('priority')}
-							>
-								<span class={priorityTone}>{priorityValue ?? '—'}</span>
-							</button>
-							<div
-								class="pointer-events-none invisible absolute top-0 left-0"
-								data-picker="priority"
-							>
-								<PriorityPicker
-									impact={impactValue}
-									urgency={urgencyValue}
-									priority={priorityValue}
-									disabled={!mayWrite || busy === 'priority'}
-									oncommit={commitPriorityAxis}
-									onclear={clearPriority}
-								/>
-							</div>
-						</div>
-					</dd>
-				</div>
-
-				<div class="bug-meta-row contents">
-					<dt class="bug-meta-label">Severity</dt>
-					<dd class="bug-meta-value">
-						<button
-							type="button"
-							class="hover:text-primary text-left disabled:opacity-60"
-							disabled={!mayWrite || busy === 'priority'}
-							title="Change severity"
-							onclick={() => openPicker('priority')}
-						>
-							<span class={severityTone}>{severityDisplay}</span>
-						</button>
-					</dd>
-				</div>
-
-				<div class="bug-meta-row contents">
-					<dt class="bug-meta-label">Size</dt>
-					<dd class="bug-meta-value">
-						<div class="relative min-w-0">
-							<button
-								type="button"
-								class="text-foreground hover:text-primary text-left disabled:opacity-60"
-								disabled={busy === 'size' || !mayWrite}
-								title="Change size"
-								onclick={() => openPicker('size')}
-							>
-								<span class="mono">{sizeDisplay}</span>
-							</button>
-							<div
-								class="pointer-events-none invisible absolute top-0 left-0"
-								data-picker="size"
-							>
-								<SingleSelect
-									label="No size"
-									options={SIZE_OPTIONS}
-									value={sizeValue}
-									onselect={setSize}
-									allowClear
-									disabled={busy === 'size' || !mayWrite}
-								/>
-							</div>
-						</div>
-					</dd>
-				</div>
-
-				<div class="bug-meta-row contents">
-					<dt class="bug-meta-label">Assignee</dt>
-					<dd class="bug-meta-value">
-						<div class="relative min-w-0">
-							<button
-								type="button"
-								class="text-foreground hover:text-primary text-left disabled:opacity-60"
-								disabled={busy === 'assignees' || !mayWrite}
+								class="text-left text-body text-fg hover:text-primary disabled:pointer-events-none disabled:text-fg-disabled"
+								disabled={busy === 'assignees'}
 								title="Change assignee"
 								onclick={() => openPicker('assignee')}
 							>
@@ -1285,33 +1323,33 @@
 									options={assigneeOptions.map((u) => ({ value: u.login, label: u.login }))}
 									selected={assigneeLogins}
 									onselect={setAssignees}
-									disabled={busy === 'assignees' || !mayWrite}
+									disabled={busy === 'assignees'}
 								/>
 							</div>
-						</div>
-					</dd>
-				</div>
+						{:else}
+							<span>{assigneeDisplay.length > 0 ? assigneeDisplay : 'Unassigned'}</span>
+						{/if}
+					</div>
+				</dd>
 
-				<div class="bug-meta-row contents">
-					<dt class="bug-meta-label">Reporter</dt>
-					<dd class="bug-meta-value">{issue.author?.login ?? '—'}</dd>
-				</div>
+				<dt>Reporter</dt>
+				<dd>{issue.author?.login ?? '—'}</dd>
 
-				<div class="bug-meta-row contents">
-					<dt class="bug-meta-label">Labels</dt>
-					<dd class="bug-meta-value">
-						<div class="relative min-w-0">
+				<dt>Labels</dt>
+				<dd>
+					<div class="relative min-w-0 flex-1">
+						{#if mayWrite}
 							<button
 								type="button"
-								class="hover:text-primary text-left disabled:opacity-60"
-								disabled={busy === 'labels' || !mayWrite}
+								class="text-left text-body hover:text-primary disabled:pointer-events-none disabled:text-fg-disabled"
+								disabled={busy === 'labels'}
 								title="Change labels"
 								onclick={() => openPicker('labels')}
 							>
 								{#if selectedLabels.length === 0}
-									<span class="text-muted-foreground">—</span>
+									<span class="text-fg-secondary">—</span>
 								{:else}
-									{#each selectedLabels as label, index (label)}<span class="flag">{label}</span>{#if index < selectedLabels.length - 1}<span class="text-muted-foreground">, </span>{/if}{/each}
+									<span class="text-fg">{selectedLabels.join(', ')}</span>
 								{/if}
 							</button>
 							<div
@@ -1326,83 +1364,75 @@
 									options={labelOptions}
 									selected={selectedLabels}
 									onselect={setLabels}
-									disabled={busy === 'labels' || !mayWrite}
+									disabled={busy === 'labels'}
 								/>
 							</div>
-						</div>
-					</dd>
-				</div>
+						{:else}
+							<span class="text-fg-secondary">
+								{selectedLabels.length === 0 ? '—' : selectedLabels.join(', ')}
+							</span>
+						{/if}
+					</div>
+				</dd>
 
-				<div class="bug-meta-row contents">
-					<dt class="bug-meta-label">Parent epic</dt>
-					<dd class="bug-meta-value">
-						<EpicProperty
-							issue={detail.issue}
-							parent={detail.epic}
-							{repo}
-							{number}
-							{mayWrite}
-						/>
-					</dd>
-				</div>
+				<dt>Parent epic</dt>
+				<dd>
+					<EpicProperty
+						issue={detail.issue}
+						parent={detail.epic}
+						{repo}
+						{number}
+						{mayWrite}
+					/>
+				</dd>
 
-				<div class="bug-meta-row contents">
-					<dt class="bug-meta-label">Blocked</dt>
-					<dd class="bug-meta-value">
+				<dt>Blocked</dt>
+				<dd>
+					{#if mayWrite}
 						<button
 							type="button"
-							class="text-foreground hover:text-primary text-left disabled:opacity-60"
-							disabled={busy === 'blocked' || !canEdit || !mayWrite}
+							class="inline-flex items-center gap-1 text-left text-body text-fg hover:text-primary disabled:pointer-events-none disabled:text-fg-disabled"
+							disabled={busy === 'blocked' || !canEdit}
 							title="Blocked flag"
 							aria-pressed={issue.blocked}
 							onclick={() => openBlockDialog(issue.blocked ? 'unblock' : 'block')}
 						>
-							{issue.blocked ? 'Yes' : 'No'}
+							{#if issue.blocked}
+								<span class="status status-error"><BanIcon aria-hidden="true" />Blocked</span>
+							{:else}
+								Not blocked
+							{/if}
 						</button>
-					</dd>
-				</div>
-
-				<div class="bug-meta-row contents">
-					<dt class="bug-meta-label">Watching</dt>
-					<dd class="bug-meta-value">{watching ? 'Yes' : 'No'}</dd>
-				</div>
-
-				<div class="bug-meta-row contents">
-					<dt class="bug-meta-label">CC</dt>
-					<dd class="bug-meta-value">{assigneeDisplay.length > 0 ? assigneeDisplay : '—'}</dd>
-				</div>
-			</dl>
-
-			<div class="border-border flex flex-wrap items-center gap-x-4 gap-y-1 border-b py-2 text-xs">
-				<button
-					type="button"
-					class="link text-left disabled:no-underline disabled:opacity-60"
-					disabled={watchBusy || !canEdit}
-					aria-pressed={watching}
-					onclick={() => void toggleWatch()}
-				>
-					{#if watchBusy}
-						<Spinner size={12} />
+					{:else if issue.blocked}
+						<span class="status status-error"><BanIcon aria-hidden="true" />Blocked</span>
 					{:else}
-						{watching ? 'Unwatch' : 'Watch'}
+						<span>Not blocked</span>
 					{/if}
-				</button>
-				<button
-					type="button"
-					class="link text-left"
-					title={copied ? 'Copied' : 'Copy issue as Markdown'}
-					onclick={() => void copyThread()}
-				>
-					{copied ? 'Copied' : 'Copy as Markdown'}
-				</button>
-				<a class="link" href={githubLink} target="_blank" rel="noreferrer">Open on GitHub</a>
-			</div>
+				</dd>
+
+				<dt>Watching</dt>
+				<dd>
+					<button
+						type="button"
+						class="inline-flex items-center gap-1.5 text-left text-body text-fg hover:text-primary disabled:pointer-events-none disabled:text-fg-disabled"
+						disabled={watchBusy || !canEdit}
+						aria-pressed={watching}
+						onclick={() => void toggleWatch()}
+					>
+						{#if watchBusy}
+							<Spinner size={12} />
+						{:else}
+							{watching ? 'Watching' : 'Not watching'}
+						{/if}
+					</button>
+				</dd>
+			</dl>
 		</section>
 
 		<section class="flex flex-col" aria-label="Description">
 			{#if editingBody}
 				<Textarea
-					class="min-h-32"
+					class="min-h-32 text-body-content leading-body-content"
 					value={body}
 					oninput={(e) => (body = e.currentTarget.value)}
 					onkeydown={onBodyKeydown}
@@ -1423,8 +1453,8 @@
 				<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 				<div
 					class={cn(
-						'min-h-12 py-1 text-sm leading-relaxed text-foreground',
-						mayWrite && 'hover:bg-[var(--accent)] cursor-text',
+						'min-h-12 py-1 text-body-content leading-body-content text-fg',
+						mayWrite && 'cursor-text rounded-sm hover:bg-surface-2',
 						bodyHtml !== null && 'markdown',
 						bodyHtml === null && 'plain-text'
 					)}
@@ -1440,7 +1470,7 @@
 					}}
 				>
 					{#if body.trim().length === 0}
-						<span class="text-muted-foreground">Add a description…</span>
+						<span class="text-fg-muted">Add a description…</span>
 					{:else if bodyHtml !== null}
 						{@html bodyHtml}
 					{:else}
@@ -1453,36 +1483,29 @@
 		<IssueTimeCard time={detail.time} />
 
 		{#if blockedState.isBlocked && blockedState.info}
-			<section
-				class="border-destructive/30 bg-destructive/5 flex flex-col gap-1 rounded-lg border p-3 text-xs"
-				aria-label="Blocker"
-			>
-				<div class="text-destructive flex items-center gap-1.5 font-medium">
-					<BanIcon class="size-3.5" />
-					Blocked
+			<section class="flex flex-col gap-2" aria-label="Blocker">
+				<div class="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-border-subtle pt-3">
+					<StatusText blocked />
 					{#if blockedState.info.recheck}
-						<span class="text-muted-foreground ml-auto font-normal">
+						<span class="text-caption text-fg-secondary">
 							Re-check {blockedState.info.recheck}
 						</span>
 					{/if}
 				</div>
-				<p class="text-muted-foreground">
-					<span class="font-medium">Reason:</span>
-					{delayReasonLabel(blockedState.info.reason)}
-				</p>
-				<p class="text-foreground">{blockedState.info.blocker}</p>
-				{#if blockedState.info.needs}
-					<p class="text-muted-foreground">
-						<span class="font-medium">Needs to unblock:</span>
-						{blockedState.info.needs}
-					</p>
-				{/if}
-				{#if blockedState.info.trying}
-					<p class="text-muted-foreground">
-						<span class="font-medium">Currently trying:</span>
-						{blockedState.info.trying}
-					</p>
-				{/if}
+				<dl class="label-value">
+					<dt>Reason</dt>
+					<dd>{delayReasonLabel(blockedState.info.reason)}</dd>
+					<dt>Blocker</dt>
+					<dd>{blockedState.info.blocker}</dd>
+					{#if blockedState.info.needs}
+						<dt>Needs to unblock</dt>
+						<dd>{blockedState.info.needs}</dd>
+					{/if}
+					{#if blockedState.info.trying}
+						<dt>Currently trying</dt>
+						<dd>{blockedState.info.trying}</dd>
+					{/if}
+				</dl>
 			</section>
 		{/if}
 
@@ -1494,12 +1517,10 @@
 			onrecord={() => (delayDialogOpen = true)}
 		/>
 
-		<section bind:this={activityEl} class="flex flex-col gap-3" aria-label="Activity">
-			<div class="flex items-center justify-between">
-				<h2 class="text-foreground text-base font-semibold">
-					Activity
-				</h2>
-				<span class="mono text-muted-foreground text-xs">{detail.commentTotal}</span>
+		<section bind:this={activityEl} class="flex flex-col gap-2" aria-label="Activity">
+			<div class="flex items-baseline justify-between gap-3 border-t border-border-subtle pt-3">
+				<h2 class="text-heading-sm font-semibold text-fg">Activity</h2>
+				<span class="text-caption tabular-nums text-fg-secondary">{detail.commentTotal}</span>
 			</div>
 			{#if detail.hasMoreComments && commentLimit < MAX_COMMENT_LIMIT}
 				<div class="flex justify-center">
@@ -1514,11 +1535,7 @@
 				</div>
 			{/if}
 			{#if detail.comments.length === 0}
-				<div
-					class="border-border text-muted-foreground rounded-lg border border-dashed px-3 py-6 text-center text-xs"
-				>
-					No comments yet.
-				</div>
+				<p class="text-body text-fg-secondary">No comments yet.</p>
 			{:else}
 				<ActivityTimeline
 					comments={detail.comments}
@@ -1527,13 +1544,54 @@
 					bubbles={commentBubbles}
 					reporterLogin={detail.issue.author?.login ?? null}
 					readonly={!mayWrite}
-					onreply={() => focusComposer()}
+					onreply={mayWrite ? () => focusComposer() : undefined}
 					onedit={editWorkNote}
 					ondelete={removeWorkNote}
 					onpublish={publishNote}
 				/>
 			{/if}
 		</section>
+
+		{#if workNotesEnabled}
+			<section class="flex flex-col gap-2" aria-label="Work notes">
+				<div class="flex items-baseline justify-between gap-3 border-t border-border-subtle pt-3">
+					<h2 class="text-heading-sm font-semibold text-fg">Work notes</h2>
+					<span class="text-caption tabular-nums text-fg-secondary">
+						{detail.workNotes.length}
+					</span>
+				</div>
+				{#if detail.workNotes.length === 0}
+					<p class="text-body text-fg-secondary">
+						No work notes yet. Internal notes stay in Funnel unless you publish them.
+					</p>
+				{:else}
+					<ActivityTimeline
+						comments={[]}
+						workNotes={detail.workNotes}
+						filter="notes"
+						viewerLogin={viewerLogin}
+						reporterLogin={detail.issue.author?.login ?? null}
+						readonly={!mayWrite}
+						busyId={noteBusy}
+						onreply={mayWrite ? () => focusComposer() : undefined}
+						onedit={editWorkNote}
+						ondelete={removeWorkNote}
+						onpublish={publishNote}
+					/>
+				{/if}
+			</section>
+		{/if}
+
+		{#if attachmentsEnabled}
+			<AttachmentDropbox
+				attachments={detail.attachments}
+				uploading={uploading}
+				busyId={deletingId}
+				readonly={!mayWrite}
+				onupload={(files) => void uploadFiles(files)}
+				ondelete={(item) => void removeAttachment(item)}
+			/>
+		{/if}
 	{/if}
 </DetailShell>
 

@@ -3,6 +3,9 @@
 	import * as Sheet from "#lib/components/ui/sheet";
 	import AppBar from "./AppBar.svelte";
 	import SidebarNav from "./SidebarNav.svelte";
+	import InlineStatus from "#lib/components/common/InlineStatus.svelte";
+	import { Button } from "#lib/components/ui/button";
+	import { appStatus, clearAppStatus } from "#lib/client/status.svelte";
 	import type { Role } from "#lib/roles";
 
 	interface Props {
@@ -49,7 +52,7 @@
 </div>
 
 <Sheet.Root bind:open={navOpen}>
-	<Sheet.Content side="left" class="p-0">
+	<Sheet.Content side="left" class="p-0" showCloseButton={false}>
 		<Sheet.Header class="sr-only">
 			<Sheet.Title>Navigation</Sheet.Title>
 			<Sheet.Description>Funnel navigation</Sheet.Description>

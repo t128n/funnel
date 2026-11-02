@@ -1,6 +1,6 @@
 <script lang="ts">
 	import Spinner from '#lib/components/common/Spinner.svelte';
-	import * as Alert from '#lib/components/ui/alert';
+	import InlineStatus from '#lib/components/common/InlineStatus.svelte';
 	import { Button } from '#lib/components/ui/button';
 	import * as Dialog from '#lib/components/ui/dialog';
 	import * as Field from '#lib/components/ui/field';
@@ -100,12 +100,12 @@
 		if (!busy) onopenchange(next);
 	}}
 >
-	<Dialog.Content aria-describedby={undefined} class="sm:max-w-lg">
+	<Dialog.Content aria-describedby={undefined} class="sm:max-w-[var(--layout-form-max)]">
 		<Dialog.Header>
-			<Dialog.Title class="text-base font-semibold">
+			<Dialog.Title>
 				{isBlock ? (revising ? 'Update block' : 'Block issue') : 'Unblock issue'}
 			</Dialog.Title>
-			<Dialog.Description class="text-muted-foreground text-xs">
+			<Dialog.Description class="text-caption text-fg-secondary">
 				{#if revising}
 					Revising why the issue is still blocked and when to re-check it. The summary is posted
 					as a comment and replaces the issue's stored blocker metadata.
@@ -123,7 +123,7 @@
 			<div class="flex flex-col gap-4">
 				<Field.Field>
 					<Field.Label for="blocker">
-						Blocker <span class="text-destructive font-normal">required</span>
+						Blocker <span class="font-normal text-error">required</span>
 					</Field.Label>
 					<Textarea
 						id="blocker"
@@ -136,7 +136,7 @@
 
 				<Field.Field>
 					<Field.Label for="block-reason">
-						Reason <span class="text-destructive font-normal">required</span>
+						Reason <span class="font-normal text-error">required</span>
 					</Field.Label>
 					<NativeSelect.Root id="block-reason" bind:value={reason}>
 						<NativeSelect.Option value="">Select a reason</NativeSelect.Option>
@@ -148,7 +148,7 @@
 
 				<Field.Field>
 					<Field.Label for="needs">
-						Needs to unblock <span class="text-destructive font-normal">required</span>
+						Needs to unblock <span class="font-normal text-error">required</span>
 					</Field.Label>
 					<Textarea
 						id="needs"
@@ -180,8 +180,9 @@
 									type="button"
 									variant="ghost"
 									size="sm"
-									class={cn(recheck === option.value && 'bg-accent text-foreground')}
+									class={cn(recheck === option.value && 'bg-surface-2 text-fg')}
 									title={option.value}
+									aria-pressed={recheck === option.value}
 									onclick={() => (recheck = option.value)}
 								>
 									{option.label}
@@ -194,7 +195,7 @@
 		{:else}
 			<Field.Field>
 				<Field.Label for="unblock-note">
-					What unblocked it <span class="text-destructive font-normal">required</span>
+					What unblocked it <span class="font-normal text-error">required</span>
 				</Field.Label>
 				<Textarea
 					id="unblock-note"
@@ -207,9 +208,7 @@
 		{/if}
 
 		{#if error}
-			<Alert.Root variant="destructive">
-				<Alert.Description>{error}</Alert.Description>
-			</Alert.Root>
+			<InlineStatus tone="error" message={error} />
 		{/if}
 
 		<Dialog.Footer>

@@ -11,6 +11,9 @@
 
 <script lang="ts">
 	import * as Tooltip from '#lib/components/ui/tooltip/index.js';
+	import PriorityText from '#lib/components/common/PriorityText.svelte';
+	import RefText from '#lib/components/common/RefText.svelte';
+	import StatusText from '#lib/components/common/StatusText.svelte';
 	import { selectIssue } from '#lib/client/selection.svelte';
 	import { timeAgo } from '#lib/client/clock.svelte';
 	import { issueRef } from '#lib/issue-ref';
@@ -22,19 +25,18 @@
 	import type { GroupKey } from './grouping';
 
 	/**
-	 * One row of the Bugzilla result table shared by the Issues feed, the Inbox
-	 * queue and the board's Backlog list. Lays out on the shared `.issue-grid`
-	 * template so every column holds its slot regardless of title length or
-	 * missing metadata. Metadata is plain text: a mono reference, a status flag,
-	 * `P1`–`P3`, the size letter, comma-separated labels, the updated time and
-	 * comma-separated assignee logins. No chips, badges, glyphs or avatars.
+	 * One row of the issue stream shared by the Issues feed, the Inbox queue and
+	 * the board's Backlog list. The row is one grid in table mode
+	 * (`Ref · Title · Status · Priority · Size · Updated · Assignee`) and a
+	 * two-line stacked card in a narrow column: ref and title, then a wrapping
+	 * metadata line. Selection is the 2px primary leading bar, never a fill.
 	 */
 	interface Props {
 		issue: IssueListItem;
 		selected?: boolean;
 		/** `owner/name` → project key from instance settings. */
 		repoShortcodes?: Record<string, string>;
-		/** When grouped by status the section header carries it, so the row omits its flag. */
+		/** When grouped by status the section header carries it, so the row omits its status. */
 		groupedBy?: GroupKey | null;
 		/** Position in the flattened feed; odd positions take the zebra stripe. */
 		index?: number;
@@ -74,37 +76,6 @@
 		issue.size === 'sm' ? 'S' : issue.size === 'md' ? 'M' : issue.size === 'lg' ? 'L' : null
 	);
 
-	/** Blocked wins the status slot: it is the one signal the row cannot drop. */
-	const statusWord = $derived(
-		issue.blocked
-			? 'blocked'
-			: closed
-				? 'closed'
-				: (issue.status?.replace(/-/g, ' ') ?? 'unconfirmed')
-	);
-
-	const statusClass = $derived(
-		closed
-			? 'flag-muted'
-			: issue.blocked
-				? 'flag-danger'
-				: issue.status === 'done'
-					? 'flag-success'
-					: issue.status === 'in-progress' || issue.status === 'in-review'
-						? 'flag-warning'
-						: 'flag-muted'
-	);
-
-	const priorityClass = $derived(
-		closed
-			? 'flag-muted'
-			: issue.priority === 'P1'
-				? 'flag-danger'
-				: issue.priority === 'P2'
-					? 'flag-warning'
-					: 'flag-muted'
-	);
-
 	const assigneeText = $derived(issue.assignees.map((person) => person.login).join(', '));
 
 	const showStatus = $derived(groupedBy !== 'status');
@@ -116,12 +87,11 @@
 
 <div
 	class={cn(
-		'issue-row issue-grid group/row cursor-pointer border-b border-border px-2 py-1.5 select-none transition-colors duration-[120ms]',
+		'issue-row group/row cursor-pointer select-none border-b border-border-subtle',
 		'focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ring',
-		closed && 'text-muted-foreground',
-		selected && 'is-selected'
+		closed ? 'text-fg-muted' : 'text-fg',
+		selected ? 'is-selected-row bg-canvas' : striped ? 'bg-surface' : 'bg-canvas'
 	)}
-	data-striped={striped}
 	role="button"
 	tabindex={0}
 	aria-current={selected ? 'true' : undefined}
@@ -134,24 +104,22 @@
 		}
 	}}
 >
-	<span aria-hidden="true"></span>
-
 	<Tooltip.Root>
 		<Tooltip.Trigger>
 			{#snippet child({ props })}
-				<span {...props} class="mono text-muted-foreground min-w-0 truncate text-xs">
-					{ref}
+				<span {...props} class="issue-ref">
+					<RefText value={ref} class="text-caption" />
 				</span>
 			{/snippet}
 		</Tooltip.Trigger>
 		<Tooltip.Content>{issue.repo}#{issue.number}</Tooltip.Content>
 	</Tooltip.Root>
 
-	<span class="flex min-w-0 items-center gap-1.5">
+	<span class="issue-title flex min-w-0 items-center gap-1.5">
 		<span
 			class={cn(
-				'min-w-0 truncate text-sm',
-				closed || untitled ? 'text-muted-foreground' : 'text-foreground',
+				'min-w-0 truncate text-body',
+				closed || untitled ? 'text-fg-muted' : 'text-fg',
 				untitled && 'italic',
 				closed && 'line-through'
 			)}
@@ -161,62 +129,183 @@
 		</span>
 		{#if issue.labelConflict}
 			<TriangleAlertIcon
-				class="text-warning size-3.5 shrink-0"
+				class="size-3.5 shrink-0 text-warning"
 				title="Conflicting reserved label or retired priority label on GitHub"
 			/>
 		{/if}
-		{#if showStatus || issue.blocked}
-			<span class={cn('flag shrink-0', statusClass)}>{statusWord}</span>
-		{/if}
 	</span>
 
-	<!-- Labels track (wide layouts only; hidden by `.issue-col-labels`). -->
-	<span class="issue-col-labels min-w-0 items-center overflow-hidden">
-		<span class="flag flag-muted block truncate" title={labelText}>{labelText}</span>
-	</span>
+	<span class="issue-meta">
+		<span class="issue-status">
+			{#if showStatus}
+				<StatusText
+					status={issue.status}
+					state={issue.state}
+					blocked={issue.blocked}
+					class={closed ? 'text-fg-muted' : undefined}
+				/>
+			{/if}
+		</span>
 
-	<span class="flex items-center">
-		{#if issue.priority}
-			<span class={cn('flag', priorityClass)}>{issue.priority}</span>
-		{/if}
-	</span>
+		<span class="issue-priority">
+			{#if issue.priority}
+				<PriorityText
+					priority={issue.priority}
+					class={closed ? 'text-fg-muted' : undefined}
+				/>
+			{/if}
+		</span>
 
-	<span class="flex items-center">
-		{#if sizeText}
-			<span class="flag flag-muted" title={`Size: ${issue.size}`}>{sizeText}</span>
-		{/if}
-	</span>
+		<span class="issue-size text-caption text-fg-secondary">
+			{#if sizeText}
+				<span title={`Size: ${issue.size}`}>{sizeText}</span>
+			{/if}
+		</span>
 
-	<span
-		class="text-muted-foreground justify-self-end truncate text-xs tabular-nums"
-		title={new Date(issue.updatedAt).toLocaleString()}
-	>
-		{timeAgo(issue.updatedAt)}
-	</span>
+		<span
+			class="issue-updated text-caption text-fg-secondary tabular-nums"
+			title={new Date(issue.updatedAt).toLocaleString()}
+		>
+			{timeAgo(issue.updatedAt)}
+		</span>
 
-	<span class="flex min-w-0 items-center justify-end">
-		{#if assigneeText}
-			<span class="text-muted-foreground truncate text-xs" title={assigneeText}>
-				{assigneeText}
+		<span class="issue-assignee text-caption text-fg-secondary">
+			{#if assigneeText}
+				<span class="truncate" title={assigneeText}>{assigneeText}</span>
+			{:else}
+				<span class="text-fg-muted">Unassigned</span>
+			{/if}
+		</span>
+
+		{#if labelText}
+			<span class="issue-labels text-caption text-fg-secondary" title={labelText}>
+				{labelText}
 			</span>
 		{/if}
 	</span>
 </div>
 
 <style>
-	.issue-row[data-striped='true'] {
-		background: color-mix(in srgb, var(--muted) 45%, transparent);
+	/* Base: the stacked presentation. Any list narrower than 48rem — a phone or
+	   the 26rem Issues feed — gets ref + title and a wrapping metadata line. */
+	.issue-row {
+		display: grid;
+		grid-template-columns: auto minmax(0, 1fr);
+		grid-template-areas:
+			'ref title'
+			'meta meta';
+		align-items: center;
+		min-height: var(--size-row-compact);
+		column-gap: var(--space-2);
+		row-gap: 0.125rem;
+		padding: var(--space-1) var(--space-3);
 	}
 
-	.issue-row:hover,
-	.issue-row[data-striped='true']:hover {
-		background: var(--accent);
+	.issue-row > .issue-ref {
+		grid-area: ref;
+		min-width: 0;
 	}
 
-	/* Selection is a flat accent fill, never an inset accent bar. */
-	.issue-row.is-selected,
-	.issue-row.is-selected:hover {
-		background: var(--accent);
-		box-shadow: none;
+	.issue-row > .issue-title {
+		grid-area: title;
+		min-width: 0;
+	}
+
+	.issue-meta {
+		grid-area: meta;
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 0.125rem var(--space-3);
+		min-width: 0;
+	}
+
+	.issue-status,
+	.issue-priority,
+	.issue-size,
+	.issue-updated,
+	.issue-assignee {
+		min-width: 0;
+	}
+
+	.issue-assignee {
+		max-width: 100%;
+		overflow: hidden;
+	}
+
+	.issue-labels {
+		display: block;
+		min-width: 0;
+		max-width: 100%;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	@media (hover: hover) and (pointer: fine) {
+		.issue-row:not(.is-selected-row):hover {
+			background: var(--color-surface-2);
+		}
+	}
+
+	/* Table presentation once the list column has room for seven columns. */
+	@container (min-width: 48rem) {
+		.issue-row {
+			grid-template-columns: 5.5rem minmax(0, 1fr) 7rem 4.5rem 3rem 5rem 7rem;
+			grid-template-areas: none;
+			height: var(--size-row-compact);
+			column-gap: 0;
+			row-gap: 0;
+			padding: 0;
+		}
+
+		.issue-row > .issue-ref {
+			grid-area: auto;
+			grid-column: 1;
+			padding-inline: var(--space-3);
+		}
+
+		.issue-row > .issue-title {
+			grid-area: auto;
+			grid-column: 2;
+			padding-inline: var(--space-3);
+		}
+
+		.issue-meta {
+			grid-area: auto;
+			display: contents;
+		}
+
+		.issue-status {
+			grid-column: 3;
+			padding-inline: var(--space-3);
+		}
+
+		.issue-priority {
+			grid-column: 4;
+			padding-inline: var(--space-3);
+		}
+
+		.issue-size {
+			grid-column: 5;
+			padding-inline: var(--space-3);
+		}
+
+		.issue-updated {
+			grid-column: 6;
+			justify-self: end;
+			padding-inline: var(--space-3);
+		}
+
+		.issue-assignee {
+			grid-column: 7;
+			justify-self: end;
+			max-width: 100%;
+			padding-inline: var(--space-3);
+		}
+
+		.issue-labels {
+			display: none;
+		}
 	}
 </style>

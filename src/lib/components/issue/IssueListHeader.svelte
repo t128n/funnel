@@ -2,34 +2,59 @@
 	import { cn } from '#lib/utils';
 
 	/**
-	 * Sticky column markers for the issue list, styled as a Bugzilla result-table
-	 * head: an 11px uppercase, letter-spaced label bar on `--muted` with a real
-	 * 1px bottom rule. Shares `.issue-grid` with every row so the slots stay
-	 * aligned; the metadata labels only appear once the list is wide enough to
-	 * give them room (see `global.css`).
+	 * Column markers for the issue list. Shares the row grid from `IssueRow`
+	 * (`5.5rem · title · 7rem · 4.5rem · 3rem · 5rem · 7rem`) and collapses to
+	 * `Ref · Title` whenever the list column is narrow. Caption-size, sentence
+	 * case, 600 weight on `surface-2`; no uppercase, no letter spacing.
 	 */
 	interface Props {
 		class?: string;
 	}
 
 	let { class: className }: Props = $props();
-
-	const label = 'text-xs font-semibold tracking-[0.04em] uppercase';
 </script>
 
-<div
-	class={cn(
-		'issue-grid sticky top-0 z-10 border-b border-border bg-muted px-2 py-1',
-		className
-	)}
-	aria-hidden="true"
->
-	<span></span>
-	<span></span>
-	<span class={label}>Title</span>
-	<span class={cn('issue-col-labels', label)}>Labels</span>
-	<span class={cn('issue-head-meta', label)}>Priority</span>
-	<span class={cn('issue-head-meta', label)}>Size</span>
-	<span class={cn('issue-head-meta justify-self-end', label)}>Updated</span>
-	<span class={cn('issue-head-meta justify-self-end', label)}>Assignee</span>
+<div class={cn('issue-columns', className)} aria-hidden="true">
+	<span class="issue-head-ref">Ref</span>
+	<span class="issue-head-title">Title</span>
+	<span class="issue-head-meta">Status</span>
+	<span class="issue-head-meta">Priority</span>
+	<span class="issue-head-meta">Size</span>
+	<span class="issue-head-meta justify-self-end">Updated</span>
+	<span class="issue-head-meta justify-self-end">Assignee</span>
 </div>
+
+<style>
+	.issue-columns {
+		display: grid;
+		grid-template-columns: auto minmax(0, 1fr);
+		align-items: center;
+		flex: none;
+		height: var(--size-row-compact);
+		border-bottom: 1px solid var(--color-border-subtle);
+		background: var(--color-surface-2);
+		color: var(--color-text-secondary);
+		font-size: var(--font-size-caption);
+		font-weight: var(--font-weight-semibold);
+		white-space: nowrap;
+	}
+
+	.issue-columns > span {
+		min-width: 0;
+		padding-inline: var(--space-3);
+	}
+
+	.issue-head-meta {
+		display: none;
+	}
+
+	@container (min-width: 48rem) {
+		.issue-columns {
+			grid-template-columns: 5.5rem minmax(0, 1fr) 7rem 4.5rem 3rem 5rem 7rem;
+		}
+
+		.issue-head-meta {
+			display: block;
+		}
+	}
+</style>

@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
-	import * as Card from '#lib/components/ui/card';
+	import * as Switch from '#lib/components/ui/switch';
+	import Section from '#lib/components/settings/section.svelte';
 	import SettingsForm from '#lib/components/settings/settings-form.svelte';
 	import type { SettingsFormResult } from '#lib/components/settings/sections';
 	import type { PageProps } from './$types';
@@ -37,38 +38,29 @@
 </script>
 
 <SettingsForm
-	title="Notifications"
-	description="Control which notification channels the instance uses. These switches apply to everyone; browser notifications still require permission in each browser."
 	form={form as SettingsFormResult | null}
 	{payload}
 >
-	<Card.Root>
-		<Card.Content class="flex flex-col gap-4 pt-6">
+	<Section
+		title="Channels"
+		description="These switches apply to everyone. Browser notifications still require permission in each browser."
+	>
+		<div class="border-t border-border-subtle">
 			{#each CONTROLS as control (control.key)}
 				{@const on = notifications[control.key]}
-				<div class="flex items-start justify-between gap-4">
-					<div class="flex min-w-0 flex-col gap-0.5">
-						<span class="text-sm font-medium">{control.label}</span>
-						<span class="text-muted-foreground text-xs leading-relaxed">{control.description}</span>
+				<div class="flex items-start gap-4 border-b border-border-subtle py-3">
+					<div class="flex min-w-0 flex-1 flex-col gap-0.5">
+						<span class="text-body font-semibold text-fg">{control.label}</span>
+						<span class="text-body leading-body text-fg-secondary">{control.description}</span>
+						<span class="text-caption text-fg-muted">{on ? 'On' : 'Off'}</span>
 					</div>
-					<button
-						type="button"
-						role="switch"
-						aria-checked={on}
+					<Switch.Root
+						checked={on}
+						onCheckedChange={() => toggle(control.key)}
 						aria-label={control.label}
-						class="focus-visible:ring-ring/50 inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full outline-none transition-colors focus-visible:ring-3 {on
-							? 'bg-primary'
-							: 'bg-muted-foreground/30'}"
-						onclick={() => toggle(control.key)}
-					>
-						<span
-							class="bg-background pointer-events-none inline-block size-4 rounded-full shadow-sm transition-transform {on
-								? 'translate-x-[1.125rem]'
-								: 'translate-x-0.5'}"
-						></span>
-					</button>
+					/>
 				</div>
 			{/each}
-		</Card.Content>
-	</Card.Root>
+		</div>
+	</Section>
 </SettingsForm>
