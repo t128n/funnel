@@ -27,7 +27,7 @@
 		bind:this={ref}
 		data-slot="native-select"
 		data-size={size}
-		class="h-(--size-control-sm) w-full min-w-0 select-none appearance-none rounded-sm border border-border-strong bg-canvas py-0 pl-2 pr-8 text-body text-fg outline-hidden transition-colors hover:bg-surface focus-visible:border-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring aria-invalid:border-error aria-invalid:outline-error disabled:pointer-events-none disabled:cursor-not-allowed disabled:bg-surface-2 disabled:text-fg-disabled"
+		class="h-(--size-control-md) w-full min-w-0 select-none appearance-none rounded-sm border border-border-strong bg-canvas py-0 pl-3 pr-8 text-body text-fg outline-hidden transition-colors hover:bg-surface focus-visible:border-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring aria-invalid:border-error aria-invalid:outline-error disabled:pointer-events-none disabled:cursor-not-allowed disabled:bg-surface-2 disabled:text-fg-disabled data-[size=sm]:h-(--size-control-sm) data-[size=sm]:pl-2"
 		{...restProps}
 	>
 		{@render children?.()}

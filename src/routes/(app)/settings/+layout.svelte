@@ -54,7 +54,7 @@
 		>
 			{#each groups as group (group.id)}
 				<div class="mb-2">
-					<p class="px-3 pb-1 text-caption font-semibold text-fg-secondary">{group.label}</p>
+					<p class="px-2 pb-1 text-caption font-semibold text-fg-secondary">{group.label}</p>
 					<ul>
 						{#each group.sections as section (section.id)}
 							{@const Icon = section.icon}
@@ -62,7 +62,7 @@
 								<a
 									href={section.href}
 									aria-current={active.id === section.id ? 'page' : undefined}
-									class="flex h-9 items-center gap-2 px-3 text-body text-fg {active.id ===
+									class="flex min-h-(--size-control-md) items-center gap-2 rounded-sm px-2 text-body text-fg {active.id ===
 									section.id
 										? 'is-selected-nav'
 										: 'hover:bg-surface-2'}"

@@ -15,7 +15,7 @@
 	data-slot="input-group"
 	role="group"
 	class={cn(
-		"group/input-group relative flex h-(--size-control-sm) w-full min-w-0 items-center rounded-sm border border-border-strong bg-canvas outline-none transition-colors",
+		"group/input-group relative flex h-(--size-control-md) w-full min-w-0 items-center rounded-sm border border-border-strong bg-canvas outline-none transition-colors",
 		"focus-within:border-primary focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-ring",
 		"has-disabled:bg-surface-2 has-disabled:opacity-50",
 		"has-[[data-slot][aria-invalid=true]]:border-error",

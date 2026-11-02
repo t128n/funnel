@@ -17,9 +17,9 @@
 				outline: "border border-border-strong bg-canvas hover:bg-surface"
 			},
 			size: {
-				default: "h-(--size-control-sm) min-w-(--size-control-sm) px-2",
+				default: "h-(--size-control-md) min-w-(--size-control-md) px-3",
 				sm: "h-(--size-control-sm) min-w-(--size-control-sm) px-2 text-body",
-				lg: "h-(--size-control-md) min-w-(--size-control-md) px-3"
+				lg: "h-(--size-control-lg) min-w-(--size-control-lg) px-3"
 			}
 		},
 		defaultVariants: {

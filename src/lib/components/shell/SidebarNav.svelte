@@ -114,7 +114,7 @@
 		display: flex;
 		align-items: center;
 		gap: var(--space-2);
-		min-height: var(--size-control-sm);
+		min-height: var(--size-control-md);
 		padding: 0 var(--space-2);
 		border-radius: var(--radius-sm);
 		color: var(--color-text-secondary);

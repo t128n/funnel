@@ -11,9 +11,9 @@
 </script>
 
 <div
-	class="flex flex-wrap items-end gap-x-3 gap-y-2 border-b border-border-subtle px-[var(--layout-page-padding)] py-3"
+	class="flex flex-wrap items-end gap-4 border-b border-border-subtle px-[var(--layout-page-padding)] py-3"
 >
-	<div class="flex min-w-0 flex-1 flex-wrap items-end gap-x-3 gap-y-2">
+	<div class="flex min-w-0 flex-1 flex-wrap items-end gap-4">
 		{@render children()}
 	</div>
 	{#if actions}

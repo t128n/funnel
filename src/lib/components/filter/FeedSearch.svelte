@@ -44,7 +44,7 @@
 	<Input
 		id="issue-search"
 		type="search"
-		class="min-w-0"
+		class="h-(--size-control-sm) min-w-0 px-2"
 		placeholder="Title, body, comments…"
 		value={search}
 		oninput={(e) => onInput(e.currentTarget.value)}

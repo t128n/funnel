@@ -15,7 +15,7 @@
 	bind:this={ref}
 	data-slot={dataSlot}
 	class={cn(
-		"flex min-h-20 w-full resize-y rounded-sm border border-border-strong bg-canvas px-2 py-1.5 text-body text-fg transition-colors",
+		"flex min-h-24 w-full resize-y rounded-sm border border-border-strong bg-canvas px-3 py-2 text-body text-fg transition-colors",
 		"field-sizing-content placeholder:text-fg-muted",
 		"focus-visible:border-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
 		"aria-invalid:border-error aria-invalid:outline-2 aria-invalid:outline-offset-2 aria-invalid:outline-error",

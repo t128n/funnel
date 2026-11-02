@@ -13,7 +13,7 @@
 		].join(" "),
 		variants: {
 			variant: {
-				default: "bg-primary text-primary-foreground hover:bg-primary-hover active:bg-primary-hover",
+				default: "bg-primary text-on-primary hover:bg-primary-hover active:bg-primary-hover",
 				outline:
 					"border-border-strong bg-canvas text-fg hover:bg-surface active:bg-surface-2",
 				secondary:
@@ -24,11 +24,11 @@
 				link: "bg-transparent text-primary underline-offset-2 hover:underline"
 			},
 			size: {
-				default: "h-(--size-control-sm) gap-2 px-3 text-body",
+				default: "h-(--size-control-md) gap-2 px-3 text-body",
 				xs: "h-(--size-control-sm) gap-1.5 px-2 text-caption",
-				sm: "h-(--size-control-sm) gap-1.5 px-2 text-body",
-				lg: "h-(--size-control-md) gap-2 px-3 text-body",
-				icon: "size-(--size-control-sm)",
+				sm: "h-(--size-control-md) gap-1.5 px-2.5 text-body",
+				lg: "h-(--size-control-lg) gap-2 px-3 text-body",
+				icon: "size-(--size-control-md)",
 				"icon-xs": "size-(--size-control-sm)",
 				"icon-sm": "size-(--size-control-sm)",
 				"icon-lg": "size-(--size-control-md)"

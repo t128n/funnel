@@ -19,7 +19,7 @@
 	data-slot="select-trigger"
 	data-size={size}
 	class={cn(
-		"flex h-(--size-control-sm) w-fit select-none items-center justify-between gap-1.5 whitespace-nowrap rounded-sm border border-border-strong bg-canvas py-0 pl-2 pr-2 text-body text-fg outline-hidden transition-colors",
+		"flex h-(--size-control-md) w-fit select-none items-center justify-between gap-1.5 whitespace-nowrap rounded-sm border border-border-strong bg-canvas py-0 pl-3 pr-2 text-body text-fg outline-hidden transition-colors data-[size=sm]:h-(--size-control-sm) data-[size=sm]:pl-2",
 		"data-placeholder:text-fg-muted hover:bg-surface",
 		"focus-visible:border-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
 		"aria-invalid:border-error aria-invalid:outline-error",

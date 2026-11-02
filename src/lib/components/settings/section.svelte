@@ -42,7 +42,7 @@
 			{description}
 		</p>
 	{/if}
-	<div class="mt-4 flex min-w-0 flex-col gap-4">
+	<div class="mt-4 flex min-w-0 flex-col gap-6">
 		{@render children()}
 	</div>
 </fieldset>
