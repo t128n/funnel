@@ -44,68 +44,69 @@
 
 <PageHead title={`${active.label} · Settings`} />
 
-<div class="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-	<PageHeader title={active.label} description={active.description} />
+<!-- The nav starts directly under the app bar; the title lives in the content
+     column so the surface column and canvas meet at one edge instead of a
+     full-width header band. The nav's top inset aligns “Personal” with the h1. -->
+<div class="flex min-h-0 min-w-0 flex-1 overflow-hidden">
+	<nav
+		class="hidden w-[var(--layout-settings-nav)] shrink-0 overflow-y-auto border-r border-border-subtle bg-surface pt-6 pb-4 lg:block"
+		aria-label="Settings"
+	>
+		{#each groups as group (group.id)}
+			<div class="mb-2">
+				<p class="px-2 pb-1 text-caption font-semibold text-fg-secondary">{group.label}</p>
+				<ul>
+					{#each group.sections as section (section.id)}
+						{@const Icon = section.icon}
+						<li>
+							<a
+								href={section.href}
+								aria-current={active.id === section.id ? 'page' : undefined}
+								class="flex min-h-(--size-control-md) items-center gap-2 rounded-sm px-2 text-body text-fg-secondary {active.id ===
+								section.id
+									? 'is-selected-nav'
+									: 'hover:bg-surface-2'}"
+							>
+								<span class="flex size-4 shrink-0 items-center justify-center {active.id === section.id ? 'text-primary' : 'text-fg-muted'}">
+									<Icon class="size-4" aria-hidden="true" />
+								</span>
+								<span class="truncate">{section.label}</span>
+							</a>
+						</li>
+					{/each}
+				</ul>
+			</div>
+		{/each}
+	</nav>
 
-	<div class="flex min-h-0 min-w-0 flex-1 overflow-hidden">
-		<nav
-			class="hidden w-[var(--layout-settings-nav)] shrink-0 overflow-y-auto border-r border-border-subtle bg-surface py-4 lg:block"
-			aria-label="Settings"
-		>
-			{#each groups as group (group.id)}
-				<div class="mb-2">
-					<p class="px-2 pb-1 text-caption font-semibold text-fg-secondary">{group.label}</p>
-					<ul>
-						{#each group.sections as section (section.id)}
-							{@const Icon = section.icon}
-							<li>
-								<a
-									href={section.href}
-									aria-current={active.id === section.id ? 'page' : undefined}
-									class="flex min-h-(--size-control-md) items-center gap-2 rounded-sm px-2 text-body text-fg-secondary {active.id ===
-									section.id
-										? 'is-selected-nav'
-										: 'hover:bg-surface-2'}"
-								>
-									<span class="flex size-4 shrink-0 items-center justify-center {active.id === section.id ? 'text-primary' : 'text-fg-muted'}">
-										<Icon class="size-4" aria-hidden="true" />
-									</span>
-									<span class="truncate">{section.label}</span>
-								</a>
-							</li>
-						{/each}
-					</ul>
-				</div>
-			{/each}
-		</nav>
+	<div class="min-h-0 min-w-0 flex-1 overflow-y-auto">
+		<PageHeader title={active.label} description={active.description} />
 
-		<div class="min-h-0 min-w-0 flex-1 overflow-y-auto">
-			<div class="px-[var(--layout-page-padding)] py-6">
-				<div class="mb-6 flex max-w-[var(--layout-form-max)] flex-col gap-1 lg:hidden">
-					<label class="text-caption font-semibold text-fg-secondary" for="settings-section">
-						Settings section
-					</label>
-					<NativeSelect.Root
-						id="settings-section"
-						value={active.href}
-						onchange={navigateTo}
-						class="w-full"
-					>
-						{#each groups as group (group.id)}
-							<NativeSelect.OptGroup label={group.label}>
-								{#each group.sections as section (section.id)}
-									<NativeSelect.Option value={section.href}>
-										{section.label}
-									</NativeSelect.Option>
-								{/each}
-							</NativeSelect.OptGroup>
-						{/each}
-					</NativeSelect.Root>
-				</div>
+		<div class="px-[var(--layout-page-padding)] pb-6">
+			<div class="mb-6 flex max-w-[var(--layout-form-max)] flex-col gap-1 lg:hidden">
+				<label class="text-caption font-semibold text-fg-secondary" for="settings-section">
+					Settings section
+				</label>
+				<NativeSelect.Root
+					id="settings-section"
+					value={active.href}
+					onchange={navigateTo}
+					class="w-full"
+				>
+					{#each groups as group (group.id)}
+						<NativeSelect.OptGroup label={group.label}>
+							{#each group.sections as section (section.id)}
+								<NativeSelect.Option value={section.href}>
+									{section.label}
+								</NativeSelect.Option>
+							{/each}
+						</NativeSelect.OptGroup>
+					{/each}
+				</NativeSelect.Root>
+			</div>
 
-				<div class="w-full max-w-[var(--layout-settings-max)]">
-					{@render children()}
-				</div>
+			<div class="w-full max-w-[var(--layout-settings-max)]">
+				{@render children()}
 			</div>
 		</div>
 	</div>

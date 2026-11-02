@@ -56,14 +56,14 @@
 </script>
 
 <nav
-	class="inline-flex shrink-0 overflow-hidden rounded-sm border border-border-strong bg-canvas"
+	class="inline-flex h-(--size-control-md) shrink-0 overflow-hidden rounded-sm border border-border-strong bg-canvas"
 	aria-label="Issue scope"
 >
 	{#each items as item, index (item.label)}
 		<a
 			href={item.href}
 			class={cn(
-				'inline-flex h-(--size-control-sm) items-center px-2.5 text-body',
+				'inline-flex items-center px-3 text-body',
 				index > 0 && 'border-l border-border-subtle',
 				item.active
 					? 'bg-surface-2 font-semibold text-fg'

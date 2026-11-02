@@ -49,7 +49,7 @@
 			value={choice}
 			onValueChange={change}
 			aria-label="Theme"
-			class="mt-4 gap-1"
+			class="mt-4 gap-2"
 		>
 			{#each options as option (option.value)}
 				<RadioGroup.Item

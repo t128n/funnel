@@ -153,7 +153,7 @@
 
 <Popover.Root bind:open>
 	<Popover.Trigger
-		class="inline-flex h-(--size-control-sm) shrink-0 items-center gap-1.5 rounded-sm border border-border-strong bg-canvas px-2 text-body text-fg-secondary hover:bg-surface hover:text-fg data-[state=open]:bg-surface-2 data-[state=open]:text-fg"
+		class="inline-flex h-(--size-control-md) shrink-0 items-center gap-1.5 rounded-sm border border-border-strong bg-canvas px-3 text-body text-fg-secondary hover:bg-surface hover:text-fg data-[state=open]:bg-surface-2 data-[state=open]:text-fg"
 	>
 		<ListFilterIcon class="size-4 shrink-0" aria-hidden="true" />
 		<span>Filters</span>

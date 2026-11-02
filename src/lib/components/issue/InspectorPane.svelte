@@ -264,9 +264,9 @@
 
 	/** Shared geometry for the values in the header triage strip. */
 	const triageControlClass =
-		'inline-flex h-(--size-control-md) max-w-full min-w-0 items-center gap-1.5 rounded-sm px-2 text-left text-body text-fg hover:bg-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:pointer-events-none disabled:text-fg-disabled';
+		'inline-flex h-(--size-control-md) max-w-full min-w-0 items-center gap-1.5 rounded-sm px-3 text-left text-body text-fg hover:bg-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:pointer-events-none disabled:text-fg-disabled';
 	const triageValueClass =
-		'inline-flex min-h-(--size-control-md) max-w-full min-w-0 items-center gap-1.5 px-2 text-body text-fg';
+		'inline-flex min-h-(--size-control-md) max-w-full min-w-0 items-center gap-1.5 px-3 text-body text-fg';
 
 	/** Label for the mobile back link; the Issues route says “← Issues”. */
 	const backLabel = $derived.by(() => {

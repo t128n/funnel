@@ -100,6 +100,7 @@
   /* Sizes */
   --size-control-sm: 1.75rem;
   --size-control-md: 2.25rem;
+  --size-control-comfortable: 2.625rem;
   --size-control-lg: 2.75rem;
   --size-row-compact: 2.25rem;
   --size-row-default: 2.75rem;
@@ -212,6 +213,7 @@
     --layout-page-padding: var(--space-4);
     --size-control-sm: var(--size-control-lg);
     --size-control-md: var(--size-control-lg);
+    --size-control-comfortable: var(--size-control-lg);
     --size-row-compact: var(--size-row-default);
     --size-row-default: var(--size-row-comfortable);
   }

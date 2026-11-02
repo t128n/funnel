@@ -5,6 +5,7 @@
 	import * as InputGroup from '#lib/components/ui/input-group';
 	import * as Kbd from '#lib/components/ui/kbd';
 	import { cn } from '#lib/utils';
+	import MessageSquareIcon from '@lucide/svelte/icons/message-square';
 	import PaperclipIcon from '@lucide/svelte/icons/paperclip';
 
 	/**
@@ -117,14 +118,20 @@
 	}
 </script>
 
-<div bind:this={root}>
+<div bind:this={root} class="relative">
 	<InputGroup.Root class="border-border-strong bg-canvas">
+		{#if !expanded}
+			<MessageSquareIcon
+				class="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-fg-muted"
+				aria-hidden="true"
+			/>
+		{/if}
 		<InputGroup.Textarea
 			class={cn(
-				'px-3 text-body leading-body',
+				'text-body leading-body',
 				expanded
-					? 'min-h-24 resize-y py-2'
-					: 'h-(--size-control-md) min-h-(--size-control-md) resize-none py-2'
+					? 'min-h-24 resize-y px-3 py-3'
+					: 'h-(--size-control-comfortable) min-h-(--size-control-comfortable) resize-none py-2.5 pr-3 pl-9'
 			)}
 			placeholder={effectivePlaceholder}
 			value={value}
@@ -138,7 +145,7 @@
 
 		<InputGroup.Addon
 			align="block-end"
-			class={cn('cursor-default justify-between gap-3 px-2 pt-1 pb-2', !expanded && 'hidden')}
+			class={cn('cursor-default justify-between gap-3 px-3 pt-1 pb-3', !expanded && 'hidden')}
 		>
 			<div class="flex min-w-0 items-center gap-2">
 				<button

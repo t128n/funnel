@@ -37,7 +37,9 @@ describe("issue detail", () => {
 
 	test("test_composer_is_a_compact_prompt_that_expands_in_place", () => {
 		expect(composer).toContain("const expanded = $derived(!collapsed && (open || hasDraft));");
-		expect(composer).toContain("h-(--size-control-md)");
+		expect(composer).toContain("h-(--size-control-comfortable)");
+		expect(composer).toContain("pl-9");
+		expect(composer).toContain("message-square");
 		expect(composer).toContain("event.metaKey || event.ctrlKey");
 		expect(composer).toContain("event.key === 'Escape'");
 	});
