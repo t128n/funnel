@@ -93,6 +93,8 @@ export interface CaptureOptions {
   outDir: string;
   /** `name=value` from `seed.ts` (already URL-encoded once). */
   cookie: string;
+  /** Device pixel ratio; 2 for the committed gallery, 1 for lighter previews. */
+  scale?: number;
 }
 
 export interface CaptureResult {
@@ -273,10 +275,11 @@ async function createContext(
   baseUrl: string,
   cookie: string,
   theme: CaptureTheme,
+  scale: number,
 ): Promise<BrowserContext> {
   const context = await browser.newContext({
     viewport: { width: 1440, height: 900 },
-    deviceScaleFactor: 2,
+    deviceScaleFactor: scale,
     colorScheme: theme,
   });
 
@@ -314,6 +317,7 @@ export async function captureAll({
   baseUrl: requestedBaseUrl,
   outDir,
   cookie,
+  scale = 2,
 }: CaptureOptions): Promise<CaptureResult> {
   const baseUrl = requestedBaseUrl ?? DEV_URL;
   const server = requestedBaseUrl ? null : startServer();
@@ -328,7 +332,7 @@ export async function captureAll({
     browser = await chromium.launch(executablePath ? { executablePath } : {});
 
     for (const theme of ["light", "dark"] as const) {
-      const context = await createContext(browser, baseUrl, cookie, theme);
+      const context = await createContext(browser, baseUrl, cookie, theme, scale);
       try {
         for (const view of VIEWS) {
           const page = await context.newPage();
@@ -371,9 +375,10 @@ function option(name: string): string | undefined {
 if (import.meta.main) {
   const outDir = option("out");
   const cookie = option("cookie");
+  const scale = Number(option("scale") ?? "2");
   if (!outDir || !cookie) {
     console.error(
-      "Usage: bun scripts/screenshots/capture.ts --out <dir> --cookie <name=value> [--base-url <url>] [--db <path>] [--secret <secret>]",
+      "Usage: bun scripts/screenshots/capture.ts --out <dir> --cookie <name=value> [--base-url <url>] [--db <path>] [--secret <secret>] [--scale <n>]",
     );
     process.exit(1);
   }
@@ -388,6 +393,7 @@ if (import.meta.main) {
     baseUrl: option("base-url"),
     outDir,
     cookie,
+    scale: Number.isFinite(scale) && scale > 0 ? scale : 2,
   });
   console.log(`${files.length} captures written to ${outDir}`);
 }

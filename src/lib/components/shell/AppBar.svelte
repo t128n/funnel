@@ -85,7 +85,7 @@
 	>
 		<BellIcon class="size-5" />
 		{#if unread > 0}
-			<span class="absolute -right-1 -top-1 min-w-4 rounded-full bg-error px-1 text-center text-caption font-semibold leading-4 text-on-error tabular-nums">
+			<span class="text-caption font-semibold text-app-bar-text tabular-nums">
 				{unread > 99 ? "99+" : unread}
 			</span>
 		{/if}

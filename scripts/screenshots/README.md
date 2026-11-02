@@ -79,9 +79,9 @@ bun scripts/screenshots/capture.ts \
 Output is 24 PNGs named `<view>-<light|dark>.png`: `issues`, `issue`,
 `issue-activity`, `board`, `plan`, `epics`, `milestones`, `attention`, `inbox`,
 `settings-appearance`, `matrix`, `priority-guidance`.
-The viewport is 1440×900 at `deviceScaleFactor: 2`, with
-`<html class="dark">` driven by `funnel:theme` and `prefers-color-scheme`
-emulated per theme.
+The viewport is 1440×900 at `deviceScaleFactor: 2` by default; pass
+`--scale 1` for lighter previews. The theme is driven by `data-theme` on
+`<html>`, set from `funnel:theme` and `prefers-color-scheme` emulated per theme.
 
 ## Browser
 

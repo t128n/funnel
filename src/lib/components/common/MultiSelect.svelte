@@ -125,7 +125,7 @@
 			{triggerText}
 		</span>
 		{#if !hideCount && selected.length > 0}
-			<Badge variant="secondary" class="mono h-4 min-w-4 rounded-full px-1 text-[0.625rem]">
+			<Badge variant="secondary" class="mono h-4 min-w-4 rounded-sm px-1 text-caption">
 				{selected.length}
 			</Badge>
 		{/if}
@@ -139,7 +139,7 @@
 		class="w-auto min-w-50 gap-0 p-0"
 		{onInteractOutside}
 	>
-		<Command.Root class="rounded-lg! bg-transparent">
+		<Command.Root class="rounded-none! border-0! bg-transparent!">
 			<Command.Input placeholder="Search…" />
 			<Command.List class="max-h-80 overflow-x-hidden overflow-y-auto">
 				<Command.Empty>No options</Command.Empty>
