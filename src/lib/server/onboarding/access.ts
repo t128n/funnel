@@ -41,6 +41,7 @@ export function acceptOnboardingToken(event: RequestEvent): boolean {
       path: "/",
       httpOnly: true,
       sameSite: "lax",
+      secure: event.url.protocol === "https:",
       maxAge: 60 * 60,
     });
     throw redirect(303, "/onboarding");

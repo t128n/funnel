@@ -106,6 +106,80 @@ function patchAdapterNodeStaticStreaming(): void {
 patchAdapterNodeStaticStreaming();
 
 /**
+ * Adapter-node defaults the request scheme to `https` when `PROTOCOL_HEADER` is
+ * unset, because it assumes it sits behind a TLS-terminating proxy. The
+ * packaged executable is often opened directly at `http://127.0.0.1:3000`, so
+ * that default makes SvelteKit's self-origin `https://…` while the browser's
+ * `Origin` is `http://…`; every form POST then fails the CSRF check.
+ *
+ * Two runtime changes, both in generated adapter files:
+ * - use `FUNNEL_URL` as the canonical origin when the operator set it (this
+ *   also keeps CSRF and generated URLs correct behind a proxy);
+ * - otherwise default the scheme to `http`, which is what this server actually
+ *   speaks. Proxy operators already set `PROTOCOL_HEADER` (see the reverse
+ *   proxy guide), so the header still wins when present.
+ */
+function patchAdapterNodeOrigin(): void {
+  const adapterPath = join(projectRoot, "build", "adapter-node.js");
+  const handlerPath = join(
+    projectRoot,
+    "build",
+    "server",
+    "adapter-node-handler.js",
+  );
+
+  for (const path of [adapterPath, handlerPath]) {
+    if (!existsSync(path)) {
+      console.error(
+        `[standalone] ${path} is missing — run \`bun run build\` first.`,
+      );
+      process.exit(1);
+    }
+  }
+
+  const adapterSource = readFileSync(adapterPath, "utf8");
+  const adapterOriginal = "export const origin = undefined;";
+  const adapterPatched =
+    'export const origin = process.env.FUNNEL_URL?.replace(/\\/$/, "") || undefined;';
+
+  if (!adapterSource.includes(adapterPatched)) {
+    if (!adapterSource.includes(adapterOriginal)) {
+      console.error(
+        "[standalone] adapter-node's origin export changed; update the origin patch in scripts/build-standalone.ts.",
+      );
+      process.exit(1);
+    }
+    writeFileSync(
+      adapterPath,
+      adapterSource.replace(adapterOriginal, adapterPatched),
+    );
+  }
+
+  const handlerSource = readFileSync(handlerPath, "utf8");
+  const protocolOriginal =
+    'const protocol = decodeURIComponent(normalise_header(protocol_header, headers[protocol_header]) || "https");';
+  const protocolPatched =
+    'const protocol = decodeURIComponent(normalise_header(protocol_header, headers[protocol_header]) || "http");';
+
+  if (!handlerSource.includes(protocolPatched)) {
+    if (!handlerSource.includes(protocolOriginal)) {
+      console.error(
+        "[standalone] adapter-node's origin detection changed; update the origin patch in scripts/build-standalone.ts.",
+      );
+      process.exit(1);
+    }
+    writeFileSync(
+      handlerPath,
+      handlerSource.replace(protocolOriginal, protocolPatched),
+    );
+  }
+
+  console.log("[standalone] patched adapter-node origin detection for direct HTTP");
+}
+
+patchAdapterNodeOrigin();
+
+/**
  * The generated entrypoint lives in `src/` (so Bun resolves `assets` and the
  * adapter-node server paths exactly as it does in a normal build) but is
  * excluded from the TypeScript project — its `../build/index.js` import would

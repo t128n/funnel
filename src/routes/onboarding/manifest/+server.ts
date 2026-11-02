@@ -39,6 +39,7 @@ export const POST: RequestHandler = async (event) => {
     path: "/",
     httpOnly: true,
     sameSite: "lax",
+    secure: event.url.protocol === "https:",
     maxAge: 60 * 10,
   });
 

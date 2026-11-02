@@ -18,7 +18,9 @@ PROTOCOL_HEADER=x-forwarded-proto
 HOST_HEADER=x-forwarded-host
 ```
 
-`PROTOCOL_HEADER` and `HOST_HEADER` tell adapter-node which request headers carry the original scheme and host. Without them, SvelteKit can build `http://` redirects or reject form posts on an origin check; if `FUNNEL_URL` is unset, onboarding can also capture the wrong callback base. `FUNNEL_URL` remains the authoritative public origin for onboarding and Better Auth.
+`PROTOCOL_HEADER` and `HOST_HEADER` tell adapter-node which request headers carry the original scheme and host. Behind a TLS-terminating proxy they are what make SvelteKit generate `https://` redirects, pass its origin/CSRF check, and build the right onboarding callback base. `FUNNEL_URL` remains the authoritative public origin for onboarding, Better Auth, and (when set) SvelteKit's canonical origin.
+
+Direct HTTP instances do not need these headers: the packaged executable derives the scheme from the request, and onboarding cookies are only marked `Secure` when the request itself is HTTPS.
 
 Only trust these headers when the proxy is the sole route to Funnel. On a native Windows or Linux install, also set `HOST=127.0.0.1` to bind Funnel to loopback. In Docker, leave `HOST=0.0.0.0` (the image default) and publish the port only on the host's loopback (`-p 127.0.0.1:3000:3000`): the container's loopback is private to the container, so binding to `127.0.0.1` inside it would make the published port unreachable. Otherwise, firewall the application port so clients cannot reach it directly and spoof the headers.
 

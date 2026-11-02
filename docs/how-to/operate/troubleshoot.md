@@ -249,6 +249,7 @@ Identify which layer produced the 403:
 - **Funnel JSON:** `{"message":"Forbidden"}`. The session lacks `write` for a mutation (issues, comments, labels, work notes, attachments, intake triage). Reading requires `read`; mutations require `write`; the workspace and system settings sections and People require `admin`.
 - **Funnel JSON from a settings action:** `Administrator role required`. Same remedy: promote the account.
 - **GitHub 403 forwarded by a write:** the signed-in user's token lacks repository permission, or the App lacks a required permission. Messages such as `Resource not accessible by integration` point at the App installation; a plain permission message points at the user's repository access.
+- **SvelteKit CSRF 403:** `Cross-site POST form submissions are forbidden` means the request's `Origin` did not match the origin Funnel derived for itself. Set `FUNNEL_URL` to the exact browser origin, and behind a TLS-terminating proxy set `PROTOCOL_HEADER` and `HOST_HEADER`. Direct HTTP executables since 0.0.3 derive the scheme from the request.
 - **Proxy or web application firewall (WAF) 403:** the request never reaches Funnel. Check the proxy's access log and rule set.
 
 **Fix**

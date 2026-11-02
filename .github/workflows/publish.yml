@@ -223,6 +223,30 @@ jobs:
           fi
           echo "Embedded stylesheet OK ($(wc -c < "$RUNNER_TEMP/style.css") bytes)"
 
+          # The manifest form is a same-origin POST. This catches the adapter's
+          # https-by-default origin (which breaks CSRF on a direct HTTP bind)
+          # and SvelteKit's Secure-by-default cookie on a non-localhost host.
+          manifest_status="$(
+            curl -sS -o "$RUNNER_TEMP/manifest.html" \
+              -D "$RUNNER_TEMP/manifest.headers" \
+              -w '%{http_code}' \
+              -X POST "http://127.0.0.1:${PORT}/onboarding/manifest" \
+              -H "Origin: http://127.0.0.1:${PORT}" \
+              -H 'Content-Type: application/x-www-form-urlencoded' \
+              --data 'account=user&name=funnel-smoke'
+          )"
+          if [[ "${manifest_status}" != "200" ]]; then
+            echo "::error::Onboarding manifest POST returned ${manifest_status}, expected 200."
+            cat "$RUNNER_TEMP/manifest.headers" "$RUNNER_TEMP/funnel-assets.log"
+            exit 1
+          fi
+          if grep -qi '^set-cookie:.*secure' "$RUNNER_TEMP/manifest.headers"; then
+            echo "::error::Onboarding state cookie is Secure on a plain HTTP request."
+            cat "$RUNNER_TEMP/manifest.headers"
+            exit 1
+          fi
+          echo "Onboarding manifest POST OK"
+
       - name: Package release archive
         run: >-
           bun scripts/package-release.ts
