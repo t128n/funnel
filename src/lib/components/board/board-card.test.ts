@@ -38,11 +38,12 @@ describe('cardToken', () => {
 });
 
 describe('t128n board cards', () => {
-	test('cards are canvas articles with a subtle rule and medium radius', () => {
+	test('cards are canvas articles with a subtle rule, medium radius, 12px inset', () => {
 		expect(source).toContain('<article');
 		expect(source).toContain('border-border-subtle');
 		expect(source).toContain('bg-canvas');
 		expect(source).toContain('rounded-md');
+		expect(source).toContain('px-3 py-3');
 		expect(source).not.toContain('shadow-');
 	});
 
@@ -57,13 +58,23 @@ describe('t128n board cards', () => {
 		expect(source).not.toContain('rotate(2deg)');
 	});
 
-	test('card anatomy: mono ref, two-line title, caption metadata', () => {
+	test('card anatomy: ref + menu, two-line title, priority/size, trailing assignee', () => {
 		expect(source).toContain('RefText');
+		expect(source).toContain('Issue actions');
 		expect(source).toContain('line-clamp-2');
+		expect(source).toContain('title={issue.title}');
 		expect(source).toContain('text-body leading-[1.35] font-semibold');
 		expect(source).toContain('PriorityText');
 		expect(source).toContain('StatusText blocked');
 		expect(source).toContain('text-caption text-fg-secondary');
+		expect(source).toContain('ml-auto');
+	});
+
+	test('cards drop labels, extra metadata and completed strikethrough', () => {
+		expect(source).not.toContain('labelText');
+		expect(source).not.toContain('canonicalLabel');
+		expect(source).not.toContain('showRepo');
+		expect(source).not.toContain('line-through');
 	});
 
 	test('interaction states: border-strong hover, leading bar, dimmed drag', () => {
@@ -82,17 +93,19 @@ describe('t128n board lanes', () => {
 	const column = readFileSync(new URL('./BoardColumn.svelte', import.meta.url), 'utf8');
 	const board = readFileSync(new URL('./StatusBoard.svelte', import.meta.url), 'utf8');
 
-	test('lanes use the board-lane token, canvas, subtle rule and medium radius', () => {
+	test('lanes are ruled columns, not bordered containers', () => {
 		expect(column).toContain('w-[var(--layout-board-lane)]');
-		expect(column).toContain('border-border-subtle');
-		expect(column).toContain('bg-canvas');
-		expect(column).toContain('rounded-md');
 		expect(column).toContain('snap-start');
+		expect(column).not.toContain('rounded-md');
+		expect(column).not.toContain('border border-border-subtle');
+		expect(column).not.toContain('bg-canvas');
 		expect(column).not.toContain('shadow-');
 	});
 
-	test('lane header sits on surface-2 with stage, count and WIP', () => {
-		expect(column).toContain('bg-surface-2');
+	test('lane header is quiet: no fill, bottom rule, stage, count and WIP', () => {
+		const header = column.split('<header')[1]?.split('</header>')[0] ?? '';
+		expect(header).toContain('border-b border-border-subtle');
+		expect(header).not.toContain('bg-surface-2');
 		expect(column).toContain('text-body font-semibold');
 		expect(column).not.toContain('uppercase');
 		expect(column).toContain('{total} / {limit}');
@@ -121,5 +134,6 @@ describe('t128n board lanes', () => {
 		expect(column).toContain('overflow-y-auto');
 		expect(board).toContain('snap-x snap-mandatory');
 		expect(board).toContain('md:snap-none');
+		expect(board).toContain('gap-4');
 	});
 });

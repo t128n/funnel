@@ -11,11 +11,13 @@
 
 	/**
 	 * Read-only capacity for open milestones. A milestone without a due date
-	 * has no capacity window: it shows committed hours (and can never be over)
-	 * but renders no cap bar.
+	 * has no capacity window: it shows scheduled hours (and can never be over)
+	 * but renders no cap bar. Every cap already includes the configured
+	 * allocation, so the bars carry no allocation marker.
 	 */
 	interface Props {
 		plans: MilestonePlan[];
+		/** Instance allocation percentage; the cap already includes it. */
 		allocationPercent?: number;
 		/** Size label → minutes, supplied by the server's planning settings. */
 		sizeMinutes?: Record<string, number>;
@@ -59,8 +61,8 @@
 					<th scope="col">Milestone</th>
 					<th scope="col">State</th>
 					<th scope="col" class="text-end">Due</th>
-					<th scope="col" class="text-end">Open issues</th>
-					<th scope="col">Committed / cap</th>
+					<th scope="col" class="text-end">Open Issues</th>
+					<th scope="col">Scheduled / Cap</th>
 				</tr>
 			</thead>
 			<tbody>
@@ -83,26 +85,23 @@
 						</td>
 						<td class="text-end tabular-nums">{dueLabel(plan.dueOn)}</td>
 						<td class="text-end tabular-nums">{totals.open} open</td>
-						<td>
+						<td class="min-w-56">
 							<CapacityBar
 								committedMinutes={totals.committed}
 								capMinutes={milestoneCap(plan.capacityWeeks, totals.cap)}
-								{allocationPercent}
 							/>
 						</td>
 					</tr>
 					<tr>
 						<td colspan="5" class="bg-canvas px-3 py-3 align-top">
-							<div class="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-								<span class="text-caption text-fg-secondary">
-									{weeksLabel(plan.capacityWeeks)} of capacity
-								</span>
+							<p class="text-caption text-fg-secondary">
 								{#if plan.capacityWeeks === null}
-									<span class="text-caption text-fg-secondary">
-										No due date, so no cap — committed hours are shown without a bar.
-									</span>
+									No due date — no cap; scheduled hours are shown without a bar.
+								{:else}
+									Capacity window: {weeksLabel(plan.capacityWeeks)} · cap includes
+									{allocationPercent}% of net.
 								{/if}
-							</div>
+							</p>
 
 							<div class="mt-2 grid gap-x-6 gap-y-2 md:grid-cols-2 xl:grid-cols-3">
 								{#each plan.lanes as lane (lane.maintainer.externalId)}
@@ -121,13 +120,15 @@
 											>
 												@{lane.maintainer.login}
 											</a>
-											<CapacityBar
-												class="ms-auto w-full max-w-56"
-												committedMinutes={lane.committedMinutes}
-												capMinutes={milestoneCap(plan.capacityWeeks, lane.capMinutes)}
-												{allocationPercent}
-											/>
+											<span class="ms-auto shrink-0 text-caption text-fg-secondary tabular-nums">
+												Net {formatMinutes(lane.maintainer.weeklyMinutes)}/week
+											</span>
 										</div>
+										<CapacityBar
+											class="mt-1 w-full"
+											committedMinutes={lane.committedMinutes}
+											capMinutes={milestoneCap(plan.capacityWeeks, lane.capMinutes)}
+										/>
 										{#if lane.issues.length > 0}
 											<ul class="mt-1 flex flex-col ps-6">
 												{#each lane.issues as issue (issueKey(issue.repo, issue.number))}
@@ -139,10 +140,10 @@
 															{issue.repo}#{issue.number}
 														</a>
 														<span class="min-w-0 flex-1 truncate text-fg">{issue.title}</span>
-														<span class="shrink-0 text-fg-secondary">
+														<span class="w-6 shrink-0 text-end text-fg-secondary">
 															{issue.size?.toUpperCase() ?? '—'}
 														</span>
-														<span class="w-10 shrink-0 text-end text-fg-secondary tabular-nums">
+														<span class="w-12 shrink-0 text-end text-fg-secondary tabular-nums">
 															{estimateLabel(issue)}
 														</span>
 													</li>
@@ -160,7 +161,7 @@
 								>
 									<span class="font-semibold text-fg">Unassigned</span>
 									<span class="text-fg-secondary tabular-nums">
-										{formatMinutes(plan.unassigned.committedMinutes)} committed · no active
+										Scheduled {formatMinutes(plan.unassigned.committedMinutes)} · no active
 										maintainer
 									</span>
 								</div>
@@ -169,7 +170,10 @@
 							{#if plan.unestimated.length > 0}
 								<div class="mt-2 flex flex-wrap items-baseline gap-x-2 border-t border-border-subtle pt-2 text-caption">
 									<span class="font-semibold text-fg">Unestimated</span>
-									<span class="text-fg-secondary tabular-nums">{plan.unestimated.length}</span>
+									<span class="text-fg-secondary tabular-nums">
+										{plan.unestimated.length}
+										{plan.unestimated.length === 1 ? 'issue' : 'issues'}
+									</span>
 									{#each plan.unestimated as issue (issueKey(issue.repo, issue.number))}
 										<a
 											class="mono max-w-56 truncate text-fg-secondary hover:underline"

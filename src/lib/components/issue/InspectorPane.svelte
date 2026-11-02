@@ -86,8 +86,12 @@
 		UserRef
 	} from '#lib/server/issues/types';
 	import { cn } from '#lib/utils';
-	import BanIcon from '@lucide/svelte/icons/ban';
+	import CheckIcon from '@lucide/svelte/icons/check';
+	import ChevronRightIcon from '@lucide/svelte/icons/chevron-right';
+	import CopyIcon from '@lucide/svelte/icons/copy';
 	import ExternalLinkIcon from '@lucide/svelte/icons/external-link';
+	import MilestoneIcon from '@lucide/svelte/icons/milestone';
+	import UserIcon from '@lucide/svelte/icons/user';
 	import XIcon from '@lucide/svelte/icons/x';
 
 	interface Props {
@@ -148,8 +152,6 @@
 
 	/** Pane root, so Mod+A can be scoped to this issue instead of the page. */
 	let paneEl = $state<HTMLElement | null>(null);
-	/** The metadata table; anchors the pickers behind the plain-text values. */
-	let metaEl = $state<HTMLElement | null>(null);
 	/** The title heading; the start of a Mod+A thread selection. */
 	let titleEl = $state<HTMLElement | null>(null);
 	/** The Activity section; the end of a Mod+A thread selection. */
@@ -209,6 +211,8 @@
 	const bodyDirty = $derived(detail !== null && body !== renderedBody);
 	/** The structured `blocked` state parsed from the body metadata. */
 	const blockedState = $derived(readBlocked(detail?.body ?? ''));
+	/** The blocker state from the flag or the metadata, whichever says blocked. */
+	const blockerActive = $derived(Boolean(issue?.blocked) || blockedState.isBlocked);
 	// A just-saved body is not in the mirror yet, so its HTML is stale; fall
 	// back to plain text until the SSE refresh delivers a fresh render.
 	const bodyHtml = $derived(
@@ -257,6 +261,12 @@
 	const githubLink = $derived(`${githubUrl}/${repo}/issues/${number}`);
 	/** Only show the composer once the issue has loaded. */
 	const canEdit = $derived(issue !== null && detail !== null);
+
+	/** Shared geometry for the values in the header triage strip. */
+	const triageControlClass =
+		'inline-flex h-(--size-control-md) max-w-full min-w-0 items-center gap-1.5 rounded-sm px-2 text-left text-body text-fg hover:bg-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:pointer-events-none disabled:text-fg-disabled';
+	const triageValueClass =
+		'inline-flex min-h-(--size-control-md) max-w-full min-w-0 items-center gap-1.5 px-2 text-body text-fg';
 
 	/** Label for the mobile back link; the Issues route says “← Issues”. */
 	const backLabel = $derived.by(() => {
@@ -537,7 +547,7 @@
 	 * the visible trigger.
 	 */
 	function openPicker(field: MetaPicker) {
-		const trigger = metaEl?.querySelector<HTMLElement>(
+		const trigger = paneEl?.querySelector<HTMLElement>(
 			`[data-picker="${field}"] [data-slot="popover-trigger"], [data-picker="${field}"] [data-slot="select-trigger"]`
 		);
 		if (!trigger) return;
@@ -1017,26 +1027,36 @@
 >
 	{#snippet header()}
 		<div class="flex min-w-0 flex-1 flex-col gap-1.5">
-			<div class="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-caption text-fg-secondary">
+			<div class="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-caption text-fg-secondary">
 				<a href={backHref} class="link lg:hidden">{backLabel}</a>
 				<RefText value={`${repo}#${number}`} />
-				<a
+				<Button
+					variant="ghost"
+					size="xs"
 					href={githubLink}
 					target="_blank"
 					rel="noreferrer"
-					class="link inline-flex items-center gap-1"
+					class="text-fg-secondary hover:text-fg"
+					title="Open on GitHub"
 				>
+					<ExternalLinkIcon class="size-3.5" aria-hidden="true" />
 					GitHub
-					<ExternalLinkIcon class="size-3" aria-hidden="true" />
-				</a>
-				<button
-					type="button"
-					class="link"
+				</Button>
+				<Button
+					variant="ghost"
+					size="xs"
+					class="text-fg-secondary hover:text-fg"
 					title={copied ? 'Copied' : 'Copy issue as Markdown'}
 					onclick={() => void copyThread()}
 				>
-					{copied ? 'Copied' : 'Copy as Markdown'}
-				</button>
+					{#if copied}
+						<CheckIcon class="size-3.5" aria-hidden="true" />
+						Copied
+					{:else}
+						<CopyIcon class="size-3.5" aria-hidden="true" />
+						Copy
+					{/if}
+				</Button>
 			</div>
 
 			{#if issue}
@@ -1073,7 +1093,7 @@
 						<h1
 							bind:this={titleEl}
 							class={cn(
-								'min-w-0 flex-1 text-heading-md font-semibold leading-heading-md tracking-[-0.01em] text-fg',
+								'min-w-0 flex-1 break-words text-heading-md font-semibold leading-heading-md tracking-[-0.01em] text-fg',
 								mayWrite && '-ml-1 cursor-text rounded-sm px-1 hover:bg-surface-2'
 							)}
 							tabindex={mayWrite ? 0 : undefined}
@@ -1092,70 +1112,16 @@
 					{/if}
 				</div>
 
-				<div class="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-caption text-fg-secondary">
-					<StatusText
-						status={issue.status}
-						state={issue.state}
-						blocked={issue.blocked}
-					/>
-					{#if issue.priority}
-						<PriorityText priority={issue.priority} showName />
-					{/if}
-					<span class="truncate" title={assigneeDisplay || 'Unassigned'}>
-						{assigneeDisplay || 'Unassigned'}
-					</span>
-					<span class="ml-auto shrink-0" title={absoluteTime(issue.updatedAt)}>
-						Updated {timeAgo(issue.updatedAt)}
-					</span>
-				</div>
-
-				{#if writeStatus}
-					<div class="pt-1">
-						{#if writeStatus.undo}
-							<InlineStatus
-								tone={writeStatus.tone}
-								message={writeStatus.message}
-								action={undoAction}
-							/>
-						{:else}
-							<InlineStatus tone={writeStatus.tone} message={writeStatus.message} />
-						{/if}
-					</div>
-				{/if}
-			{/if}
-		</div>
-		<div class="flex shrink-0 items-center gap-1">
-			<Button variant="ghost" size="icon-sm" title="Close inspector" onclick={onclose}>
-				<XIcon />
-			</Button>
-		</div>
-	{/snippet}
-
-	{#if loading && !detail}
-		<div class="flex flex-1 items-center justify-center p-6 text-fg-secondary">
-			<Spinner size={16} label="Loading issue" />
-		</div>
-	{:else if error}
-		<div class="flex flex-1 items-start justify-center p-6">
-			<InlineStatus tone="error" message={error} action={retryLoad} class="max-w-md" />
-		</div>
-	{:else if issue && detail}
-		{#if issue.labelConflict}
-			<InlineStatus
-				tone="warning"
-				message="GitHub carries a conflicting reserved label or a retired priority label. Funnel uses the derived priority and does not trust the label."
-			/>
-		{/if}
-
-		<section bind:this={metaEl} class="flex flex-col" aria-label="Issue properties">
-			<dl class="label-value">
-				<dt>Status</dt>
-				<dd>
-					<div class="relative min-w-0 flex-1">
+				<!-- Triage: the four values a reader or triager changes most often. -->
+				<section
+					class="flex min-w-0 flex-wrap items-center gap-x-1 gap-y-1"
+					aria-label="Issue triage"
+				>
+					<div class="relative min-w-0">
 						{#if mayWrite}
 							<button
 								type="button"
-								class="inline-flex min-w-0 items-center gap-1 text-left text-body text-fg hover:text-primary disabled:pointer-events-none disabled:text-fg-disabled"
+								class={triageControlClass}
 								disabled={busy === 'status'}
 								title="Change status"
 								onclick={() => openPicker('status')}
@@ -1175,18 +1141,17 @@
 								/>
 							</div>
 						{:else}
-							<StatusText status={issue.status} state={issue.state} />
+							<span class={triageValueClass}>
+								<StatusText status={issue.status} state={issue.state} />
+							</span>
 						{/if}
 					</div>
-				</dd>
 
-				<dt>Priority</dt>
-				<dd>
-					<div class="relative min-w-0 flex-1">
+					<div class="relative min-w-0">
 						{#if mayWrite}
 							<button
 								type="button"
-								class="inline-flex min-w-0 items-center gap-1 text-left text-body text-fg hover:text-primary disabled:pointer-events-none disabled:text-fg-disabled"
+								class={triageControlClass}
 								disabled={busy === 'priority'}
 								title="Change priority"
 								onclick={() => openPicker('priority')}
@@ -1210,106 +1175,28 @@
 									onclear={clearPriority}
 								/>
 							</div>
-						{:else if priorityValue}
-							<PriorityText priority={priorityValue} showName />
 						{:else}
-							<span class="text-fg-secondary">No priority</span>
+							<span class={triageValueClass}>
+								{#if priorityValue}
+									<PriorityText priority={priorityValue} showName />
+								{:else}
+									<span class="text-fg-secondary">No priority</span>
+								{/if}
+							</span>
 						{/if}
 					</div>
-				</dd>
 
-				<dt>Severity</dt>
-				<dd>
-					{#if mayWrite}
-						<button
-							type="button"
-							class="text-left text-body text-fg hover:text-primary disabled:pointer-events-none disabled:text-fg-disabled"
-							disabled={busy === 'priority'}
-							title="Change severity"
-							onclick={() => openPicker('priority')}
-						>
-							{severityDisplay}
-						</button>
-					{:else}
-						<span>{severityDisplay}</span>
-					{/if}
-				</dd>
-
-				<dt>Size</dt>
-				<dd>
-					<div class="relative min-w-0 flex-1">
+					<div class="relative min-w-0">
 						{#if mayWrite}
 							<button
 								type="button"
-								class="text-left text-body text-fg hover:text-primary disabled:pointer-events-none disabled:text-fg-disabled"
-								disabled={busy === 'size'}
-								title="Change size"
-								onclick={() => openPicker('size')}
-							>
-								{sizeDisplay}
-							</button>
-							<div
-								class="pointer-events-none invisible absolute top-0 left-0"
-								data-picker="size"
-							>
-								<SingleSelect
-									label="No size"
-									options={SIZE_OPTIONS}
-									value={sizeValue}
-									onselect={setSize}
-									allowClear
-									disabled={busy === 'size'}
-								/>
-							</div>
-						{:else}
-							<span>{sizeDisplay}</span>
-						{/if}
-					</div>
-				</dd>
-
-				<dt>Milestone</dt>
-				<dd>
-					<div class="relative min-w-0 flex-1">
-						{#if mayWrite}
-							<button
-								type="button"
-								class="text-left text-body text-fg hover:text-primary disabled:pointer-events-none disabled:text-fg-disabled"
-								disabled={busy === 'milestone'}
-								title="Change milestone"
-								onclick={() => openPicker('milestone')}
-							>
-								{milestoneValue?.title ?? '—'}
-							</button>
-							<div
-								class="pointer-events-none invisible absolute top-0 left-0"
-								data-picker="milestone"
-							>
-								<MilestonePicker
-									{repo}
-									value={milestoneValue}
-									options={milestoneOptions}
-									disabled={busy === 'milestone'}
-									onselect={(milestone) => void setMilestone(milestone)}
-								/>
-							</div>
-						{:else}
-							<span>{milestoneValue?.title ?? '—'}</span>
-						{/if}
-					</div>
-				</dd>
-
-				<dt>Assignee</dt>
-				<dd>
-					<div class="relative min-w-0 flex-1">
-						{#if mayWrite}
-							<button
-								type="button"
-								class="text-left text-body text-fg hover:text-primary disabled:pointer-events-none disabled:text-fg-disabled"
+								class={triageControlClass}
 								disabled={busy === 'assignees'}
 								title="Change assignee"
 								onclick={() => openPicker('assignee')}
 							>
-								{assigneeDisplay.length > 0 ? assigneeDisplay : 'Unassigned'}
+								<UserIcon class="size-4 shrink-0 text-fg-muted" aria-hidden="true" />
+								<span class="truncate">{assigneeDisplay || 'Unassigned'}</span>
 							</button>
 							<div
 								class="pointer-events-none invisible absolute top-0 left-0"
@@ -1327,56 +1214,54 @@
 								/>
 							</div>
 						{:else}
-							<span>{assigneeDisplay.length > 0 ? assigneeDisplay : 'Unassigned'}</span>
-						{/if}
-					</div>
-				</dd>
-
-				<dt>Reporter</dt>
-				<dd>{issue.author?.login ?? '—'}</dd>
-
-				<dt>Labels</dt>
-				<dd>
-					<div class="relative min-w-0 flex-1">
-						{#if mayWrite}
-							<button
-								type="button"
-								class="text-left text-body hover:text-primary disabled:pointer-events-none disabled:text-fg-disabled"
-								disabled={busy === 'labels'}
-								title="Change labels"
-								onclick={() => openPicker('labels')}
-							>
-								{#if selectedLabels.length === 0}
-									<span class="text-fg-secondary">—</span>
-								{:else}
-									<span class="text-fg">{selectedLabels.join(', ')}</span>
-								{/if}
-							</button>
-							<div
-								class="pointer-events-none invisible absolute top-0 left-0"
-								data-picker="labels"
-							>
-								<MultiSelect
-									hideCount
-									label="Labels"
-									placeholder="No labels"
-									display="selection"
-									options={labelOptions}
-									selected={selectedLabels}
-									onselect={setLabels}
-									disabled={busy === 'labels'}
-								/>
-							</div>
-						{:else}
-							<span class="text-fg-secondary">
-								{selectedLabels.length === 0 ? '—' : selectedLabels.join(', ')}
+							<span class={triageValueClass}>
+								<UserIcon class="size-4 shrink-0 text-fg-muted" aria-hidden="true" />
+								<span class="truncate">{assigneeDisplay || 'Unassigned'}</span>
 							</span>
 						{/if}
 					</div>
-				</dd>
 
-				<dt>Parent epic</dt>
-				<dd>
+					<div class="relative min-w-0">
+						{#if mayWrite}
+							<button
+								type="button"
+								class={triageControlClass}
+								disabled={busy === 'milestone'}
+								title="Change milestone"
+								onclick={() => openPicker('milestone')}
+							>
+								<MilestoneIcon class="size-4 shrink-0 text-fg-muted" aria-hidden="true" />
+								<span class="truncate">{milestoneValue?.title ?? 'No milestone'}</span>
+							</button>
+							<div
+								class="pointer-events-none invisible absolute top-0 left-0"
+								data-picker="milestone"
+							>
+								<MilestonePicker
+									{repo}
+									value={milestoneValue}
+									options={milestoneOptions}
+									disabled={busy === 'milestone'}
+									onselect={(milestone) => void setMilestone(milestone)}
+								/>
+							</div>
+						{:else}
+							<span class={triageValueClass}>
+								<MilestoneIcon class="size-4 shrink-0 text-fg-muted" aria-hidden="true" />
+								<span class="truncate">{milestoneValue?.title ?? 'No milestone'}</span>
+							</span>
+						{/if}
+					</div>
+
+					<span
+						class="ml-auto shrink-0 px-2 text-caption text-fg-secondary"
+						title={absoluteTime(issue.updatedAt)}
+					>
+						Updated {timeAgo(issue.updatedAt)}
+					</span>
+				</section>
+
+				{#if detail && (detail.epic || issue.isEpic)}
 					<EpicProperty
 						issue={detail.issue}
 						parent={detail.epic}
@@ -1384,52 +1269,89 @@
 						{number}
 						{mayWrite}
 					/>
-				</dd>
+				{/if}
 
-				<dt>Blocked</dt>
-				<dd>
-					{#if mayWrite}
-						<button
-							type="button"
-							class="inline-flex items-center gap-1 text-left text-body text-fg hover:text-primary disabled:pointer-events-none disabled:text-fg-disabled"
-							disabled={busy === 'blocked' || !canEdit}
-							title="Blocked flag"
-							aria-pressed={issue.blocked}
-							onclick={() => openBlockDialog(issue.blocked ? 'unblock' : 'block')}
-						>
-							{#if issue.blocked}
-								<span class="status status-error"><BanIcon aria-hidden="true" />Blocked</span>
-							{:else}
-								Not blocked
-							{/if}
-						</button>
-					{:else if issue.blocked}
-						<span class="status status-error"><BanIcon aria-hidden="true" />Blocked</span>
-					{:else}
-						<span>Not blocked</span>
-					{/if}
-				</dd>
-
-				<dt>Watching</dt>
-				<dd>
-					<button
-						type="button"
-						class="inline-flex items-center gap-1.5 text-left text-body text-fg hover:text-primary disabled:pointer-events-none disabled:text-fg-disabled"
-						disabled={watchBusy || !canEdit}
-						aria-pressed={watching}
-						onclick={() => void toggleWatch()}
-					>
-						{#if watchBusy}
-							<Spinner size={12} />
+				{#if writeStatus}
+					<div class="pt-1">
+						{#if writeStatus.undo}
+							<InlineStatus
+								tone={writeStatus.tone}
+								message={writeStatus.message}
+								action={undoAction}
+							/>
 						{:else}
-							{watching ? 'Watching' : 'Not watching'}
+							<InlineStatus tone={writeStatus.tone} message={writeStatus.message} />
 						{/if}
-					</button>
-				</dd>
-			</dl>
-		</section>
+					</div>
+				{/if}
+			{/if}
+		</div>
+		<div class="flex shrink-0 items-center gap-1 self-start">
+			<Button variant="ghost" size="icon-sm" title="Close inspector" onclick={onclose}>
+				<XIcon />
+			</Button>
+		</div>
+	{/snippet}
 
-		<section class="flex flex-col" aria-label="Description">
+	{#if loading && !detail}
+		<div class="flex flex-1 items-center justify-center p-6 text-fg-secondary">
+			<Spinner size={16} label="Loading issue" />
+		</div>
+	{:else if error}
+		<div class="flex flex-1 items-start justify-center p-6">
+			<InlineStatus tone="error" message={error} action={retryLoad} class="max-w-md" />
+		</div>
+	{:else if issue && detail}
+		{#if issue.labelConflict}
+			<InlineStatus
+				tone="warning"
+				message="GitHub carries a conflicting reserved label or a retired priority label. Funnel uses the derived priority and does not trust the label."
+			/>
+		{/if}
+
+		{#if blockerActive}
+			<section class="flex flex-col gap-2" aria-label="Blocker">
+				<div
+					class="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-border-subtle pt-3"
+				>
+					<StatusText blocked />
+					{#if blockedState.info?.recheck}
+						<span class="text-caption text-fg-secondary">
+							Re-check {blockedState.info.recheck}
+						</span>
+					{/if}
+					{#if mayWrite}
+						<Button
+							variant="ghost"
+							size="xs"
+							class="ml-auto"
+							disabled={busy === 'blocked' || !canEdit}
+							onclick={() => openBlockDialog('unblock')}
+						>
+							Unblock
+						</Button>
+					{/if}
+				</div>
+				{#if blockedState.info}
+					<dl class="label-value">
+						<dt>Reason</dt>
+						<dd>{delayReasonLabel(blockedState.info.reason)}</dd>
+						<dt>Blocker</dt>
+						<dd class="break-words">{blockedState.info.blocker}</dd>
+						{#if blockedState.info.needs}
+							<dt>Needs to unblock</dt>
+							<dd class="break-words">{blockedState.info.needs}</dd>
+						{/if}
+						{#if blockedState.info.trying}
+							<dt>Currently trying</dt>
+							<dd class="break-words">{blockedState.info.trying}</dd>
+						{/if}
+					</dl>
+				{/if}
+			</section>
+		{/if}
+
+		<section class="flex max-w-[var(--layout-measure)] flex-col" aria-label="Description">
 			{#if editingBody}
 				<Textarea
 					class="min-h-32 text-body-content leading-body-content"
@@ -1480,44 +1402,11 @@
 			{/if}
 		</section>
 
-		<IssueTimeCard time={detail.time} />
-
-		{#if blockedState.isBlocked && blockedState.info}
-			<section class="flex flex-col gap-2" aria-label="Blocker">
-				<div class="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-border-subtle pt-3">
-					<StatusText blocked />
-					{#if blockedState.info.recheck}
-						<span class="text-caption text-fg-secondary">
-							Re-check {blockedState.info.recheck}
-						</span>
-					{/if}
-				</div>
-				<dl class="label-value">
-					<dt>Reason</dt>
-					<dd>{delayReasonLabel(blockedState.info.reason)}</dd>
-					<dt>Blocker</dt>
-					<dd>{blockedState.info.blocker}</dd>
-					{#if blockedState.info.needs}
-						<dt>Needs to unblock</dt>
-						<dd>{blockedState.info.needs}</dd>
-					{/if}
-					{#if blockedState.info.trying}
-						<dt>Currently trying</dt>
-						<dd>{blockedState.info.trying}</dd>
-					{/if}
-				</dl>
-			</section>
-		{/if}
-
-		<DelayList
-			delays={detail.delays}
-			{repo}
-			{number}
-			mayWrite={mayWrite}
-			onrecord={() => (delayDialogOpen = true)}
-		/>
-
-		<section bind:this={activityEl} class="flex flex-col gap-2" aria-label="Activity">
+		<section
+			bind:this={activityEl}
+			class="flex max-w-[var(--layout-measure)] flex-col gap-2"
+			aria-label="Activity"
+		>
 			<div class="flex items-baseline justify-between gap-3 border-t border-border-subtle pt-3">
 				<h2 class="text-heading-sm font-semibold text-fg">Activity</h2>
 				<span class="text-caption tabular-nums text-fg-secondary">{detail.commentTotal}</span>
@@ -1553,7 +1442,10 @@
 		</section>
 
 		{#if workNotesEnabled}
-			<section class="flex flex-col gap-2" aria-label="Work notes">
+			<section
+				class="flex max-w-[var(--layout-measure)] flex-col gap-2"
+				aria-label="Work notes"
+			>
 				<div class="flex items-baseline justify-between gap-3 border-t border-border-subtle pt-3">
 					<h2 class="text-heading-sm font-semibold text-fg">Work notes</h2>
 					<span class="text-caption tabular-nums text-fg-secondary">
@@ -1592,6 +1484,166 @@
 				ondelete={(item) => void removeAttachment(item)}
 			/>
 		{/if}
+
+		<details class="group border-t border-border-subtle">
+			<summary
+				class="flex min-h-(--size-control-md) cursor-pointer list-none items-center gap-2 py-2 text-body font-semibold text-fg marker:content-none [&::-webkit-details-marker]:hidden"
+			>
+				<ChevronRightIcon
+					class="size-4 shrink-0 text-fg-muted transition-transform group-open:rotate-90"
+					aria-hidden="true"
+				/>
+				Details
+				<span class="text-caption font-normal text-fg-secondary">
+					Severity, labels, people, time
+				</span>
+			</summary>
+
+			<div class="flex flex-col gap-4 pb-1">
+				<dl class="label-value">
+					<dt>Severity</dt>
+					<dd>{severityDisplay}</dd>
+
+					<dt>Size</dt>
+					<dd>
+						<div class="relative min-w-0 flex-1">
+							{#if mayWrite}
+								<button
+									type="button"
+									class="text-left text-body text-fg hover:text-primary disabled:pointer-events-none disabled:text-fg-disabled"
+									disabled={busy === 'size'}
+									title="Change size"
+									onclick={() => openPicker('size')}
+								>
+									{sizeDisplay}
+								</button>
+								<div
+									class="pointer-events-none invisible absolute top-0 left-0"
+									data-picker="size"
+								>
+									<SingleSelect
+										label="No size"
+										options={SIZE_OPTIONS}
+										value={sizeValue}
+										onselect={setSize}
+										allowClear
+										disabled={busy === 'size'}
+									/>
+								</div>
+							{:else}
+								<span>{sizeDisplay}</span>
+							{/if}
+						</div>
+					</dd>
+
+					<dt>Reporter</dt>
+					<dd class="break-words">{issue.author?.login ?? '—'}</dd>
+
+					<dt>Labels</dt>
+					<dd>
+						<div class="relative min-w-0 flex-1">
+							{#if mayWrite}
+								<button
+									type="button"
+									class="text-left text-body hover:text-primary disabled:pointer-events-none disabled:text-fg-disabled"
+									disabled={busy === 'labels'}
+									title="Change labels"
+									onclick={() => openPicker('labels')}
+								>
+									{#if selectedLabels.length === 0}
+										<span class="text-fg-secondary">—</span>
+									{:else}
+										<span class="break-words text-fg">{selectedLabels.join(', ')}</span>
+									{/if}
+								</button>
+								<div
+									class="pointer-events-none invisible absolute top-0 left-0"
+									data-picker="labels"
+								>
+									<MultiSelect
+										hideCount
+										label="Labels"
+										placeholder="No labels"
+										display="selection"
+										options={labelOptions}
+										selected={selectedLabels}
+										onselect={setLabels}
+										disabled={busy === 'labels'}
+									/>
+								</div>
+							{:else}
+								<span class="break-words text-fg-secondary">
+									{selectedLabels.length === 0 ? '—' : selectedLabels.join(', ')}
+								</span>
+							{/if}
+						</div>
+					</dd>
+
+					{#if !blockerActive}
+						<dt>Blocked</dt>
+						<dd>
+							{#if mayWrite}
+								<button
+									type="button"
+									class="text-left text-body text-fg hover:text-primary disabled:pointer-events-none disabled:text-fg-disabled"
+									disabled={busy === 'blocked' || !canEdit}
+									title="Block issue"
+									onclick={() => openBlockDialog('block')}
+								>
+									Block issue
+								</button>
+							{:else}
+								<span>Not blocked</span>
+							{/if}
+						</dd>
+					{/if}
+
+					<dt>Watching</dt>
+					<dd>
+						{#if mayWrite}
+							<button
+								type="button"
+								class="inline-flex items-center gap-1.5 text-left text-body text-fg hover:text-primary disabled:pointer-events-none disabled:text-fg-disabled"
+								disabled={watchBusy || !canEdit}
+								aria-pressed={watching}
+								onclick={() => void toggleWatch()}
+							>
+								{#if watchBusy}
+									<Spinner size={12} />
+								{:else}
+									{watching ? 'Watching' : 'Not watching'}
+								{/if}
+							</button>
+						{:else}
+							<span>{watching ? 'Watching' : 'Not watching'}</span>
+						{/if}
+					</dd>
+
+					{#if !detail.epic && !detail.issue.isEpic}
+						<dt>Epic</dt>
+						<dd>
+							<EpicProperty
+								issue={detail.issue}
+								parent={detail.epic}
+								{repo}
+								{number}
+								{mayWrite}
+							/>
+						</dd>
+					{/if}
+				</dl>
+
+				<IssueTimeCard time={detail.time} />
+
+				<DelayList
+					delays={detail.delays}
+					{repo}
+					{number}
+					mayWrite={mayWrite}
+					onrecord={() => (delayDialogOpen = true)}
+				/>
+			</div>
+		</details>
 	{/if}
 </DetailShell>
 

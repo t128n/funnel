@@ -42,8 +42,7 @@
 	} from '#lib/client/issue-actions.svelte';
 	import { selectIssue } from '#lib/client/selection.svelte';
 	import { issueRef } from '#lib/issue-ref';
-	import { canonicalLabel, STATUS_OPTIONS } from '#lib/labels';
-	import { isRetiredPriorityLabel } from '#lib/priority';
+	import { STATUS_OPTIONS } from '#lib/labels';
 	import type { IssueListItem, UserRef } from '#lib/server/issues/types';
 	import { cn } from '#lib/utils';
 	import { cardData, draggableCard } from './dnd';
@@ -60,10 +59,10 @@
 	 * subtle rule and no shadow. The column already carries the workflow status,
 	 * so the card only marks a blocked issue (icon + word).
 	 *
-	 * - **Head** — mono reference, optional repository context, and the always
-	 *   available actions menu.
-	 * - **Title** — 0.875 rem / 600, clamped to two lines; closed cards strike it.
-	 * - **Metadata** — caption line of priority, size, labels and assignee.
+	 * - **Head** — mono reference and the always available actions menu.
+	 * - **Title** — 0.875 rem / 600, clamped to two lines; the full title stays
+	 *   available on hover and through the card's accessible name.
+	 * - **Metadata** — priority and size, with the assignee trailing.
 	 */
 	interface Props {
 		issue: IssueListItem;
@@ -71,8 +70,6 @@
 		columnKey: string;
 		/** `owner/name` → project key from instance settings. */
 		repoShortcodes: Record<string, string>;
-		/** Show the repository context tag when the board spans multiple repos. */
-		showRepo?: boolean;
 		/** Signed-in viewer, when their GitHub identity is mirrored. */
 		viewer?: UserRef | null;
 		/** The docked detail's issue; draws a 2px primary leading bar. */
@@ -89,7 +86,6 @@
 		issue,
 		columnKey,
 		repoShortcodes,
-		showRepo = false,
 		viewer = null,
 		selected = false,
 		tabIndex = -1,
@@ -102,15 +98,6 @@
 	const dragPayload = $derived(readonly ? null : cardData(key, columnKey));
 	const ref = $derived(issueRef(issue.repo, issue.number, repoShortcodes));
 	const closed = $derived(issue.state === 'closed');
-	const shortRepo = $derived(issue.repo.split('/')[1] ?? issue.repo);
-
-	/** Non-reserved labels only; reserved groups render as dedicated affordances. */
-	const labels = $derived(
-		issue.labels.filter(
-			(label) => !canonicalLabel(label) && !isRetiredPriorityLabel(label)
-		)
-	);
-	const labelText = $derived(labels.join(', '));
 
 	const sizeText = $derived(
 		issue.size === 'sm' ? 'S' : issue.size === 'md' ? 'M' : issue.size === 'lg' ? 'L' : null
@@ -121,7 +108,6 @@
 		issue.blocked ||
 			Boolean(issue.priority) ||
 			Boolean(sizeText) ||
-			Boolean(labelText) ||
 			Boolean(assigneeText)
 	);
 
@@ -173,7 +159,7 @@
 <!-- svelte-ignore a11y_no_noninteractive_element_to_interactive_role -->
 <article
 	class={cn(
-		'board-card group/card relative flex flex-col gap-1 rounded-md border border-border-subtle bg-canvas px-3 py-2',
+		'board-card group/card relative flex flex-col gap-1 rounded-md border border-border-subtle bg-canvas px-3 py-3',
 		'hover:border-border-strong',
 		!readonly && 'cursor-grab active:cursor-grabbing',
 		selected && 'is-selected-row',
@@ -195,7 +181,7 @@
 	onfocusin={() => setFocusedCard(key)}
 	onfocusout={onFocusOut}
 >
-	<!-- Head: mono reference, optional repository context, always-visible menu. -->
+	<!-- Head: mono reference, always-visible menu. -->
 	<div class="flex min-w-0 items-center gap-1.5">
 		<Tooltip.Root>
 			<Tooltip.Trigger>
@@ -207,9 +193,6 @@
 			</Tooltip.Trigger>
 			<Tooltip.Content>{issue.repo}#{issue.number}</Tooltip.Content>
 		</Tooltip.Root>
-		{#if showRepo}
-			<span class="truncate text-caption text-fg-secondary">{shortRepo}</span>
-		{/if}
 
 		<DropdownMenu.Root bind:open={menuOpen}>
 			<DropdownMenu.Trigger>
@@ -275,12 +258,7 @@
 	</div>
 
 	<h3 class="flex items-start gap-1 text-body leading-[1.35] font-semibold">
-		<span
-			class={cn(
-				'line-clamp-2 min-w-0 break-words',
-				closed ? 'text-fg-secondary line-through' : 'text-fg'
-			)}
-		>
+		<span class="line-clamp-2 min-w-0 break-words text-fg" title={issue.title}>
 			{issue.title}
 		</span>
 		{#if issue.labelConflict}
@@ -290,7 +268,7 @@
 	</h3>
 
 	{#if hasMetadata}
-		<div class="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-1 text-caption text-fg-secondary">
+		<div class="flex min-w-0 items-baseline gap-x-2 text-caption text-fg-secondary">
 			{#if issue.blocked}
 				<StatusText blocked class="shrink-0" />
 			{/if}
@@ -300,11 +278,8 @@
 			{#if sizeText}
 				<span class="shrink-0" title={`Size: ${issue.size}`}>{sizeText}</span>
 			{/if}
-			{#if labelText}
-				<span class="min-w-0 truncate" title={labelText}>{labelText}</span>
-			{/if}
 			{#if assigneeText}
-				<span class="ml-auto min-w-0 max-w-[45%] shrink-0 truncate text-right" title={assigneeText}>
+				<span class="ml-auto min-w-0 max-w-[45%] truncate text-right" title={assigneeText}>
 					{assigneeText}
 				</span>
 			{/if}

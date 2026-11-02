@@ -11,7 +11,9 @@
 	import PageHeader from '#lib/components/shell/PageHeader.svelte';
 	import Toolbar from '#lib/components/shell/Toolbar.svelte';
 	import SplitView from '#lib/components/shell/SplitView.svelte';
-	import { Button } from '#lib/components/ui/button';
+	import * as DropdownMenu from '#lib/components/ui/dropdown-menu/index.js';
+	import { Button, buttonVariants } from '#lib/components/ui/button';
+	import ChevronDownIcon from '@lucide/svelte/icons/chevron-down';
 	import { createFeed } from '#lib/client/feed.svelte';
 	import { projectIssues, reconcileIssues } from '#lib/client/optimistic.svelte';
 	import { FEED_ENDPOINTS } from '#lib/feeds';
@@ -49,24 +51,40 @@
 	const mine = $derived(
 		filter.assignees.length === 1 && filter.assignees[0] === 'me'
 	);
-	// `assignee=me` is the All/Mine scope, not one of the popover's filters.
+
+	/**
+	 * State is a scope switch, not one of the popover's filter dimensions:
+	 * `open` is the server default and serializes as no `state` param at all.
+	 */
+	type StateView = 'open' | 'closed' | 'all';
+	const STATE_OPTIONS: { value: StateView; label: string }[] = [
+		{ value: 'open', label: 'Open' },
+		{ value: 'closed', label: 'Closed' },
+		{ value: 'all', label: 'All' }
+	];
+
+	const stateView = $derived.by((): StateView => {
+		const states = new Set(filter.states);
+		if (states.has('open') && states.has('closed')) return 'all';
+		if (states.has('closed')) return 'closed';
+		return 'open';
+	});
+	const stateLabel = $derived(
+		STATE_OPTIONS.find((option) => option.value === stateView)?.label ?? 'Open'
+	);
+
+	// `assignee=me` is the All/Mine scope and `state` is the header scope, so
+	// neither counts as a filter in the summary or the popover badge.
 	const filterCount = $derived(
 		activeFilterCount({
 			...filter,
+			states: [],
 			assignees: filter.assignees.filter((value) => value !== 'me')
 		})
 	);
 
-	const stateLabel = $derived.by(() => {
-		const states = new Set(filter.states);
-		if (states.has('open') && states.has('closed')) return 'Open and closed';
-		if (states.has('closed')) return 'Closed';
-		return 'Open';
-	});
-
 	const scopeLine = $derived(
 		[
-			stateLabel,
 			mine ? 'Assigned to you' : null,
 			filterCount > 0
 				? `${filterCount} ${filterCount === 1 ? 'filter' : 'filters'}`
@@ -75,6 +93,21 @@
 			.filter((value): value is string => value !== null)
 			.join(' · ')
 	);
+
+	// A closed-only scope is a constrained subset; "All" with no issues is still
+	// an empty dataset. The no-results action resets the scope to the default.
+	const filtered = $derived(filterCount > 0 || stateView === 'closed');
+
+	function setState(next: StateView) {
+		void goto(
+			buildFilterUrl(page.url.pathname, page.url.searchParams, {
+				...filter,
+				states:
+					next === 'all' ? ['open', 'closed'] : next === 'closed' ? ['closed'] : []
+			}),
+			{ reset: false }
+		);
+	}
 
 	function clearFilters() {
 		void goto(
@@ -103,16 +136,42 @@
 
 <SplitView detailOpen={selected !== null}>
 	{#snippet feed()}
-		<div class="flex min-h-0 flex-1 flex-col bg-canvas">
+		<div class="flex min-h-0 flex-1 flex-col overflow-y-auto bg-canvas">
 			<PageHeader
 				title={mine ? 'My Issues' : 'Issues'}
-				count={issueFeed.total.toLocaleString()}
-				description={scopeLine}
+				description={scopeLine || undefined}
 				level={selected ? 2 : 1}
 			>
 				{#snippet actions()}
-					{#if filterCount > 0}
-						<Button variant="ghost" size="sm" onclick={clearFilters}>Clear filters</Button>
+					<DropdownMenu.Root>
+						<DropdownMenu.Trigger
+							class={buttonVariants({ variant: 'outline', size: 'sm' })}
+							aria-label={`State: ${stateLabel}. Change state`}
+						>
+							<span>{stateLabel}</span>
+							<ChevronDownIcon
+								class="size-3.5 shrink-0 text-fg-muted"
+								aria-hidden="true"
+							/>
+						</DropdownMenu.Trigger>
+						<DropdownMenu.Content align="end" class="w-40">
+							<DropdownMenu.Label>State</DropdownMenu.Label>
+							<DropdownMenu.RadioGroup
+								value={stateView}
+								onValueChange={(value) => setState(value as StateView)}
+							>
+								{#each STATE_OPTIONS as option (option.value)}
+									<DropdownMenu.RadioItem value={option.value} closeOnSelect>
+										{option.label}
+									</DropdownMenu.RadioItem>
+								{/each}
+							</DropdownMenu.RadioGroup>
+						</DropdownMenu.Content>
+					</DropdownMenu.Root>
+					{#if filterCount > 0 && issueFeed.total > 0}
+						<Button variant="ghost" size="sm" onclick={clearFilters}>
+							Clear Filters
+						</Button>
 					{/if}
 				{/snippet}
 			</PageHeader>
@@ -120,24 +179,32 @@
 			<Toolbar>
 				<FeedSearch />
 				<ViewSegment />
-				<GroupByControl
-					projects={data.projects}
-					hasMilestones={data.options.milestones.length > 0}
-				/>
-				<FilterPopover options={data.options} allowNoStatus={false} showState />
+				<div class="max-sm:hidden">
+					<GroupByControl
+						projects={data.projects}
+						hasMilestones={data.options.milestones.length > 0}
+					/>
+				</div>
+				<FilterPopover options={data.options} allowNoStatus={false} />
 			</Toolbar>
 
-			<IssueList
-				feed={issueFeed}
-				{selected}
-				empty={filterCount === 0 && filter.states.length === 0
-					? 'No issues yet.'
-					: 'No issues match these filters.'}
-				repoShortcodes={data.repoShortcodes}
-				projects={data.projects}
-				project={projectIssues}
-				resetKey={page.url.search}
-			/>
+			<div class="flex min-h-[30svh] flex-1 flex-col">
+				<IssueList
+					feed={issueFeed}
+					{selected}
+					empty={filtered ? 'No issues match these filters.' : 'No issues yet.'}
+					{filtered}
+					onclear={clearFilters}
+					repoShortcodes={data.repoShortcodes}
+					projects={data.projects}
+					project={projectIssues}
+					resetKey={page.url.search}
+				>
+					{#snippet emptyAction()}
+						<Button href="/intake" size="sm">Submit an Issue</Button>
+					{/snippet}
+				</IssueList>
+			</div>
 		</div>
 	{/snippet}
 

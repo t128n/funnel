@@ -146,7 +146,7 @@
 
 <SplitView detailOpen={selectedIssue !== null || selectedSubmissionId !== null}>
 	{#snippet feed()}
-		<div class="flex min-h-0 flex-1 flex-col bg-canvas">
+		<div class="flex min-h-0 flex-1 flex-col overflow-y-auto bg-canvas">
 			<PageHeader
 				title="Inbox"
 				count={summary}
@@ -179,7 +179,7 @@
 					{/snippet}
 				</EmptyState>
 			{:else}
-				<div class="min-h-0 flex-1 overflow-y-auto" bind:this={scroller}>
+				<div class="min-h-[30svh] flex-1 overflow-y-auto" bind:this={scroller}>
 					{#if submissions.length > 0}
 						<section aria-labelledby="inbox-submissions-heading">
 							<div class="flex items-center justify-between gap-2 px-3 pb-1 pt-3">

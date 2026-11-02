@@ -8,11 +8,14 @@
 	import PaperclipIcon from '@lucide/svelte/icons/paperclip';
 
 	/**
-	 * The embedded action composer: a 3-row textarea with an attachment control,
-	 * a Comment / Internal note segmented switch, a primary submit and a
+	 * The embedded action composer: a one-line prompt at rest that expands in
+	 * place on focus (or whenever a draft exists) to show the attachment
+	 * control, the Comment / Internal note switch, a primary submit and a
 	 * `⌘ Enter` hint. The parent owns which mutation `onsubmit` performs.
 	 *
-	 * ⌘/Ctrl+Enter submits. `value` is bindable so the parent owns the draft.
+	 * ⌘/Ctrl+Enter submits. `value` is bindable so the parent owns the draft,
+	 * and the textarea is never unmounted, so collapsing never loses content,
+	 * caret context or the selected channel.
 	 */
 	interface Props {
 		value?: string;
@@ -43,8 +46,13 @@
 		onsubmit
 	}: Props = $props();
 
+	let root: HTMLDivElement | undefined = $state();
 	let fileInput: HTMLInputElement | undefined = $state();
 	let isMac = $state(true);
+	/** Focus/click opened the composer, independent of the draft. */
+	let open = $state(false);
+	/** Escape collapsed the composer without discarding the draft. */
+	let collapsed = $state(false);
 
 	onMount(() => {
 		isMac = /Mac|iPhone|iPad|iPod/.test(navigator.userAgent);
@@ -55,12 +63,51 @@
 	);
 	const effectiveLabel = $derived(mode === 'note' ? 'Internal note' : label);
 	const canSubmit = $derived(!disabled && !busy && value.trim().length > 0);
+	/** A non-empty draft keeps the full composer visible, even after blur. */
+	const hasDraft = $derived(value.trim().length > 0);
+	const expanded = $derived(!collapsed && (open || hasDraft));
+
+	function onFocus() {
+		collapsed = false;
+		open = true;
+	}
+
+	function onBlur(event: FocusEvent) {
+		const next = event.relatedTarget;
+		// Moving to Attach, the mode switch or Submit keeps the composer open.
+		if (next instanceof Node && root?.contains(next)) return;
+		if (!hasDraft) open = false;
+	}
+
+	function onInput(event: Event) {
+		value = (event.currentTarget as HTMLTextAreaElement).value;
+		collapsed = false;
+	}
 
 	function onKeydown(event: KeyboardEvent) {
 		if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
 			event.preventDefault();
-			if (canSubmit) onsubmit();
+			if (canSubmit) {
+				open = false;
+				onsubmit();
+			}
+			return;
 		}
+		// Escape returns to the compact prompt and keeps the draft intact.
+		if (event.key === 'Escape') {
+			event.preventDefault();
+			collapsed = true;
+			open = false;
+			(event.currentTarget as HTMLTextAreaElement).blur();
+		}
+	}
+
+	function submit() {
+		if (!canSubmit) return;
+		// The draft keeps the composer open on failure; on success the parent
+		// clears `value`, which collapses it back to the prompt.
+		open = false;
+		onsubmit();
 	}
 
 	function onFiles(event: Event) {
@@ -70,93 +117,105 @@
 	}
 </script>
 
-<InputGroup.Root class="border-border-strong bg-canvas">
-	<InputGroup.Textarea
-		class="min-h-24 resize-y px-3 py-2 text-body leading-body"
-		placeholder={effectivePlaceholder}
-		value={value}
-		oninput={(event) => (value = event.currentTarget.value)}
-		onkeydown={onKeydown}
-		rows={3}
-		aria-label={effectiveLabel}
-	></InputGroup.Textarea>
+<div bind:this={root}>
+	<InputGroup.Root class="border-border-strong bg-canvas">
+		<InputGroup.Textarea
+			class={cn(
+				'px-3 text-body leading-body',
+				expanded
+					? 'min-h-24 resize-y py-2'
+					: 'h-(--size-control-md) min-h-(--size-control-md) resize-none py-2'
+			)}
+			placeholder={effectivePlaceholder}
+			value={value}
+			oninput={onInput}
+			onfocus={onFocus}
+			onblur={onBlur}
+			onkeydown={onKeydown}
+			rows={expanded ? 3 : 1}
+			aria-label={effectiveLabel}
+		></InputGroup.Textarea>
 
-	<InputGroup.Addon align="block-end" class="cursor-default justify-between gap-3 px-2 pt-1 pb-2">
-		<div class="flex min-w-0 items-center gap-2">
-			<button
-				type="button"
-				class="inline-flex h-(--size-control-sm) items-center gap-1.5 rounded-sm px-2 text-caption text-fg-secondary hover:bg-surface hover:text-fg disabled:pointer-events-none disabled:text-fg-disabled"
-				disabled={!onattach}
-				title={onattach ? 'Attach files' : 'Attachments are unavailable'}
-				tabindex={onattach ? undefined : -1}
-				onclick={() => fileInput?.click()}
-			>
-				<PaperclipIcon class="size-4 shrink-0" aria-hidden="true" />
-				Attach
-			</button>
-			{#if onattach}
-				<input
-					bind:this={fileInput}
-					type="file"
-					multiple
-					class="hidden"
-					onchange={onFiles}
-					aria-hidden="true"
-					tabindex={-1}
-				/>
-			{/if}
-		</div>
-		<div class="flex min-w-0 flex-wrap items-center justify-end gap-2">
-			{#if showModeToggle}
-				<div
-					class="inline-flex overflow-hidden rounded-sm border border-border-strong"
-					role="group"
-					aria-label="Submission channel"
+		<InputGroup.Addon
+			align="block-end"
+			class={cn('cursor-default justify-between gap-3 px-2 pt-1 pb-2', !expanded && 'hidden')}
+		>
+			<div class="flex min-w-0 items-center gap-2">
+				<button
+					type="button"
+					class="inline-flex h-(--size-control-sm) items-center gap-1.5 rounded-sm px-2 text-caption text-fg-secondary hover:bg-surface hover:text-fg disabled:pointer-events-none disabled:text-fg-disabled"
+					disabled={!onattach}
+					title={onattach ? 'Attach files' : 'Attachments are unavailable'}
+					tabindex={onattach ? undefined : -1}
+					onclick={() => fileInput?.click()}
 				>
-					<button
-						type="button"
-						class={cn(
-							'inline-flex h-(--size-control-sm) items-center px-2 text-caption',
-							mode === 'comment'
-								? 'bg-surface-2 font-semibold text-fg'
-								: 'text-fg-secondary hover:bg-surface hover:text-fg'
-						)}
-						aria-pressed={mode === 'comment'}
-						onclick={() => (mode = 'comment')}
-					>
-						Comment
-					</button>
-					<button
-						type="button"
-						class={cn(
-							'inline-flex h-(--size-control-sm) items-center border-l border-border-subtle px-2 text-caption',
-							mode === 'note'
-								? 'bg-surface-2 font-semibold text-fg'
-								: 'text-fg-secondary hover:bg-surface hover:text-fg'
-						)}
-						aria-pressed={mode === 'note'}
-						onclick={() => (mode = 'note')}
-					>
-						Internal note
-					</button>
-				</div>
-			{/if}
-			<Kbd.Root class="hidden sm:inline-flex" aria-hidden="true">
-				{isMac ? '⌘' : 'Ctrl'}&nbsp;Enter
-			</Kbd.Root>
-			<Button
-				size="sm"
-				class="min-w-20"
-				onclick={onsubmit}
-				disabled={!canSubmit}
-				title={effectiveLabel}
-				aria-label={effectiveLabel}
-			>
-				{#if busy}
-					<Spinner size={13} />
+					<PaperclipIcon class="size-4 shrink-0" aria-hidden="true" />
+					Attach
+				</button>
+				{#if onattach}
+					<input
+						bind:this={fileInput}
+						type="file"
+						multiple
+						class="hidden"
+						onchange={onFiles}
+						aria-hidden="true"
+						tabindex={-1}
+					/>
 				{/if}
-				{busy ? (mode === 'note' ? 'Saving…' : 'Posting…') : mode === 'note' ? 'Add note' : 'Comment'}
-			</Button>
-		</div>
-	</InputGroup.Addon>
-</InputGroup.Root>
+			</div>
+			<div class="flex min-w-0 flex-wrap items-center justify-end gap-2">
+				{#if showModeToggle}
+					<div
+						class="inline-flex overflow-hidden rounded-sm border border-border-strong"
+						role="group"
+						aria-label="Submission channel"
+					>
+						<button
+							type="button"
+							class={cn(
+								'inline-flex h-(--size-control-sm) items-center px-2 text-caption',
+								mode === 'comment'
+									? 'bg-surface-2 font-semibold text-fg'
+									: 'text-fg-secondary hover:bg-surface hover:text-fg'
+							)}
+							aria-pressed={mode === 'comment'}
+							onclick={() => (mode = 'comment')}
+						>
+							Comment
+						</button>
+						<button
+							type="button"
+							class={cn(
+								'inline-flex h-(--size-control-sm) items-center border-l border-border-subtle px-2 text-caption',
+								mode === 'note'
+									? 'bg-surface-2 font-semibold text-fg'
+									: 'text-fg-secondary hover:bg-surface hover:text-fg'
+							)}
+							aria-pressed={mode === 'note'}
+							onclick={() => (mode = 'note')}
+						>
+							Internal note
+						</button>
+					</div>
+				{/if}
+				<Kbd.Root class="hidden sm:inline-flex" aria-hidden="true">
+					{isMac ? '⌘' : 'Ctrl'}&nbsp;Enter
+				</Kbd.Root>
+				<Button
+					size="sm"
+					class="min-w-20"
+					onclick={submit}
+					disabled={!canSubmit}
+					title={effectiveLabel}
+					aria-label={effectiveLabel}
+				>
+					{#if busy}
+						<Spinner size={13} />
+					{/if}
+					{busy ? (mode === 'note' ? 'Saving…' : 'Posting…') : mode === 'note' ? 'Add note' : 'Comment'}
+				</Button>
+			</div>
+		</InputGroup.Addon>
+	</InputGroup.Root>
+</div>

@@ -120,7 +120,7 @@
 		</Dialog.Header>
 
 		{#if isBlock}
-			<div class="flex flex-col gap-4">
+			<div class="flex flex-col gap-6">
 				<Field.Field>
 					<Field.Label for="blocker">
 						Blocker <span class="font-normal text-error">required</span>

@@ -49,8 +49,6 @@
 		doneDays?: number;
 		/** `owner/name` → project key, forwarded to every card. */
 		repoShortcodes?: Record<string, string>;
-		/** Show the repository context tag when the board spans multiple repos. */
-		showRepo?: boolean;
 		/** Signed-in viewer for the card's quick assign action. */
 		viewer?: UserRef | null;
 		/** RBAC `read`: disables dragging and the column's new-issue link. */
@@ -73,7 +71,6 @@
 		limit,
 		doneDays,
 		repoShortcodes = {},
-		showRepo = false,
 		viewer = null,
 		readonly = false
 	}: Props = $props();
@@ -155,14 +152,15 @@
 </script>
 
 <section
-	class="group/column flex min-h-0 w-[var(--layout-board-lane)] max-w-full shrink-0 snap-start flex-col overflow-hidden rounded-md border border-border-subtle bg-canvas"
+	class="group/column flex min-h-0 w-[var(--layout-board-lane)] max-w-full shrink-0 snap-start flex-col overflow-hidden"
 	aria-label={label}
 	data-board-column={statusKey}
 	title={isDone && doneDays !== undefined ? `Issues closed in the last ${doneDays} days` : undefined}
 >
-	<!-- Fixed header cell: stage, count, and WIP; the lane scrolls below it. -->
+	<!-- Fixed header cell: stage, count, and WIP; the lane scrolls below it.
+	     The rule and alignment establish the column, not a surface or border. -->
 	<header
-		class="flex min-h-9 shrink-0 flex-wrap items-center gap-x-2 gap-y-1 border-b border-border-subtle bg-surface-2 px-3 py-1.5"
+		class="flex min-h-8 shrink-0 flex-wrap items-center gap-x-2 gap-y-1 border-b border-border-subtle px-1 pb-2"
 	>
 		<h2 class="min-w-0 flex-1 truncate text-body font-semibold text-fg">{label}</h2>
 		{#if limit !== undefined}
@@ -182,18 +180,19 @@
 				</span>
 			{/if}
 		{:else}
-			<span class="mono shrink-0 text-caption text-fg-secondary tabular-nums" title={`${total} issues`}>
+			<span class="shrink-0 text-caption text-fg-secondary tabular-nums" title={`${total} issues`}>
 				{total}
 			</span>
 		{/if}
 	</header>
 
 	<!-- The lane's own scroller. Virtua measures the cards inside it; the drop
-	     target and auto-scroll attach here so dragging works while scrolled. -->
+	     target and auto-scroll attach here so dragging works while scrolled.
+	     The 1px gutter keeps the card focus ring inside the scroller. -->
 	<div
 		bind:this={scroller}
 		class={cn(
-			'relative min-h-0 flex-1 overflow-y-auto overscroll-contain px-2 py-2',
+			'relative min-h-0 flex-1 overflow-y-auto overscroll-contain px-1 pb-2 pt-2',
 			isDropTarget && 'bg-surface-2'
 		)}
 		use:droppableLane={laneHandlers}
@@ -211,7 +210,6 @@
 						issue={item}
 						columnKey={statusKey}
 						{repoShortcodes}
-						{showRepo}
 						{viewer}
 						selected={selectedKey === cardKey(item)}
 						tabIndex={cardKey(item) === activeKey ? 0 : -1}
@@ -223,17 +221,10 @@
 		</Virtualizer>
 
 		{#if empty}
-			<div
-				class="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-1 px-3 text-center"
-			>
+			<div class="flex flex-col items-start gap-1 py-2">
 				<p class="text-caption text-fg-secondary">No issues</p>
 				{#if !readonly}
-					<Button
-						href="/intake"
-						variant="ghost"
-						size="sm"
-						class="pointer-events-auto"
-					>
+					<Button href="/intake" variant="ghost" size="sm" class="-ml-2">
 						New Issue
 					</Button>
 				{/if}

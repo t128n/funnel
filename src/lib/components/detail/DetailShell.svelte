@@ -75,17 +75,17 @@
 			class={cn(
 				MEASURE,
 				'px-[var(--layout-page-padding)] py-5',
-				aside ? '@container min-h-full' : 'flex min-h-full flex-col gap-5'
+				aside ? '@container min-h-full' : 'flex min-h-full flex-col gap-[var(--space-6)]'
 			)}
 			use:codeBlocks={contentKey}
 			use:mermaidDiagrams={contentKey}
 		>
 			{#if aside}
 				<div
-					class="grid grid-cols-1 items-start gap-x-10 gap-y-5 @min-[900px]:grid-cols-[minmax(0,1fr)_minmax(0,22rem)]"
+					class="grid grid-cols-1 items-start gap-x-10 gap-y-[var(--space-6)] @min-[900px]:grid-cols-[minmax(0,1fr)_minmax(0,22rem)]"
 				>
-					<div class="flex min-w-0 flex-col gap-5">{@render children()}</div>
-					<div class="flex min-w-0 flex-col gap-5">{@render aside()}</div>
+					<div class="flex min-w-0 flex-col gap-[var(--space-6)]">{@render children()}</div>
+					<div class="flex min-w-0 flex-col gap-[var(--space-6)]">{@render aside()}</div>
 				</div>
 			{:else}
 				{@render children()}
@@ -95,7 +95,7 @@
 
 	{#if footer}
 		<footer class="shrink-0 border-t border-border-subtle bg-canvas">
-			<div class={cn(MEASURE, 'px-[var(--layout-page-padding)] py-3')}>
+			<div class={cn(MEASURE, 'px-[var(--layout-page-padding)] py-2')}>
 				{@render footer()}
 			</div>
 		</footer>

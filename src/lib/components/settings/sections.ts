@@ -74,7 +74,7 @@ export const settingsGroups: SettingsGroup[] = [
 			{
 				id: 'appearance',
 				label: 'Appearance',
-				description: 'Choose how Funnel looks in this browser.',
+				description: '',
 				href: '/settings/appearance',
 				minRole: 'read',
 				icon: PaintbrushIcon

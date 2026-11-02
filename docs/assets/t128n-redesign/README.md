@@ -10,6 +10,7 @@ light and dark; the files here are the preview set used in the pull request.
 - `plan-light.png`, `plan-dark.png`
 - `settings-light.png`, `settings-dark.png`
 - `intake-light.png`, `intake-dark.png`
+- `issues-mobile.png`, `plan-mobile.png`
 
 Regenerate the full 30-view gallery:
 

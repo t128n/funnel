@@ -103,12 +103,12 @@
 <Popover.Root bind:open>
 	<Popover.Trigger
 		{disabled}
-		class={selectTriggerClass('ghost', cn('gap-1.5', value && 'text-fg'))}
+		class={selectTriggerClass('ghost', cn('h-(--size-control-md) gap-1.5', value && 'text-fg'))}
 	>
 		<span class="inline-flex size-4 shrink-0 items-center justify-center" aria-hidden="true">
 			<MilestoneIcon class="size-3.5" />
 		</span>
-		<span class="max-w-40 truncate">{value?.title ?? 'Milestone'}</span>
+		<span class="max-w-40 truncate">{value?.title ?? 'No milestone'}</span>
 	</Popover.Trigger>
 
 	<Popover.Content align="start" sideOffset={6} preventScroll={false} class="w-64 gap-0 p-0" {onInteractOutside}>

@@ -26,10 +26,13 @@
 
 	/**
 	 * One row of the issue stream shared by the Issues feed, the Inbox queue and
-	 * the board's Backlog list. The row is one grid in table mode
-	 * (`Ref · Title · Status · Priority · Size · Updated · Assignee`) and a
-	 * two-line stacked card in a narrow column: ref and title, then a wrapping
-	 * metadata line. Selection is the 2px primary leading bar, never a fill.
+	 * the board's Backlog list.
+	 *
+	 * The row is a stable two-line list: a fixed reference slot and the title on
+	 * the first line, then one metadata line aligned under the title. Metadata
+	 * always reads status, priority, size, updated, assignee, milestone/labels;
+	 * the trailing context truncates so it can never displace the fixed fields.
+	 * Selection is the 2px primary leading bar, never a fill.
 	 */
 	interface Props {
 		issue: IssueListItem;
@@ -38,7 +41,7 @@
 		repoShortcodes?: Record<string, string>;
 		/** When grouped by status the section header carries it, so the row omits its status. */
 		groupedBy?: GroupKey | null;
-		/** Position in the flattened feed; odd positions take the zebra stripe. */
+		/** Retained for the Inbox caller; rows no longer alternate their fill. */
 		index?: number;
 	}
 
@@ -46,17 +49,15 @@
 		issue,
 		selected = false,
 		repoShortcodes = {},
-		groupedBy = null,
-		index = 0
+		groupedBy = null
 	}: Props = $props();
 
 	const ref = $derived(issueRef(issue.repo, issue.number, repoShortcodes));
 	const closed = $derived(isStruckThrough(issue.state));
-	const striped = $derived(index % 2 === 1);
 	const title = $derived(issue.title.trim() || 'Untitled');
 	const untitled = $derived(issue.title.trim().length === 0);
 
-	/** Non-reserved labels only; reserved groups render as dedicated columns. */
+	/** Non-reserved labels only; reserved groups render as dedicated fields. */
 	const labels = $derived(
 		issue.labels.filter(
 			(label) => !canonicalLabel(label) && !isRetiredPriorityLabel(label)
@@ -68,8 +69,10 @@
 			? issue.milestone.title || `${issue.milestone.repo}#${issue.milestone.number}`
 			: null
 	);
-	const labelText = $derived(
-		[milestoneText, ...labels].filter((value): value is string => Boolean(value)).join(', ')
+	const contextText = $derived(
+		[milestoneText, ...labels]
+			.filter((value): value is string => Boolean(value))
+			.join(', ')
 	);
 
 	const sizeText = $derived(
@@ -90,7 +93,7 @@
 		'issue-row group/row cursor-pointer select-none border-b border-border-subtle',
 		'focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ring',
 		closed ? 'text-fg-muted' : 'text-fg',
-		selected ? 'is-selected-row bg-canvas' : striped ? 'bg-surface' : 'bg-canvas'
+		selected && 'is-selected-row'
 	)}
 	role="button"
 	tabindex={0}
@@ -115,10 +118,10 @@
 		<Tooltip.Content>{issue.repo}#{issue.number}</Tooltip.Content>
 	</Tooltip.Root>
 
-	<span class="issue-title flex min-w-0 items-center gap-1.5">
+	<span class="issue-title">
 		<span
 			class={cn(
-				'min-w-0 truncate text-body',
+				'line-clamp-2 min-w-0 break-words text-body',
 				closed || untitled ? 'text-fg-muted' : 'text-fg',
 				untitled && 'italic',
 				closed && 'line-through'
@@ -136,79 +139,82 @@
 	</span>
 
 	<span class="issue-meta">
-		<span class="issue-status">
-			{#if showStatus}
+		{#if showStatus}
+			<span class="issue-status">
 				<StatusText
 					status={issue.status}
 					state={issue.state}
 					blocked={issue.blocked}
 					class={closed ? 'text-fg-muted' : undefined}
 				/>
-			{/if}
-		</span>
+			</span>
+		{/if}
 
-		<span class="issue-priority">
-			{#if issue.priority}
+		{#if issue.priority}
+			<span class="issue-priority">
 				<PriorityText
 					priority={issue.priority}
 					class={closed ? 'text-fg-muted' : undefined}
 				/>
-			{/if}
-		</span>
+			</span>
+		{/if}
 
-		<span class="issue-size text-caption text-fg-secondary">
-			{#if sizeText}
-				<span title={`Size: ${issue.size}`}>{sizeText}</span>
-			{/if}
-		</span>
+		{#if sizeText}
+			<span class="issue-size" title={`Size: ${issue.size}`}>{sizeText}</span>
+		{/if}
 
 		<span
-			class="issue-updated text-caption text-fg-secondary tabular-nums"
+			class="issue-updated"
 			title={new Date(issue.updatedAt).toLocaleString()}
 		>
 			{timeAgo(issue.updatedAt)}
 		</span>
 
-		<span class="issue-assignee text-caption text-fg-secondary">
+		<span class="issue-assignee" title={assigneeText || 'Unassigned'}>
 			{#if assigneeText}
-				<span class="truncate" title={assigneeText}>{assigneeText}</span>
+				{assigneeText}
 			{:else}
 				<span class="text-fg-muted">Unassigned</span>
 			{/if}
 		</span>
 
-		{#if labelText}
-			<span class="issue-labels text-caption text-fg-secondary" title={labelText}>
-				{labelText}
-			</span>
+		{#if contextText}
+			<span class="issue-context" title={contextText}>{contextText}</span>
 		{/if}
 	</span>
 </div>
 
 <style>
-	/* Base: the stacked presentation. Any list narrower than 48rem — a phone or
-	   the 26rem Issues feed — gets ref + title and a wrapping metadata line. */
 	.issue-row {
+		/* 5.5rem: a stable column wide enough for `FIT-1234` without letting a
+		   long reference shift every title. */
+		--issue-ref-column: calc(var(--space-7) + var(--space-6) + var(--space-2));
 		display: grid;
-		grid-template-columns: auto minmax(0, 1fr);
+		grid-template-columns: var(--issue-ref-column) minmax(0, 1fr);
 		grid-template-areas:
 			'ref title'
-			'meta meta';
-		align-items: center;
-		min-height: var(--size-row-compact);
-		column-gap: var(--space-2);
-		row-gap: 0.125rem;
+			'. meta';
+		align-items: baseline;
+		min-height: var(--size-row-comfortable);
+		column-gap: var(--space-3);
+		row-gap: var(--space-1);
 		padding: var(--space-1) var(--space-3);
 	}
 
 	.issue-row > .issue-ref {
 		grid-area: ref;
 		min-width: 0;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
 	}
 
 	.issue-row > .issue-title {
 		grid-area: title;
+		display: flex;
 		min-width: 0;
+		align-items: center;
+		gap: var(--space-1);
 	}
 
 	.issue-meta {
@@ -216,27 +222,31 @@
 		display: flex;
 		flex-wrap: wrap;
 		align-items: center;
-		gap: 0.125rem var(--space-3);
+		gap: var(--space-1) var(--space-3);
+		min-width: 0;
+		font-size: var(--font-size-caption);
+		line-height: var(--font-leading-caption);
+		color: var(--color-text-secondary);
+	}
+
+	.issue-meta > * {
+		flex: none;
 		min-width: 0;
 	}
 
-	.issue-status,
-	.issue-priority,
-	.issue-size,
-	.issue-updated,
-	.issue-assignee {
-		min-width: 0;
+	.issue-updated {
+		font-variant-numeric: tabular-nums;
 	}
 
 	.issue-assignee {
-		max-width: 100%;
+		max-width: var(--layout-field-sm);
 		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
 	}
 
-	.issue-labels {
-		display: block;
-		min-width: 0;
-		max-width: 100%;
+	.issue-context {
+		flex: 1 1 0;
 		overflow: hidden;
 		text-overflow: ellipsis;
 		white-space: nowrap;
@@ -244,68 +254,7 @@
 
 	@media (hover: hover) and (pointer: fine) {
 		.issue-row:not(.is-selected-row):hover {
-			background: var(--color-surface-2);
-		}
-	}
-
-	/* Table presentation once the list column has room for seven columns. */
-	@container (min-width: 48rem) {
-		.issue-row {
-			grid-template-columns: 5.5rem minmax(0, 1fr) 7rem 4.5rem 3rem 5rem 7rem;
-			grid-template-areas: none;
-			height: var(--size-row-compact);
-			column-gap: 0;
-			row-gap: 0;
-			padding: 0;
-		}
-
-		.issue-row > .issue-ref {
-			grid-area: auto;
-			grid-column: 1;
-			padding-inline: var(--space-3);
-		}
-
-		.issue-row > .issue-title {
-			grid-area: auto;
-			grid-column: 2;
-			padding-inline: var(--space-3);
-		}
-
-		.issue-meta {
-			grid-area: auto;
-			display: contents;
-		}
-
-		.issue-status {
-			grid-column: 3;
-			padding-inline: var(--space-3);
-		}
-
-		.issue-priority {
-			grid-column: 4;
-			padding-inline: var(--space-3);
-		}
-
-		.issue-size {
-			grid-column: 5;
-			padding-inline: var(--space-3);
-		}
-
-		.issue-updated {
-			grid-column: 6;
-			justify-self: end;
-			padding-inline: var(--space-3);
-		}
-
-		.issue-assignee {
-			grid-column: 7;
-			justify-self: end;
-			max-width: 100%;
-			padding-inline: var(--space-3);
-		}
-
-		.issue-labels {
-			display: none;
+			background: var(--color-surface);
 		}
 	}
 </style>

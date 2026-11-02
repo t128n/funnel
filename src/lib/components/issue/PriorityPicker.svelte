@@ -93,7 +93,7 @@
 <Popover.Root bind:open>
 	<Popover.Trigger
 		{disabled}
-		class={selectTriggerClass('ghost', cn('gap-1.5', priority && 'text-fg'))}
+		class={selectTriggerClass('ghost', cn('h-(--size-control-md) gap-1.5', priority && 'text-fg'))}
 		title="Priority"
 	>
 		{#if currentMeta}

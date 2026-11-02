@@ -111,7 +111,7 @@
 <PageHead title="Board" description="Issues arranged by workflow status." />
 
 <div class="relative flex min-h-0 min-w-0 flex-1">
-	<div class={cn("flex min-h-0 min-w-0 flex-1 flex-col", selected && "max-lg:hidden")}>
+	<div class={cn("flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto", selected && "max-lg:hidden")}>
 		<PageHeader
 			title={backlogView ? "Backlog" : "Board"}
 			count={backlogView ? boardFeed.columns.backlog.total : total}
@@ -153,30 +153,34 @@
 		</Toolbar>
 
 		{#if backlogView}
-			<IssueList
-				feed={boardFeed.columns.backlog}
-				project={(issues) =>
-					projectIssues(issues).filter(
-						(issue) => issue.state !== 'closed' && issue.status === 'backlog'
-					)}
-				{selected}
-				empty="Backlog is empty."
-				repoShortcodes={data.repoShortcodes}
-				groupable={false}
-			/>
+			<div class="flex min-h-[30svh] flex-1 flex-col">
+				<IssueList
+					feed={boardFeed.columns.backlog}
+					project={(issues) =>
+						projectIssues(issues).filter(
+							(issue) => issue.state !== 'closed' && issue.status === 'backlog'
+						)}
+					{selected}
+					empty="Backlog is empty."
+					repoShortcodes={data.repoShortcodes}
+					groupable={false}
+				/>
+			</div>
 		{:else}
 			<!-- Each projected lane carries its own `total`, `nextCursor`,
 			     `loading`, and `loadMore`, so `StatusBoard` can wire infinite
 			     scroll without touching the feed stores. -->
-			<StatusBoard
-				{board}
-				{selected}
-				wipLimits={data.wipLimits}
-				doneDays={data.doneDays}
-				repoShortcodes={data.repoShortcodes}
-				viewer={data.viewerGithub}
-				readonly={!mayWrite}
-			/>
+			<div class="flex min-h-[30svh] flex-1 flex-col">
+				<StatusBoard
+					{board}
+					{selected}
+					wipLimits={data.wipLimits}
+					doneDays={data.doneDays}
+					repoShortcodes={data.repoShortcodes}
+					viewer={data.viewerGithub}
+					readonly={!mayWrite}
+				/>
+			</div>
 		{/if}
 	</div>
 

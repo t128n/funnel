@@ -65,7 +65,7 @@ export const VIEWS = [
   {
     name: "inbox",
     path: "/inbox",
-    ready: "#inbox-issues-heading",
+    ready: ".issue-row",
   },
   {
     name: "notifications",
@@ -359,7 +359,7 @@ export async function captureAll({
             });
             await waitForView(page, view);
             // Let the last hydration paint settle before the frame is taken.
-            await page.waitForTimeout(700);
+            await page.waitForTimeout(1200);
             await page.evaluate(() => document.fonts.ready);
 
             const file = join(outDir, `${view.name}-${theme}.png`);

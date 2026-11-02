@@ -15,7 +15,7 @@
 
 <button
 	type="button"
-	class="issue-group-header flex h-(--size-row-compact) w-full items-center gap-1.5 border-b border-border-subtle bg-surface px-3 text-left text-caption font-semibold text-fg-secondary"
+	class="issue-group-header flex h-(--size-row-compact) w-full items-center gap-1.5 border-b border-border-subtle bg-canvas px-3 text-left text-caption font-semibold text-fg-secondary"
 	aria-expanded={!collapsed}
 	onclick={ontoggle}
 >
@@ -30,7 +30,7 @@
 <style>
 	@media (hover: hover) and (pointer: fine) {
 		.issue-group-header:hover {
-			background: var(--color-surface-2);
+			background: var(--color-surface);
 		}
 	}
 </style>

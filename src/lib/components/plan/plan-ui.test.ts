@@ -36,6 +36,33 @@ describe("milestone plans", () => {
 	});
 });
 
+describe("capacity language", () => {
+	test("test_bars_state_scheduled_of_cap_without_an_allocation_marker", () => {
+		const bar = source("./CapacityBar.svelte");
+		expect(bar).toContain("Scheduled {formatMinutes(committedMinutes)} of");
+		expect(bar).toContain("cap");
+		// The cap already includes allocation; a second 60% marker would
+		// double-count it.
+		expect(bar).not.toContain("allocationPercent");
+		expect(bar).not.toContain("inset-inline-start");
+	});
+
+	test("test_lanes_label_net_cap_and_compact_empty_groups", () => {
+		const lanes = source("./PlanLanes.svelte");
+		expect(lanes).toContain("Net {formatMinutes(lane.maintainer.weeklyMinutes)}/week");
+		expect(lanes).toContain("Cap ${formatMinutes(lane.capMinutes)}");
+		expect(lanes).toContain("Scheduled {formatMinutes(unassigned.committedMinutes)} · no cap");
+		expect(lanes).not.toContain("bg-surface-2");
+		expect(lanes).toContain("every sized issue has an active assignee");
+		expect(lanes).toContain("every open issue has a size");
+	});
+
+	test("test_cycle_lanes_explain_the_multi_week_cap", () => {
+		const page = source("../../../routes/(app)/plan/+page.svelte");
+		expect(page).toContain("capWeeks={data.cyclePlan.weeks.length}");
+	});
+});
+
 describe("schedule dialog", () => {
 	test("test_dialog_errors_surface", () => {
 		const message = scheduleErrorMessage(409, {

@@ -308,11 +308,11 @@
 				<section class="flex flex-col gap-2" aria-label="Per-week summaries" data-testid="week-summaries">
 					<h2 class="text-heading-sm font-semibold text-fg">Weeks in this cycle</h2>
 					<div class="overflow-x-auto">
-						<table class="data-table">
+						<table class="data-table min-w-0">
 							<thead>
 								<tr>
 									<th scope="col">Week</th>
-									<th scope="col" class="text-end">Committed</th>
+									<th scope="col" class="text-end">Scheduled</th>
 									<th scope="col" class="text-end">Cap</th>
 									<th scope="col" class="text-end">Unassigned</th>
 								</tr>
@@ -341,6 +341,7 @@
 					unassigned={data.cyclePlan.unassigned}
 					unestimated={data.cyclePlan.unestimated}
 					{allocationPercent}
+					capWeeks={data.cyclePlan.weeks.length}
 					{sizeMinutes}
 					{mayWrite}
 					onschedule={() => (dialogOpen = true)}

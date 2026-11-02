@@ -104,3 +104,7 @@ not a separate source of truth; the application profile and tokens decide.
 | Settings, dark | Intake, dark |
 | :--- | :--- |
 | ![Appearance settings in dark mode](../assets/t128n-redesign/settings-dark.png) | ![Public intake form in dark mode](../assets/t128n-redesign/intake-dark.png) |
+
+| Issues, mobile | Plan, mobile |
+| :--- | :--- |
+| ![Issues list at 390px](../assets/t128n-redesign/issues-mobile.png) | ![Week plan at 390px](../assets/t128n-redesign/plan-mobile.png) |

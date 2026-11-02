@@ -107,7 +107,7 @@
 		{@const tone =
 			entry.kind === 'note' ? 'note' : undefined}
 		<article
-			class="activity-entry flex flex-col gap-1.5 border-t border-border-subtle py-3 first:border-t-0"
+			class="activity-entry flex max-w-[var(--layout-measure)] flex-col gap-1.5 border-t border-border-subtle py-3 first:border-t-0"
 			data-index={index}
 			data-tone={tone}
 		>
@@ -131,7 +131,11 @@
 				{/if}
 				<span title={absoluteTime(at)}>{timeAgo(at)}</span>
 				{#if onreply}
-					<button type="button" class="link" onclick={() => onreply(entryId(entry))}>
+					<button
+						type="button"
+						class="link inline-flex h-(--size-control-sm) items-center"
+						onclick={() => onreply(entryId(entry))}
+					>
 						Reply
 					</button>
 				{/if}
@@ -139,7 +143,7 @@
 					<span class="ml-auto flex items-center gap-2">
 						<button
 							type="button"
-							class="link disabled:pointer-events-none disabled:opacity-50"
+							class="link inline-flex h-(--size-control-sm) items-center disabled:pointer-events-none disabled:opacity-50"
 							disabled={busyId === `note:${entry.note.id}`}
 							title="Edit note"
 							onclick={() => startEdit(entry.note)}
@@ -148,7 +152,7 @@
 						</button>
 						<button
 							type="button"
-							class="link disabled:pointer-events-none disabled:opacity-50"
+							class="link inline-flex h-(--size-control-sm) items-center disabled:pointer-events-none disabled:opacity-50"
 							title="Publish to GitHub as a comment (removes the note)"
 							disabled={busyId === `note:${entry.note.id}`}
 							onclick={() => onpublish(entry.note.id)}
@@ -157,7 +161,7 @@
 						</button>
 						<button
 							type="button"
-							class="link disabled:pointer-events-none disabled:opacity-50"
+							class="link inline-flex h-(--size-control-sm) items-center disabled:pointer-events-none disabled:opacity-50"
 							title="Delete note"
 							disabled={busyId === `note:${entry.note.id}`}
 							onclick={() => ondelete(entry.note.id)}

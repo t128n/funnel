@@ -11,9 +11,11 @@
 	} from './inspector-format';
 
 	/**
-	 * Epic membership in the Inspector (SPEC §5): an `Epic` badge and link on
-	 * the epic itself, a parent link on a child, and a writer-only mark/remove
-	 * toggle otherwise. Children are added from the epic page, not here.
+	 * Epic membership in the Inspector (SPEC §5): one compact relationship near
+	 * the title. A child links to its parent epic; an epic links to itself and
+	 * keeps its writer-only remove action. The "mark as epic" action lives in
+	 * the secondary Details disclosure when there is no relationship to show.
+	 * Children are added and reordered from the epic page, not here.
 	 */
 	interface Props {
 		issue: { isEpic?: boolean };
@@ -63,13 +65,28 @@
 	}
 </script>
 
-{#if propertyState === 'epic'}
-	<div class="flex flex-wrap items-center gap-2">
+{#if propertyState === 'child' && parent}
+	<div class="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-caption">
+		<span class="inline-flex shrink-0 items-center gap-1 font-semibold text-fg-secondary">
+			<LayersIcon class="size-3.5" aria-hidden="true" />
+			Epic
+		</span>
+		<a
+			href={epicHref(parent.repo, parent.number)}
+			class="link flex min-w-0 items-center gap-1"
+			title={`${parent.repo}#${parent.number} · ${parent.title}`}
+		>
+			<span class="mono shrink-0">{parent.repo}#{parent.number}</span>
+			<span class="truncate text-fg-secondary">· {parent.title}</span>
+		</a>
+	</div>
+{:else if propertyState === 'epic'}
+	<div class="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-caption">
 		<a
 			href={epicHref(repo, number)}
-			class="inline-flex items-center gap-1.5 text-body font-semibold text-fg hover:text-primary"
+			class="inline-flex shrink-0 items-center gap-1.5 font-semibold text-fg hover:text-primary"
 		>
-			<LayersIcon class="size-4" aria-hidden="true" />
+			<LayersIcon class="size-3.5" aria-hidden="true" />
 			Epic
 		</a>
 		{#if mayWrite}
@@ -79,15 +96,6 @@
 			</Button>
 		{/if}
 	</div>
-{:else if propertyState === 'child' && parent}
-	<a
-		href={epicHref(parent.repo, parent.number)}
-		class="inline-flex min-w-0 items-center gap-1.5 text-body text-fg-secondary hover:text-fg"
-		title={`${parent.repo}#${parent.number}`}
-	>
-		<LayersIcon class="size-4 shrink-0" aria-hidden="true" />
-		<span class="truncate">Child of {parent.repo}#{parent.number} · {parent.title}</span>
-	</a>
 {:else if mayWrite}
 	<Button variant="ghost" size="xs" disabled={!editable} onclick={toggle}>
 		{#if busy}<Spinner size={12} />{/if}

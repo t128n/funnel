@@ -76,7 +76,7 @@
 		form?.error && !titleError && !bodyError ? form.error : null
 	);
 
-	/** Keep unknown prefill sources selectable instead of silently dropping them. */
+	/** Resolve canonical source labels and keep unknown prefill values intact. */
 	const sourceOptions = $derived.by((): { value: string; label: string }[] => {
 		const options: { value: string; label: string }[] = INTAKE_SOURCES.map((option) => ({
 			...option
@@ -88,6 +88,10 @@
 
 		return options;
 	});
+
+	const sourceLabel = $derived(
+		sourceOptions.find((option) => option.value === source)?.label ?? source
+	);
 
 	/**
 	 * Follow server-provided values on action failures and same-route
@@ -288,13 +292,13 @@
 <FocusedShell>
 	{#if submitted}
 		<section class="flex flex-col gap-4" role="status">
-			<div class="flex items-start gap-3">
+			<div class="flex flex-wrap items-start gap-3">
 				<CircleCheckIcon class="mt-0.5 size-5 shrink-0 text-success" aria-hidden="true" />
 				<div class="flex min-w-0 flex-col gap-2">
 					<h1
 						bind:this={successEl}
 						tabindex="-1"
-						class="text-heading-md font-semibold leading-heading-md text-fg outline-none"
+						class="break-words text-heading-md font-semibold leading-heading-md text-fg outline-none"
 					>
 						Issue Submitted
 					</h1>
@@ -305,21 +309,23 @@
 				</div>
 			</div>
 
-			<dl class="label-value">
+			<dl class="label-value max-sm:grid-cols-[auto_1fr]">
 				{#if submittedRef}
 					<dt>Reference</dt>
 					<dd><span class="mono">{submittedRef}</span></dd>
 				{/if}
 				<dt>Status</dt>
 				<dd>
-					<span class="status status-success">
+					<span class="status status-success whitespace-normal">
 						<CircleCheckIcon aria-hidden="true" />
 						Staged for triage
 					</span>
 				</dd>
 				{#if source}
 					<dt>Source</dt>
-					<dd>{source}</dd>
+					<dd>
+						<span class="min-w-0 break-words">{sourceLabel}</span>
+					</dd>
 				{/if}
 			</dl>
 
@@ -351,8 +357,10 @@
 			<div
 				class="flex flex-wrap items-center gap-2 border-y border-border-subtle py-2 text-caption text-fg-secondary"
 			>
-				<LinkIcon class="size-4 shrink-0" aria-hidden="true" />
-				<span>Prefilled from a shared link</span>
+				<span class="flex min-w-0 items-center gap-2">
+					<LinkIcon class="size-4 shrink-0" aria-hidden="true" />
+					<span>Prefilled from a shared link</span>
+				</span>
 				<a href="/intake" class="link ms-auto" onclick={() => (dirty = false)}>Clear</a>
 			</div>
 		{/if}
@@ -364,6 +372,9 @@
 			class="flex flex-col gap-6"
 			use:enhance={() => {
 				submitting = true;
+				copyMessage = null;
+				copyFailed = false;
+				copied = false;
 				return async ({ update }) => {
 					try {
 						await update();
@@ -399,7 +410,6 @@
 					aria-describedby={titleError ? 'submission-title-error' : undefined}
 					onkeydown={onTitleKeydown}
 					oninput={markDirty}
-					class="h-9"
 				/>
 				{#if titleError}
 					<p
@@ -421,7 +431,8 @@
 					id="submission-body"
 					name="body"
 					maxlength={INTAKE_BODY_MAX}
-					rows={6}
+					rows={8}
+					class="min-h-40"
 					placeholder="What happened, what you expected, and anything that would help a triager."
 					aria-invalid={bodyError ? true : undefined}
 					aria-describedby={bodyError ? 'submission-body-error' : undefined}
@@ -439,30 +450,54 @@
 				{/if}
 			</Field.Field>
 
-			<Field.Field>
-				<Field.Label for="submission-source">Source</Field.Label>
-				<NativeSelect.Root
-					id="submission-source"
-					name="source"
-					bind:value={source}
-					onchange={markDirty}
-				>
-					<NativeSelect.Option value="">No source</NativeSelect.Option>
-					{#each sourceOptions as option (option.value)}
-						<NativeSelect.Option value={option.value}>{option.label}</NativeSelect.Option>
-					{/each}
-				</NativeSelect.Root>
-				<Field.Description>
-					Where this came from. Unknown sources from shared links are preserved.
-				</Field.Description>
-			</Field.Field>
+			{#if source}
+				<p class="break-words text-body leading-body text-fg-secondary">
+					Source: <span class="text-fg">{sourceLabel}</span>
+				</p>
+				<input type="hidden" name="source" value={source} />
+			{:else}
+				<Field.Field>
+					<Field.Label for="submission-source">Source</Field.Label>
+					<NativeSelect.Root
+						id="submission-source"
+						name="source"
+						bind:value={source}
+						onchange={markDirty}
+					>
+						<NativeSelect.Option value="">No source</NativeSelect.Option>
+						{#each sourceOptions as option (option.value)}
+							<NativeSelect.Option value={option.value}>{option.label}</NativeSelect.Option>
+						{/each}
+					</NativeSelect.Root>
+					<Field.Description>Where this request came from.</Field.Description>
+				</Field.Field>
+			{/if}
 
 			<footer class="flex flex-wrap items-center justify-between gap-3 border-t border-border-subtle pt-4">
-				<Button type="button" variant="ghost" onclick={copyDeeplink} disabled={!hasContent}>
-					<CopyIcon />
-					{copied ? 'Copied' : 'Copy Draft Link'}
-				</Button>
-				<div class="flex items-center gap-3">
+				<div class="flex min-w-0 flex-wrap items-center gap-2">
+					<Button
+						type="button"
+						variant="ghost"
+						size="xs"
+						onclick={copyDeeplink}
+						disabled={!hasContent}
+					>
+						<CopyIcon />
+						{copied ? 'Copied' : 'Copy Draft Link'}
+					</Button>
+					<p class="min-h-4 min-w-0 text-caption" aria-live="polite">
+						{#if copyMessage}
+							<span
+								class="status"
+								class:status-error={copyFailed}
+								class:status-success={!copyFailed}
+							>
+								{copyMessage}
+							</span>
+						{/if}
+					</p>
+				</div>
+				<div class="flex min-w-0 flex-wrap items-center justify-end gap-3">
 					<span class="text-caption text-fg-secondary" aria-hidden="true">
 						{isMac ? '⌘' : 'Ctrl'} Enter
 					</span>
@@ -477,14 +512,6 @@
 					</Button>
 				</div>
 			</footer>
-
-			<p class="min-h-4 text-caption" aria-live="polite">
-				{#if copyMessage}
-					<span class="status" class:status-error={copyFailed} class:status-success={!copyFailed}>
-						{copyMessage}
-					</span>
-				{/if}
-			</p>
 		</form>
 	{/if}
 </FocusedShell>

@@ -97,11 +97,11 @@ export function dayHeadline(date: string): string {
 }
 
 /**
- * Traffic-light tone for a capacity bar.
+ * Traffic-light tone for a capacity meter.
  *
  * A zero cap is empty until work exists, then over. Work above the cap is over;
- * from 80% of the cap upward is near. The 80% line leaves room for the 60%
- * allocation marker without every ordinary week reading as a warning.
+ * from 80% of the cap upward is near. The cap already includes allocation, so
+ * there is no separate allocation line to leave room for.
  */
 export function capacityTone(
 	committedMinutes: number,

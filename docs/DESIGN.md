@@ -95,40 +95,49 @@ controls and 2.75rem rows. Below 768px, controls and rows are at least 2.75rem.
 
 ## 6. Lists and tables
 
-- Table header 2.25rem on `surface-2`, 0.875/600, left-aligned.
-- Rows 2.25rem, zebra `surface`, hover `surface-2`, 1px rule below the header
-  only. No row borders.
+- The issue stream is a two-line list: fixed reference slot, title, then one
+  metadata line (status, priority, size, updated, assignee, milestone/labels).
+  It has no column header and no zebra fill; 1px `border-subtle` separators.
+- Comparison tables keep a 2.25rem header on `surface-2`, 0.875/600, with
+  zebra rows and a 1px rule below the header only.
 - Selected rows use the 2px primary leading bar and keep 400 weight.
 - Lists (Attention, Notifications, Activity) use 1px rules and no zebra.
 - Sort state is an icon plus a label change, never colour alone.
 - Row actions appear on hover/focus and are always in a menu.
 - Virtualize lists above roughly 50 rows; keep the header outside the scroller.
+- At enlarged text the list keeps a usable viewport minimum and the surrounding
+  page scrolls instead of collapsing the list to zero height.
 
 ## 7. Issue page
 
-- Title 1.5rem/600; ref mono + GitHub link; status/priority/assignee line. Priority renders as P1–P3 with an accessible name.
-- Properties are label–value rows under a top rule. Values are buttons that
-  open the existing pickers and render as plain text at rest.
+- Title 1.5rem/600; ref mono + GitHub/Copy utilities; one compact triage strip
+  near the title for status, priority, assignee, and milestone. Each value
+  appears once. Priority renders as P1–P3 with an accessible name.
+- An active blocker sits immediately below triage. Secondary properties
+  (severity, size, reporter, labels, watching, epic action, time) live in a
+  native Details disclosure.
 - Description and comments use 1rem/1.6 prose, max 72ch, with the shared
-  Markdown styles.
+  Markdown styles; discussion follows the description.
 - Activity is a ruled list, not chat bubbles. Internal work notes use
   `surface` and a lock icon + “Internal”; no reporter tint.
-- Work notes and attachments sit inline after Activity. The composer is at the
-  end of the pane with Comment/Internal note, attachment, primary submit, and
-  a ⌘ Enter hint.
+- Work notes and attachments sit inline after Activity. The composer is a
+  one-line prompt at rest and expands on interaction with Comment/Internal
+  note, attachment, primary submit, and a ⌘ Enter hint. Drafts survive collapse.
 - Read-only viewers see text, not a wall of disabled controls.
 
 ## 8. Board, matrix, and plan
 
-- Board lanes are scrollable containers with 1px `border-subtle`, surface
-  headers, WIP counts, and icon+text over-cap warnings. Cards are canvas with
-  1px borders, no shadow. Drag, keyboard move, and a menu-based move are all
-  supported.
+- Board columns are established by quiet headings, counts, alignment, and a
+  subtle separator — not full-height bordered/rounded lane containers. Individual
+  cards keep a 1px `border-subtle`; WIP counts and over-cap warnings remain.
+  Drag, keyboard move, and a menu-based move are all supported.
 - Matrix is a real table; the rating guide is a dialog. Cells show a priority
   token + name and tabular count, not colour alone.
-- Plan lanes are ruled sections, not cards. Capacity bars use `surface-2` track
-  and `primary` fill; over-cap adds an error icon + text. Day plans use full
-  ALPEN words, hour rules, and a 2px primary leading edge on blocks.
+- Plan lanes are ruled sections, not cards. Capacity is stated explicitly as
+  scheduled hours over the cap (which already includes allocation and window
+  length); bars use the same denominator, with no unexplained marker. Over-cap
+  adds an error icon + text. Day plans use full ALPEN words, hour rules, and a
+  2px primary leading edge on blocks.
 
 ## 9. Focused flows
 

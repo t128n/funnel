@@ -39,7 +39,15 @@
 	// active filters. Selecting a specific person replaces the scope.
 	const ME = 'me';
 	const scopedAssignees = $derived(filter.assignees.filter((value) => value !== ME));
-	const count = $derived(activeFilterCount({ ...filter, assignees: scopedAssignees }));
+	const count = $derived(
+		activeFilterCount({
+			...filter,
+			// State lives in the page-header scope switch, not this panel, unless
+			// the panel explicitly owns it (Matrix).
+			states: showState ? filter.states : [],
+			assignees: scopedAssignees
+		})
+	);
 
 	const repoOptions = $derived(
 		options.repos.map((repo) => ({ value: repo.slug, label: repo.slug }))

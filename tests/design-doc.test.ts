@@ -18,7 +18,7 @@ describe("DESIGN.md", () => {
   test("documents the shell and density", () => {
     expect(doc).toContain("3rem dark app bar");
     expect(doc).toContain("15rem");
-    expect(doc).toContain("Compact");
+    expect(doc).toContain("Default");
     expect(doc).toContain("2px primary leading bar");
   });
 

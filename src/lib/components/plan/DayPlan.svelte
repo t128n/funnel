@@ -157,6 +157,13 @@
 			? `${block.org}/${block.name}#${block.issueNumber}`
 			: 'Buffer';
 	}
+
+	function sizeLabel(size: string): string {
+		if (size === 'sm') return 'S';
+		if (size === 'md') return 'M';
+		if (size === 'lg') return 'L';
+		return size.toUpperCase();
+	}
 </script>
 
 <section class="flex flex-col gap-4" data-testid="day-plan" data-day={view.date}>
@@ -165,7 +172,7 @@
 			<h2 class="text-heading-sm font-semibold text-fg">{view.label}</h2>
 			<p class="text-caption text-fg-secondary tabular-nums">
 				{formatMinutes(view.availableMinutes)} available · {formatMinutes(view.plannedMinutes)} planned ·
-				{formatMinutes(view.bufferMinutes)} buffer reserved
+				{formatMinutes(view.bufferMinutes)} buffer target
 			</p>
 		</div>
 
@@ -205,7 +212,10 @@
 		>
 			<div data-alpen="A" class="flex min-w-0 flex-col gap-0.5">
 				<dt class="text-caption text-fg-secondary">Tasks</dt>
-				<dd class="m-0 text-body text-fg tabular-nums">{view.candidates.length} candidates</dd>
+				<dd class="m-0 text-body text-fg tabular-nums">
+					{view.candidates.length}
+					{view.candidates.length === 1 ? 'candidate' : 'candidates'}
+				</dd>
 			</div>
 			<div data-alpen="L" class="flex min-w-0 flex-col gap-0.5">
 				<dt class="text-caption text-fg-secondary">Planned</dt>
@@ -294,14 +304,14 @@
 							<div class="mt-0.5 flex items-center gap-1">
 								<input
 									type="time"
-									class="mono h-(--size-timeline-block) rounded-sm border border-border-strong bg-canvas px-1 text-caption"
+									class="mono h-(--size-control-sm) rounded-sm border border-border-strong bg-canvas px-1 text-caption"
 									value={formatClock(block.startMinute)}
 									aria-label={`Start time for ${blockTitle(block)}`}
 									onchange={(event) => editStart(block, event.currentTarget.value)}
 								/>
 								<button
 									type="button"
-									class="ms-auto text-caption text-fg-secondary hover:text-fg"
+									class="ms-auto inline-flex h-(--size-control-sm) items-center rounded-sm px-1 text-caption text-fg-secondary hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
 									onclick={() => removeBlock(block.id)}
 								>
 									Remove
@@ -336,9 +346,14 @@
 									{#if candidate.priority}
 										<span>{candidate.priority}</span>
 									{/if}
-									<span class="tabular-nums">{formatMinutes(candidate.minutes)}</span>
 								</p>
 							</div>
+							<span class="w-6 shrink-0 text-end text-caption text-fg-secondary">
+								<span class="sr-only">Size </span>{sizeLabel(candidate.size)}
+							</span>
+							<span class="w-12 shrink-0 text-end text-caption text-fg-secondary tabular-nums">
+								<span class="sr-only">Estimate </span>{formatMinutes(candidate.minutes)}
+							</span>
 							{#if mayWrite}
 								<Button
 									variant="outline"

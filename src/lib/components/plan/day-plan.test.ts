@@ -51,8 +51,9 @@ describe('plan surfaces', () => {
 		for (const file of [dayPlan, lanes, page]) {
 			expect(file).not.toContain('var(--surface-');
 		}
-		// Lanes are ruled sections with a surface-2 header, not bordered cards.
-		expect(lanes).toContain('bg-surface-2');
+		// Lanes are ruled sections with quiet headings, not filled header bars or cards.
+		expect(lanes).not.toContain('bg-surface-2');
+		expect(lanes).toContain('border-b border-border-subtle');
 		expect(lanes).not.toContain('bug-table-head');
 		// Blocks get a 2px primary leading edge and 1px structural rules.
 		expect(dayPlan).toContain('border-border-subtle');
