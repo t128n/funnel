@@ -27,7 +27,7 @@
 
 <div
 	class={cn(
-		'group/row flex min-h-(--size-row-compact) cursor-pointer select-none items-center gap-3 border-b border-border-subtle px-3 text-body last:border-b-0',
+		'group/row flex min-h-(--size-row-compact) cursor-pointer select-none items-center gap-3 border-b border-border-subtle px-[var(--layout-page-padding)] text-body last:border-b-0',
 		'hover:bg-surface-2 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ring',
 		selected && 'is-selected-row'
 	)}

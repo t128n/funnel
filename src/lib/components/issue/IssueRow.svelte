@@ -198,7 +198,7 @@
 		min-height: var(--size-row-comfortable);
 		column-gap: var(--space-3);
 		row-gap: var(--space-1);
-		padding: var(--space-1) var(--space-3);
+		padding: var(--space-1) var(--layout-page-padding);
 	}
 
 	.issue-row > .issue-ref {

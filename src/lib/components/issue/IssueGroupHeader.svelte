@@ -15,16 +15,16 @@
 
 <button
 	type="button"
-	class="issue-group-header flex h-(--size-row-compact) w-full items-center gap-1.5 border-b border-border-subtle bg-canvas px-3 text-left text-caption font-semibold text-fg-secondary"
+	class="issue-group-header flex h-(--size-row-compact) w-full items-center gap-1.5 border-b border-border-subtle bg-canvas px-[var(--layout-page-padding)] text-left text-caption font-semibold text-fg-secondary"
 	aria-expanded={!collapsed}
 	onclick={ontoggle}
 >
-	<ChevronRightIcon
-		class={cn('size-3.5 shrink-0 transition-transform', !collapsed && 'rotate-90')}
-		aria-hidden="true"
-	/>
 	<span class="truncate">{label}</span>
 	<span class="tabular-nums text-fg-muted">{count}</span>
+	<ChevronRightIcon
+		class={cn('ms-auto size-3.5 shrink-0 transition-transform', !collapsed && 'rotate-90')}
+		aria-hidden="true"
+	/>
 </button>
 
 <style>
