@@ -143,6 +143,14 @@
   --layout-board-lane: 18rem;
   --layout-timeline-hour: 3.5rem;
   --size-timeline-block: 1.5rem;
+  --layout-timeline-min: 44rem;
+  --layout-timeline-label: 18rem;
+  --layout-timeline-chart-min: 36rem;
+  --layout-timeline-header: 2rem;
+  --layout-timeline-row: var(--size-row-default);
+  --size-timeline-bar: 0.5rem;
+  --size-timeline-marker: 0.75rem;
+  --size-timeline-tick: 0.125rem;
   --size-capacity-bar: 0.25rem;
 
   /* Motion */
@@ -216,5 +224,9 @@
     --size-control-comfortable: var(--size-control-lg);
     --size-row-compact: var(--size-row-default);
     --size-row-default: var(--size-row-comfortable);
+    --layout-timeline-label: 11rem;
+    --layout-timeline-min: 31rem;
+    --layout-timeline-chart-min: 20rem;
+    --layout-timeline-row: 4.5rem;
   }
 }

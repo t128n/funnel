@@ -23,6 +23,7 @@ This index is the entry point to Funnel's documentation, which follows the four 
 | Configure the App, repositories, projects, people, or sync | [Configure Funnel](#configure) |
 | Work an issue queue day to day | [Use the cockpit](#use) |
 | Plan a week or cycle | [Plan a week or cycle](how-to/use/plan-work.md) |
+| Track milestones and see whether they will land on their due date | [Use milestones](how-to/use/milestones.md), [read the timeline](how-to/use/milestones.md#read-the-timeline) |
 | Plan a day of focused work and export it to Outlook | [Plan your day](how-to/plan/plan-your-day.md) |
 | Measure actual time, record a delay, or group issues into an epic | [Track time and delays](how-to/use/track-time-and-delays.md), [manage epics](how-to/use/epics.md) |
 | Call the intake API or hook up a Windows hotkey | [Integrate](#integrate) |
@@ -79,6 +80,7 @@ Learning-oriented, with one path and expected results.
 - [Use the board](how-to/use/board.md) — drag cards, switch to the Backlog list, and use the Done lane.
 - [Use the matrix](how-to/use/matrix.md) — read the impact × urgency grid, find unassessed work, and rate both axes.
 - [Use milestones](how-to/use/milestones.md) — browse repo-scoped milestones, filter and group by them, and set or create one from an issue.
+- [Read the milestone timeline](how-to/use/milestones.md#read-the-timeline) — project open milestones as an Apache ECharts Gantt from plan weeks and observed status changes.
 - [Work notes and attachments](how-to/use/work-notes-and-attachments.md) — keep internal notes, publish them, and manage the file dropbox.
 - [Keyboard shortcuts](how-to/use/keyboard.md) — the global and board bindings, plus arrow-key navigation.
 

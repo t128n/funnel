@@ -2,6 +2,7 @@
 	import { page } from "$app/state";
 	import BellIcon from "@lucide/svelte/icons/bell";
 	import CalendarRangeIcon from "@lucide/svelte/icons/calendar-range";
+	import ChartGanttIcon from "@lucide/svelte/icons/chart-gantt";
 	import CircleDotIcon from "@lucide/svelte/icons/circle-dot";
 	import FlagIcon from "@lucide/svelte/icons/flag";
 	import InboxIcon from "@lucide/svelte/icons/inbox";
@@ -57,7 +58,8 @@
 		{ href: "/matrix", label: "Matrix", active: path.startsWith("/matrix"), icon: Grid2x2Icon },
 		{ href: "/plan", label: "Plan", active: path.startsWith("/plan"), icon: CalendarRangeIcon },
 		{ href: "/epics", label: "Epics", active: path.startsWith("/epics"), icon: LayersIcon },
-		{ href: "/milestones", label: "Milestones", active: path.startsWith("/milestones"), icon: FlagIcon }
+		{ href: "/milestones", label: "Milestones", active: path.startsWith("/milestones"), icon: FlagIcon },
+		{ href: "/timeline", label: "Timeline", active: path.startsWith("/timeline"), icon: ChartGanttIcon }
 	]);
 
 	const settingsActive = $derived(path.startsWith("/settings"));

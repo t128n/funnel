@@ -40,6 +40,18 @@ The event log starts at deployment (a migration baseline) or at first observatio
 
 The event log also keeps the raw transitions, not just totals. That makes it possible to change the arithmetic later — for example, to exclude a status or split review time — without losing the history.
 
+## The timeline is a projection
+
+The `/timeline` view answers one question — will this milestone land on its due date? — without adding a second schedule to maintain. It stores nothing, and there are no per-issue start or end dates to keep up to date. A bar is computed on read from three facts Funnel already holds: the Monday week an issue was planned into, the first instant the event log observed it in `in-progress` or `in-review`, and the milestone's mirrored due date. The earlier of the first two is the start; the due date is the end. Progress is the same closed/total count the milestone list shows.
+
+The obvious alternative is a per-issue `start_on` and `target_on` pair, or a separate timeline entity with its own dates. Either would be a second schedule: another place where someone has to keep an estimate aligned with the plan and the forge, and a number that goes stale as soon as an issue is rescheduled or its status moves. Deriving the axis means the chart cannot disagree with the plan or the event log. It can only be as current as the mirror, which is the same guarantee every other page gives.
+
+The cost is coarseness. A planned issue starts at its Monday, not at an hour, and an issue that was never planned and has never moved has no start at all. That is deliberate. Inventing a start from the last plan week, the issue's creation date, or today would make the chart look more certain than the underlying data.
+
+The same rule governs absent dates. A milestone with no due date has no end to draw, so it is left out of the Gantt and listed in a `No due date` table instead of being given an invented end. A milestone whose issues have no plan week and no observed transition gets a due-date tick and a `No start` label instead of a bar spanning an imaginary duration. A plan week after the due date is shown as `After due`, not clamped to fit. Showing the gap is more useful than hiding it behind a plausible-looking bar.
+
+The view is read-only for the same reason. There is no drag-to-reschedule and no date picker because the dates it draws are not its own. Moving a bar would either write a per-issue date that does not exist or silently desynchronise the plan. To change the picture, change the inputs: plan the issue, move it through the workflow, or correct the milestone on GitHub. The Gantt is rendered with Apache ECharts; its HTML milestone column is the accessible list, and the chart and the list share the same row heights. The full contract is in the [milestone timeline plan](../plans/2026-11-02-milestone-timeline.md); the task is [Use milestones](../how-to/use/milestones.md#read-the-timeline).
+
 ## Delays are intervals with reasons
 
 A delay is not a status. It is an interval with a reason, an optional note and a source. Keeping it separate from the status vocabulary means an issue can be in progress and delayed at the same time, which is what “blocked but still being worked around” actually looks like.
@@ -74,4 +86,6 @@ The costs are the ones the model accepts elsewhere: the mirror is eventually con
 - [Plan a week or cycle](../how-to/use/plan-work.md) — the task.
 - [Track time and delays](../how-to/use/track-time-and-delays.md) — the delay rules.
 - [Manage epics](../how-to/use/epics.md) — the child-list workflow.
+- [Use milestones](../how-to/use/milestones.md#read-the-timeline) — reading the Gantt timeline.
+- [Milestone timeline plan](../plans/2026-11-02-milestone-timeline.md) — the projection contract.
 - [The workflow model](./workflow-model.md) — labels, priority and the board.
