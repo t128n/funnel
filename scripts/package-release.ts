@@ -121,8 +121,8 @@ Guided setup (recommended):
 
 The wizard creates .env from .env.example, lets you choose the port, data
 directory and optional public URL, then installs the Windows service or starts
-a portable copy. Service installation needs the Restart as administrator button.
-On Server Core, use install-service.ps1 instead.
+a portable copy. Service installation needs administrator rights; use the
+Restart as administrator button. On Server Core, use install-service.ps1 instead.
 
 Manual quick start (PowerShell):
 
@@ -139,8 +139,9 @@ Install as a Windows service (elevated PowerShell):
 
   powershell -ExecutionPolicy Bypass -File .\\install-service.ps1
 
-The service installer copies funnel.exe into C:\\ProgramData\\Funnel, writes a
-starter .env with a generated FUNNEL_SECRET, and registers the WinSW service.
+The service installer copies funnel.exe into C:\\ProgramData\\Funnel, creates
+.env from .env.example with a generated FUNNEL_SECRET, and registers the WinSW
+service.
 Remove it with .\\uninstall-service.ps1 (run elevated).
 
 Optional intake hotkey helper (per user, no elevation):
