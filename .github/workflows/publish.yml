@@ -238,8 +238,8 @@ jobs:
           retention-days: 7
 
   publish:
-    name: Publish pre-release
-    needs: [validate, build]
+    name: Publish release
+    needs: [validate, verify, build]
     runs-on: ubuntu-latest
     permissions:
       contents: write
