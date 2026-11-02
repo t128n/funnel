@@ -2,18 +2,13 @@
 	import { Button } from '#lib/components/ui/button';
 	import { describeError, safeErrorMessage } from '#lib/errors';
 	import { pageTitle } from '#lib/seo';
-	import FunnelIcon from '@lucide/svelte/icons/funnel';
 	import RotateCwIcon from '@lucide/svelte/icons/rotate-cw';
 
 	/**
 	 * Full-page error surface, shared by the root `+error.svelte`. Full-page is
 	 * deliberate: nested `+error.svelte` files can't preserve the cockpit shell
 	 * (the shell's `data` is unavailable when its subtree fails), so one
-	 * consistent, branded page is used for every 4xx/5xx.
-	 *
-	 * The raw message is only shown for client errors; 5xx is replaced with
-	 * generic copy by {@link safeErrorMessage}. Unexpected errors carry a
-	 * correlation id the user can quote.
+	 * consistent focused surface is used for every 4xx/5xx.
 	 */
 	interface Props {
 		status: number;
@@ -37,40 +32,34 @@
 </svelte:head>
 
 <main
-	class="bg-background flex min-h-svh flex-col items-center justify-center p-6"
+	class="flex min-h-svh flex-col items-center justify-center bg-canvas px-[var(--layout-page-padding)] py-12"
 	aria-labelledby="error-heading"
 >
-	<div class="flex w-full max-w-md flex-col items-center gap-7 text-center">
-		<a
-			href="/"
-			class="text-muted-foreground hover:text-foreground focus-visible:ring-ring/50 inline-flex items-center gap-2 rounded-md text-sm font-medium outline-none focus-visible:ring-2"
-		>
-			<FunnelIcon class="size-4" />
-			Funnel
-		</a>
+	<div class="flex w-full max-w-[var(--layout-form-max)] flex-col gap-6">
+		<a href="/" class="text-body font-semibold text-fg" translate="no">funnel</a>
 
-		<div class="flex flex-col items-center gap-3">
-			<span class="mono text-muted-foreground/40 text-6xl leading-none font-extralight tracking-tight">
-				{status}
-			</span>
-			<h1 id="error-heading" class="text-lg font-medium">{copy.title}</h1>
-			<p class="text-muted-foreground max-w-sm text-sm leading-relaxed">{detail}</p>
+		<div class="flex flex-col gap-2">
+			<span class="mono text-caption text-fg-muted">{status}</span>
+			<h1 id="error-heading" class="text-heading-md font-semibold leading-heading-md text-fg">
+				{copy.title}
+			</h1>
+			<p class="max-w-[var(--layout-measure)] text-body leading-body text-fg-secondary">
+				{detail}
+			</p>
 		</div>
 
-		<div class="flex flex-wrap items-center justify-center gap-2">
+		<div class="flex flex-wrap items-center gap-2">
 			<Button onclick={reload}>
 				<RotateCwIcon />
-				Try again
+				Try Again
 			</Button>
-			<Button variant="outline" href={signIn ? '/login' : '/inbox'}>
-				{signIn ? 'Sign in' : 'Back to cockpit'}
+			<Button variant="outline" href={signIn ? '/login' : '/issues'}>
+				{signIn ? 'Sign In' : 'Back to Issues'}
 			</Button>
 		</div>
 
 		{#if requestId}
-			<p class="mono text-muted-foreground/60 text-[11px]">
-				Reference: {requestId}
-			</p>
+			<p class="mono text-caption text-fg-muted">Reference: {requestId}</p>
 		{/if}
 	</div>
 </main>
