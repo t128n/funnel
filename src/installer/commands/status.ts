@@ -23,6 +23,7 @@ export async function runStatus(argv: string[] = []): Promise<void> {
   } catch (error) {
     if (args.json) {
       printJson({ ok: false, error: error instanceof Error ? error.message : String(error) });
+      process.exitCode = 1;
       return;
     }
     throw error;
@@ -51,6 +52,7 @@ export async function runStatus(argv: string[] = []): Promise<void> {
 
   if (args.json) {
     printJson(report);
+    if (!report.ok) process.exitCode = 1;
     return;
   }
 
@@ -84,6 +86,7 @@ export async function runStatus(argv: string[] = []): Promise<void> {
       `URL:      ${report.url}`,
     ].join("\n"),
   );
+  if (!report.ok) process.exitCode = 1;
 }
 
 export { HELP as STATUS_HELP };
