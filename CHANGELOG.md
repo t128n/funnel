@@ -1,5 +1,22 @@
 # funnel
 
+## 0.1.0
+
+### Minor Changes
+
+- 000be08: Migrate the entire interface from the custom Tailwind/shadcn-svelte design system to Bootstrap 5, Sveltestrap, and Bootstrap Icons. All routes keep their workflows and data contracts; the UI shell, forms, tables, dialogs, menus, and icons now use the established library components.
+- 20a9164: Add the cross-platform `funnel setup` installer and lifecycle commands (`status`, `logs`, `uninstall`, `doctor`, `upgrade`) with systemd, launchd, and WinSW service support, configurable paths, automatic elevation, configurable data/log locations, and a Clack-based interactive UI.
+- ed0839a: Redesign the Matrix view into an assessment and priority workspace: a live
+  needs-assessment summary with an inline review queue, a selectable 3×3
+  impact × urgency grid that shows only classified work, and a readable issue
+  list for the selected cell.
+
+### Patch Changes
+
+- 1b6e289: Show the size/estimate control in the issue inspector's triage strip so unestimated issues can be sized without opening the collapsed Details section.
+- bb68f85: Keep the values in settings fields after saving. The enhanced form no longer resets itself on success, which used to blank client-rendered inputs even though the changes had been saved.
+- b18288e: Fix the Plan page's Schedule Issue dialog overflowing horizontally. The dialog now uses the 40rem wide dialog size and truncates long issue titles instead of stretching its content past the dialog edge.
+
 ## 0.0.6
 
 ### Patch Changes
