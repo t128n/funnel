@@ -25,7 +25,7 @@
 >
 	<h2 id={headingId} class="h5 {danger ? 'text-danger' : ''}">{title}</h2>
 	{#if description}
-		<p class="mt-1 mb-0 form-measure text-body-secondary">{description}</p>
+		<p class="mt-1 mb-0 text-body-secondary">{description}</p>
 	{/if}
 	<div class="mt-3 d-flex min-w-0 flex-column gap-4">
 		{@render children()}

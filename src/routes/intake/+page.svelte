@@ -339,7 +339,7 @@
 	{:else}
 		<header>
 			<h1 class="h4 mb-1">Submit an Issue</h1>
-			<p class="measure text-body-secondary mb-0">
+			<p class="text-body-secondary mb-0">
 				Your submission goes to the intake queue for triage. Nothing is created on GitHub
 				until it is accepted.
 			</p>

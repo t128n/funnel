@@ -255,8 +255,8 @@
 	}
 
 	.attention-controls :global(.attention-action) {
-		width: var(--funnel-control-sm);
-		height: var(--funnel-control-sm);
+		width: 1.75rem;
+		height: 1.75rem;
 		border-radius: var(--bs-border-radius-sm);
 	}
 

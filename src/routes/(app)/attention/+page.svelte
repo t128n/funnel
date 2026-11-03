@@ -113,15 +113,15 @@
 	description="Blocked issues grouped by re-check date, including those without one."
 />
 
-<div class="d-flex min-h-0 min-w-0 flex-grow-1 flex-column bg-body">
+<main class="container-xl py-4">
 	<PageHeader title="Attention" count={countLabel} />
 
 	<Toolbar>
 		<ViewSegment />
 	</Toolbar>
 
-	<div class="min-h-0 flex-grow-1 overflow-y-auto">
-		{#if total === 0}
+	{#if total === 0}
+		<div class="border rounded bg-body-tertiary">
 			<EmptyState
 				title={mine ? 'No blocked issues assigned to you.' : 'No blocked issues need attention.'}
 			>
@@ -133,37 +133,35 @@
 					{/if}
 				{/snippet}
 			</EmptyState>
-		{:else}
-			{#each groups as group (group.key)}
-				{#if group.items.length > 0}
-					<section aria-labelledby={`attention-${group.key}`}>
-						<div
-							class="sticky-top d-flex align-items-center gap-2 border-bottom bg-body px-3 py-1"
+		</div>
+	{:else}
+		{#each groups as group (group.key)}
+			{#if group.items.length > 0}
+				<section aria-labelledby={`attention-${group.key}`} class="mb-4">
+					<div class="d-flex align-items-center gap-2 border-bottom pb-1 mb-2">
+						<h2
+							id={`attention-${group.key}`}
+							class="small text-body-secondary mb-0"
 						>
-							<h2
-								id={`attention-${group.key}`}
-								class="small text-body-secondary mb-0"
-							>
-								{group.label}
-							</h2>
-							<span class="small text-body-tertiary tabular">{group.items.length}</span>
-						</div>
-						<div role="list">
-							{#each group.items as item (`${item.issue.repoId}:${item.issue.number}`)}
-								<AttentionRow
-									{item}
-									{today}
-									repoShortcodes={data.repoShortcodes}
-									viewer={data.viewerGithub}
-								/>
-							{/each}
-						</div>
-					</section>
-				{/if}
-			{/each}
-		{/if}
-	</div>
-</div>
+							{group.label}
+						</h2>
+						<span class="small text-body-tertiary tabular">{group.items.length}</span>
+					</div>
+					<div role="list" class="border rounded">
+						{#each group.items as item (`${item.issue.repoId}:${item.issue.number}`)}
+							<AttentionRow
+								{item}
+								{today}
+								repoShortcodes={data.repoShortcodes}
+								viewer={data.viewerGithub}
+							/>
+						{/each}
+					</div>
+				</section>
+			{/if}
+		{/each}
+	{/if}
+</main>
 
 <!-- One structured dialog set for the page, shared by every row menu. -->
 <IssueActionDialog

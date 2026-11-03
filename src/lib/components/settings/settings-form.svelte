@@ -30,7 +30,7 @@
 	}
 </script>
 
-<div class="form-measure d-flex flex-column gap-4">
+<div class="d-flex flex-column gap-4">
 	{#if form?.message}
 		<div class="alert alert-danger mb-0" role="alert">
 			<p class="fw-semibold mb-1">Settings could not be saved</p>

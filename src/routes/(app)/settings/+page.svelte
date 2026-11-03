@@ -34,21 +34,21 @@
 
 <div class="d-flex w-100 flex-column gap-4">
 	<Section title="Profile">
-		<dl class="property-list">
-			<dt>Name</dt>
-			<dd class="text-truncate">{data.user.name}</dd>
+		<dl class="row mb-0">
+			<dt class="col-sm-3 text-body-secondary fw-normal mb-2">Name</dt>
+			<dd class="col-sm-9 text-truncate mb-2">{data.user.name}</dd>
 
-			<dt>Email</dt>
-			<dd class="min-w-0">
+			<dt class="col-sm-3 text-body-secondary fw-normal mb-2">Email</dt>
+			<dd class="col-sm-9 mb-2">
 				<a class="text-truncate" href={`mailto:${data.user.email}`}>{data.user.email}</a>
 			</dd>
 
-			<dt>Role</dt>
-			<dd>{roleLabel}</dd>
+			<dt class="col-sm-3 text-body-secondary fw-normal mb-2">Role</dt>
+			<dd class="col-sm-9 mb-2">{roleLabel}</dd>
 
 			{#if data.viewerGithub && githubProfile}
-				<dt>GitHub</dt>
-				<dd class="min-w-0">
+				<dt class="col-sm-3 text-body-secondary fw-normal mb-2">GitHub</dt>
+				<dd class="col-sm-9 mb-2">
 					<a
 						href={githubProfile}
 						target="_blank"

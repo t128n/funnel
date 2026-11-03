@@ -9,12 +9,13 @@
 	import type { LayoutProps } from './$types';
 
 	/**
-	 * Settings shell: a two-pane surface inside the app shell. The desktop nav
-	 * is a plain Bootstrap `nav-pills` column grouped Personal / Workspace /
-	 * System; below 992 px it becomes one labelled section switcher. The h1
-	 * comes from the active section. The server layout still enforces
-	 * admin-only sections for direct URLs, and the nav filters anything the
-	 * viewer cannot open.
+	 * Settings page and its local navigation. Composition A has no global
+	 * sidebar; the settings sections are a legitimate local page column inside
+	 * a normal `container-xl` page. Above `lg` the nav is a grouped
+	 * Bootstrap `nav-pills` column; below `lg` it becomes one labelled section
+	 * switcher above the content. The h1 comes from the active section. The
+	 * server layout still enforces admin-only sections for direct URLs, and the
+	 * nav filters anything the viewer cannot open.
 	 */
 	let { data, children }: LayoutProps = $props();
 
@@ -45,39 +46,12 @@
 
 <PageHead title={`${active.label} · Settings`} />
 
-<!-- The nav starts directly under the app bar; the title lives in the content
-     column so the surface column and canvas meet at one edge instead of a
-     full-width header band. -->
-<div class="d-flex flex-grow-1 min-h-0 min-w-0 overflow-hidden">
-	<nav
-		class="d-none d-lg-block flex-shrink-0 overflow-y-auto border-end bg-body-tertiary px-2 py-2"
-		style="width: var(--funnel-settings-nav-width)"
-		aria-label="Settings"
-	>
-		{#each groups as group (group.id)}
-			<div class="sidebar-heading">{group.label}</div>
-			<Nav vertical pills class="app-nav">
-				{#each group.sections as section (section.id)}
-					<NavItem>
-						<NavLink
-							href={section.href}
-							active={active.id === section.id}
-							aria-current={active.id === section.id ? 'page' : undefined}
-							class="text-truncate"
-						>
-							{section.label}
-						</NavLink>
-					</NavItem>
-				{/each}
-			</Nav>
-		{/each}
-	</nav>
+<main class="container-xl py-4">
+	<PageHeader title={active.label} description={active.description} />
 
-	<div class="min-h-0 min-w-0 flex-grow-1 overflow-y-auto">
-		<PageHeader title={active.label} description={active.description} />
-
-		<div class="px-3 pb-4">
-			<div class="d-lg-none mb-3 settings-measure">
+	<div class="row g-4">
+		<div class="col-lg-3">
+			<div class="d-lg-none mb-3">
 				<label class="form-label" for="settings-section">Section</label>
 				<Input type="select" id="settings-section" value={active.href} on:change={navigateTo}>
 					{#each groups as group (group.id)}
@@ -90,9 +64,31 @@
 				</Input>
 			</div>
 
-			<div class="settings-measure">
-				{@render children()}
-			</div>
+			<nav class="d-none d-lg-block" aria-label="Settings">
+				{#each groups as group, index (group.id)}
+					<div class="small fw-semibold text-body-secondary {index === 0 ? 'mb-1' : 'mt-3 mb-1'}">
+						{group.label}
+					</div>
+					<Nav vertical pills>
+						{#each group.sections as section (section.id)}
+							<NavItem>
+								<NavLink
+									href={section.href}
+									active={active.id === section.id}
+									aria-current={active.id === section.id ? 'page' : undefined}
+									class="text-truncate"
+								>
+									{section.label}
+								</NavLink>
+							</NavItem>
+						{/each}
+					</Nav>
+				{/each}
+			</nav>
+		</div>
+
+		<div class="col-lg-9">
+			{@render children()}
 		</div>
 	</div>
-</div>
+</main>

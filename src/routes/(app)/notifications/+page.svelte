@@ -180,7 +180,7 @@
 	description="Assignments, mentions, watched-issue changes, and new intake submissions."
 />
 
-<div class="d-flex min-h-0 min-w-0 flex-grow-1 flex-column bg-body">
+<main class="container-xl py-4">
 	<PageHeader
 		title="Notifications"
 		count={unreadCount > 0 ? `${unreadCount} unread` : undefined}
@@ -206,7 +206,7 @@
 
 	{#if data.nativeNotifications}
 		<div
-			class="d-flex flex-shrink-0 flex-wrap align-items-center gap-3 border-bottom bg-body-tertiary px-3 py-2"
+			class="d-flex flex-wrap align-items-center gap-3 border rounded bg-body-tertiary px-3 py-2 mb-3"
 		>
 			<i class="bi bi-bell fs-6 flex-shrink-0 text-body-secondary" aria-hidden="true"></i>
 			<p class="min-w-0 flex-grow-1 text-body-secondary mb-0">{nativeCopy}</p>
@@ -220,7 +220,7 @@
 		</div>
 	{:else}
 		<div
-			class="d-flex flex-shrink-0 align-items-center gap-3 border-bottom bg-body-tertiary px-3 py-2"
+			class="d-flex align-items-center gap-3 border rounded bg-body-tertiary px-3 py-2 mb-3"
 		>
 			<i class="bi bi-bell fs-6 flex-shrink-0 text-body-secondary" aria-hidden="true"></i>
 			<p class="text-body-secondary mb-0">
@@ -230,7 +230,7 @@
 	{/if}
 
 	{#if error}
-		<div class="border-bottom px-3 py-2">
+		<div class="mb-3">
 			<InlineStatus tone="error" message={error}>
 				{#snippet action()}
 					<Button color="link" size="sm" onclick={retry} disabled={busy !== null}>
@@ -241,8 +241,8 @@
 		</div>
 	{/if}
 
-	<div class="min-h-0 flex-grow-1 overflow-y-auto">
-		{#if data.items.length === 0}
+	{#if data.items.length === 0}
+		<div class="border rounded bg-body-tertiary">
 			<EmptyState
 				title="You're all caught up."
 				description="Assignments, mentions, status changes, and new intake submissions appear here."
@@ -251,116 +251,116 @@
 					<Button color="outline-secondary" size="sm" href="/issues">View issues</Button>
 				{/snippet}
 			</EmptyState>
-		{:else}
-			{#each groups as group (group.key)}
-				{#if group.items.length > 0}
-					<section aria-labelledby={`notifications-${group.key}`}>
-						<div
-							class="sticky-top d-flex align-items-center gap-2 border-bottom bg-body px-3 py-1"
+		</div>
+	{:else}
+		{#each groups as group (group.key)}
+			{#if group.items.length > 0}
+				<section aria-labelledby={`notifications-${group.key}`} class="mb-4">
+					<div
+						class="d-flex align-items-center gap-2 border-bottom pb-1 mb-2"
+					>
+						<h2
+							id={`notifications-${group.key}`}
+							class="small text-body-secondary mb-0"
 						>
-							<h2
-								id={`notifications-${group.key}`}
-								class="small text-body-secondary mb-0"
-							>
-								{group.label}
-							</h2>
-							<span class="small text-body-tertiary tabular">
-								{group.items.length}
-							</span>
-						</div>
-						<ul class="list-unstyled mb-0">
-							{#each group.items as item (item.id)}
-								{@const meta = KIND_META[item.kind]}
-								{@const isUnread = item.readAt === null}
-								<li class="d-flex align-items-start gap-3 border-bottom px-3 py-2">
-									<span
-										class="d-flex flex-shrink-0 justify-content-center pt-2"
-										style="width: 1rem"
-									>
-										{#if isUnread}
-											<span
-												class="unread-dot d-inline-block flex-shrink-0 rounded-circle bg-primary"
-												aria-hidden="true"
-											></span>
-											<span class="visually-hidden">Unread</span>
-										{/if}
-									</span>
+							{group.label}
+						</h2>
+						<span class="small text-body-tertiary tabular">
+							{group.items.length}
+						</span>
+					</div>
+					<ul class="list-unstyled border rounded mb-0">
+						{#each group.items as item (item.id)}
+							{@const meta = KIND_META[item.kind]}
+							{@const isUnread = item.readAt === null}
+							<li class="d-flex align-items-start gap-3 border-bottom px-3 py-2">
+								<span
+									class="d-flex flex-shrink-0 justify-content-center pt-2"
+									style="width: 1rem"
+								>
+									{#if isUnread}
+										<span
+											class="unread-dot d-inline-block flex-shrink-0 rounded-circle bg-primary"
+											aria-hidden="true"
+										></span>
+										<span class="visually-hidden">Unread</span>
+									{/if}
+								</span>
 
-									<div class="min-w-0 flex-grow-1">
-										<div class="d-flex min-w-0 align-items-baseline gap-2">
-											<a
-												href={item.url}
-												class="min-w-0 text-truncate {isUnread ? 'fw-semibold' : ''}"
-												onclick={(event) => void openItem(item, event)}
-											>
-												{item.title || meta.label}
-											</a>
-											<time
-												class="ms-auto flex-shrink-0 small text-body-secondary tabular"
-												datetime={new Date(item.createdAt).toISOString()}
-												title={absoluteTime(item.createdAt)}
-											>
-												{timeAgo(item.createdAt)}
-											</time>
-										</div>
-
-										<div
-											class="mt-1 d-flex min-w-0 flex-wrap align-items-center gap-1 small text-body-secondary"
+								<div class="min-w-0 flex-grow-1">
+									<div class="d-flex min-w-0 align-items-baseline gap-2">
+										<a
+											href={item.url}
+											class="min-w-0 text-truncate {isUnread ? 'fw-semibold' : ''}"
+											onclick={(event) => void openItem(item, event)}
 										>
-											<span class="d-inline-flex flex-shrink-0 align-items-center gap-1">
-												<i class="bi {meta.icon}" aria-hidden="true"></i>
-												{meta.label}
-											</span>
-											{#if item.actorLogin}
-												<span aria-hidden="true">·</span>
-												<span class="text-truncate" title={item.actorLogin}>
-													{item.actorLogin}
-												</span>
-											{/if}
-											<span aria-hidden="true">·</span>
-											<a
-												href={item.url}
-												class="min-w-0 text-truncate"
-												onclick={(event) => void openItem(item, event)}
-											>
-												{targetLabel(item.url)}
-											</a>
-										</div>
-
-										{#if item.body}
-											<p class="mt-1 small text-body-secondary mb-0">
-												{item.body}
-											</p>
-										{/if}
+											{item.title || meta.label}
+										</a>
+										<time
+											class="ms-auto flex-shrink-0 small text-body-secondary tabular"
+											datetime={new Date(item.createdAt).toISOString()}
+											title={absoluteTime(item.createdAt)}
+										>
+											{timeAgo(item.createdAt)}
+										</time>
 									</div>
 
-									{#if isUnread}
-										<Button
-											color="link"
-											size="sm"
-											class="flex-shrink-0 text-decoration-none"
-											disabled={busy !== null}
-											aria-label={`Mark ${item.title || meta.label} read`}
-											onclick={() => void markRead(item.id)}
+									<div
+										class="mt-1 d-flex min-w-0 flex-wrap align-items-center gap-1 small text-body-secondary"
+									>
+										<span class="d-inline-flex flex-shrink-0 align-items-center gap-1">
+											<i class="bi {meta.icon}" aria-hidden="true"></i>
+											{meta.label}
+										</span>
+										{#if item.actorLogin}
+											<span aria-hidden="true">·</span>
+											<span class="text-truncate" title={item.actorLogin}>
+												{item.actorLogin}
+											</span>
+										{/if}
+										<span aria-hidden="true">·</span>
+										<a
+											href={item.url}
+											class="min-w-0 text-truncate"
+											onclick={(event) => void openItem(item, event)}
 										>
-											{#if busy === item.id}
-												<span class="d-inline-flex align-items-center me-1">
-													<Spinner size={12} label="Marking read" />
-												</span>
-											{:else}
-												Mark read
-											{/if}
-										</Button>
+											{targetLabel(item.url)}
+										</a>
+									</div>
+
+									{#if item.body}
+										<p class="mt-1 small text-body-secondary mb-0">
+											{item.body}
+										</p>
 									{/if}
-								</li>
-							{/each}
-						</ul>
-					</section>
-				{/if}
-			{/each}
-		{/if}
-	</div>
-</div>
+								</div>
+
+								{#if isUnread}
+									<Button
+										color="link"
+										size="sm"
+										class="flex-shrink-0 text-decoration-none"
+										disabled={busy !== null}
+										aria-label={`Mark ${item.title || meta.label} read`}
+										onclick={() => void markRead(item.id)}
+									>
+										{#if busy === item.id}
+											<span class="d-inline-flex align-items-center me-1">
+												<Spinner size={12} label="Marking read" />
+											</span>
+										{:else}
+											Mark read
+										{/if}
+									</Button>
+								{/if}
+							</li>
+						{/each}
+					</ul>
+				</section>
+			{/if}
+		{/each}
+	{/if}
+</main>
 
 <style>
 	.unread-dot {
