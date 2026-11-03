@@ -1,6 +1,18 @@
 import { existsSync, readFileSync } from "node:fs";
 import { quotePowerShell } from "./platform/util";
 
+/** Last lines of a log file, for diagnostics. Returns undefined if unreadable. */
+export function readTail(path: string, lines = 20): string | undefined {
+  if (!existsSync(path)) return undefined;
+  try {
+    const content = readFileSync(path, "utf8").split(/\r?\n/);
+    const text = content.slice(-Math.max(1, lines)).join("\n").trim();
+    return text || undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 export async function tailFile(
   path: string,
   options: { follow: boolean; lines: number },

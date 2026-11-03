@@ -53,7 +53,13 @@ export function formatEnvValue(value: string | number | undefined): string {
 }
 
 export function readEnvValue(content: string, key: string): string | undefined {
-  const pattern = new RegExp(`^\\s*${escapeRegExp(key)}\\s*=\\s*(.*)$`, "m");
+  // Horizontal whitespace only: `\s` also matches newlines, which made an
+  // empty value such as `FUNNEL_URL=` capture the first line of the next
+  // comment block instead of "".
+  const pattern = new RegExp(
+    `^[\\t ]*${escapeRegExp(key)}[\\t ]*=[\\t ]*(.*)$`,
+    "m",
+  );
   const match = pattern.exec(content);
   if (!match) return undefined;
   let value = match[1].trim();
@@ -84,7 +90,9 @@ function escapeRegExp(value: string): string {
 }
 
 function setLine(lines: string[], key: string, value: string): void {
-  const pattern = new RegExp(`^\\s*#?\\s*${escapeRegExp(key)}\\s*=`);
+  const pattern = new RegExp(
+    `^[\\t ]*#?[\\t ]*${escapeRegExp(key)}[\\t ]*=`,
+  );
   for (let index = 0; index < lines.length; index += 1) {
     if (pattern.test(lines[index])) {
       lines[index] = `${key}=${formatEnvValue(value)}`;

@@ -13,8 +13,9 @@ import {
   writeEnvFile,
   writeManifest,
 } from "../config";
-import { copySelfToInstallDir } from "../files";
+import { copySelfToInstallDir, logFilePath } from "../files";
 import { checkReadiness, onboardingUrl, waitForHealth } from "../health";
+import { readTail } from "../tail";
 import {
   elevationHint,
   isElevated,
@@ -442,31 +443,58 @@ export async function runSetup(argv: string[] = []): Promise<void> {
   } else {
     // The existing file wins. Reflect its values in the manifest and the
     // service health check instead of advertising the flags that were ignored.
+    const requestedPort = config.port;
+    const requestedUrl = config.url;
     const existing = readFileSync(config.configFile, "utf8");
     const existingPort = Number(readEnvValue(existing, "PORT"));
     if (Number.isInteger(existingPort)) config.port = existingPort;
     config.host = readEnvValue(existing, "HOST") ?? config.host;
-    config.url = readEnvValue(existing, "FUNNEL_URL") ?? config.url;
+    const existingUrl = readEnvValue(existing, "FUNNEL_URL");
+    // An empty FUNNEL_URL means "use the request origin". Validate a non-empty
+    // value so a hand-edited config cannot send setup to a bogus URL.
+    try {
+      config.url = existingUrl ? normalizePublicUrl(existingUrl) : "";
+    } catch (errorValue) {
+      throw new UsageError(
+        `Invalid FUNNEL_URL in ${config.configFile}: ${
+          errorValue instanceof Error ? errorValue.message : String(errorValue)
+        }`,
+      );
+    }
     config.dataDir = readEnvValue(existing, "FUNNEL_DATA_DIR") ?? config.dataDir;
     config.logLevel = readEnvValue(existing, "LOG_LEVEL") ?? config.logLevel;
     validatePort(config.port);
     validateLogLevel(config.logLevel);
     if (!quiet) {
       step(`Keeping existing configuration: ${config.configFile}`);
+      if (requestedPort !== config.port) {
+        warn(
+          `The existing config listens on port ${config.port}; the port entered in this run (${requestedPort}) was not applied.`,
+        );
+      }
+      if (requestedUrl !== config.url) {
+        warn(
+          `The existing config sets FUNNEL_URL=${config.url || "(empty)"}; the URL entered in this run was not applied.`,
+        );
+      }
     }
   }
 
-  writeManifest(config.manifestPath, manifestFor(config));
-
+  // Stop the previous installation *before* writing the new manifest. The
+  // portable manager reads its PID from the manifest, so clearing the manifest
+  // first left the old process running and holding the port; the replacement
+  // then failed to bind and health checks could hit the stale process.
   if (existingManifest) {
     try {
       await createServiceManager(configFromManifest(existingManifest)).stop();
       if (!quiet) step("Stopped the previous installation before replacing it.");
     } catch {
       // The previous service may already be gone, or may use a different
-      // manager; the copy below still protects against a busy image.
+      // manager; replacing the files below is still safe.
     }
   }
+
+  writeManifest(config.manifestPath, manifestFor(config));
 
   copySelfToInstallDir(config);
 
@@ -476,8 +504,19 @@ export async function runSetup(argv: string[] = []): Promise<void> {
 
   const health = await waitForHealth(config.port);
   if (!health.ok) {
+    const tail =
+      config.mode === "portable"
+        ? [
+            readTail(logFilePath(config, "funnel-error"), 20),
+            readTail(logFilePath(config), 20),
+          ]
+            .filter((value): value is string => Boolean(value))
+            .join("\n")
+        : "";
     throw new Error(
-      `Funnel did not become healthy on port ${config.port}: ${health.detail ?? "unknown error"}`,
+      `Funnel did not become healthy on port ${config.port}: ${health.detail ?? "unknown error"}` +
+        (tail ? `\n\n${tail}` : "") +
+        `\n\nCheck "funnel logs" and "funnel doctor" for details.`,
     );
   }
   const ready = await checkReadiness(config.port);

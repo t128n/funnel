@@ -54,26 +54,105 @@ export function copySelfToInstallDir(config: FileConfig): string {
   if (config.platform !== "windows") {
     chmodSync(target, 0o755);
   }
+
+  // Images renamed by an interrupted setup or a previous uninstall are no
+  // longer mapped once the old process is gone.
+  sweepImages(config, ["running", "removed"]);
   return target;
 }
 
-export function removeBinary(config: FileConfig): void {
-  const target = binaryPath(config);
-  rmSync(target, { force: true });
+type ImageKind = "running" | "bak" | "failed" | "removed";
 
-  // `copySelfToInstallDir` may have renamed a running image; `upgrade` also
-  // keeps `.bak-*`/`.failed-*` files. Clean those up on uninstall.
-  const base = basename(target);
+function sweepImages(config: FileConfig, kinds: ImageKind[]): void {
+  const base = basename(binaryPath(config));
   if (!existsSync(config.installDir)) return;
   for (const entry of readdirSync(config.installDir)) {
-    if (
-      entry.startsWith(`${base}.running-`) ||
-      entry.startsWith(`${base}.bak-`) ||
-      entry.startsWith(`${base}.failed-`)
-    ) {
+    const matches = kinds.some((kind) =>
+      entry.startsWith(`${base}.${kind}-`),
+    );
+    if (!matches) continue;
+    try {
       rmSync(join(config.installDir, entry), { force: true });
+    } catch {
+      // Still mapped by a process that has not exited yet. The next
+      // setup/uninstall sweeps it again.
     }
   }
+}
+
+export interface RemoveBinaryResult {
+  /**
+   * Set when the image was still mapped by a process and had to be moved
+   * aside. The tombstone is deleted on the next run.
+   */
+  pending?: string;
+}
+
+function isLockedFileError(errorValue: unknown): boolean {
+  const code = (errorValue as NodeJS.ErrnoException)?.code;
+  if (
+    code === "EFAULT" ||
+    code === "EPERM" ||
+    code === "EBUSY" ||
+    code === "EACCES"
+  ) {
+    return true;
+  }
+  // Bun does not always attach `code` on Windows; the message still carries it.
+  return /EFAULT|EPERM|EBUSY|EACCES|being used by another process/i.test(
+    errorValue instanceof Error ? errorValue.message : String(errorValue),
+  );
+}
+
+/**
+ * Windows keeps an executable's image mapped for a moment after the process
+ * exits, and Bun surfaces the sharing violation as EFAULT. Retry briefly, then
+ * rename the file out of the canonical path (renaming a running image works
+ * on every supported platform) so a reinstall can proceed.
+ */
+function removeOrMoveAside(path: string): string | undefined {
+  let lastError: unknown;
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    try {
+      rmSync(path, { force: true });
+      return undefined;
+    } catch (errorValue) {
+      lastError = errorValue;
+      if (!isLockedFileError(errorValue)) throw errorValue;
+      if (attempt < 4) Bun.sleepSync(100 * 2 ** attempt);
+    }
+  }
+
+  const movedTo = `${path}.removed-${Date.now()}`;
+  try {
+    renameSync(path, movedTo);
+  } catch {
+    const detail =
+      lastError instanceof Error ? lastError.message : String(lastError);
+    throw new Error(
+      `Could not remove ${path} because it is still in use. Stop the Funnel process and try again. (${detail})`,
+    );
+  }
+  try {
+    rmSync(movedTo, { force: true });
+    return undefined;
+  } catch {
+    return movedTo;
+  }
+}
+
+export function removeBinary(config: FileConfig): RemoveBinaryResult {
+  const target = binaryPath(config);
+  let pending: string | undefined;
+  if (existsSync(target)) {
+    pending = removeOrMoveAside(target);
+  }
+
+  // `copySelfToInstallDir` may have renamed a running image; `upgrade` also
+  // keeps `.bak-*`/`.failed-*` files, and a locked binary is moved to
+  // `.removed-*` above. Clean all of them up on uninstall.
+  sweepImages(config, ["running", "bak", "failed", "removed"]);
+  return { pending };
 }
 
 export function binaryExists(config: FileConfig): boolean {
