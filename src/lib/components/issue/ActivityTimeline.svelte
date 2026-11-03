@@ -105,7 +105,7 @@
 			<a
 				id={`c${index + 1}`}
 				href={`#c${index + 1}`}
-				class="font-monospace link-primary text-decoration-none"
+				class="font-monospace text-body-tertiary text-decoration-none"
 				aria-label={`Comment ${commentNumber(index)}`}>{commentNumber(index)}</a
 			>
 			<span class="text-body fw-semibold">{author?.login ?? 'ghost'}</span>
