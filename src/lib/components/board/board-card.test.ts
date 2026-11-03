@@ -81,10 +81,10 @@ describe('board cards', () => {
 		expect(source).not.toContain('line-through');
 	});
 
-	test('interaction states: border-strong hover, leading bar, dimmed drag', () => {
+	test('interaction states: border-strong hover and dimmed drag', () => {
 		expect(source).toContain('.board-card:hover');
 		expect(source).toContain('border-color: var(--bs-secondary-color)');
-		expect(source).toContain('is-selected-row');
+		expect(source).not.toContain('is-selected-row');
 		expect(source).toContain('class:opacity-50={dragging}');
 	});
 

@@ -32,8 +32,6 @@
 		feed?: Feed<IssueListItem> | null;
 		/** Plain-array fallback for views that are not paginated. */
 		issues?: IssueListItem[];
-		/** The detail route's issue, highlighted in the feed. */
-		selected?: { repo: string; number: number } | null;
 		empty?: string;
 		/** True when the empty message describes a filtered result set. */
 		filtered?: boolean;
@@ -56,7 +54,6 @@
 	let {
 		feed = null,
 		issues = [],
-		selected = null,
 		empty = 'Nothing here.',
 		filtered = false,
 		onclear = null,
@@ -97,14 +94,6 @@
 
 	let scroller: HTMLDivElement | undefined = $state();
 	let handle: VirtualizerHandle | undefined = $state();
-
-	function isSelected(issue: IssueListItem): boolean {
-		return (
-			selected !== null &&
-			selected.number === issue.number &&
-			selected.repo === issue.repo
-		);
-	}
 
 	/** Fetch the next page once the window is within {@link END_THRESHOLD}. */
 	function maybeLoadMore(): void {
@@ -196,7 +185,6 @@
 						<IssueRow
 							issue={row.item}
 							{repoShortcodes}
-							selected={isSelected(row.item)}
 							groupedBy={groupBy}
 							{index}
 						/>

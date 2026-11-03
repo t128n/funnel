@@ -34,7 +34,6 @@
 	 */
 	interface Props {
 		issue: IssueListItem;
-		selected?: boolean;
 		/** `owner/name` → project key from instance settings. */
 		repoShortcodes?: Record<string, string>;
 		/** When grouped by status the section header carries it, so the row omits its status. */
@@ -45,7 +44,6 @@
 
 	let {
 		issue,
-		selected = false,
 		repoShortcodes = {},
 		groupedBy = null
 	}: Props = $props();
@@ -87,12 +85,9 @@
 </script>
 
 <div
-	class="issue-row {closed ? 'text-body-tertiary' : 'text-body'} {selected
-		? 'is-selected-row'
-		: ''}"
+	class="issue-row {closed ? 'text-body-tertiary' : 'text-body'}"
 	role="button"
 	tabindex={0}
-	aria-current={selected ? 'true' : undefined}
 	aria-label={`${ref}: ${title}`}
 	onclick={select}
 	onkeydown={(e) => {
@@ -202,12 +197,7 @@
 		outline-offset: -2px;
 	}
 
-	.issue-row.is-selected-row {
-		background: var(--bs-tertiary-bg);
-		box-shadow: inset 2px 0 0 0 var(--bs-primary);
-	}
-
-	.issue-ref-link:hover {
+		.issue-ref-link:hover {
 		text-decoration: underline !important;
 	}
 
@@ -282,7 +272,7 @@
 	}
 
 	@media (hover: hover) and (pointer: fine) {
-		.issue-row:not(.is-selected-row):hover {
+		.issue-row:hover {
 			background: var(--bs-tertiary-bg);
 		}
 	}

@@ -68,8 +68,6 @@
 		repoShortcodes: Record<string, string>;
 		/** Signed-in viewer, when their GitHub identity is mirrored. */
 		viewer?: UserRef | null;
-		/** The docked detail's issue; draws a 2px primary leading bar. */
-		selected?: boolean;
 		/** Roving tab index owned by the board. */
 		tabIndex?: number;
 		/** Dim the card while it is the source of an active drag. */
@@ -83,7 +81,6 @@
 		columnKey,
 		repoShortcodes,
 		viewer = null,
-		selected = false,
 		tabIndex = -1,
 		dragging = false,
 		readonly = false
@@ -156,7 +153,6 @@
 <article
 	class="board-card position-relative d-flex flex-column gap-1 rounded border bg-body px-2 py-2"
 	class:board-card--draggable={!readonly}
-	class:is-selected-row={selected}
 	class:opacity-50={dragging}
 	use:draggableCard={dragPayload}
 	role="button"
@@ -293,11 +289,6 @@
 
 	.board-card--draggable:active {
 		cursor: grabbing;
-	}
-
-	.board-card.is-selected-row {
-		background: var(--bs-tertiary-bg);
-		box-shadow: inset 2px 0 0 0 var(--bs-primary);
 	}
 
 	.board-card-meta {
