@@ -60,8 +60,9 @@ attachments, and a primary submit.
 
 The board keeps its kanban function with flat cards, 1px borders, a mono ref,
 and icon+text status. Dragging still works, and every drag has a keyboard and
-menu equivalent. The matrix is a real table; its rating guide is a dialog. Plan
-lanes are ruled sections with capacity bars and over-cap warnings, not cards.
+menu equivalent. The matrix is an interactive 3×3 selection grid with an
+assessment summary above it; its rating guide is a dialog. Plan lanes are ruled
+sections with capacity bars and over-cap warnings, not cards.
 
 ## Feedback and motion
 

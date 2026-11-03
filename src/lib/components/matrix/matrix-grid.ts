@@ -1,55 +1,61 @@
 /**
- * 4×4 matrix projection: turns the flat 16-cell {@link MatrixBoard} from the
- * query layer into a row-major grid keyed by the fixed axis order, attaching
- * the display metadata (`matrixCellMeta`) to every cell so the table renders
- * without re-deriving it.
+ * 3×3 matrix projection: turns the nine counted cells from the query layer
+ * into a row-major grid keyed by the fixed axis order, attaching the derived
+ * priority so the grid renders without re-deriving it.
  */
-import {
-  MATRIX_IMPACT_VALUES,
-  MATRIX_URGENCY_VALUES,
-  matrixCellMeta,
-  type MatrixCellMeta,
-} from "#lib/priority";
-import type {
-  IssueListItem,
-  MatrixBoard,
-  MatrixCell,
-} from "#lib/server/issues/types";
+import { matrixCellPriority, matrixCellValue } from "#lib/matrix";
+import { IMPACT_VALUES, URGENCY_VALUES, type Priority } from "#lib/priority";
+import type { MatrixBoard } from "#lib/server/issues/types";
 
 /** One projected cell, ready to render. */
 export interface MatrixGridCell {
-  impact: number | null;
-  urgency: number | null;
+  impact: number;
+  urgency: number;
   total: number;
-  issues: IssueListItem[];
-  meta: MatrixCellMeta;
+  priority: Priority;
+  name: string;
 }
 
-/** Stable key for a cell, unambiguous across `null` axes. */
-function cellKey(impact: number | null, urgency: number | null): string {
-  return `${impact}\u0000${urgency}`;
+/** One step of the grid's roving keyboard focus, or `null` for other keys. */
+export function moveMatrixCell(
+  impact: number,
+  urgency: number,
+  key: string,
+): { impact: number; urgency: number } | null {
+  switch (key) {
+    case "ArrowUp":
+      return { impact: Math.max(1, impact - 1), urgency };
+    case "ArrowDown":
+      return { impact: Math.min(3, impact + 1), urgency };
+    case "ArrowLeft":
+      return { impact, urgency: Math.max(1, urgency - 1) };
+    case "ArrowRight":
+      return { impact, urgency: Math.min(3, urgency + 1) };
+    default:
+      return null;
+  }
 }
 
 /**
- * Project the board onto the fixed 4×4 grid (impact rows × urgency columns).
- * Every one of the 16 cells is always present: a pair missing from
- * `board.cells` reads as `{ total: 0, issues: [] }`, so an empty board still
+ * Project the board onto the fixed 3×3 grid (impact rows × urgency columns).
+ * A pair missing from `board.cells` reads as zero, so an empty board still
  * lays out fully.
  */
 export function matrixGrid(board: MatrixBoard): MatrixGridCell[][] {
-  const byCell = new Map<string, MatrixCell>();
+  const totals = new Map<string, number>();
   for (const cell of board.cells) {
-    byCell.set(cellKey(cell.impact, cell.urgency), cell);
+    totals.set(matrixCellValue(cell.impact, cell.urgency), cell.total);
   }
-  return MATRIX_IMPACT_VALUES.map((impact) =>
-    MATRIX_URGENCY_VALUES.map((urgency) => {
-      const cell = byCell.get(cellKey(impact, urgency));
+
+  return IMPACT_VALUES.map((impact) =>
+    URGENCY_VALUES.map((urgency) => {
+      const priority = matrixCellPriority(impact, urgency);
       return {
         impact,
         urgency,
-        total: cell?.total ?? 0,
-        issues: cell?.issues ?? [],
-        meta: matrixCellMeta(impact, urgency),
+        total: totals.get(matrixCellValue(impact, urgency)) ?? 0,
+        priority: priority.priority,
+        name: priority.name,
       };
     }),
   );

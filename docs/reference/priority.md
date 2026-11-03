@@ -52,28 +52,29 @@ Read the row as impact and the column as urgency. Higher impact and urgency are 
 
 `P1` is the highest priority and `P3` the lowest, named High, Medium and Low. The matrix is monotonic: worsening either axis never improves priority.
 
-## The 4×4 matrix view
+## The matrix view
 
-The `/matrix` route renders a four-by-four grid over the same filtered issue stream as the Issues view. The rows are impact and the columns are urgency, each with the three assessed levels followed by a **Not assessed** step:
+The `/matrix` route renders a 3×3 grid of the nine classified combinations over the same filtered issue stream as the Issues view. The rows are impact and the columns are urgency:
 
 | Impact row / Urgency column | Levels |
 | :--- | :--- |
-| Impact (rows) | `1` Severe, `2` Moderate, `3` Minor, **Not assessed** |
-| Urgency (columns) | `1` High, `2` Mid, `3` Low, **Not assessed** |
+| Impact (rows) | `1` Severe, `2` Moderate, `3` Minor |
+| Urgency (columns) | `1` High, `2` Mid, `3` Low |
 
-A cell shows one of three outcomes depending on how many axes are assessed:
+Each cell shows the derived priority (`P1`, `P2`, or `P3`) and the scoped issue count; counts always come from SQL. The grid is a selection control: selecting a cell lists its issues on the right, and an empty cell still shows its classification and an empty state. Keyboard arrows move between cells; Enter or Space selects.
 
-- **Both axes assessed** — the derived token (`P1 · High`, `P2 · Medium`, `P3 · Low`), read straight from `DEFAULT_PRIORITY_MATRIX`.
-- **Both axes absent** — **No priority**.
-- **Exactly one axis present** — **Needs assessment**. The cell is never labelled `P3`.
+Above the matrix, the assessment summary separates the two states that the grid cannot represent:
 
-Each cell shows its total and up to four preview issues, ordered by priority rank then most recently updated. Counts always come from SQL, never from the previews, and the grid always renders all 16 cells. Previews link to `/matrix/{owner}/{repo}/{number}`, where the standard Inspector docks beside the grid. The page defaults to `state=open` and includes triaged and untriaged issues.
+- **Needs assessment** — issues missing an impact and/or urgency. **Review queue** opens a filtered list with inline rating controls.
+- **Rated issues** — issues with both axes assigned and therefore classified in a cell.
+
+The page defaults to `state=open`, includes triaged and untriaged issues, and applies search, **All/Mine**, and every filter dimension to the counts, the queue, and the selected cell together. On first load it selects the highest-priority populated cell (ties break by impact, then urgency, descending); after that, `?cell=<impact>-<urgency>` persists the user's choice.
 
 ### When an axis is unset
 
 Missing input is treated as “not yet assessed”, not as evidence of severity. The stored `mirror_thread.priority` cache keeps the data-layer rule: a pair with one axis unset derives to **`P3`**, and both axes absent derives to **no priority**. A triager can add the missing label to raise the result.
 
-The matrix view shows that distinction instead of hiding it. A partial pair — exactly one axis present — displays as **Needs assessment** and is never labelled `P3`; the stored priority cache still holds the `P3` fallback. The view only relabels how the pair is shown, never the cache.
+The matrix view keeps incomplete pairs out of the grid entirely. They appear in the assessment summary and the review queue until both axes exist; the stored priority cache still holds the `P3` fallback. The view never presents an unassessed pair as a classified cell.
 
 ## Where the inputs live
 

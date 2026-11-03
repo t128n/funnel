@@ -15,6 +15,8 @@ These images are captured from a seeded demo instance so the documentation can s
 | `inspector-blocked.png` | `/issues/acme/widgets/8` |
 | `timeline-light.png` | `/timeline` (light, with the `No due date` table) |
 | `timeline-dark.png` | `/timeline` (dark) |
+| `matrix-light.png` | `/matrix` (light, assessment summary and selected cell) |
+| `matrix-dark.png` | `/matrix` (dark) |
 
 ## How they are produced
 

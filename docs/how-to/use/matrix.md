@@ -1,43 +1,60 @@
 # Use the matrix
 
-This guide shows you how to read the impact × urgency matrix, find unassessed work, and use the **How to rate** guide to set both axes.
+This guide shows you how to read the impact × urgency matrix, find work that still needs a rating, and rate both axes.
 
 ## Open the matrix
 
 Select **Matrix** in the sidebar to open `/matrix`.
 
-- The grid has four rows (impact) and four columns (urgency). The rows are `1` Severe, `2` Moderate, `3` Minor, then **Not assessed**; the columns are `1` High, `2` Mid, `3` Low, then **Not assessed**. The order is fixed.
-- The page defaults to open issues and includes triaged and untriaged issues. It reuses the standard search, **All/Mine** scope and filter popover (repo, state, status, assignee, priority, size, label, milestone), so every dimension still applies.
+- The page header carries the scoped issue count, search, **All/Mine** scope, filters, and the **Rating Guide**.
+- The matrix has nine cells: impact rows **Severe**, **Moderate**, **Minor** crossed with urgency columns **High**, **Mid**, **Low**. The order is fixed.
+- The page defaults to open issues and includes triaged and untriaged issues. Every filter dimension still applies.
 
-## Read a cell
+## Read the assessment summary
 
-Each cell is a point in the grid.
+The summary sits directly below the toolbar and above the matrix.
 
-- A cell where **both axes are assessed** shows the derived token — `P1 · High`, `P2 · Medium`, or `P3 · Low`.
-- A cell where **both axes are absent** shows **No priority**.
-- A cell where **exactly one axis is present** shows **Needs assessment** and is never labelled `P3`. The stored priority cache still holds the `P3` fallback for a partial pair; the matrix only relabels how it is shown.
+- **Needs assessment** counts issues missing an impact and/or urgency. Select **Review queue** to rate them.
+- **Rated issues** counts issues with both axes assigned, so they appear in the matrix.
 
-Each cell shows its total and up to four preview issues, ordered by priority rank then most recently updated. The count always comes from the query, never from the previews.
+Both counts come from the same scoped dataset as the grid, so search, scope, and filters change them together.
 
-## Find unassessed work
+## Read the matrix
 
-Work that has not been fully assessed hides inside the `P3` fallback everywhere else. The matrix makes it visible.
+Each cell shows the derived priority and the number of matching issues. The issue count is the main value; the priority is a compact label beside it.
 
-1. Look at the **Not assessed** row and column, and at the cells where only one axis is present. These are the **Needs assessment** and **No priority** cells.
-2. Pick a cell, open one of its preview issues, and rate the missing axis in the Inspector.
+| Impact / Urgency | High | Mid | Low |
+| :--- | :--- | :--- | :--- |
+| Severe | **P1** | **P1** | P2 |
+| Moderate | **P1** | P2 | P3 |
+| Minor | P2 | P3 | P3 |
 
-## Use How to rate
+- An empty cell shows `0` and stays selectable.
+- Selecting a cell opens its issue list in the details pane on the right (below the matrix on narrow screens).
+- Use the arrow keys to move between cells; press Enter or Space to select. The selected cell also carries a non-color selection indicator.
 
-Open the **How to rate** panel in the matrix header to see the five criteria for each level of both axes.
+## Rate unassessed work
+
+1. Select **Review queue** in the assessment summary. The action is available to users who can write.
+2. Set the missing impact or urgency. An axis that is already set is kept as-is.
+3. When both axes are present, the issue leaves the queue, joins its matrix cell, and the counts update.
+
+Selecting a cell is only navigation; issues move between cells when their ratings change.
+
+## Open an issue
+
+Select an issue in the selected cell's list. It opens `/matrix/{owner}/{repo}/{number}`, with the standard Inspector docked beside the matrix (or full width on narrow screens).
+
+Use the **Priority** control in the Inspector to set impact and urgency; priority stays derived. Closing the Inspector returns you to the same selected cell.
+
+## Use Rating Guide
+
+Open **Rating Guide** in the toolbar to see the five criteria for each level of both axes.
 
 - Impact weighs **Reach**, **Data**, **Money**, **Locations** and **Workaround**.
 - Urgency weighs **Harm**, **Exposure**, **Spread**, **Dependencies** and **Deadline**.
 
 Rate each axis independently: impact from the effect on users and the business, urgency from the cost of waiting.
-
-## Open an issue
-
-Select a preview link in any cell. It opens `/matrix/{owner}/{repo}/{number}`, with the standard Inspector docked beside the grid. Use the **Priority** popover to set impact and urgency; priority stays derived.
 
 ## Related
 
