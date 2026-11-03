@@ -49,7 +49,9 @@ jobs:
             echo "::error::Tag ${tag} does not match package.json version ${version}."
             exit 1
           fi
-          if [[ "${version}" == 0.* || "${version}" == *-* ]]; then
+          # 0.0.x is the pre-release line. 0.1.0 is the first normal release;
+          # only an explicit -suffix (for example 0.1.0-rc.1) stays a pre-release.
+          if [[ "${version}" == 0.0.* || "${version}" == *-* ]]; then
             prerelease=true
           else
             prerelease=false

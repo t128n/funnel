@@ -103,8 +103,16 @@ release can use an empty changeset (`bun run changeset --empty`), and tooling-on
 changes may omit one. Do not edit `package.json`'s version or `CHANGELOG.md` by
 hand.
 
+**The 0.0.x line is patch-only.** Funnel reserves `0.1.0` for the first normal
+release, so every pre-release changeset uses `patch`; features do not require a
+`minor` bump before that point. The changesets workflow runs
+`bun run changeset:check`, which fails if a pending changeset is `minor` or
+`major` while the package is still `0.0.x`. Preparing `0.1.0` is the deliberate
+exception; run the check with `--allow-minor` for that release only.
+
 `bun run changeset:status` shows the pending release. `bun run changeset:version`
 applies versions and changelogs locally; CI normally does this in a version PR.
+`bun run changeset:check` is the pre-release bump guard.
 
 ## Release procedure
 
@@ -113,7 +121,7 @@ applies versions and changelogs locally; CI normally does this in a version PR.
 3. Merge the version PR. The same workflow then:
    - runs `changeset publish` in tag-only mode, which creates the `v<version>` tag, and
    - calls the publish workflow for that tag.
-4. The publish workflow verifies, builds, packages, and creates the GitHub release. Releases in the `0.x` line are marked **pre-release**; `1.0.0` and later are normal releases.
+4. The publish workflow verifies, builds, packages, and creates the GitHub release. Releases in the `0.0.x` line are marked **pre-release**; `0.1.0` is the first normal release, and later versions are normal unless they carry an explicit suffix such as `-rc.1`.
 5. If the schema changed, make sure the new `drizzle/<timestamp>_<name>/` directory was committed with the change (`bun run db:generate`).
 6. Deploy the executable or image:
    - **Windows:** stop the service, replace `funnel.exe`, start it — migrations run automatically on boot.

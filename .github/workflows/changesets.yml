@@ -43,6 +43,11 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile --ignore-scripts
 
+      # Until 0.1.0, keep the 0.0.x line patch-only. A minor/major changeset
+      # would skip the first release, so fail before a version PR is opened.
+      - name: Check pre-release changeset bumps
+        run: bun run changeset:check
+
       - name: Select mode
         id: select-mode
         uses: changesets/action/select-mode@v2

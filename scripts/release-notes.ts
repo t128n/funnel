@@ -56,9 +56,11 @@ if (!entry) {
   process.exit(1);
 }
 
-const preRelease = version.startsWith("0.") || version.includes("-");
+// 0.0.x is the pre-release line; 0.1.0 is the first normal release. A suffix
+// such as 0.1.0-rc.1 is still a pre-release.
+const preRelease = /^0\.0\.\d+$/.test(version) || version.includes("-");
 const preReleaseNote = preRelease
-  ? "\n> This is a pre-release build. Expect breaking changes while Funnel is below 1.0.0.\n"
+  ? "\n> This is a pre-release build from the 0.0.x line. Expect breaking changes before 0.1.0.\n"
   : "";
 
 const body = `## What's changed
