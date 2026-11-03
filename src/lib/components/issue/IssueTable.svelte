@@ -250,7 +250,7 @@
 						<th colspan="6" class="small fw-semibold text-body-secondary py-2">
 							<button
 								type="button"
-								class="group-toggle btn btn-link btn-sm p-0 text-decoration-none text-reset text-wrap text-start fw-semibold"
+								class="group-toggle btn btn-link btn-sm border-0 p-0 text-decoration-none text-reset text-wrap text-start fw-semibold"
 								aria-expanded={!collapsed}
 								onclick={() => toggleGroup(groupKey)}
 							>
