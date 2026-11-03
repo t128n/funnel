@@ -163,6 +163,10 @@ jobs:
         if: matrix.build_intake
         run: bun scripts/build-intake.ts
 
+      - name: Fetch pinned WinSW
+        if: matrix.build_intake
+        run: bun scripts/fetch-winsw.ts
+
       - name: Smoke test (Unix)
         if: runner.os != 'Windows' && matrix.platform != 'linux-arm64'
         shell: bash

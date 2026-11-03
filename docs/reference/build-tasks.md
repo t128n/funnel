@@ -15,14 +15,11 @@ This page records the mise tasks and `package.json` scripts that build, check, t
 | `build` | `bun run build` | Adapter-node server in `build/` | Declares `src/**`, `static/**`, `drizzle/**`, `package.json`, `bun.lock`, `tsconfig.json`, and `vite.config.ts` as sources, and `build` as the output. |
 | `release` | `bun run release` | Migration report on standard output | Applies pending migrations to the configured database. No server is started. |
 | `exe` | `bun scripts/build-standalone.ts [--target=<target>]` | `dist/funnel`, or `dist/funnel.exe` for a Windows target | Depends on `build` and `intake:exe`. Declares `build/**`, `drizzle/**`, `src/standalone.ts`, `scripts/build-standalone.ts`, `scripts/standalone/**`, `package.json`, and `bun.lock` as sources. The declared output is target-aware. |
-| `docker` | `docker build -t funnel:<version> .` | Local container image | `--version` defaults to `dev`. The image wraps the Linux executable. |
 | `verify` | `check`, then `test`, then `intake:check`, then `build`, then `exe` | Diagnostics, test results, `build/`, and the executables | The sequence the release pipeline relies on. |
 | `intake:exe` | `bun scripts/build-intake.ts` | `dist/funnel-intake.exe` | Native Windows intake hotkey helper: pure Go, no cgo, GUI subsystem. Declares `tools/funnel-intake/**`, `scripts/build-intake.ts`, `package.json`, and `bun.lock` as sources. |
 | `intake:check` | `go -C tools/funnel-intake vet -unsafeptr=false ./...`, then `go -C tools/funnel-intake test ./...` | Go vet and test output | Requires the pinned Go toolchain. `-unsafeptr=false` suppresses the known false positive on the Win32 clipboard pointers. |
 | `intake:install` | `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/install-intake.ps1` | Installed per-user helper | Windows only; no elevation required. |
 | `intake:uninstall` | `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/install-intake.ps1 -Uninstall` | Removed helper | Windows only. |
-| `service:install` | `powershell -NoProfile -ExecutionPolicy Bypass -File packaging/windows/install-service.ps1` | Installed Windows service | Requires an elevated prompt on Windows. |
-| `service:uninstall` | `powershell -NoProfile -ExecutionPolicy Bypass -File packaging/windows/uninstall-service.ps1` | Removed Windows service | Requires an elevated prompt on Windows. |
 
 ## Target and version overrides
 
@@ -34,13 +31,6 @@ TARGET=bun-linux-x64 mise run exe
 ```
 
 The target selects both the compiled platform and the output name. Targets containing `windows` produce `dist/funnel.exe`; other targets produce `dist/funnel`. The task's declared output includes the target, so changing targets rebuilds rather than reusing another platform's artefact.
-
-`docker` declares a `--version` usage flag with the environment fallback `VERSION`, defaulting to `dev`:
-
-```text
-mise run docker --version=1.2.3
-VERSION=1.2.3 mise run docker
-```
 
 ## Intake helper build
 
@@ -75,7 +65,8 @@ The addon comes from the optional package `@bruits/satteri-<suffix>`. `bun insta
 | `start` | `bun ./build/index.js` | Runs the built adapter-node server under Bun. Does not run migrations or parse CLI flags. The server cannot run under Node because the database layer uses `bun:sqlite`. |
 | `release` | `bun scripts/release.ts` | Applies pending migrations and prints `[release] <n> migration(s) applied — db=<path> migrations=<path> total=<n>`. |
 | `build:standalone` | `bun scripts/build-standalone.ts` | Compiles the executable into `dist/`. Requires `build/index.js` to exist; accepts `--target`, `--outdir`, and `--outfile`. The default target is the host and the default output directory is `dist/`. |
-| `package:release` | `bun scripts/package-release.ts --version=<version> --platform=<os>-<arch>` | Writes `release/funnel-<version>-<platform>.tar.gz` (`.zip` for Windows) plus a `<archive>.sha256`, containing the executable, `.env.example`, and on Windows the intake helper and installers. Accepts `--bin` and `--outdir` (default `release/`). |
+| `package:release` | `bun scripts/package-release.ts --version=<version> --platform=<os>-<arch>` | Writes `release/funnel-<version>-<platform>.tar.gz` (`.zip` for Windows) plus a `<archive>.sha256`, containing the executable, `.env.example`, and on Windows the intake helper, setup launcher, and pinned WinSW. Accepts `--bin` and `--outdir` (default `release/`). |
+| `fetch-winsw` | `bun scripts/fetch-winsw.ts` | Downloads the pinned WinSW 2.12.0 `WinSW.NET461.exe`, verifies SHA-256, and writes `vendor/winsw/`. Required before packaging Windows. |
 | `changeset` | `changeset` | Adds a changeset for the current change. |
 | `changeset:status` | `changeset status` | Shows the pending changesets and the version bump they produce. |
 | `changeset:version` | `changeset version` | Applies versions and changelogs locally; normally run by the Changesets GitHub Action. |

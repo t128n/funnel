@@ -5,15 +5,12 @@
 #   mise run            # list the available tasks
 #   mise run build      # production build into build/
 #   mise run exe        # self-contained executable into dist/
-#   mise run docker     # container image (secondary / PaaS target)
 #   mise run verify     # everything the release pipeline relies on
 #
 # Overrides:
 #   mise run exe --target=bun-linux-x64   # cross-target (needs that platform's
 #                                         # satteri package installed)
 #   TARGET=bun-linux-x64 mise run exe      # same, via the environment
-#   mise run docker --version=1.2.3
-#   VERSION=1.2.3 mise run docker
 
 [tools]
 bun = "1.4.3"
@@ -75,11 +72,6 @@ outputs = [
 ]
 run = 'bun scripts/build-standalone.ts{% if usage.target %} --target={{ usage.target }}{% endif %}'
 
-[tasks.docker]
-description = "Build the container image (secondary / PaaS target)"
-usage = 'flag "--version <version>" env="VERSION" default="dev"'
-run = 'docker build -t funnel:{{ usage.version }} .'
-
 [tasks.verify]
 description = "Run everything the release pipeline relies on"
 run = [
@@ -115,11 +107,3 @@ run = "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/install-intak
 [tasks."intake:uninstall"]
 description = "Remove the intake hotkey helper"
 run = "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/install-intake.ps1 -Uninstall"
-
-[tasks."service:install"]
-description = "Install Funnel as a Windows service (run elevated)"
-run = "powershell -NoProfile -ExecutionPolicy Bypass -File packaging/windows/install-service.ps1"
-
-[tasks."service:uninstall"]
-description = "Remove the Funnel Windows service (run elevated)"
-run = "powershell -NoProfile -ExecutionPolicy Bypass -File packaging/windows/uninstall-service.ps1"

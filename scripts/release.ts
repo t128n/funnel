@@ -3,7 +3,7 @@
  *
  * Run this against the same `FUNNEL_DB` the server will use, before starting the
  * new version. On a PaaS use it as the release / pre-deploy command; in a
- * container it is a one-off `docker run --rm <image> bun run release`. The
+ * native service, `funnel --migrate` is the packaged equivalent. The
  * packaged executable runs the same step on boot instead.
  */
 import { runMigrations } from "#lib/server/db/release";

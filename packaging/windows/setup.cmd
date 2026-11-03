@@ -1,6 +1,5 @@
 @echo off
 setlocal
-cd /d "%~dp0"
-powershell -NoProfile -Sta -ExecutionPolicy Bypass -File "%~dp0setup.ps1"
+"%~dp0funnel.exe" setup %*
 if errorlevel 1 pause
 endlocal

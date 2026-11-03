@@ -125,4 +125,4 @@ The model optimises for a self-hosted, single-organisation deployment and accept
 - [Roles and permissions reference](../reference/roles-and-permissions.md) — the `read`/`write`/`admin` split.
 - [Environment variables reference](../reference/environment-variables.md) — `FUNNEL_SECRET`, `FUNNEL_ONBOARDING_TOKEN`, and the rest.
 - [Onboard the GitHub App](../how-to/configure/onboard-github-app.md) — the manifest flow and its stored secrets.
-- [Deploy with Docker](../how-to/deploy/docker.md) — network segmentation, single-instance, and TLS.
+- [Install Funnel](../how-to/deploy/install.md) — native services, data paths, single-instance, and reverse-proxy guidance.

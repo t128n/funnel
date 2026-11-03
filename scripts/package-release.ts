@@ -95,15 +95,24 @@ if (isWindows) {
   }
   copyFileSync(intakePath, join(stageDir, "funnel-intake.exe"));
 
-  // The service installer resolves funnel.exe and funnel-service.xml next to
-  // itself; install-intake.ps1 resolves funnel-intake.exe next to itself.
+  // `funnel.exe setup` owns service configuration. WinSW is shipped as a
+  // sibling so the installer can materialize it without a runtime download.
   stageFile("packaging/windows/setup.cmd", "setup.cmd");
-  stageFile("packaging/windows/setup.ps1", "setup.ps1");
-  stageFile("packaging/windows/install-common.ps1", "install-common.ps1");
-  stageFile("packaging/windows/install-service.ps1", "install-service.ps1");
-  stageFile("packaging/windows/uninstall-service.ps1", "uninstall-service.ps1");
-  stageFile("packaging/windows/funnel-service.xml", "funnel-service.xml");
   stageFile("scripts/install-intake.ps1", "install-intake.ps1");
+
+  const winsw = join(projectRoot, "vendor", "winsw", "WinSW.NET461.exe");
+  if (existsSync(winsw)) {
+    copyFileSync(winsw, join(stageDir, "funnel-service.exe"));
+  } else {
+    fail(
+      "vendor/winsw/WinSW.NET461.exe is missing; run `bun scripts/fetch-winsw.ts` before packaging the Windows archive.",
+    );
+  }
+}
+
+const notices = join(projectRoot, "THIRD_PARTY_NOTICES.md");
+if (existsSync(notices)) {
+  copyFileSync(notices, join(stageDir, "THIRD_PARTY_NOTICES.md"));
 }
 
 const readme = isWindows
@@ -117,12 +126,11 @@ Node.js, or container runtime is required.
 Guided setup (recommended):
 
   Double-click setup.cmd, or run:
-  powershell -ExecutionPolicy Bypass -File .\\setup.ps1
+  .\\funnel.exe setup
 
-The wizard creates .env from .env.example, lets you choose the port, data
-directory and optional public URL, then installs the Windows service or starts
-a portable copy. Service installation needs administrator rights; use the
-Restart as administrator button. On Server Core, use install-service.ps1 instead.
+The wizard creates the config from .env.example, lets you choose the Windows
+service or a portable process, validates paths and ports, and opens the
+onboarding URL. Service installation asks for administrator rights automatically.
 
 Manual quick start (PowerShell):
 
@@ -133,16 +141,18 @@ Manual quick start (PowerShell):
 The executable keeps state under .\\data by default (funnel.db and uploads/).
 Set FUNNEL_DATA_DIR to use another directory. Funnel requires FUNNEL_SECRET in
 the environment or in a .env file in the working directory. Copy .env.example
-to .env and fill in the values, or let the service installer generate one.
+to .env and fill in the values, or let \`funnel setup\` create one.
 
-Install as a Windows service (elevated PowerShell):
+Lifecycle:
 
-  powershell -ExecutionPolicy Bypass -File .\\install-service.ps1
+  .\\funnel.exe setup
+  .\\funnel.exe status
+  .\\funnel.exe logs
+  .\\funnel.exe uninstall
 
-The service installer copies funnel.exe into C:\\ProgramData\\Funnel, creates
-.env from .env.example with a generated FUNNEL_SECRET, and registers the WinSW
-service.
-Remove it with .\\uninstall-service.ps1 (run elevated).
+The setup command installs the WinSW service, creates the config from
+.env.example with a generated FUNNEL_SECRET, and preserves an existing secret.
+Uninstall keeps data and configuration unless you add --purge.
 
 Optional intake hotkey helper (per user, no elevation):
 
