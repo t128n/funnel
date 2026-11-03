@@ -1,4 +1,4 @@
-# t128n redesign gallery
+# Historical t128n redesign gallery (pre-Bootstrap)
 
 Screens captured with [`scripts/screenshots/capture.ts`](../../../scripts/screenshots/capture.ts)
 against the seeded demo database, at 1440×900. The core views are captured in
@@ -26,5 +26,4 @@ bun scripts/screenshots/capture.ts \
   --out /tmp/funnel-shots/out --cookie "$COOKIE" --scale 1
 ```
 
-The screenshots are evidence, not a source of truth. The values live in
-`src/lib/styles/tokens.css`; the application rules live in `docs/DESIGN.md`.
+These captures are historical. The current design is Bootstrap 5 + Sveltestrap; see [DESIGN.md](../../DESIGN.md). The screenshots are evidence, not a source of truth.

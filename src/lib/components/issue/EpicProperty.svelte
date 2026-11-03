@@ -1,9 +1,8 @@
 <script lang="ts">
 	import { invalidateAll } from '$app/navigation';
+	import { Button } from '@sveltestrap/sveltestrap';
 	import Spinner from '#lib/components/common/Spinner.svelte';
-	import { Button } from '#lib/components/ui/button';
 	import type { EpicRef } from '#lib/server/issues/types';
-	import LayersIcon from '@lucide/svelte/icons/layers';
 	import {
 		canManage,
 		epicHref,
@@ -66,44 +65,56 @@
 </script>
 
 {#if propertyState === 'child' && parent}
-	<div class="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-caption">
-		<span class="inline-flex shrink-0 items-center gap-1 font-semibold text-fg-secondary">
-			<LayersIcon class="size-3.5" aria-hidden="true" />
+	<div class="d-flex min-w-0 flex-wrap align-items-center gap-2 small">
+		<span class="d-inline-flex flex-shrink-0 align-items-center gap-1 text-body-secondary">
+			<i class="bi bi-layers" aria-hidden="true"></i>
 			Epic
 		</span>
 		<a
 			href={epicHref(parent.repo, parent.number)}
-			class="link flex min-w-0 items-center gap-1"
+			class="link-primary d-flex min-w-0 align-items-center gap-1 text-decoration-none"
 			title={`${parent.repo}#${parent.number} · ${parent.title}`}
 		>
-			<span class="mono shrink-0">{parent.repo}#{parent.number}</span>
-			<span class="truncate text-fg-secondary">· {parent.title}</span>
+			<span class="font-monospace flex-shrink-0">{parent.repo}#{parent.number}</span>
+			<span class="text-truncate text-body-secondary">· {parent.title}</span>
 		</a>
 	</div>
 {:else if propertyState === 'epic'}
-	<div class="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-caption">
+	<div class="d-flex min-w-0 flex-wrap align-items-center gap-2 small">
 		<a
 			href={epicHref(repo, number)}
-			class="inline-flex shrink-0 items-center gap-1.5 font-semibold text-fg hover:text-primary"
+			class="link-primary d-inline-flex flex-shrink-0 align-items-center gap-2 text-decoration-none"
 		>
-			<LayersIcon class="size-3.5" aria-hidden="true" />
+			<i class="bi bi-layers" aria-hidden="true"></i>
 			Epic
 		</a>
 		{#if mayWrite}
-			<Button variant="ghost" size="xs" disabled={!editable} onclick={toggle}>
-				{#if busy}<Spinner size={12} />{/if}
+			<Button
+				color="link"
+				size="sm"
+				class="text-decoration-none px-1 py-0"
+				disabled={!editable}
+				onclick={toggle}
+			>
+				{#if busy}<Spinner size={12} class="me-1" />{/if}
 				Remove epic
 			</Button>
 		{/if}
 	</div>
 {:else if mayWrite}
-	<Button variant="ghost" size="xs" disabled={!editable} onclick={toggle}>
-		{#if busy}<Spinner size={12} />{/if}
-		<LayersIcon class="size-4" aria-hidden="true" />
+	<Button
+		color="link"
+		size="sm"
+		class="text-decoration-none px-0 py-0"
+		disabled={!editable}
+		onclick={toggle}
+	>
+		{#if busy}<Spinner size={12} class="me-1" />{/if}
+		<i class="bi bi-layers me-1" aria-hidden="true"></i>
 		Mark as epic
 	</Button>
 {/if}
 
 {#if error}
-	<p class="w-full text-caption text-error" role="alert">{error}</p>
+	<p class="w-100 small text-danger mb-0" role="alert">{error}</p>
 {/if}

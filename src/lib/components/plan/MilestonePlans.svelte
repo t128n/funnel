@@ -1,5 +1,5 @@
 <script lang="ts">
-	import CircleIcon from '@lucide/svelte/icons/circle';
+	import { Table } from '@sveltestrap/sveltestrap';
 	import Avatar from '#lib/components/common/Avatar.svelte';
 	import EmptyState from '#lib/components/common/EmptyState.svelte';
 	import type { MilestonePlan } from '#lib/server/planning/milestones';
@@ -51,18 +51,18 @@
 	<EmptyState
 		title="No milestones with open issues."
 		description="Open milestones that contain open issues appear here with their capacity."
-		class="border-y border-border-subtle py-10"
+		class="border-top border-bottom py-5"
 	/>
 {:else}
 	<div class="overflow-x-auto" data-testid="milestone-plans">
-		<table class="data-table">
-			<thead>
+		<Table hover class="funnel-table table-sm align-middle">
+			<thead class="table-light small text-body-secondary">
 				<tr>
-					<th scope="col">Milestone</th>
-					<th scope="col">State</th>
-					<th scope="col" class="text-end">Due</th>
-					<th scope="col" class="text-end">Open Issues</th>
-					<th scope="col">Scheduled / Cap</th>
+					<th scope="col" class="text-body-secondary">Milestone</th>
+					<th scope="col" class="text-body-secondary">State</th>
+					<th scope="col" class="text-body-secondary text-end">Due</th>
+					<th scope="col" class="text-body-secondary text-end">Open Issues</th>
+					<th scope="col" class="text-body-secondary">Scheduled / Cap</th>
 				</tr>
 			</thead>
 			<tbody>
@@ -70,22 +70,22 @@
 					{@const totals = laneTotals(plan)}
 					<tr data-milestone={`${plan.repo}#${plan.number}`}>
 						<th scope="row" class="min-w-0">
-							<span class="block truncate text-body font-semibold text-fg">
+							<span class="d-block text-truncate text-body">
 								{plan.title || 'Untitled milestone'}
 							</span>
-							<span class="mono block text-caption text-fg-secondary">
+							<span class="font-monospace d-block small text-body-secondary">
 								{plan.repo}#{plan.number}
 							</span>
 						</th>
 						<td>
-							<span class="status status-muted">
-								<CircleIcon aria-hidden="true" />
+							<span class="d-inline-flex align-items-center gap-1 small text-body-secondary">
+								<i class="bi bi-circle" aria-hidden="true"></i>
 								<span>Open</span>
 							</span>
 						</td>
-						<td class="text-end tabular-nums">{dueLabel(plan.dueOn)}</td>
-						<td class="text-end tabular-nums">{totals.open} open</td>
-						<td class="min-w-56">
+						<td class="text-end tnum">{dueLabel(plan.dueOn)}</td>
+						<td class="text-end tnum">{totals.open} open</td>
+						<td class="milestone-capacity">
 							<CapacityBar
 								committedMinutes={totals.committed}
 								capMinutes={milestoneCap(plan.capacityWeeks, totals.cap)}
@@ -93,8 +93,8 @@
 						</td>
 					</tr>
 					<tr>
-						<td colspan="5" class="bg-canvas px-3 py-3 align-top">
-							<p class="text-caption text-fg-secondary">
+						<td colspan="5" class="py-2 align-top">
+							<p class="small text-body-secondary mb-0">
 								{#if plan.capacityWeeks === null}
 									No due date — no cap; scheduled hours are shown without a bar.
 								{:else}
@@ -103,47 +103,55 @@
 								{/if}
 							</p>
 
-							<div class="mt-2 grid gap-x-6 gap-y-2 md:grid-cols-2 xl:grid-cols-3">
+							<div class="row g-3 mt-1">
 								{#each plan.lanes as lane (lane.maintainer.externalId)}
-									<div class="min-w-0 border-t border-border-subtle py-2" data-lane={lane.maintainer.login}>
-										<div class="flex min-w-0 items-center gap-2">
+									<div
+										class="col-md-6 col-xl-4 min-w-0 border-top pt-2"
+										data-lane={lane.maintainer.login}
+									>
+										<div class="d-flex min-w-0 align-items-center gap-2">
 											<Avatar
 												login={lane.maintainer.login}
 												avatarUrl={lane.maintainer.avatarUrl}
 												size={20}
 											/>
 											<a
-												class="min-w-0 truncate text-body font-semibold text-fg hover:underline"
+												class="min-w-0 text-truncate text-decoration-none text-body fw-medium"
 												href={`https://github.com/${lane.maintainer.login}`}
 												target="_blank"
 												rel="noreferrer"
 											>
 												@{lane.maintainer.login}
 											</a>
-											<span class="ms-auto shrink-0 text-caption text-fg-secondary tabular-nums">
+											<span class="ms-auto flex-shrink-0 small text-body-secondary tnum">
 												Net {formatMinutes(lane.maintainer.weeklyMinutes)}/week
 											</span>
 										</div>
 										<CapacityBar
-											class="mt-1 w-full"
+											class="mt-1 w-100"
 											committedMinutes={lane.committedMinutes}
 											capMinutes={milestoneCap(plan.capacityWeeks, lane.capMinutes)}
 										/>
 										{#if lane.issues.length > 0}
-											<ul class="mt-1 flex flex-col ps-6">
+											<ul class="mt-1 d-flex flex-column ps-4 mb-0 list-unstyled">
 												{#each lane.issues as issue (issueKey(issue.repo, issue.number))}
-													<li class="flex min-w-0 items-baseline gap-2 text-caption">
+													<li class="d-flex min-w-0 align-items-baseline gap-2 small">
 														<a
-															class="mono shrink-0 text-fg-secondary hover:underline"
+															class="font-monospace flex-shrink-0 text-decoration-none text-body-secondary"
 															href={issuePath('issues', issue.repo, issue.number)}
 														>
 															{issue.repo}#{issue.number}
 														</a>
-														<span class="min-w-0 flex-1 truncate text-fg">{issue.title}</span>
-														<span class="w-6 shrink-0 text-end text-fg-secondary">
+														<span class="min-w-0 flex-grow-1 text-truncate text-body">
+															{issue.title}
+														</span>
+														<span class="flex-shrink-0 text-end text-body-secondary" style="width: 1.5rem">
 															{issue.size?.toUpperCase() ?? '—'}
 														</span>
-														<span class="w-12 shrink-0 text-end text-fg-secondary tabular-nums">
+														<span
+															class="flex-shrink-0 text-end text-body-secondary tnum"
+															style="width: 3rem"
+														>
 															{estimateLabel(issue)}
 														</span>
 													</li>
@@ -156,11 +164,11 @@
 
 							{#if plan.unassigned.committedMinutes > 0}
 								<div
-									class="mt-2 flex flex-wrap items-baseline gap-x-2 border-t border-border-subtle pt-2 text-caption"
+									class="mt-2 d-flex flex-wrap align-items-baseline gap-2 border-top pt-2 small"
 									data-testid="milestone-unassigned"
 								>
-									<span class="font-semibold text-fg">Unassigned</span>
-									<span class="text-fg-secondary tabular-nums">
+									<span class="fw-semibold text-body">Unassigned</span>
+									<span class="text-body-secondary tnum">
 										Scheduled {formatMinutes(plan.unassigned.committedMinutes)} · no active
 										maintainer
 									</span>
@@ -168,15 +176,17 @@
 							{/if}
 
 							{#if plan.unestimated.length > 0}
-								<div class="mt-2 flex flex-wrap items-baseline gap-x-2 border-t border-border-subtle pt-2 text-caption">
-									<span class="font-semibold text-fg">Unestimated</span>
-									<span class="text-fg-secondary tabular-nums">
+								<div
+									class="mt-2 d-flex flex-wrap align-items-baseline gap-2 border-top pt-2 small"
+								>
+									<span class="fw-semibold text-body">Unestimated</span>
+									<span class="text-body-secondary tnum">
 										{plan.unestimated.length}
 										{plan.unestimated.length === 1 ? 'issue' : 'issues'}
 									</span>
 									{#each plan.unestimated as issue (issueKey(issue.repo, issue.number))}
 										<a
-											class="mono max-w-56 truncate text-fg-secondary hover:underline"
+											class="font-monospace text-truncate text-decoration-none text-body-secondary unestimated-ref"
 											href={issuePath('issues', issue.repo, issue.number)}
 										>
 											{issue.repo}#{issue.number}
@@ -188,6 +198,20 @@
 					</tr>
 				{/each}
 			</tbody>
-		</table>
+		</Table>
 	</div>
 {/if}
+
+<style>
+	.milestone-capacity {
+		min-width: 14rem;
+	}
+
+	.unestimated-ref {
+		max-width: 14rem;
+	}
+
+	.tnum {
+		font-variant-numeric: tabular-nums;
+	}
+</style>

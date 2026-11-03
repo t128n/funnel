@@ -32,17 +32,17 @@ export const VIEWS = [
   {
     name: "issues",
     path: "/issues",
-    ready: ".issue-feed",
+    ready: ".table-responsive tbody tr",
   },
   {
     name: "issue",
     path: "/issues/acme/widgets/1",
-    ready: '[aria-label="Issue inspector"] h1',
+    ready: '[aria-label="Issue"] h1',
   },
   {
     name: "issue-activity",
     path: "/issues/acme/widgets/1",
-    ready: '[aria-label="Issue inspector"] h1',
+    ready: '[aria-label="Issue"] h1',
     scrollTo: "Activity",
   },
   { name: "board", path: "/board", ready: "[data-board-card] h3" },
@@ -58,6 +58,11 @@ export const VIEWS = [
     ready: 'a[href^="/milestones/"]',
   },
   {
+    name: "timeline",
+    path: "/timeline",
+    ready: '[data-testid="timeline-chart"]',
+  },
+  {
     name: "attention",
     path: "/attention",
     ready: 'a[href^="/issues/acme/"]',
@@ -65,7 +70,7 @@ export const VIEWS = [
   {
     name: "inbox",
     path: "/inbox",
-    ready: ".issue-row",
+    ready: "table tbody tr",
   },
   {
     name: "notifications",
@@ -88,11 +93,9 @@ export const VIEWS = [
     ready: '[data-testid="matrix-grid"]',
   },
   {
-    name: "priority-guidance",
-    path: "/issues/acme/widgets/1",
-    ready: '[aria-label="Issue inspector"] h2',
-    click: '[title="Change priority"]',
-    readyAfter: '[data-slot="popover-content"]',
+    name: "settings-planning",
+    path: "/settings/planning",
+    ready: "h1",
   },
   {
     name: "intake",
@@ -110,6 +113,8 @@ export interface CaptureOptions {
   cookie: string;
   /** Device pixel ratio; 2 for the committed gallery, 1 for lighter previews. */
   scale?: number;
+  /** CSS viewport; defaults to the desktop 1440×900 gallery frame. */
+  viewport?: { width: number; height: number };
 }
 
 export interface CaptureResult {
@@ -247,7 +252,7 @@ async function waitForView(
       await page.waitForFunction(
         () =>
           document
-            .querySelector('[aria-label="Issue inspector"]')
+            .querySelector('[aria-label="Issue"]')
             ?.querySelector('[aria-label="Loading issue"]') === null,
         undefined,
         { timeout: 30_000 },
@@ -291,9 +296,10 @@ async function createContext(
   cookie: string,
   theme: CaptureTheme,
   scale: number,
+  viewport: { width: number; height: number },
 ): Promise<BrowserContext> {
   const context = await browser.newContext({
-    viewport: { width: 1440, height: 900 },
+    viewport,
     deviceScaleFactor: scale,
     colorScheme: theme,
   });
@@ -333,6 +339,7 @@ export async function captureAll({
   outDir,
   cookie,
   scale = 2,
+  viewport = { width: 1440, height: 900 },
 }: CaptureOptions): Promise<CaptureResult> {
   const baseUrl = requestedBaseUrl ?? DEV_URL;
   const server = requestedBaseUrl ? null : startServer();
@@ -347,7 +354,7 @@ export async function captureAll({
     browser = await chromium.launch(executablePath ? { executablePath } : {});
 
     for (const theme of ["light", "dark"] as const) {
-      const context = await createContext(browser, baseUrl, cookie, theme, scale);
+      const context = await createContext(browser, baseUrl, cookie, theme, scale, viewport);
       try {
         for (const view of VIEWS) {
           const page = await context.newPage();
@@ -391,9 +398,11 @@ if (import.meta.main) {
   const outDir = option("out");
   const cookie = option("cookie");
   const scale = Number(option("scale") ?? "2");
+  const width = Number(option("width") ?? "1440");
+  const height = Number(option("height") ?? "900");
   if (!outDir || !cookie) {
     console.error(
-      "Usage: bun scripts/screenshots/capture.ts --out <dir> --cookie <name=value> [--base-url <url>] [--db <path>] [--secret <secret>] [--scale <n>]",
+      "Usage: bun scripts/screenshots/capture.ts --out <dir> --cookie <name=value> [--base-url <url>] [--db <path>] [--secret <secret>] [--scale <n>] [--width <px>] [--height <px>]",
     );
     process.exit(1);
   }
@@ -409,6 +418,10 @@ if (import.meta.main) {
     outDir,
     cookie,
     scale: Number.isFinite(scale) && scale > 0 ? scale : 2,
+    viewport: {
+      width: Number.isFinite(width) && width > 0 ? width : 1440,
+      height: Number.isFinite(height) && height > 0 ? height : 900,
+    },
   });
   console.log(`${files.length} captures written to ${outDir}`);
 }

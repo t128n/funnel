@@ -1,10 +1,13 @@
 <script lang="ts">
+	import {
+		Button,
+		Modal,
+		ModalBody,
+		ModalFooter,
+		ModalHeader
+	} from '@sveltestrap/sveltestrap';
 	import Spinner from '#lib/components/common/Spinner.svelte';
 	import InlineStatus from '#lib/components/common/InlineStatus.svelte';
-	import { Button } from '#lib/components/ui/button';
-	import * as Dialog from '#lib/components/ui/dialog';
-	import * as Field from '#lib/components/ui/field';
-	import { Textarea } from '#lib/components/ui/textarea';
 	import type { CloseReason } from '#lib/client/mutations';
 
 	/**
@@ -40,104 +43,97 @@
 
 	const canConfirm = $derived(note.trim().length > 0 && !busy);
 
+	function close() {
+		if (!busy) onopenchange(false);
+	}
+
 	function confirm() {
 		if (!canConfirm) return;
 		onconfirm({ reason, note: note.trim() });
 	}
 </script>
 
-<Dialog.Root
-	{open}
-	onOpenChange={(next) => {
-		if (!busy) onopenchange(next);
-	}}
->
-	<Dialog.Content aria-describedby={undefined} class="sm:max-w-md">
-		<Dialog.Header>
-			<Dialog.Title class="text-heading-sm font-semibold">
-				{isClose ? 'Close issue' : 'Reopen issue'}
-			</Dialog.Title>
-			<Dialog.Description class="text-body text-fg-secondary">
-				{#if isClose}
-					Closing records a resolution. The note is posted as a comment on GitHub before the
-					issue is closed.
-				{:else}
-					Reopening restores the issue. The note is posted as a comment on GitHub before it is
-					reopened.
-				{/if}
-			</Dialog.Description>
-		</Dialog.Header>
+<Modal isOpen={open} toggle={close} labelledBy="issue-action-title">
+	<ModalHeader toggle={close} id="issue-action-title">
+		{isClose ? 'Close issue' : 'Reopen issue'}
+	</ModalHeader>
 
-		<div class="flex flex-col gap-4">
+	<ModalBody>
+		<p class="text-body-secondary">
 			{#if isClose}
-				<Field.Set>
-					<Field.Legend variant="label">Resolution</Field.Legend>
-					<div class="flex gap-2" role="radiogroup" aria-label="Resolution">
-						<Field.Label
-							class="flex flex-1 cursor-pointer flex-row items-center gap-2 rounded-sm border border-border-strong p-2 text-body font-normal has-[:checked]:border-primary has-[:checked]:bg-surface-2"
-						>
-							<input
-								type="radio"
-								name="resolution"
-								value="completed"
-								checked={reason === 'completed'}
-								onchange={() => (reason = 'completed')}
-							/>
-							<span>Completed</span>
-						</Field.Label>
-						<Field.Label
-							class="flex flex-1 cursor-pointer flex-row items-center gap-2 rounded-sm border border-border-strong p-2 text-body font-normal has-[:checked]:border-primary has-[:checked]:bg-surface-2"
-						>
-							<input
-								type="radio"
-								name="resolution"
-								value="not_planned"
-								checked={reason === 'not_planned'}
-								onchange={() => (reason = 'not_planned')}
-							/>
-							<span>Not planned</span>
-						</Field.Label>
-					</div>
-				</Field.Set>
+				Closing records a resolution. The note is posted as a comment on GitHub before the
+				issue is closed.
+			{:else}
+				Reopening restores the issue. The note is posted as a comment on GitHub before it is
+				reopened.
 			{/if}
+		</p>
 
-			<Field.Field>
-				<Field.Label for="resolve-note">
-					{isClose ? 'Resolution note' : 'Reopen note'}
-					<span class="font-normal text-error">required</span>
-				</Field.Label>
-				<Textarea
-					id="resolve-note"
-					rows={4}
-					placeholder={isClose ? 'What resolved this issue?' : 'Why is this being reopened?'}
-					value={note}
-					oninput={(e) => (note = e.currentTarget.value)}
-				></Textarea>
-			</Field.Field>
+		{#if isClose}
+			<fieldset class="mb-3">
+				<legend class="form-label fs-6 mb-2">Resolution</legend>
+				<div class="d-flex flex-wrap gap-4" role="radiogroup" aria-label="Resolution">
+					<div class="form-check">
+						<input
+							class="form-check-input"
+							type="radio"
+							name="resolution"
+							id="resolution-completed"
+							value="completed"
+							checked={reason === 'completed'}
+							onchange={() => (reason = 'completed')}
+						/>
+						<label class="form-check-label" for="resolution-completed">Completed</label>
+					</div>
+					<div class="form-check">
+						<input
+							class="form-check-input"
+							type="radio"
+							name="resolution"
+							id="resolution-not-planned"
+							value="not_planned"
+							checked={reason === 'not_planned'}
+							onchange={() => (reason = 'not_planned')}
+						/>
+						<label class="form-check-label" for="resolution-not-planned">Not planned</label>
+					</div>
+				</div>
+			</fieldset>
+		{/if}
+
+		<div class="mb-3">
+			<label class="form-label" for="resolve-note">
+				{isClose ? 'Resolution note' : 'Reopen note'}
+				<span class="fw-normal text-danger">required</span>
+			</label>
+			<textarea
+				id="resolve-note"
+				class="form-control"
+				rows={4}
+				placeholder={isClose ? 'What resolved this issue?' : 'Why is this being reopened?'}
+				value={note}
+				oninput={(e) => (note = e.currentTarget.value)}
+			></textarea>
 		</div>
 
 		{#if error}
 			<InlineStatus tone="error" message={error} />
 		{/if}
+	</ModalBody>
 
-		<Dialog.Footer>
-			<Dialog.Close type="button">
-				{#snippet child({ props })}
-					<Button variant="outline" {...props} type="button" disabled={busy}>Cancel</Button>
-				{/snippet}
-			</Dialog.Close>
-			<Button onclick={confirm} disabled={!canConfirm} class="min-w-28">
-				{#if busy}
-					<Spinner size={13} />
-				{/if}
-				{busy
-					? isClose
-						? 'Closing…'
-						: 'Reopening…'
-					: isClose
-						? 'Close issue'
-						: 'Reopen issue'}
-			</Button>
-		</Dialog.Footer>
-	</Dialog.Content>
-</Dialog.Root>
+	<ModalFooter>
+		<Button color="secondary" outline onclick={close} disabled={busy}>Cancel</Button>
+		<Button color="primary" onclick={confirm} disabled={!canConfirm}>
+			{#if busy}
+				<Spinner size={13} class="me-2" />
+			{/if}
+			{busy
+				? isClose
+					? 'Closing…'
+					: 'Reopening…'
+				: isClose
+					? 'Close issue'
+					: 'Reopen issue'}
+		</Button>
+	</ModalFooter>
+</Modal>

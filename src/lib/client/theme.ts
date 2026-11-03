@@ -1,13 +1,13 @@
 /**
  * Client-side theme controller (System / Dark / Light).
  *
- * The pre-paint script in `src/app.html` sets `data-theme` before the first
+ * The pre-paint script in `src/app.html` sets `data-bs-theme` before the first
  * paint; this module owns every subsequent change, persists the choice to
  * `localStorage` under `funnel:theme`, keeps a `system` choice in sync with
  * the OS, and updates the browser theme-color to the active canvas.
  *
- * `.dark` is kept as a compatibility class for third-party widgets during the
- * migration; component styling keys off `[data-theme="dark"]`.
+ * Bootstrap components and every application-facing CSS variable read
+ * `data-bs-theme`; there is no second theme attribute.
  */
 import { get, writable } from "svelte/store";
 
@@ -38,12 +38,11 @@ function resolve(choice: ThemeChoice): ResolvedTheme {
 function apply(theme: ResolvedTheme): void {
   if (!isBrowser()) return;
   const root = document.documentElement;
-  root.setAttribute("data-theme", theme);
+  root.setAttribute("data-bs-theme", theme);
   root.style.colorScheme = theme;
-  root.classList.toggle("dark", theme === "dark");
 
-  // Read the active token rather than hard-coding a canvas value.
-  const canvas = getComputedStyle(root).getPropertyValue("--color-canvas").trim();
+  // Read the active Bootstrap canvas rather than hard-coding a value.
+  const canvas = getComputedStyle(root).getPropertyValue("--bs-body-bg").trim();
   const meta = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
   if (meta && canvas) meta.content = canvas;
 }

@@ -1,6 +1,5 @@
 <script lang="ts">
-	import { goto } from '$app/navigation';
-	import * as ToggleGroup from '#lib/components/ui/toggle-group/index.js';
+	import { Button, ButtonGroup } from '@sveltestrap/sveltestrap';
 
 	/**
 	 * Presentational segmented control: a set of mutually exclusive options.
@@ -20,26 +19,17 @@
 	}
 
 	let { items, label }: Props = $props();
-
-	const active = $derived(items.find((item) => item.active)?.label ?? '');
-
-	function onChange(value: string) {
-		const next = items.find((item) => item.label === value);
-		if (next && !next.active) {
-			void goto(next.href, { reset: false });
-		}
-	}
 </script>
 
-<ToggleGroup.Root
-	type="single"
-	size="sm"
-	variant="outline"
-	value={active}
-	onValueChange={onChange}
-	aria-label={label}
->
+<ButtonGroup role="group" aria-label={label}>
 	{#each items as item (item.label)}
-		<ToggleGroup.Item value={item.label}>{item.label}</ToggleGroup.Item>
+		<Button
+			color="outline-secondary"
+			href={item.href}
+			active={item.active}
+			aria-current={item.active ? 'page' : undefined}
+		>
+			{item.label}
+		</Button>
 	{/each}
-</ToggleGroup.Root>
+</ButtonGroup>

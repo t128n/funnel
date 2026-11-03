@@ -8,19 +8,16 @@
 </script>
 
 <script lang="ts">
-	import { Button } from '#lib/components/ui/button';
-	import { Textarea } from '#lib/components/ui/textarea';
+	import { Button } from '@sveltestrap/sveltestrap';
 	import { timeAgo } from '#lib/client/clock.svelte';
 	import { absoluteTime } from '#lib/time';
 	import type { RenderedComment, RenderedWorkNote } from '#lib/server/issues/types';
-	import { cn } from '#lib/utils';
-	import LockIcon from '@lucide/svelte/icons/lock';
 
 	/**
 	 * The issue activity timeline: GitHub comments and internal work notes,
 	 * merged in chronological order and rendered as ruled document entries —
-	 * author and time in the caption line, prose at 1rem/1.6. Internal notes
-	 * carry an `Internal` lock badge on `surface`, never a yellow reporter card.
+	 * author and time in a compact caption line, prose at 1rem/1.6. Internal
+	 * notes carry a small lock label in the caption, never a filled panel.
 	 */
 	interface Props {
 		comments: RenderedComment[];
@@ -100,80 +97,94 @@
 	}
 </script>
 
-<div class="flex flex-col">
+{#snippet entryMeta(entry: Entry, index: number)}
+	{@const author = entry.kind === 'comment' ? entry.comment.author : entry.note.author}
+	{@const at = entry.kind === 'comment' ? entry.comment.createdAt : entry.note.createdAt}
+	<header class="d-flex min-w-0 flex-wrap align-items-center gap-2 activity-meta text-body-secondary">
+		{#if entry.kind === 'comment'}
+			<a
+				id={`c${index + 1}`}
+				href={`#c${index + 1}`}
+				class="font-monospace text-body-tertiary text-decoration-none"
+				aria-label={`Comment ${commentNumber(index)}`}>{commentNumber(index)}</a
+			>
+			<span class="text-body fw-semibold">{author?.login ?? 'ghost'}</span>
+			<span>
+				commented
+				<time datetime={new Date(at).toISOString()} title={absoluteTime(at)}>{timeAgo(at)}</time>
+			</span>
+		{:else}
+			<span class="text-body fw-semibold">{author?.login ?? 'ghost'}</span>
+			<span class="d-inline-flex align-items-center gap-1">
+				<i class="bi bi-lock flex-shrink-0" aria-hidden="true"></i>
+				Internal
+			</span>
+			<span title={absoluteTime(at)}>{timeAgo(at)}</span>
+		{/if}
+		{#if onreply}
+			<Button
+				color="link"
+				size="sm"
+				class="d-inline-flex align-items-center text-decoration-none px-1 py-0"
+				onclick={() => onreply(entryId(entry))}
+			>
+				Reply
+			</Button>
+		{/if}
+		{#if entry.kind === 'note' && !readonly && viewerLogin && entry.note.author?.login === viewerLogin}
+			<span class="ms-auto d-flex align-items-center gap-2">
+				<Button
+					color="link"
+					size="sm"
+					class="d-inline-flex align-items-center text-decoration-none px-1 py-0"
+					disabled={busyId === `note:${entry.note.id}`}
+					title="Edit note"
+					onclick={() => startEdit(entry.note)}
+				>
+					Edit
+				</Button>
+				<Button
+					color="link"
+					size="sm"
+					class="d-inline-flex align-items-center text-decoration-none px-1 py-0"
+					title="Publish to GitHub as a comment (removes the note)"
+					disabled={busyId === `note:${entry.note.id}`}
+					onclick={() => onpublish(entry.note.id)}
+				>
+					Publish
+				</Button>
+				<Button
+					color="link"
+					size="sm"
+					class="d-inline-flex align-items-center text-decoration-none px-1 py-0 text-body-secondary"
+					title="Delete note"
+					disabled={busyId === `note:${entry.note.id}`}
+					onclick={() => ondelete(entry.note.id)}
+				>
+					Delete
+				</Button>
+			</span>
+		{/if}
+	</header>
+{/snippet}
+
+<div class="d-flex flex-column">
 	{#each entries as entry, index (entry.kind === 'comment' ? `c${entry.comment.externalId}` : entry.note.id)}
-		{@const author = entry.kind === 'comment' ? entry.comment.author : entry.note.author}
-		{@const at = entry.kind === 'comment' ? entry.comment.createdAt : entry.note.createdAt}
-		{@const tone =
-			entry.kind === 'note' ? 'note' : undefined}
 		<article
-			class="activity-entry flex max-w-[var(--layout-measure)] flex-col gap-1.5 border-t border-border-subtle py-3 first:border-t-0"
+			class="activity-entry {entry.kind === 'comment'
+				? 'd-flex gap-3 py-3'
+				: 'd-flex flex-column gap-1 py-2'} {index > 0 ? 'border-top' : ''}"
 			data-index={index}
-			data-tone={tone}
+			data-tone={entry.kind === 'note' ? 'note' : undefined}
 		>
-			<header class="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-caption text-fg-secondary">
-				{#if entry.kind === 'comment'}
-					<a
-						id={`c${index + 1}`}
-						href={`#c${index + 1}`}
-						class="mono link font-semibold"
-						aria-label={`Comment ${commentNumber(index)}`}>{commentNumber(index)}</a
-					>
-				{/if}
-				<strong class="font-semibold text-fg">{author?.login ?? 'ghost'}</strong>
-				{#if entry.kind === 'note'}
-					<span
-						class="inline-flex items-center gap-1 rounded-sm bg-surface px-1.5 py-0.5 font-semibold text-fg-secondary"
-					>
-						<LockIcon class="size-3 shrink-0" aria-hidden="true" />
-						Internal
-					</span>
-				{/if}
-				<span title={absoluteTime(at)}>{timeAgo(at)}</span>
-				{#if onreply}
-					<button
-						type="button"
-						class="link inline-flex h-(--size-control-sm) items-center"
-						onclick={() => onreply(entryId(entry))}
-					>
-						Reply
-					</button>
-				{/if}
-				{#if entry.kind === 'note' && !readonly && viewerLogin && entry.note.author?.login === viewerLogin}
-					<span class="ml-auto flex items-center gap-2">
-						<button
-							type="button"
-							class="link inline-flex h-(--size-control-sm) items-center disabled:pointer-events-none disabled:opacity-50"
-							disabled={busyId === `note:${entry.note.id}`}
-							title="Edit note"
-							onclick={() => startEdit(entry.note)}
-						>
-							Edit
-						</button>
-						<button
-							type="button"
-							class="link inline-flex h-(--size-control-sm) items-center disabled:pointer-events-none disabled:opacity-50"
-							title="Publish to GitHub as a comment (removes the note)"
-							disabled={busyId === `note:${entry.note.id}`}
-							onclick={() => onpublish(entry.note.id)}
-						>
-							Publish
-						</button>
-						<button
-							type="button"
-							class="link inline-flex h-(--size-control-sm) items-center disabled:pointer-events-none disabled:opacity-50"
-							title="Delete note"
-							disabled={busyId === `note:${entry.note.id}`}
-							onclick={() => ondelete(entry.note.id)}
-						>
-							Delete
-						</button>
-					</span>
-				{/if}
-			</header>
 			{#if entry.kind === 'comment'}
-				<div class="markdown">{@html entry.comment.bodyHtml}</div>
+				<i class="bi bi-person-circle fs-4 text-body-secondary flex-shrink-0" aria-hidden="true"></i>
+				<div class="min-w-0 flex-grow-1">
+					{@render entryMeta(entry, index)}
+					<div class="markdown mt-2">{@html entry.comment.bodyHtml}</div>
+				</div>
 			{:else}
+				{@render entryMeta(entry, index)}
 				{@render noteBody(entry.note)}
 			{/if}
 		</article>
@@ -182,19 +193,21 @@
 
 {#snippet noteBody(note: RenderedWorkNote)}
 	{#if editingId === note.id}
-		<div class="flex flex-col gap-2">
-			<Textarea
-				rows={3}
-				value={draft}
-				oninput={(e) => (draft = e.currentTarget.value)}
+		<div class="d-flex flex-column gap-2">
+			<textarea
+				class="form-control"
+				rows="3"
+				bind:value={draft}
 				placeholder="Update the work note…"
 				aria-label="Edit work note"
-			></Textarea>
-			<div class="flex justify-end gap-1">
-				<Button variant="ghost" size="xs" onclick={cancelEdit}>Cancel</Button>
+			></textarea>
+			<div class="d-flex justify-content-end gap-1">
+				<Button color="link" size="sm" class="text-decoration-none" onclick={cancelEdit}>
+					Cancel
+				</Button>
 				<Button
-					variant="secondary"
-					size="xs"
+					color="primary"
+					size="sm"
 					onclick={() => saveEdit(note.id)}
 					disabled={draft.trim().length === 0}
 				>
@@ -203,8 +216,14 @@
 			</div>
 		</div>
 	{:else}
-		<div class={cn('markdown', 'text-body-content leading-body-content')}>
+		<div class="markdown">
 			{@html note.bodyHtml}
 		</div>
 	{/if}
 {/snippet}
+
+<style>
+	.activity-meta {
+		font-size: 0.875rem;
+	}
+</style>

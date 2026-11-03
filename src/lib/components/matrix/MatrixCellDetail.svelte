@@ -13,8 +13,8 @@
 
 	/**
 	 * The selected cell's issue list. The header keeps the classification and
-	 * derived priority in view even when the cell is empty, and rows reuse the
-	 * shared issue presentation so opening one docks the standard Inspector.
+	 * derived priority in view even when the cell is empty, and rows open the
+	 * dedicated issue page through the shared list row.
 	 */
 	interface Props {
 		impact: Impact;
@@ -32,27 +32,23 @@
 	const priority = $derived(matrixCellPriority(impact, urgency));
 </script>
 
-<header class="flex flex-col gap-1" aria-live="polite">
-	<h2
-		id="matrix-detail-heading"
-		tabindex="-1"
-		class="text-heading-sm font-semibold leading-heading-sm text-fg"
-	>
+<header class="d-flex flex-column gap-1" aria-live="polite">
+	<h2 id="matrix-detail-heading" tabindex="-1" class="fs-5 fw-semibold mb-0">
 		{impactName} impact · {urgencyName} urgency
 	</h2>
-	<p class="flex flex-wrap items-center gap-x-2 gap-y-1 text-caption text-fg-secondary">
+	<p class="d-flex flex-wrap align-items-center gap-2 small text-body-secondary mb-0">
 		<PriorityText priority={priority.priority} showName />
 		<span aria-hidden="true">·</span>
-		<span class="tabular-nums">{total} {total === 1 ? 'issue' : 'issues'}</span>
+		<span class="tnum">{total} {total === 1 ? 'issue' : 'issues'}</span>
 	</p>
 </header>
 
-<div class="mt-[var(--space-block)] border-t border-border-subtle">
+<div class="mt-3 border-top">
 	{#if issues.length === 0}
-		<p class="py-6 text-body text-fg-secondary">No issues in this classification.</p>
+		<p class="py-4 text-body-secondary mb-0">No issues in this classification.</p>
 	{:else}
 		<ul
-			class="m-0 list-none p-0"
+			class="list-unstyled mb-0"
 			aria-label={`Issues with ${impactName} impact and ${urgencyName} urgency`}
 		>
 			{#each issues as issue (`${issue.repoId}:${issue.number}`)}
@@ -62,9 +58,15 @@
 			{/each}
 		</ul>
 		{#if total > issues.length}
-			<p class="border-t border-border-subtle py-2 text-caption tabular-nums text-fg-secondary">
+			<p class="small text-body-secondary border-top py-2 mb-0 tnum">
 				Showing {issues.length} of {total} issues.
 			</p>
 		{/if}
 	{/if}
 </div>
+
+<style>
+	.tnum {
+		font-variant-numeric: tabular-nums;
+	}
+</style>

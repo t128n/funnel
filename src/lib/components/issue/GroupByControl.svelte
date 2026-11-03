@@ -1,9 +1,12 @@
 <script lang="ts">
+	import {
+		Dropdown,
+		DropdownItem,
+		DropdownMenu,
+		DropdownToggle
+	} from '@sveltestrap/sveltestrap';
 	import { getGroupBy, setGroupBy } from '#lib/client/list-prefs.svelte';
-	import * as DropdownMenu from '#lib/components/ui/dropdown-menu/index.js';
 	import type { GroupKey, ProjectOption } from '#lib/components/issue/grouping';
-	import ChevronDownIcon from '@lucide/svelte/icons/chevron-down';
-	import Rows3Icon from '@lucide/svelte/icons/rows-3';
 
 	interface Props {
 		/** Configured project indicators; the Project option hides when empty. */
@@ -30,25 +33,34 @@
 	const stored = $derived(getGroupBy());
 	// A stored `project`/`milestone` preference with nothing to group by falls back to flat.
 	const group = $derived(options.some((option) => option.value === stored) ? stored : 'none');
+	const current = $derived(options.find((option) => option.value === group)?.label ?? 'None');
 </script>
 
-<DropdownMenu.Root>
-	<DropdownMenu.Trigger
-		class="inline-flex h-(--size-control-md) shrink-0 items-center gap-1.5 rounded-sm border border-border-strong bg-canvas px-3 text-body text-fg-secondary hover:bg-surface hover:text-fg data-[state=open]:bg-surface-2 data-[state=open]:text-fg"
+<Dropdown>
+	<DropdownToggle
+		color="secondary"
+		outline
+		class="d-inline-flex align-items-center gap-2"
+		aria-label={`Group issues by: ${current}`}
 	>
-		<Rows3Icon class="size-4 shrink-0" aria-hidden="true" />
+		<i class="bi bi-list" aria-hidden="true"></i>
 		<span>Group</span>
-		<ChevronDownIcon class="size-3.5 shrink-0 text-fg-muted" aria-hidden="true" />
-	</DropdownMenu.Trigger>
-	<DropdownMenu.Content align="end" class="w-48">
-		<DropdownMenu.Label>Group by</DropdownMenu.Label>
-		<DropdownMenu.RadioGroup
-			value={group}
-			onValueChange={(value) => setGroupBy(value as GroupKey)}
-		>
-			{#each options as option (option.value)}
-				<DropdownMenu.RadioItem value={option.value}>{option.label}</DropdownMenu.RadioItem>
-			{/each}
-		</DropdownMenu.RadioGroup>
-	</DropdownMenu.Content>
-</DropdownMenu.Root>
+		<i class="bi bi-chevron-down small" aria-hidden="true"></i>
+	</DropdownToggle>
+
+	<DropdownMenu end>
+		<li><h6 class="dropdown-header">Group by</h6></li>
+		{#each options as option (option.value)}
+			<DropdownItem
+				active={group === option.value}
+				on:click={() => setGroupBy(option.value)}
+			>
+				<i
+					class="bi bi-check-lg me-2 {group === option.value ? '' : 'invisible'}"
+					aria-hidden="true"
+				></i>
+				{option.label}
+			</DropdownItem>
+		{/each}
+	</DropdownMenu>
+</Dropdown>

@@ -1,6 +1,4 @@
 <script lang="ts">
-	import ArrowRightIcon from '@lucide/svelte/icons/arrow-right';
-
 	/**
 	 * The two assessment counts above the workspace. They are live values from
 	 * the same scoped dataset as the matrix, so a rating change updates both.
@@ -16,36 +14,44 @@
 	let { needsAssessment, rated, onreview = null }: Props = $props();
 </script>
 
-<section
-	class="grid grid-cols-1 border-y border-border-subtle sm:grid-cols-2"
-	aria-label="Assessment summary"
->
-	<div class="flex flex-col gap-1 py-3 sm:pe-6">
-		<h2 class="text-body font-semibold text-fg">Needs assessment</h2>
-		<p class="text-heading-sm font-semibold leading-heading-sm tabular-nums text-fg">
-			{needsAssessment}
-		</p>
-		<p class="text-caption text-fg-secondary">Issues awaiting classification</p>
+<section class="summary row g-0 border-top border-bottom py-3" aria-label="Assessment summary">
+	<div class="summary-cell col-sm-6 d-flex flex-column gap-1 pe-sm-4">
+		<h2 class="small fw-semibold mb-0">Needs assessment</h2>
+		<p class="fs-5 fw-semibold mb-0 tnum">{needsAssessment}</p>
+		<p class="small text-body-secondary mb-0">Issues awaiting classification</p>
 		{#if onreview && needsAssessment > 0}
 			<button
 				type="button"
-				class="link mt-1 inline-flex min-h-(--size-control-sm) w-fit items-center gap-1 text-body font-semibold"
+				class="btn btn-link btn-sm d-inline-flex align-items-center gap-1 align-self-start p-0 mt-1 text-decoration-none"
 				aria-haspopup="dialog"
 				onclick={onreview}
 			>
 				Review queue
-				<ArrowRightIcon class="size-3.5" aria-hidden="true" />
+				<i class="bi bi-arrow-right" aria-hidden="true"></i>
 			</button>
 		{/if}
 	</div>
 
-	<div
-		class="flex flex-col gap-1 border-t border-border-subtle py-3 sm:border-t-0 sm:border-l sm:ps-6"
-	>
-		<h2 class="text-body font-semibold text-fg">Rated issues</h2>
-		<p class="text-heading-sm font-semibold leading-heading-sm tabular-nums text-fg">
-			{rated}
-		</p>
-		<p class="text-caption text-fg-secondary">Issues classified in the matrix</p>
+	<div class="summary-cell summary-cell--second col-sm-6 d-flex flex-column gap-1 py-3 py-sm-0 ps-sm-4">
+		<h2 class="small fw-semibold mb-0">Rated issues</h2>
+		<p class="fs-5 fw-semibold mb-0 tnum">{rated}</p>
+		<p class="small text-body-secondary mb-0">Issues classified in the matrix</p>
 	</div>
 </section>
+
+<style>
+	.summary-cell--second {
+		border-top: 1px solid var(--bs-border-color);
+	}
+
+	.tnum {
+		font-variant-numeric: tabular-nums;
+	}
+
+	@media (min-width: 576px) {
+		.summary-cell--second {
+			border-top: 0;
+			border-left: 1px solid var(--bs-border-color);
+		}
+	}
+</style>

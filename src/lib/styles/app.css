@@ -1,0 +1,223 @@
+/**
+ * Funnel application styles.
+ *
+ * Bootstrap 5 supplies the visual foundation: typography, colour, spacing,
+ * forms, tables, navigation, and every component Sveltestrap renders. This
+ * file contains only the application-specific layout that Bootstrap cannot
+ * express: the pinned dark navbar controls, the document reading line-height,
+ * and the dimensions of the planning workspaces.
+ *
+ * Colours and theme values are Bootstrap CSS variables (`--bs-*`) so light and
+ * dark mode come from `data-bs-theme` without a second token system.
+ */
+
+:root {
+  --funnel-board-lane-width: 18rem;
+  --funnel-table-min: 44.75rem;
+  --funnel-row-compact: 2.25rem;
+  --funnel-measure: 72ch;
+  --funnel-form-max: 40rem;
+  --funnel-timeline-hour: 3.5rem;
+  --funnel-timeline-label: 18rem;
+  --funnel-timeline-chart-min: 36rem;
+  --funnel-timeline-row: 2.75rem;
+
+  /* ECharts needs concrete values at render time; these follow Bootstrap. */
+  --funnel-chart-1: #0d6efd;
+  --funnel-chart-2: #198754;
+  --funnel-chart-3: #d63384;
+  --funnel-chart-4: #6f42c1;
+  --funnel-chart-5: #495057;
+  --funnel-chart-6: #fd7e14;
+}
+
+body {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+/* Composition A: one dark global navbar in normal document flow. */
+.app-bar .navbar-brand {
+  color: #fff;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+/*
+ * Quiet icon and menu controls on the dark bar, matching the approved PoC:
+ * 14px text in a 31px target (`btn-sm` padding plus a transparent 1px border)
+ * at 50% white. Keeping the border transparent preserves `btn-link` geometry.
+ */
+.nav-quiet {
+  padding: 0.25rem 0.5rem;
+  border: 1px solid transparent;
+  color: rgb(255 255 255 / 0.5);
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.nav-quiet:hover,
+.nav-quiet:focus {
+  color: #fff;
+  background: rgb(255 255 255 / 0.08);
+}
+
+.nav-quiet:focus-visible {
+  outline: 2px solid rgb(255 255 255 / 0.65);
+  outline-offset: 1px;
+  box-shadow: none;
+}
+
+.nav-kbd {
+  padding: 0.05rem 0.3rem;
+  border: 1px solid rgb(255 255 255 / 0.22);
+  border-radius: 0.25rem;
+  background: transparent;
+  color: rgb(255 255 255 / 0.55);
+  font-family: var(--bs-font-monospace);
+  font-size: 0.6875rem;
+  font-weight: 400;
+}
+
+/*
+ * Bootstrap keeps `--bs-primary` at #0d6efd in dark mode, which is dim on the
+ * dark surface. Lift only the status token to Bootstrap's dark emphasis colour.
+ */
+[data-bs-theme='dark'] .status-text.text-primary {
+  color: var(--bs-primary-text-emphasis) !important;
+}
+
+/* Keep the approved light-mode grey without dimming it on the dark page. */
+[data-bs-theme='dark'] .status-text.text-secondary {
+  color: var(--bs-secondary-color) !important;
+}
+
+/*
+ * Composition A's label badge is a light bordered chip with secondary text.
+ * In dark mode the fixed light fill and the theme-aware text colour collide, so
+ * keep the chip's neutral treatment on the dark surface instead.
+ */
+[data-bs-theme='dark'] .badge.text-bg-light {
+  color: var(--bs-secondary-color) !important;
+  background-color: var(--bs-tertiary-bg) !important;
+  border-color: var(--bs-border-color) !important;
+}
+
+.app-main {
+  min-width: 0;
+  background: var(--bs-body-bg);
+}
+
+.app-main:focus {
+  outline: none;
+}
+
+/* Bootstrap has no zero min-size utilities; flex/grid children need them. */
+.min-w-0 {
+  min-width: 0 !important;
+}
+
+.min-h-0 {
+  min-height: 0 !important;
+}
+
+/* Reading measure for standalone auth, onboarding, and public flows. */
+.measure {
+  width: 100%;
+  max-width: var(--funnel-measure);
+}
+
+.form-measure {
+  width: 100%;
+  max-width: var(--funnel-form-max);
+}
+
+/* The issue document reads as prose, not as a dashboard cell. */
+.issue-document {
+  font-size: 1rem;
+  line-height: 1.65;
+}
+
+/*
+ * Composition A uses `.table-light` for header and group rows. Bootstrap fixes
+ * that palette to light-mode colours, so remap it onto the theme surfaces in
+ * dark mode rather than painting a light-gray slab.
+ */
+[data-bs-theme='dark'] .table-light {
+  --bs-table-color: var(--bs-body-color);
+  --bs-table-bg: var(--bs-tertiary-bg);
+  --bs-table-border-color: var(--bs-border-color);
+  --bs-table-striped-color: var(--bs-body-color);
+  --bs-table-striped-bg: var(--bs-secondary-bg);
+  --bs-table-hover-color: var(--bs-body-color);
+  --bs-table-hover-bg: var(--bs-secondary-bg);
+}
+
+/* List tables keep Bootstrap's base type and cell rhythm; only the outer margin goes. */
+.funnel-table {
+  min-width: var(--funnel-table-min);
+  margin-bottom: 0;
+  font-size: 1rem;
+}
+
+.funnel-table > :not(caption) > * > * {
+  padding: 0.5rem 0.75rem;
+}
+
+/* Avatar: a Bootstrap circle with an image or an initial. */
+.funnel-avatar {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-radius: 50%;
+  background: var(--bs-secondary-bg);
+  color: var(--bs-body-color);
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.funnel-avatar > img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Compact definition lists (settings profile, issue details). */
+.property-list {
+  display: grid;
+  grid-template-columns: minmax(6.5rem, max-content) minmax(0, 1fr);
+  margin: 0;
+  border-top: 1px solid var(--bs-border-color);
+}
+
+.property-list > dt,
+.property-list > dd {
+  display: flex;
+  align-items: center;
+  min-height: 2.25rem;
+  margin: 0;
+  padding: 0.125rem 0;
+  border-bottom: 1px solid var(--bs-border-color);
+}
+
+.property-list > dt {
+  padding-inline-end: 0.75rem;
+  color: var(--bs-secondary-color);
+  font-weight: 400;
+}
+
+.property-list > dd {
+  min-width: 0;
+}
+
+@media (max-width: 767.98px) {
+  :root {
+    --funnel-timeline-label: 11rem;
+    --funnel-timeline-chart-min: 20rem;
+    --funnel-timeline-row: 4.5rem;
+  }
+}

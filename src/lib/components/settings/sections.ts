@@ -2,24 +2,10 @@
  * Settings-section catalog.
  *
  * Single source for the `/settings` navigation: the desktop sidebar, the mobile
- * `NativeSelect` switcher, and the active-section lookup all read this, so
- * labels, icons, and hrefs cannot drift. Declarations only — no data loading —
- * so the shell stays thin.
+ * section switcher, and the active-section lookup all read this, so labels and
+ * hrefs cannot drift. Declarations only — no data loading — so the shell stays
+ * thin.
  */
-import BellRingIcon from '@lucide/svelte/icons/bell-ring';
-import BotIcon from '@lucide/svelte/icons/bot';
-import CalendarClockIcon from '@lucide/svelte/icons/calendar-clock';
-import CalendarRangeIcon from '@lucide/svelte/icons/calendar-range';
-import CircleUserIcon from '@lucide/svelte/icons/circle-user';
-import FlagIcon from '@lucide/svelte/icons/flag';
-import FolderGit2Icon from '@lucide/svelte/icons/folder-git-2';
-import InboxIcon from '@lucide/svelte/icons/inbox';
-import KanbanIcon from '@lucide/svelte/icons/kanban';
-import PaintbrushIcon from '@lucide/svelte/icons/paintbrush';
-import RefreshCwIcon from '@lucide/svelte/icons/refresh-cw';
-import TagIcon from '@lucide/svelte/icons/tag';
-import TimerIcon from '@lucide/svelte/icons/timer';
-import UsersIcon from '@lucide/svelte/icons/users';
 import type { Role } from '#lib/roles';
 
 export interface SettingsSection {
@@ -31,9 +17,6 @@ export interface SettingsSection {
 	href: string;
 	/** Minimum RBAC role required to see and open the section. */
 	minRole: Role;
-	// Lucide icon components are not typed as `Component` yet.
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	icon: any;
 }
 
 /** A scoped block of sections, rendered under one sidebar heading. */
@@ -68,32 +51,28 @@ export const settingsGroups: SettingsGroup[] = [
 				label: 'Account',
 				description: 'Your profile and how you sign in to Funnel.',
 				href: '/settings',
-				minRole: 'read',
-				icon: CircleUserIcon
+				minRole: 'read'
 			},
 			{
 				id: 'appearance',
 				label: 'Appearance',
 				description: '',
 				href: '/settings/appearance',
-				minRole: 'read',
-				icon: PaintbrushIcon
+				minRole: 'read'
 			},
 			{
 				id: 'features',
 				label: 'Features',
 				description: 'Enable or disable functionality for this browser.',
 				href: '/settings/features',
-				minRole: 'read',
-				icon: FlagIcon
+				minRole: 'read'
 			},
 			{
 				id: 'availability',
 				label: 'Availability',
 				description: 'Working hours, blocked windows, and a read-only calendar feed for the day planner.',
 				href: '/settings/availability',
-				minRole: 'read',
-				icon: CalendarClockIcon
+				minRole: 'read'
 			}
 		]
 	},
@@ -106,48 +85,42 @@ export const settingsGroups: SettingsGroup[] = [
 				label: 'Repositories',
 				description: 'Repositories Funnel mirrors and can create issues in.',
 				href: '/settings/repositories',
-				minRole: 'admin',
-				icon: FolderGit2Icon
+				minRole: 'admin'
 			},
 			{
 				id: 'projects',
 				label: 'Projects',
 				description: 'GitHub labels that mark an issue as belonging to a project.',
 				href: '/settings/projects',
-				minRole: 'admin',
-				icon: TagIcon
+				minRole: 'admin'
 			},
 			{
 				id: 'intake',
 				label: 'Intake',
 				description: 'Where accepted submissions go by default.',
 				href: '/settings/intake',
-				minRole: 'admin',
-				icon: InboxIcon
+				minRole: 'admin'
 			},
 			{
 				id: 'board',
 				label: 'Board',
 				description: 'Done-column retention and per-stage work-in-progress limits.',
 				href: '/settings/board',
-				minRole: 'admin',
-				icon: KanbanIcon
+				minRole: 'admin'
 			},
 			{
 				id: 'planning',
 				label: 'Planning',
 				description: 'Size-to-time estimates, the cycle shape, and planning capacity.',
 				href: '/settings/planning',
-				minRole: 'admin',
-				icon: CalendarRangeIcon
+				minRole: 'admin'
 			},
 			{
 				id: 'notifications',
 				label: 'Notifications',
 				description: 'Which notification channels the instance uses.',
 				href: '/settings/notifications',
-				minRole: 'admin',
-				icon: BellRingIcon
+				minRole: 'admin'
 			}
 		]
 	},
@@ -160,34 +133,29 @@ export const settingsGroups: SettingsGroup[] = [
 				label: 'People',
 				description: 'Who can use this instance and what each role can do.',
 				href: '/settings/people',
-				minRole: 'admin',
-				icon: UsersIcon
+				minRole: 'admin'
 			},
 			{
 				id: 'github-app',
 				label: 'GitHub App',
 				description: 'The App Funnel created and uses to mirror issues and post writes.',
 				href: '/settings/github-app',
-				minRole: 'admin',
-				icon: BotIcon
+				minRole: 'admin'
 			},
 			{
 				id: 'sync',
 				label: 'Sync',
 				description: 'How often Funnel polls GitHub for changes.',
 				href: '/settings/sync',
-				minRole: 'admin',
-				icon: RefreshCwIcon
+				minRole: 'admin'
 			},
 			{
 				id: 'session',
 				label: 'Session',
 				description: 'How long a signed-in session lasts.',
 				href: '/settings/session',
-				minRole: 'admin',
-				icon: TimerIcon
+				minRole: 'admin'
 			}
 		]
 	}
 ];
-

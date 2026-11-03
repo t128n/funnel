@@ -1,7 +1,13 @@
 <script lang="ts">
 	import { goto, invalidateAll } from '$app/navigation';
+	import {
+		Button,
+		Dropdown,
+		DropdownItem,
+		DropdownMenu,
+		DropdownToggle
+	} from '@sveltestrap/sveltestrap';
 	import RefText from '#lib/components/common/RefText.svelte';
-	import * as DropdownMenu from '#lib/components/ui/dropdown-menu/index.js';
 	import { attentionUrgency, quickRecheckDates, recheckDateLabel, recheckLabel } from '#lib/attention';
 	import {
 		assignToMe,
@@ -14,15 +20,6 @@
 	import { issuePath } from '#lib/issue-url';
 	import { issueRef } from '#lib/issue-ref';
 	import type { AttentionItem, UserRef } from '#lib/server/issues/types';
-	import { cn } from '#lib/utils';
-	import CalendarClockIcon from '@lucide/svelte/icons/calendar-clock';
-	import CalendarOffIcon from '@lucide/svelte/icons/calendar-off';
-	import CheckIcon from '@lucide/svelte/icons/check';
-	import Clock3Icon from '@lucide/svelte/icons/clock-3';
-	import EllipsisIcon from '@lucide/svelte/icons/ellipsis';
-	import TriangleAlertIcon from '@lucide/svelte/icons/triangle-alert';
-	import UserRoundMinusIcon from '@lucide/svelte/icons/user-round-minus';
-	import UserRoundPlusIcon from '@lucide/svelte/icons/user-round-plus';
 
 	/**
 	 * One blocked issue on the Attention list: urgency icon + word + re-check
@@ -58,19 +55,19 @@
 	);
 	const urgencyTone = $derived(
 		urgency === 'overdue'
-			? 'status-error'
+			? 'text-danger'
 			: urgency === 'today'
-				? 'status-warning'
-				: 'status-muted'
+				? 'text-warning-emphasis'
+				: 'text-body-secondary'
 	);
-	const UrgencyIcon = $derived(
+	const urgencyIcon = $derived(
 		urgency === 'overdue'
-			? TriangleAlertIcon
+			? 'bi-exclamation-triangle'
 			: urgency === 'today'
-				? Clock3Icon
+				? 'bi-clock-history'
 				: urgency === 'upcoming'
-					? CalendarClockIcon
-					: CalendarOffIcon
+					? 'bi-calendar-event'
+					: 'bi-calendar-x'
 	);
 
 	const dateTitle = $derived(
@@ -87,7 +84,7 @@
 	const quickDates = $derived(quickRecheckDates(today));
 
 	const actionButton =
-		'inline-flex size-(--size-control-sm) shrink-0 items-center justify-center rounded-sm text-fg-secondary outline-none hover:bg-surface-2 hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring';
+		'attention-action btn btn-link p-0 d-inline-flex align-items-center justify-content-center text-body-secondary text-decoration-none flex-shrink-0';
 
 	/** Defer the re-check without re-recording the block, then reload the feed. */
 	async function snooze(value: string) {
@@ -106,43 +103,47 @@
 </script>
 
 {#snippet recheckItems()}
-	<DropdownMenu.Label>Re-check</DropdownMenu.Label>
+	<DropdownItem header>Re-check</DropdownItem>
 	{#each quickDates as option (option.value)}
-		<DropdownMenu.Item class="gap-2" onSelect={() => void snooze(option.value)}>
-			<span class="flex-1 truncate">{option.label}</span>
-			<span class="mono text-caption text-fg-muted">{option.value}</span>
-		</DropdownMenu.Item>
+		<DropdownItem
+			on:click={() => void snooze(option.value)}
+			class="d-flex align-items-center justify-content-between gap-2"
+		>
+			<span class="text-truncate">{option.label}</span>
+			<span class="font-monospace small text-body-tertiary">{option.value}</span>
+		</DropdownItem>
 	{/each}
-	<DropdownMenu.Item class="gap-2" onSelect={() => requestBlock(issue)}>
-		Custom date…
-	</DropdownMenu.Item>
+	<DropdownItem on:click={() => requestBlock(issue)}>Custom date…</DropdownItem>
 {/snippet}
 
 <div
 	role="listitem"
-	class="group/row relative flex min-h-(--size-row-compact) items-center gap-3 px-3 py-1.5 hover:bg-surface-2"
+	class="attention-row position-relative d-flex align-items-center gap-3 border-bottom px-3 py-2"
 >
 	<!-- Stretched link: the whole row opens the issue; controls layer above it. -->
 	<a
 		{href}
-		class="absolute inset-0 outline-none focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ring"
+		class="attention-row__link"
 		aria-label={`Open ${issue.repo}#${issue.number}: ${issue.title}`}
 	></a>
 
-	<div class="flex min-w-0 flex-1 flex-col gap-0.5 py-0.5">
-		<div class="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5">
-			<span class={cn('status shrink-0', urgencyTone)} title={dateTitle}>
-				<UrgencyIcon aria-hidden="true" />
+	<div class="d-flex min-w-0 flex-grow-1 flex-column gap-1 py-1">
+		<div class="d-flex min-w-0 flex-wrap align-items-center gap-2">
+			<span
+				class="d-inline-flex align-items-center gap-1 small text-nowrap flex-shrink-0 {urgencyTone}"
+				title={dateTitle}
+			>
+				<i class="bi {urgencyIcon}" aria-hidden="true"></i>
 				<span>{urgencyLabel}</span>
 			</span>
 
 			{#if urgency === 'unscheduled'}
-				<span class="shrink-0 text-caption text-fg-secondary" title={dateTitle}>
+				<span class="flex-shrink-0 small text-body-secondary" title={dateTitle}>
 					No re-check date
 				</span>
 			{:else}
 				<time
-					class="shrink-0 text-caption text-fg-secondary tabular-nums"
+					class="flex-shrink-0 small text-body-secondary tabular"
 					datetime={item.recheck}
 					title={dateTitle}
 				>
@@ -150,100 +151,139 @@
 				</time>
 			{/if}
 
-			<RefText value={ref} title={`${issue.repo}#${issue.number}`} class="shrink-0" />
+			<span class="flex-shrink-0 link-primary"><RefText value={ref} title={`${issue.repo}#${issue.number}`} class="text-reset" /></span>
 
-			<span class="min-w-0 flex-1 truncate text-body text-fg" title={issue.title}>
+			<span class="min-w-0 flex-grow-1 text-truncate small text-body" title={issue.title}>
 				{issue.title}
 			</span>
 		</div>
 
-		<div class="flex min-w-0 items-center gap-2 text-caption text-fg-secondary">
-			<span class="min-w-0 flex-1 truncate" title={item.blocker}>
+		<div class="d-flex min-w-0 align-items-center gap-2 small text-body-secondary">
+			<span class="min-w-0 flex-grow-1 text-truncate" title={item.blocker}>
 				{item.blocker || 'No blocker summary'}
 			</span>
-			<span class="shrink-0 truncate" title={assigneeText}>
+			<span class="flex-shrink-0 text-truncate" title={assigneeText}>
 				{assigneeText || 'Unassigned'}
 			</span>
 		</div>
 	</div>
 
-	<div class="relative z-10 flex shrink-0 items-center gap-1">
+	<div class="attention-controls position-relative z-1 d-flex flex-shrink-0 align-items-center gap-1">
 		<!-- Desktop quick actions: hover/focus only; every one is also in the menu. -->
-		<div
-			class="hidden items-center gap-1 md:flex md:pointer-events-none md:opacity-0 md:group-hover/row:pointer-events-auto md:group-hover/row:opacity-100 md:group-focus-within/row:pointer-events-auto md:group-focus-within/row:opacity-100"
-		>
-			<DropdownMenu.Root>
-				<DropdownMenu.Trigger
+		<div class="attention-quick align-items-center gap-1">
+			<Dropdown>
+				<DropdownToggle
+					color="link"
+					caret={false}
 					class={actionButton}
 					title={urgency === 'unscheduled' ? 'Set re-check date' : 'Reschedule re-check'}
 					aria-label={urgency === 'unscheduled' ? 'Set re-check date' : 'Reschedule re-check'}
 				>
-					<CalendarClockIcon class="size-4" />
-				</DropdownMenu.Trigger>
-				<DropdownMenu.Content align="end" class="w-52">
+					<i class="bi bi-calendar-event fs-6" aria-hidden="true"></i>
+				</DropdownToggle>
+				<DropdownMenu end style="min-width: 13rem">
 					{@render recheckItems()}
-				</DropdownMenu.Content>
-			</DropdownMenu.Root>
+				</DropdownMenu>
+			</Dropdown>
 
 			{#if viewer}
-				<button
-					type="button"
+				<Button
+					color="link"
 					class={actionButton}
 					title={assignedToViewer ? 'Unassign me' : 'Assign to me'}
 					aria-label={assignedToViewer ? 'Unassign me' : 'Assign to me'}
 					onclick={toggleAssign}
 				>
-					{#if assignedToViewer}
-						<UserRoundMinusIcon class="size-4" />
-					{:else}
-						<UserRoundPlusIcon class="size-4" />
-					{/if}
-				</button>
+					<i
+						class="bi {assignedToViewer ? 'bi-person-dash' : 'bi-person-plus'} fs-6"
+						aria-hidden="true"
+					></i>
+				</Button>
 			{/if}
 
-			<button
-				type="button"
+			<Button
+				color="link"
 				class={actionButton}
 				title="Mark done"
 				aria-label="Mark done"
 				onclick={() => requestClose(issue)}
 			>
-				<CheckIcon class="size-4" />
-			</button>
+				<i class="bi bi-check-lg fs-6" aria-hidden="true"></i>
+			</Button>
 		</div>
 
 		<!-- Always available: the same actions for touch and keyboard users. -->
-		<DropdownMenu.Root>
-			<DropdownMenu.Trigger
+		<Dropdown>
+			<DropdownToggle
+				color="link"
+				caret={false}
 				class={actionButton}
 				title="Issue actions"
 				aria-label="Issue actions"
 			>
-				<EllipsisIcon class="size-4" />
-			</DropdownMenu.Trigger>
-			<DropdownMenu.Content align="end" class="w-56">
+				<i class="bi bi-three-dots fs-6" aria-hidden="true"></i>
+			</DropdownToggle>
+			<DropdownMenu end style="min-width: 14rem">
 				{@render recheckItems()}
-				<DropdownMenu.Separator />
+				<DropdownItem divider />
 				{#if viewer}
-					<DropdownMenu.Item class="gap-2" onSelect={toggleAssign}>
+					<DropdownItem on:click={toggleAssign}>
 						{assignedToViewer ? 'Unassign me' : 'Assign to me'}
-					</DropdownMenu.Item>
+					</DropdownItem>
 				{/if}
-				<DropdownMenu.Item class="gap-2" onSelect={() => requestClose(issue)}>
-					Mark done
-				</DropdownMenu.Item>
-				<DropdownMenu.Separator />
-				<DropdownMenu.Item class="gap-2" onSelect={() => requestBlock(issue)}>
-					Update block…
-				</DropdownMenu.Item>
-				<DropdownMenu.Item class="gap-2" onSelect={() => requestUnblock(issue)}>
-					Unblock…
-				</DropdownMenu.Item>
-				<DropdownMenu.Separator />
-				<DropdownMenu.Item class="gap-2" onSelect={() => void goto(href)}>
-					Open issue
-				</DropdownMenu.Item>
-			</DropdownMenu.Content>
-		</DropdownMenu.Root>
+				<DropdownItem on:click={() => requestClose(issue)}>Mark done</DropdownItem>
+				<DropdownItem divider />
+				<DropdownItem on:click={() => requestBlock(issue)}>Update block…</DropdownItem>
+				<DropdownItem on:click={() => requestUnblock(issue)}>Unblock…</DropdownItem>
+				<DropdownItem divider />
+				<DropdownItem on:click={() => void goto(href)}>Open issue</DropdownItem>
+			</DropdownMenu>
+		</Dropdown>
 	</div>
 </div>
+
+<style>
+	.attention-row__link {
+		position: absolute;
+		inset: 0;
+		outline: none;
+	}
+
+	.attention-row__link:focus-visible {
+		outline: 2px solid var(--bs-primary);
+		outline-offset: -2px;
+	}
+
+	.attention-controls :global(.attention-action) {
+		width: 1.75rem;
+		height: 1.75rem;
+		border-radius: var(--bs-border-radius-sm);
+	}
+
+	.attention-controls :global(.attention-action:hover) {
+		background: var(--bs-tertiary-bg);
+		color: var(--bs-body-color) !important;
+	}
+
+	.tabular {
+		font-variant-numeric: tabular-nums;
+	}
+
+	.attention-quick {
+		display: none;
+	}
+
+	@media (min-width: 768px) {
+		.attention-quick {
+			display: flex;
+			opacity: 0;
+			pointer-events: none;
+		}
+
+		.attention-row:hover .attention-quick,
+		.attention-row:focus-within .attention-quick {
+			opacity: 1;
+			pointer-events: auto;
+		}
+	}
+</style>

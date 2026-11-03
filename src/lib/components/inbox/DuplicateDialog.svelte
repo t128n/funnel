@@ -1,12 +1,18 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
 	import { enhance } from '$app/forms';
+	import {
+		Button,
+		FormGroup,
+		Label,
+		Modal,
+		ModalBody,
+		ModalFooter,
+		ModalHeader
+	} from '@sveltestrap/sveltestrap';
 	import InlineStatus from '#lib/components/common/InlineStatus.svelte';
 	import Spinner from '#lib/components/common/Spinner.svelte';
 	import SingleSelect from '#lib/components/common/SingleSelect.svelte';
-	import { Button } from '#lib/components/ui/button';
-	import * as Dialog from '#lib/components/ui/dialog';
-	import * as Field from '#lib/components/ui/field';
 	import { fetchRepoIssues } from '#lib/client/mutations';
 	import type { IssueOption } from '#lib/server/issues/types';
 
@@ -53,7 +59,7 @@
 		issues.map((issue) => ({
 			value: String(issue.number),
 			label: `#${issue.number} ${issue.title}`,
-			color: issue.state === 'closed' ? 'var(--muted-foreground)' : 'var(--primary)'
+			color: issue.state === 'closed' ? 'var(--bs-secondary-color)' : 'var(--bs-primary)'
 		}))
 	);
 
@@ -98,106 +104,104 @@
 		void repo;
 		void loadIssues();
 	});
+
+	function close() {
+		if (!pending) onopenchange(false);
+	}
+
+	function toggle() {
+		if (!pending) onopenchange(!open);
+	}
 </script>
 
-<Dialog.Root
-	{open}
-	onOpenChange={(next) => {
-		if (!pending) onopenchange(next);
-	}}
->
-	<Dialog.Content aria-describedby={undefined} class="sm:max-w-md">
-		<Dialog.Header>
-			<Dialog.Title>Mark as duplicate</Dialog.Title>
-			<Dialog.Description>
+<Modal isOpen={open} toggle={toggle}>
+	<ModalHeader toggle={close}>Mark as duplicate</ModalHeader>
+
+	<form
+		method="POST"
+		action="?/duplicate"
+		use:enhance={() => {
+			pending = true;
+			error = null;
+			onbegin();
+			return async ({ result, update }) => {
+				await update({ reset: false, invalidateAll: false });
+				pending = false;
+				if (result.type === 'success') {
+					onopenchange(false);
+					onresult(true);
+					return;
+				}
+				error =
+					(result.type === 'failure' && typeof result.data?.message === 'string'
+						? result.data.message
+						: null) ?? 'Could not duplicate the submission.';
+				onresult(false);
+			};
+		}}
+	>
+		<ModalBody>
+			<p class="text-body-secondary">
 				The submission text is posted as a comment on an existing issue, then cleared from the
 				queue.
-			</Dialog.Description>
-		</Dialog.Header>
+			</p>
 
-		<form
-			method="POST"
-			action="?/duplicate"
-			use:enhance={() => {
-				pending = true;
-				error = null;
-				onbegin();
-				return async ({ result, update }) => {
-					await update({ reset: false, invalidateAll: false });
-					pending = false;
-					if (result.type === 'success') {
-						onopenchange(false);
-						onresult(true);
-						return;
-					}
-					error =
-						(result.type === 'failure' && typeof result.data?.message === 'string'
-							? result.data.message
-							: null) ?? 'Could not duplicate the submission.';
-					onresult(false);
-				};
-			}}
-		>
-			<div class="flex flex-col gap-4">
-				<input type="hidden" name="id" value={id} />
-				<input type="hidden" name="repo" value={repo} />
-				<input type="hidden" name="number" value={number} />
+			<input type="hidden" name="id" value={id} />
+			<input type="hidden" name="repo" value={repo} />
+			<input type="hidden" name="number" value={number} />
 
-				<Field.Field>
-					<Field.Label>Repository</Field.Label>
-					<SingleSelect
-						label="Repository"
-						options={repoOptions}
-						value={repo}
-						onselect={(value) => {
-							repo = value ?? '';
-							number = '';
-						}}
-						disabled={pending}
-					/>
-				</Field.Field>
+			<FormGroup>
+				<Label>Repository</Label>
+				<SingleSelect
+					label="Repository"
+					options={repoOptions}
+					value={repo}
+					onselect={(value) => {
+						repo = value ?? '';
+						number = '';
+					}}
+					disabled={pending}
+				/>
+			</FormGroup>
 
-				<Field.Field>
-					<Field.Label>Existing issue</Field.Label>
-					<SingleSelect
-						label={issueLabel}
-						options={issueOptions}
-						value={number || null}
-						onselect={(value) => (number = value ?? '')}
-						disabled={pending || loading || issueOptions.length === 0}
-					/>
-					{#if loading}
-						<Field.Description class="flex items-center gap-1.5">
-							<Spinner size={12} />
-							Loading issues…
-						</Field.Description>
-					{:else if issuesError}
-						<Field.Description class="text-error">{issuesError}</Field.Description>
-					{:else if issueOptions.length === 0}
-						<Field.Description>No mirrored issues in this repository.</Field.Description>
-					{/if}
-				</Field.Field>
-			</div>
+			<FormGroup class="mb-0">
+				<Label>Existing issue</Label>
+				<SingleSelect
+					label={issueLabel}
+					options={issueOptions}
+					value={number || null}
+					onselect={(value) => (number = value ?? '')}
+					disabled={pending || loading || issueOptions.length === 0}
+				/>
+				{#if loading}
+					<div class="form-text d-flex align-items-center gap-2">
+						<Spinner size={12} />
+						Loading issues…
+					</div>
+				{:else if issuesError}
+					<div class="form-text text-danger">{issuesError}</div>
+				{:else if issueOptions.length === 0}
+					<div class="form-text">No mirrored issues in this repository.</div>
+				{/if}
+			</FormGroup>
 
 			{#if error}
-				<InlineStatus tone="error" message={error} class="mt-4" />
+				<InlineStatus tone="error" message={error} class="mt-3" />
 			{/if}
+		</ModalBody>
 
-			<Dialog.Footer class="mt-4">
-				<Dialog.Close type="button">
-					{#snippet child({ props })}
-						<Button variant="outline" {...props} type="button" disabled={pending}>Cancel</Button>
-					{/snippet}
-				</Dialog.Close>
-				<Button type="submit" disabled={pending || loading || number.trim().length === 0}>
-					{#if pending}
-						<span data-icon="inline-start" class="inline-flex items-center">
-							<Spinner size={13} />
-						</span>
-					{/if}
-					Mark duplicate
-				</Button>
-			</Dialog.Footer>
-		</form>
-	</Dialog.Content>
-</Dialog.Root>
+		<ModalFooter>
+			<Button color="outline-secondary" type="button" onclick={close} disabled={pending}>
+				Cancel
+			</Button>
+			<Button type="submit" color="primary" disabled={pending || loading || number.trim().length === 0}>
+				{#if pending}
+					<span class="d-inline-flex align-items-center me-1">
+						<Spinner size={13} />
+					</span>
+				{/if}
+				Mark duplicate
+			</Button>
+		</ModalFooter>
+	</form>
+</Modal>

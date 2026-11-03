@@ -1,0 +1,114 @@
+/* Layout geometry only. Colour, type, spacing, and components come from Bootstrap. */
+
+body {
+  min-height: 100vh;
+}
+
+.issue-row {
+  cursor: pointer;
+}
+
+.issue-document,
+.document-measure,
+.reading-measure {
+  line-height: 1.65;
+}
+
+.document-measure,
+.reading-measure {
+  max-width: 72ch;
+}
+
+.min-w-0 {
+  min-width: 0;
+}
+
+/* Alternative B: persistent shell with two independently scrolling panes. */
+.split-shell {
+  display: flex;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+}
+
+.app-sidebar {
+  flex: 0 0 208px;
+  width: 208px;
+}
+
+.app-sidebar .nav-link {
+  color: var(--bs-body-color);
+}
+
+.app-sidebar .nav-link.active {
+  color: var(--bs-primary);
+  background-color: var(--bs-secondary-bg);
+}
+
+.split-main {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.split-workspace {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.split-list {
+  display: flex;
+  flex: 0 0 340px;
+  flex-direction: column;
+  width: 340px;
+  min-width: 0;
+  border-right: 1px solid var(--bs-border-color);
+}
+
+.split-list-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.split-detail {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-y: auto;
+}
+
+.issue-list-item {
+  display: block;
+  width: 100%;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+}
+
+.issue-list-item.is-selected {
+  background-color: var(--bs-secondary-bg) !important;
+  box-shadow: inset 2px 0 0 var(--bs-primary);
+}
+
+.issue-list-item:focus-visible {
+  outline: 2px solid var(--bs-primary);
+  outline-offset: -2px;
+}
+
+@media (max-width: 767.98px) {
+  .split-workspace .split-detail {
+    display: none;
+  }
+
+  .split-workspace.detail-open .split-list {
+    display: none;
+  }
+
+  .split-workspace.detail-open .split-detail {
+    display: block;
+    flex: 1 1 100%;
+    width: 100%;
+  }
+}

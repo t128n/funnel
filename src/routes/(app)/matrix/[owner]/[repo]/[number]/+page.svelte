@@ -1,11 +1,4 @@
 <script lang="ts">
-	import IssueDetailView from '#lib/components/issue/IssueDetailView.svelte';
-	import { parseIssueParams } from '#lib/issue-url';
-	import type { PageProps } from './$types';
-
-	let { data, params }: PageProps = $props();
-
-	const issue = $derived(parseIssueParams(params));
+	// The loader redirects to the dedicated issue page; this file exists only
+	// so the legacy route keeps resolving.
 </script>
-
-<IssueDetailView {issue} githubUrl={data.githubUrl} titleSuffix="Matrix" fill />

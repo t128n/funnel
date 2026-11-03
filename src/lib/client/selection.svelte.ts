@@ -1,27 +1,17 @@
 /**
- * Detail-canvas selection is URL-driven so the open pane is always shareable
- * and survives reloads. Every master view owns its detail route:
+ * Detail navigation for Composition A.
  *
- *   /issues/<owner>/<repo>/<n>, /board/..., /inbox/...
+ * Issues have one dedicated detail route (`/issues/<owner>/<repo>/<n>`); there
+ * are no per-view split panes. Staged intake submissions keep their own review
+ * route (`/inbox/submission/<id>`) because they are not mirrored issues yet.
  *
- * and staged intake submissions live at `/inbox/submission/<id>`. This module
- * only *navigates*; components read the resolved target straight from the route
- * params (see {@link import("#lib/issue-url").parseIssueParams}) rather than
- * from a query parameter.
+ * This module only *navigates*; components read the resolved target straight
+ * from the route params (see {@link import("#lib/issue-url").parseIssueParams})
+ * rather than from a query parameter.
  */
 import { goto } from "$app/navigation";
 import { page } from "$app/state";
-import {
-  issuePath,
-  submissionPath,
-  viewOf,
-  type ViewId,
-} from "#lib/issue-url";
-
-/** The view that owns the current route, defaulting to Issues off-view. */
-function currentView(): ViewId {
-  return viewOf(page.url.pathname) ?? "issues";
-}
+import { issuePath, submissionPath } from "#lib/issue-url";
 
 /** Navigate to `pathname` while preserving the current query string. */
 function go(pathname: string): void {
@@ -30,17 +20,23 @@ function go(pathname: string): void {
   void goto(url, { reset: false });
 }
 
-/** Open the detail canvas for issue `repo#number` in the current view. */
+/** Open the dedicated detail page for issue `repo#number`. */
 export function selectIssue(repo: string, number: number): void {
-  go(issuePath(currentView(), repo, number));
+  go(issuePath("issues", repo, number));
 }
 
-/** Open the detail canvas for staged intake submission `id`. */
+/** Open the review page for staged intake submission `id`. */
 export function selectSubmission(id: string): void {
   go(submissionPath(id));
 }
 
-/** Dismiss the detail canvas, returning to the current view's list. */
+/** Leave a detail page and return to its index. */
 export function clearSelection(): void {
-  go(`/${currentView()}`);
+  const path = page.url.pathname;
+  if (path.startsWith("/inbox/submission/")) go("/inbox");
+  else if (path.startsWith("/issues/")) go("/issues");
+  else if (path.startsWith("/board/")) go("/board");
+  else if (path.startsWith("/matrix/")) go("/matrix");
+  else if (path.startsWith("/inbox/")) go("/inbox");
+  else go("/issues");
 }

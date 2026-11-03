@@ -1,14 +1,18 @@
 <script lang="ts">
-	import { Button } from '#lib/components/ui/button';
-	import * as Command from '#lib/components/ui/command';
-	import { Input } from '#lib/components/ui/input';
-	import * as Popover from '#lib/components/ui/popover';
+	import {
+		Alert,
+		Button,
+		FormGroup,
+		Input,
+		Label,
+		Modal,
+		ModalBody,
+		ModalFooter,
+		ModalHeader
+	} from '@sveltestrap/sveltestrap';
 	import Spinner from '#lib/components/common/Spinner.svelte';
-	import { selectTriggerClass } from '#lib/components/common/select-trigger';
 	import { createRepoMilestone } from '#lib/client/mutations';
 	import type { RepoMilestoneRef } from '#lib/server/issues/types';
-	import { cn } from '#lib/utils';
-	import MilestoneIcon from '@lucide/svelte/icons/milestone';
 
 	/**
 	 * Inspector milestone picker. Lists the repo's existing milestones and offers
@@ -26,12 +30,12 @@
 
 	let { repo, value, options, disabled = false, onselect }: Props = $props();
 
-	let open = $state(false);
 	let creating = $state(false);
 	let title = $state('');
 	let dueOn = $state('');
 	let error = $state<string | null>(null);
 	let busy = $state(false);
+	let selectEl: HTMLSelectElement | undefined = $state();
 
 	/** Current value plus any repo milestone (options already include it). */
 	const ordered = $derived.by(() => {
@@ -43,17 +47,25 @@
 			seen.add(key);
 			list.push(milestone);
 		}
+		// Keep the selected milestone visible while a fresh detail payload that
+		// includes a just-created option is still in flight.
+		if (value) {
+			const key = `${value.repo}#${value.number}`;
+			if (!seen.has(key)) list.unshift(value);
+		}
 		return list;
 	});
 
+	const selectedKey = $derived(
+		value ? `${value.repo}#${value.number}` : ''
+	);
+
 	function choose(milestone: RepoMilestoneRef) {
 		onselect(milestone);
-		open = false;
 	}
 
 	function clear() {
 		onselect(null);
-		open = false;
 	}
 
 	function startCreating() {
@@ -61,6 +73,31 @@
 		error = null;
 		title = '';
 		dueOn = '';
+	}
+
+	function cancelCreating() {
+		if (busy) return;
+		creating = false;
+		error = null;
+	}
+
+	function onChange(event: Event) {
+		const next = (event.currentTarget as HTMLSelectElement).value;
+		if (next === '__new__') {
+			// The select is a trigger, not a value: restore the current milestone
+			// while the create dialog opens.
+			if (selectEl) selectEl.value = selectedKey;
+			startCreating();
+			return;
+		}
+		if (next === '') {
+			clear();
+			return;
+		}
+		const milestone = ordered.find(
+			(option) => `${option.repo}#${option.number}` === next
+		);
+		if (milestone) choose(milestone);
 	}
 
 	async function create() {
@@ -86,110 +123,84 @@
 			dueOn: due !== null && !Number.isNaN(due) ? due : null
 		});
 		creating = false;
-		open = false;
-	}
-
-	function onInteractOutside(event: PointerEvent) {
-		const target = event.target;
-		if (
-			target instanceof Element &&
-			target.closest('[data-slot="command"], [data-slot="popover-content"], [data-slot="input"]')
-		) {
-			event.preventDefault();
-		}
 	}
 </script>
 
-<Popover.Root bind:open>
-	<Popover.Trigger
+<div class="input-group">
+	<span class="input-group-text px-2" aria-hidden="true">
+		<i class="bi bi-signpost-split"></i>
+	</span>
+	<select
+		bind:this={selectEl}
+		class="form-select"
+		aria-label="Milestone"
 		{disabled}
-		class={selectTriggerClass('ghost', cn('h-(--size-control-md) gap-1.5', value && 'text-fg'))}
+		value={selectedKey}
+		onchange={onChange}
 	>
-		<span class="inline-flex size-4 shrink-0 items-center justify-center" aria-hidden="true">
-			<MilestoneIcon class="size-3.5" />
-		</span>
-		<span class="max-w-40 truncate">{value?.title ?? 'No milestone'}</span>
-	</Popover.Trigger>
+		<option value="">No milestone</option>
+		{#each ordered as milestone (`${milestone.repo}#${milestone.number}`)}
+			<option value={`${milestone.repo}#${milestone.number}`}>
+				{milestone.title}{milestone.state === 'closed' ? ' (closed)' : ''}
+			</option>
+		{/each}
+		<option value="__new__">New milestone…</option>
+	</select>
+</div>
 
-	<Popover.Content align="start" sideOffset={6} preventScroll={false} class="w-64 gap-0 p-0" {onInteractOutside}>
-		{#if creating}
-			<div class="flex flex-col gap-2 p-2">
-				<Input
-					bind:value={title}
-					placeholder="Milestone title"
-					autocomplete="off"
-					spellcheck="false"
-					aria-label="New milestone title"
-					onkeydown={(e) => {
-						if (e.key === 'Enter') {
-							e.preventDefault();
-							void create();
-						}
-					}}
-				/>
-				<Input
-					bind:value={dueOn}
-					type="date"
-					aria-label="Due date"
-					onkeydown={(e) => {
-						if (e.key === 'Enter') {
-							e.preventDefault();
-							void create();
-						}
-					}}
-				/>
-				{#if error}
-					<p class="text-caption text-error" role="alert">{error}</p>
-				{/if}
-				<div class="flex items-center justify-end gap-1">
-					<Button
-						variant="ghost"
-						size="xs"
-						onclick={() => (creating = false)}
-						disabled={busy}
-					>
-						Cancel
-					</Button>
-					<Button
-						variant="secondary"
-						size="xs"
-						onclick={() => void create()}
-						disabled={busy || title.trim().length === 0}
-					>
-						{#if busy}<Spinner size={13} />{:else}Create{/if}
-					</Button>
-				</div>
-			</div>
-		{:else}
-			<Command.Root class="border-0! bg-transparent!">
-				<Command.Input placeholder="Search milestones…" />
-				<Command.List class="max-h-72 overflow-x-hidden overflow-y-auto">
-					<Command.Empty>No milestones</Command.Empty>
-					<Command.Group>
-						{#each ordered as milestone (`${milestone.repo}#${milestone.number}`)}
-							<Command.Item
-								value={`${milestone.repo}#${milestone.number}#${milestone.title}`}
-								data-checked={value?.number === milestone.number && value?.repo === milestone.repo}
-								onSelect={() => choose(milestone)}
-							>
-								<span class="flex-1 truncate">{milestone.title}</span>
-								{#if milestone.state === 'closed'}
-									<span class="shrink-0 text-caption text-fg-secondary">closed</span>
-								{/if}
-							</Command.Item>
-						{/each}
-					</Command.Group>
-				</Command.List>
-				<Command.Separator />
-				<Command.Item value="__new__" onSelect={startCreating}>
-					<span class="text-fg-secondary">New milestone…</span>
-				</Command.Item>
-				{#if value}
-					<Command.Item value="__clear__" onSelect={clear}>
-						<span class="text-fg-secondary">No milestone</span>
-					</Command.Item>
-				{/if}
-			</Command.Root>
+<Modal isOpen={creating} toggle={cancelCreating} labelledBy="new-milestone-title">
+	<ModalHeader toggle={cancelCreating} id="new-milestone-title">New milestone</ModalHeader>
+	<ModalBody>
+		<p class="small text-body-secondary">
+			Milestones are scoped to the repository. This one is created in {repo}.
+		</p>
+		<FormGroup class="mb-3">
+			<Label for="milestone-title">Title <span class="fw-normal text-danger">required</span></Label>
+			<Input
+				id="milestone-title"
+				bind:value={title}
+				placeholder="Milestone title"
+				autocomplete="off"
+				spellcheck="false"
+				onkeydown={(event) => {
+					if (event.key === 'Enter') {
+						event.preventDefault();
+						void create();
+					}
+				}}
+			/>
+		</FormGroup>
+		<FormGroup class="mb-0">
+			<Label for="milestone-due">Due date</Label>
+			<Input
+				id="milestone-due"
+				bind:value={dueOn}
+				type="date"
+				onkeydown={(event) => {
+					if (event.key === 'Enter') {
+						event.preventDefault();
+						void create();
+					}
+				}}
+			/>
+		</FormGroup>
+		{#if error}
+			<Alert color="danger" class="small mt-3 mb-0 py-2">
+				{error}
+			</Alert>
 		{/if}
-	</Popover.Content>
-</Popover.Root>
+	</ModalBody>
+	<ModalFooter>
+		<Button color="secondary" outline type="button" disabled={busy} onclick={cancelCreating}>
+			Cancel
+		</Button>
+		<Button
+			color="primary"
+			onclick={() => void create()}
+			disabled={busy || title.trim().length === 0}
+		>
+			{#if busy}<Spinner size={13} class="me-1" />{/if}
+			Create
+		</Button>
+	</ModalFooter>
+</Modal>

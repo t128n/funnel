@@ -1,12 +1,15 @@
 <script lang="ts">
-	import * as Dialog from '#lib/components/ui/dialog';
-	import { Button } from '#lib/components/ui/button';
+	import {
+		Button,
+		Modal,
+		ModalBody,
+		ModalFooter,
+		ModalHeader
+	} from '@sveltestrap/sveltestrap';
 
 	/**
-	 * Named destructive confirmation. Uses the shared dialog primitive because
-	 * the alert-dialog wrapper is not part of this slice; the copy still names
-	 * the object and the consequence, and the destructive action is a solid
-	 * error button.
+	 * Named destructive confirmation. The copy names the object and the
+	 * consequence, and the destructive action is a solid danger button.
 	 */
 	interface Props {
 		open?: boolean;
@@ -18,21 +21,21 @@
 
 	let { open = $bindable(false), title, description, confirmLabel, onconfirm }: Props = $props();
 
+	function close(): void {
+		open = false;
+	}
+
 	function confirm(): void {
 		open = false;
 		onconfirm();
 	}
 </script>
 
-<Dialog.Root bind:open>
-	<Dialog.Content>
-		<Dialog.Header>
-			<Dialog.Title>{title}</Dialog.Title>
-			<Dialog.Description>{description}</Dialog.Description>
-		</Dialog.Header>
-		<Dialog.Footer>
-			<Button variant="outline" onclick={() => (open = false)}>Cancel</Button>
-			<Button variant="destructive" onclick={confirm}>{confirmLabel}</Button>
-		</Dialog.Footer>
-	</Dialog.Content>
-</Dialog.Root>
+<Modal isOpen={open} toggle={close}>
+	<ModalHeader toggle={close}>{title}</ModalHeader>
+	<ModalBody>{description}</ModalBody>
+	<ModalFooter>
+		<Button color="secondary" outline onclick={close}>Cancel</Button>
+		<Button color="danger" onclick={confirm}>{confirmLabel}</Button>
+	</ModalFooter>
+</Modal>

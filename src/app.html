@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-theme="light">
+<html lang="en" data-bs-theme="light">
 	<head>
 		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -14,7 +14,7 @@
 		<link rel="manifest" href="/site.webmanifest" />
 		<script>
 			// Pre-paint theme resolution. Runs before the stylesheet paints so the
-			// correct `data-theme` is on <html> with no flash. `funnel:theme`
+			// correct Bootstrap theme is on <html> with no flash. `funnel:theme`
 			// holds "system" | "dark" | "light".
 			(function () {
 				var root = document.documentElement;
@@ -32,11 +32,10 @@
 						? "dark"
 						: "light";
 				}
-				root.setAttribute("data-theme", theme);
+				root.setAttribute("data-bs-theme", theme);
 				root.style.colorScheme = theme;
-				root.classList.toggle("dark", theme === "dark");
 				var meta = document.querySelector('meta[name="theme-color"]');
-				if (meta) meta.setAttribute("content", theme === "dark" ? "#161616" : "#ffffff");
+				if (meta) meta.setAttribute("content", theme === "dark" ? "#212529" : "#ffffff");
 			})();
 		</script>
 		%sveltekit.head%

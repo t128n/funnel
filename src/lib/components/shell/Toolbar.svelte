@@ -1,29 +1,27 @@
 <script lang="ts">
-	import type { Snippet } from "svelte";
-	import { cn } from "#lib/utils";
+	import type { Snippet } from 'svelte';
 
+	/**
+	 * A single conventional Bootstrap toolbar row. Composition A keeps search
+	 * and filters in one row; pages that need a strict column grid use their own
+	 * `row g-2` markup instead.
+	 */
 	interface Props {
 		children: Snippet;
 		/** Trailing controls that should sit on the same baseline. */
 		actions?: Snippet;
-		/** Override the page gutter, e.g. a narrower split-view feed column. */
 		class?: string;
 	}
 
-	let { children, actions, class: className }: Props = $props();
+	let { children, actions, class: className = '' }: Props = $props();
 </script>
 
-<div
-	class={cn(
-		"flex flex-wrap items-end gap-4 border-b border-border-subtle px-[var(--layout-page-padding)] py-3",
-		className
-	)}
->
-	<div class="flex min-w-0 flex-1 flex-wrap items-end gap-4">
+<div class="d-flex flex-wrap align-items-center gap-2 mb-3 {className}">
+	<div class="d-flex min-w-0 flex-grow-1 flex-wrap align-items-center gap-2">
 		{@render children()}
 	</div>
 	{#if actions}
-		<div class="flex shrink-0 flex-wrap items-center gap-2">
+		<div class="d-flex flex-shrink-0 flex-wrap align-items-center gap-2">
 			{@render actions()}
 		</div>
 	{/if}

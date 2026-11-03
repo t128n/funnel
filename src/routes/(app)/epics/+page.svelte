@@ -1,8 +1,8 @@
 <script lang="ts">
+	import { Button } from '@sveltestrap/sveltestrap';
 	import PageHead from '#lib/components/common/PageHead.svelte';
 	import EmptyState from '#lib/components/common/EmptyState.svelte';
 	import EpicList from '#lib/components/epics/EpicList.svelte';
-	import { Button } from '#lib/components/ui/button';
 	import PageHeader from '#lib/components/shell/PageHeader.svelte';
 	import type { EpicSummary } from '#lib/server/epics/queries';
 
@@ -18,22 +18,20 @@
 
 <PageHead title="Epics" />
 
-<div class="flex min-h-0 flex-1 flex-col overflow-y-auto">
+<main class="container-xl py-4">
 	<PageHeader title="Epics" count={`${openCount} open · ${epics.length} total`} />
 
 	{#if epics.length === 0}
 		<EmptyState
 			title="No epics yet."
 			description="Mark an issue as an epic from its Inspector, then add children here."
-			class="flex-1"
+			class="border-top border-bottom py-5"
 		>
 			{#snippet action()}
-				<Button variant="outline" href="/issues">View Issues</Button>
+				<Button color="outline-secondary" href="/issues">View Issues</Button>
 			{/snippet}
 		</EmptyState>
 	{:else}
-		<div class="px-[var(--layout-page-padding)] pb-8">
-			<EpicList {epics} />
-		</div>
+		<EpicList {epics} />
 	{/if}
-</div>
+</main>

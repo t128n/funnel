@@ -1,111 +1,83 @@
 # Design language
 
 Funnel is an issue cockpit: a place to answer what is broken, who owns it, and
-what fits in the week. Its interface now follows **t128n**, a calm, compact,
-technical system built for tools used under pressure. The visual language is
-deliberately quiet; the data is the interface.
+what fits in the week. Its interface follows **Bootstrap 5** and uses
+**Sveltestrap** for Svelte component abstractions and **Bootstrap Icons** for
+iconography. The visual language is deliberately quiet; the data is the
+interface.
 
-The application profile is [DESIGN.md](../DESIGN.md). The canonical values are
-[`src/lib/styles/tokens.css`](../../src/lib/styles/tokens.css), bridged to
-Tailwind and shadcn-svelte in
-[`theme.css`](../../src/lib/styles/theme.css). The full redesign plan is
-[`plans/2026-11-02-t128n-redesign.md`](../plans/2026-11-02-t128n-redesign.md).
+The application profile is [DESIGN.md](../DESIGN.md). Bootstrap CSS and
+Bootstrap Icons are loaded once in
+[`src/routes/+layout.svelte`](../../src/routes/+layout.svelte); application
+layout rules live in [`app.css`](../../src/lib/styles/app.css).
+
+## Bootstrap, not a bespoke system
+
+Funnel previously maintained its own generic component layer on top of
+Tailwind, shadcn-svelte, and bits-ui. That layer has been removed. Buttons,
+forms, tables, navigation, dialogs, dropdowns, alerts, badges, progress, and
+spinners now come from Bootstrap and Sveltestrap. Domain components such as the
+issue inspector, board, matrix, and timeline remain because they encode product
+behavior, but they compose Sveltestrap rather than maintaining parallel
+generic primitives.
+
+Using the established library keeps the application recognizable, reduces the
+surface Funnel owns, and makes light/dark mode, focus handling, and keyboard
+behavior consistent by default.
 
 ## Density with air where it matters
 
-A maintainer scanning forty issues needs comparison, not decoration. Rows are
-2.25rem, table headers sit on `surface-2`, and every metadata column keeps its
-slot. Density is carried by alignment and 1px rules, not by shrinking type:
-nothing renders below 0.75rem.
+A maintainer scanning forty issues needs comparison, not decoration. The app
+shell is one compact dark navbar over a centered page: there is no persistent
+sidebar and no split list/detail pane. The issue index is a grouped six-column
+table; the document is its own page. Index titles are ordinary blue links with
+metadata as icon + text. Density is carried by alignment, rules, and Bootstrap
+spacing, not by shrinking type.
 
-Whitespace does the grouping. A page title is separated from its toolbar by
-1.5rem, a toolbar from its table by a rule, and a table from its footer by a
-rule. There are no cards around data. A table is the page structure.
+Whitespace does the grouping. A page title, a single toolbar row, the table,
+and its footer follow one another with Bootstrap spacing. There are no cards
+around data. A table is the page structure. Cards are reserved for the issue's
+Properties and Details rail.
 
-## One accent, two themes
+## One theme mechanism
 
-A single blue accent carries links, the primary action, focus, and the current
-state. Selection is a 2px leading bar; vertical navigation also takes
-`surface-3`. No row is filled with the accent.
-
-Light and dark are complete palettes driven by `data-theme`. The app bar is
-dark in both themes, with `accent-on-dark` for the wordmark and focus rings.
-Status colours (error, warning, success) are text and icons; colour is never
-the only channel.
-
-## Structure, not elevation
-
-Content is separated by 1px `border-subtle` rules and `surface` tints. Menus
-and popovers get the `raised` shadow; dialogs and drawers get the `overlay`
-shadow. Rows, inputs, cards, and buttons never cast a shadow.
-
-Controls are 1.75rem in the cockpit and 2.25rem in focused flows, with
-0.125rem radius for controls and 0.375rem for dialogs. Icons are Lucide
-outline, 1rem inline and 1.25rem in controls.
+Light and dark are complete Bootstrap themes driven by `data-bs-theme` on
+`<html>`. The navbar stays dark in both themes. Status colours (danger,
+warning, success) are text and icons; colour is never the only channel.
+Components use Bootstrap CSS variables such as `--bs-body-color`,
+`--bs-border-color`, and `--bs-primary`, so they follow the active theme
+without a second token system.
 
 ## The issue page
 
-The record opens with its identity: ref in mono, title at 1.5rem/600, and a
-status/priority/assignee line. Properties are label–value rows under a top
-rule; a value is still click-to-edit, but at rest it is plain text, so the
-metadata compares like a table.
+The record is a dedicated route. It opens with a breadcrumb, the repository and
+monospace reference, the title as a page heading, and a status/labels/opened/
+updated line. An eight-column document holds the description, activity, work
+notes, attachments, and composer; a four-column rail holds the Properties and
+Details cards. Properties edits commit immediately and append an activity
+event.
 
-Description and comments use 1rem/1.6 prose, capped at 72 characters per line.
-Activity is a ruled list, not chat bubbles. Internal work notes get a lock icon
-and an “Internal” label on `surface`. Work notes and attachments sit inline
-after Activity. The composer closes the page with comment/internal-note modes,
-attachments, and a primary submit.
+Description and comments read as a document at 1rem/1.65 with Bootstrap prose
+and code blocks. Activity is a ruled list, not chat bubbles.
 
 ## Board, matrix, and plan
 
-The board keeps its kanban function with flat cards, 1px borders, a mono ref,
-and icon+text status. Dragging still works, and every drag has a keyboard and
-menu equivalent. The matrix is an interactive 3×3 selection grid with an
-assessment summary above it; its rating guide is a dialog. Plan lanes are ruled
-sections with capacity bars and over-cap warnings, not cards.
+The board keeps its kanban function with flat Bootstrap cards, 1px borders, a
+mono ref, and icon+text status. Dragging still works, and every drag has a
+keyboard and menu equivalent. The matrix is an interactive 3×3 selection grid
+inside `container-xl`, with an assessment summary above it, a rating-guide
+dialog, and the selected cell's issue list in the second column; issues missing
+an axis stay in the assessment queue. Plan lanes are ruled sections with
+Bootstrap progress meters and explicit over-cap warnings, not cards. These
+layouts keep small scoped stylesheets because their geometry is specific to the
+task; their colors and typography still come from Bootstrap.
 
-## Feedback and motion
+The timeline is an Apache ECharts canvas with an HTML label column and a
+separate undated table. It reads its palette from `--funnel-chart-*` and
+Bootstrap variables so it follows the theme.
 
-Feedback appears where the action happened: field errors under fields, save
-confirmations beside the submit, mutation failures in the region they affect
-with Retry. Floating toasts are reserved for background events with no
-persistent region.
+## Focused flows
 
-Motion is rationed: 120ms hover, 180ms expand, 240ms overlays. Row and focus
-state changes are instant. `prefers-reduced-motion`, `prefers-contrast`, and
-forced-colors are honored.
-
-## The gallery
-
-The redesigned views are captured by `scripts/screenshots/capture.ts` against
-the seeded demo database, in light and dark. The committed gallery lives in
-[`assets/t128n-redesign`](../assets/t128n-redesign/). It is evidence for the PR,
-not a separate source of truth; the application profile and tokens decide.
-
-| Issues | Issue detail |
-| :--- | :--- |
-| ![Issues list in light mode](../assets/t128n-redesign/issues-light.png) | ![Issue detail in light mode](../assets/t128n-redesign/issue-light.png) |
-
-| Board | Plan |
-| :--- | :--- |
-| ![Board in light mode](../assets/t128n-redesign/board-light.png) | ![Week plan in light mode](../assets/t128n-redesign/plan-light.png) |
-
-| Settings | Intake |
-| :--- | :--- |
-| ![Appearance settings in light mode](../assets/t128n-redesign/settings-light.png) | ![Public intake form in light mode](../assets/t128n-redesign/intake-light.png) |
-
-| Issues, dark | Issue detail, dark |
-| :--- | :--- |
-| ![Issues list in dark mode](../assets/t128n-redesign/issues-dark.png) | ![Issue detail in dark mode](../assets/t128n-redesign/issue-dark.png) |
-
-| Board, dark | Plan, dark |
-| :--- | :--- |
-| ![Board in dark mode](../assets/t128n-redesign/board-dark.png) | ![Week plan in dark mode](../assets/t128n-redesign/plan-dark.png) |
-
-| Settings, dark | Intake, dark |
-| :--- | :--- |
-| ![Appearance settings in dark mode](../assets/t128n-redesign/settings-dark.png) | ![Public intake form in dark mode](../assets/t128n-redesign/intake-dark.png) |
-
-| Issues, mobile | Plan, mobile |
-| :--- | :--- |
-| ![Issues list at 390px](../assets/t128n-redesign/issues-mobile.png) | ![Week plan at 390px](../assets/t128n-redesign/plan-mobile.png) |
+Intake, login, and onboarding use a centered column with no navigation, one
+primary action, and Bootstrap form controls. They share the same visual
+language as the cockpit without the application frame.

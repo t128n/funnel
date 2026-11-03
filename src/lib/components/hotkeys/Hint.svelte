@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { formatForDisplay, getHotkeyHint } from '@tanstack/svelte-hotkeys';
 	import type { AppHotkey } from '@tanstack/hotkeys';
-	import { cn } from '#lib/utils.js';
 
 	let {
 		hotkey,
@@ -19,12 +18,7 @@
 </script>
 
 {#if hint.visible && hotkey.hotkey}
-	<kbd
-		class={cn(
-			'bg-muted text-muted-foreground pointer-events-none h-5 items-center gap-0.5 rounded border px-1.5 font-mono text-[0.7rem] font-medium select-none',
-			className
-		)}
-	>
+	<kbd class="font-monospace {className ?? ''}">
 		{formatForDisplay(hotkey.hotkey)}
 	</kbd>
 {/if}

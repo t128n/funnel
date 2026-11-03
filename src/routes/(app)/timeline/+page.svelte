@@ -1,11 +1,10 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import FlagIcon from '@lucide/svelte/icons/flag';
+	import { Button } from '@sveltestrap/sveltestrap';
 	import PageHead from '#lib/components/common/PageHead.svelte';
 	import PageHeader from '#lib/components/shell/PageHeader.svelte';
 	import Toolbar from '#lib/components/shell/Toolbar.svelte';
 	import TimelineChart from '#lib/components/timeline/TimelineChart.svelte';
-	import { Button } from '#lib/components/ui/button';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
@@ -44,26 +43,26 @@
 	description="Open milestones projected from planned weeks and observed status changes to their due dates."
 />
 
-<div class="flex min-h-0 flex-1 flex-col overflow-y-auto">
+<main class="container-xl py-4">
 	<PageHeader
 		title="Timeline"
 		count={`${total} open`}
 		{description}
 	>
 		{#snippet actions()}
-			<Button variant="outline" href="/milestones">
-				<FlagIcon aria-hidden="true" />
+			<Button color="outline-secondary" href="/milestones">
+				<i class="bi bi-flag me-1" aria-hidden="true"></i>
 				Milestones
 			</Button>
 		{/snippet}
 	</PageHeader>
 
 	<Toolbar>
-		<label class="flex flex-col gap-1">
-			<span class="text-caption text-fg-secondary">Repository</span>
+		<div class="d-flex align-items-center gap-2 small">
+			<label for="timeline-repo" class="text-body-secondary">Repository</label>
 			<select
-				class="bg-canvas text-body text-fg h-(--size-control-md) rounded-sm border border-border-strong px-2"
-				aria-label="Filter by repository"
+				id="timeline-repo"
+				class="form-select form-select-sm w-auto"
 				value={selectedRepo}
 				onchange={onRepoChange}
 			>
@@ -72,18 +71,16 @@
 					<option value={repo}>{repo}</option>
 				{/each}
 			</select>
-		</label>
+		</div>
 	</Toolbar>
 
-	<div class="px-[var(--layout-page-padding)] pt-6 pb-8">
-		<TimelineChart
-			rows={data.timeline.rows}
-			window={data.timeline.window}
-			now={data.timeline.now}
-			undated={data.timeline.undated}
-			repoShortcodes={data.repoShortcodes}
-			{emptyTitle}
-			{emptyDescription}
-		/>
-	</div>
-</div>
+	<TimelineChart
+		rows={data.timeline.rows}
+		window={data.timeline.window}
+		now={data.timeline.now}
+		undated={data.timeline.undated}
+		repoShortcodes={data.repoShortcodes}
+		{emptyTitle}
+		{emptyDescription}
+	/>
+</main>

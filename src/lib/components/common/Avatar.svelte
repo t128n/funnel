@@ -1,24 +1,27 @@
 <script lang="ts">
-	import * as Avatar from '#lib/components/ui/avatar';
-	import { cn } from '#lib/utils';
-
 	interface Props {
 		login: string;
 		avatarUrl?: string | null;
-		/** Approximate diameter in px; mapped to the token scale. */
+		/** Approximate diameter in px. */
 		size?: number;
 		class?: string;
 	}
 
-	let { login, avatarUrl, size = 20, class: className }: Props = $props();
+	let { login, avatarUrl, size = 20, class: className = '' }: Props = $props();
 
 	const initial = $derived(login.slice(0, 1).toUpperCase() || '?');
-	const dimension = $derived(size <= 18 ? 'size-4' : size <= 24 ? 'size-(--size-avatar)' : 'size-8');
 </script>
 
-<Avatar.Root class={cn(dimension, className)} title={login}>
+<span
+	class="funnel-avatar {className}"
+	style={`width:${size}px;height:${size}px`}
+	role="img"
+	aria-label={login}
+	title={login}
+>
 	{#if avatarUrl}
-		<Avatar.Image src={avatarUrl} alt={login} />
+		<img src={avatarUrl} alt="" loading="lazy" />
+	{:else}
+		<span aria-hidden="true">{initial}</span>
 	{/if}
-	<Avatar.Fallback class="font-semibold">{initial}</Avatar.Fallback>
-</Avatar.Root>
+</span>

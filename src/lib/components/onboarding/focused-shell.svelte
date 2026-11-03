@@ -15,12 +15,14 @@
 	let { children, caption }: Props = $props();
 </script>
 
-<main class="min-h-svh bg-canvas px-[var(--layout-page-padding)] py-8 sm:py-12">
-	<div class="mx-auto flex w-full max-w-[var(--layout-form-max)] flex-col gap-8">
-		<header class="flex items-baseline gap-3">
-			<a href="/" class="w-fit text-body font-semibold text-fg" translate="no">funnel</a>
+<main class="min-vh-100 bg-body px-3 py-4 py-sm-5">
+	<div class="form-measure mx-auto d-flex w-100 flex-column gap-4">
+		<header class="d-flex align-items-baseline gap-3">
+			<a href="/" class="align-self-start fw-semibold text-body text-decoration-none" translate="no"
+				>funnel</a
+			>
 			{#if caption}
-				<span class="text-caption text-fg-secondary">{caption}</span>
+				<span class="small text-body-secondary">{caption}</span>
 			{/if}
 		</header>
 

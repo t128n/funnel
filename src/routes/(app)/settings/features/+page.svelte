@@ -1,14 +1,14 @@
 <script lang="ts">
 	import { invalidateAll } from '$app/navigation';
 	import { untrack } from 'svelte';
-	import CircleCheckIcon from '@lucide/svelte/icons/circle-check';
+	import { FormCheck } from '@sveltestrap/sveltestrap';
+	import Section from '#lib/components/settings/section.svelte';
 	import {
 		FEATURE_FLAGS,
 		FEATURES_COOKIE,
 		serializeFeatureOverrides,
 		type FeatureOverrides
 	} from '#lib/features';
-	import * as Switch from '#lib/components/ui/switch';
 	import type { PageProps } from './$types';
 
 	/**
@@ -44,44 +44,41 @@
 	}
 </script>
 
-<div class="flex w-full max-w-[var(--layout-form-max)] flex-col gap-6">
-	<section class="border-t border-border-subtle pt-4">
-		<h2 class="text-heading-sm font-semibold leading-heading-sm text-fg">Browser overrides</h2>
-		<p class="mt-1 text-body leading-body text-fg-secondary">
-			Choices apply to this browser only. The instance default comes from the deployment
-			environment.
-		</p>
-
-		{#if FEATURE_FLAGS.length === 0}
-			<p class="mt-4 text-body text-fg-secondary">No feature flags are available.</p>
-		{:else}
-			<div class="mt-4 border-t border-border-subtle">
-				{#each FEATURE_FLAGS as flag (flag.key)}
-					{@const on = effective(flag.key, flag.default)}
-					<div class="flex items-start gap-4 border-b border-border-subtle py-3">
-						<div class="flex min-w-0 flex-1 flex-col gap-0.5">
-							<span class="text-body font-semibold text-fg">{flag.name}</span>
-							<span class="text-body leading-body text-fg-secondary">{flag.description}</span>
-							<span class="text-caption text-fg-muted">{on ? flag.onLabel : flag.offLabel}</span>
-						</div>
-						<div class="flex shrink-0 items-center gap-3">
-							<span class="min-w-16 text-right" aria-live="polite">
-								{#if savedKey === flag.key}
-									<span class="status status-success">
-										<CircleCheckIcon aria-hidden="true" />
-										Saved.
-									</span>
-								{/if}
-							</span>
-							<Switch.Root
-								checked={on}
-								onCheckedChange={(next) => setFlag(flag.key, next, flag.default)}
-								aria-label={flag.name}
-							/>
-						</div>
+<Section
+	title="Browser overrides"
+	description="Choices apply to this browser only. The instance default comes from the deployment environment."
+>
+	{#if FEATURE_FLAGS.length === 0}
+		<p class="mb-0 text-body-secondary">No feature flags are available.</p>
+	{:else}
+		<div>
+			{#each FEATURE_FLAGS as flag, index (flag.key)}
+				{@const on = effective(flag.key, flag.default)}
+				<div
+					class="d-flex align-items-start justify-content-between gap-3 py-2 {index <
+					FEATURE_FLAGS.length - 1
+						? 'border-bottom'
+						: ''}"
+				>
+					<div class="min-w-0">
+						<div class="fw-medium">{flag.name}</div>
+						<div class="small text-body-secondary">{flag.description}</div>
+						<div class="small text-body-secondary">{on ? flag.onLabel : flag.offLabel}</div>
 					</div>
-				{/each}
-			</div>
-		{/if}
-	</section>
-</div>
+					<div class="d-flex flex-shrink-0 align-items-center gap-2">
+						<span class="small text-success" aria-live="polite">
+							{#if savedKey === flag.key}Saved{/if}
+						</span>
+						<FormCheck
+							type="switch"
+							checked={on}
+							on:change={(event) =>
+								setFlag(flag.key, (event.currentTarget as HTMLInputElement).checked, flag.default)}
+							aria-label={flag.name}
+						/>
+					</div>
+				</div>
+			{/each}
+		</div>
+	{/if}
+</Section>

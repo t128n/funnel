@@ -59,13 +59,10 @@ test("the screenshots exist and are embedded", () => {
   expect(inspector).toContain("../../assets/screenshots/inspector-blocked.png");
 });
 
-test("every t128n gallery screenshot referenced by the design language exists", () => {
+test("the design language documents the Bootstrap foundation", () => {
   const gallery = readFileSync("docs/explanation/design-language.md", "utf8");
-  const references = [
-    ...gallery.matchAll(/\]\((\.\.\/assets\/t128n-redesign\/[^)]+\.png)\)/g),
-  ].map((match) => match[1]);
-  expect(references.length).toBeGreaterThanOrEqual(12);
-  for (const reference of references) {
-    expect(statSync(`docs/explanation/${reference}`).size).toBeGreaterThan(1000);
-  }
+  expect(gallery).toContain("Bootstrap 5");
+  expect(gallery).toContain("Sveltestrap");
+  expect(gallery).toContain("Bootstrap Icons");
+  expect(gallery).toContain("data-bs-theme");
 });

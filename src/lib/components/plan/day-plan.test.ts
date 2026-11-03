@@ -53,10 +53,11 @@ describe('plan surfaces', () => {
 		}
 		// Lanes are ruled sections with quiet headings, not filled header bars or cards.
 		expect(lanes).not.toContain('bg-surface-2');
-		expect(lanes).toContain('border-b border-border-subtle');
+		expect(lanes).toContain('border-bottom');
+		expect(lanes).toContain('border-top');
 		expect(lanes).not.toContain('bug-table-head');
 		// Blocks get a 2px primary leading edge and 1px structural rules.
-		expect(dayPlan).toContain('border-border-subtle');
-		expect(dayPlan).toContain('border-s-primary');
+		expect(dayPlan).toContain('var(--bs-border-color)');
+		expect(dayPlan).toContain('border-inline-start: 2px solid var(--bs-primary)');
 	});
 });

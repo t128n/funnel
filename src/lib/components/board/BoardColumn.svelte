@@ -1,16 +1,14 @@
 <script lang="ts">
 	import { tick } from 'svelte';
 	import { Virtualizer, type VirtualizerHandle } from 'virtua/svelte';
+	import { Button } from '@sveltestrap/sveltestrap';
 	import BoardCard from './BoardCard.svelte';
 	import { droppableLane, type LaneHandlers } from './dnd';
-	import { Button } from '#lib/components/ui/button';
 	import InlineStatus from '#lib/components/common/InlineStatus.svelte';
 	import type { IssueListItem, UserRef } from '#lib/server/issues/types';
-	import { cn } from '#lib/utils';
-	import TriangleAlertIcon from '@lucide/svelte/icons/triangle-alert';
 
 	/**
-	 * One workflow lane: a ruled `--layout-board-lane` column on the canvas.
+	 * One workflow lane: a ruled `--funnel-board-lane-width` column on the canvas.
 	 *
 	 * The lane is its own scroll container (the header stays fixed) and the
 	 * cards inside it are virtualized with Virtua, so a 500-card lane mounts
@@ -41,8 +39,6 @@
 		activeKey?: string | null;
 		/** Card key currently being dragged anywhere on the board. */
 		draggingKey?: string | null;
-		/** Card key of the docked detail, marked with a 2px leading bar. */
-		selectedKey?: string | null;
 		/** Optional Work-in-Progress cap; `undefined` means unlimited. */
 		limit?: number;
 		/** Done retention window, surfaced as the Done column's tooltip. */
@@ -67,7 +63,6 @@
 		onDrop,
 		activeKey = null,
 		draggingKey = null,
-		selectedKey = null,
 		limit,
 		doneDays,
 		repoShortcodes = {},
@@ -89,7 +84,7 @@
 	/** Guards against a burst of scroll events issuing several page requests. */
 	let loadRequested = $state(false);
 
-	/** A drag is hovering this lane; the body takes `surface-2`. */
+	/** A drag is hovering this lane; the body takes the secondary background. */
 	const isDropTarget = $derived(indicator !== null);
 
 	const cardKey = (issue: IssueListItem) => `${issue.repo}#${issue.number}`;
@@ -152,35 +147,36 @@
 </script>
 
 <section
-	class="group/column flex min-h-0 w-[var(--layout-board-lane)] max-w-full shrink-0 snap-start flex-col overflow-hidden"
+	class="board-lane d-flex min-h-0 flex-column overflow-hidden"
 	aria-label={label}
 	data-board-column={statusKey}
 	title={isDone && doneDays !== undefined ? `Issues closed in the last ${doneDays} days` : undefined}
 >
 	<!-- Fixed header cell: stage, count, and WIP; the lane scrolls below it.
 	     The rule and alignment establish the column, not a surface or border. -->
-	<header
-		class="flex min-h-8 shrink-0 flex-wrap items-center gap-x-2 gap-y-1 border-b border-border-subtle px-1 pb-2"
-	>
-		<h2 class="min-w-0 flex-1 truncate text-body font-semibold text-fg">{label}</h2>
+	<header class="d-flex min-h-0 flex-shrink-0 flex-wrap align-items-center gap-2 border-bottom px-1 py-1">
+		<h2 class="min-w-0 flex-grow-1 text-truncate text-body fw-semibold small mb-0">{label}</h2>
 		{#if limit !== undefined}
 			<span
-				class={cn(
-					'text-caption tabular-nums',
-					overLimit ? 'font-semibold text-warning' : 'text-fg-secondary'
-				)}
+				class="small tnum"
+				class:fw-semibold={overLimit}
+				class:text-warning-emphasis={overLimit}
+				class:text-body-secondary={!overLimit}
 				title={`${total} of ${limit} (WIP limit)`}
 			>
 				{total} / {limit}
 			</span>
 			{#if overLimit}
-				<span class="status status-warning">
-					<TriangleAlertIcon aria-hidden="true" />
+				<span class="d-inline-flex align-items-center gap-1 small text-warning-emphasis">
+					<i class="bi bi-exclamation-triangle" aria-hidden="true"></i>
 					<span>Over WIP</span>
 				</span>
 			{/if}
 		{:else}
-			<span class="shrink-0 text-caption text-fg-secondary tabular-nums" title={`${total} issues`}>
+			<span
+				class="flex-shrink-0 small tnum text-body-secondary"
+				title={`${total} issues`}
+			>
 				{total}
 			</span>
 		{/if}
@@ -191,10 +187,8 @@
 	     The 1px gutter keeps the card focus ring inside the scroller. -->
 	<div
 		bind:this={scroller}
-		class={cn(
-			'relative min-h-0 flex-1 overflow-y-auto overscroll-contain px-1 pb-2 pt-2',
-			isDropTarget && 'bg-surface-2'
-		)}
+		class="board-lane__body position-relative min-h-0 flex-grow-1 overflow-y-auto px-1 pb-2 pt-1"
+		class:board-lane__body--target={isDropTarget}
 		use:droppableLane={laneHandlers}
 		onscroll={handleScroll}
 	>
@@ -211,7 +205,6 @@
 						columnKey={statusKey}
 						{repoShortcodes}
 						{viewer}
-						selected={selectedKey === cardKey(item)}
 						tabIndex={cardKey(item) === activeKey ? 0 : -1}
 						dragging={draggingKey === cardKey(item)}
 						{readonly}
@@ -221,10 +214,10 @@
 		</Virtualizer>
 
 		{#if empty}
-			<div class="flex flex-col items-start gap-1 py-2">
-				<p class="text-caption text-fg-secondary">No issues</p>
+			<div class="d-flex flex-column align-items-start gap-1 py-2">
+				<p class="small text-body-secondary mb-0">No issues</p>
 				{#if !readonly}
-					<Button href="/intake" variant="ghost" size="sm" class="-ml-2">
+					<Button href="/intake" color="link" size="sm" class="text-decoration-none px-0">
 						New Issue
 					</Button>
 				{/if}
@@ -233,7 +226,7 @@
 
 		{#if indicatorTop !== null}
 			<div
-				class="pointer-events-none absolute inset-x-0 z-10 h-0.5 bg-primary"
+				class="board-drop-indicator position-absolute start-0 end-0 z-3"
 				style:top={`${indicatorTop}px`}
 				aria-hidden="true"
 				data-board-drop-indicator
@@ -241,8 +234,8 @@
 		{/if}
 
 		{#if loading}
-			<div class="flex items-center justify-center py-3" role="status">
-				<span class="text-caption text-fg-secondary">Loading…</span>
+			<div class="d-flex align-items-center justify-content-center py-3" role="status">
+				<span class="small text-body-secondary">Loading…</span>
 			</div>
 		{/if}
 
@@ -250,7 +243,7 @@
 			<div class="px-1 py-2">
 				<InlineStatus tone="error" message={error}>
 					{#snippet action()}
-						<Button variant="ghost" size="xs" onclick={onLoadMore} disabled={loading}>
+						<Button color="link" size="sm" onclick={onLoadMore} disabled={loading}>
 							Retry
 						</Button>
 					{/snippet}
@@ -259,3 +252,26 @@
 		{/if}
 	</div>
 </section>
+
+<style>
+	.board-lane {
+		width: var(--funnel-board-lane-width);
+		max-width: 100%;
+		flex: 0 0 auto;
+		scroll-snap-align: start;
+	}
+
+	.board-lane__body--target {
+		background: var(--bs-secondary-bg);
+	}
+
+	.board-drop-indicator {
+		height: 2px;
+		background: var(--bs-primary);
+		pointer-events: none;
+	}
+
+	.tnum {
+		font-variant-numeric: tabular-nums;
+	}
+</style>

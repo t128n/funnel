@@ -151,6 +151,10 @@ const LABELS = [
   { name: "md", color: "2aacb8", description: "Size: Medium" },
   { name: "lg", color: "e28d78", description: "Size: Large" },
   { name: "epic", color: "b389f5", description: "Type: Epic" },
+  { name: "accessibility", color: "0d6efd", description: "Accessibility" },
+  { name: "bug", color: "d73a4a", description: "Something is not working" },
+  { name: "enhancement", color: "a2eeef", description: "New feature or request" },
+  { name: "regression", color: "e99695", description: "Regression" },
 ] as const;
 
 /** One demo issue. */
@@ -211,7 +215,7 @@ const ISSUES: DemoIssue[] = [
     author: 1,
     assignee: 2,
     milestone: 1,
-    labels: ["in-progress", "mod", "high", "md"],
+    labels: ["in-progress", "mod", "high", "md", "accessibility"],
     updatedOffsetMinutes: 15,
   },
   {
@@ -243,7 +247,7 @@ const ISSUES: DemoIssue[] = [
     author: 3,
     assignee: 1,
     milestone: null,
-    labels: ["todo", "blocked", "sev", "high", "sm"],
+    labels: ["todo", "blocked", "sev", "high", "sm", "bug"],
     updatedOffsetMinutes: 90,
   },
   {
@@ -267,7 +271,7 @@ const ISSUES: DemoIssue[] = [
     author: 2,
     assignee: 3,
     milestone: 1,
-    labels: ["in-review", "mod", "mid", "md"],
+    labels: ["in-review", "mod", "mid", "md", "regression"],
     updatedOffsetMinutes: 240,
   },
   {
@@ -387,7 +391,7 @@ const ISSUES: DemoIssue[] = [
     author: 2,
     assignee: 3,
     milestone: null,
-    labels: ["todo", "high", "lg"],
+    labels: ["todo", "high", "lg", "enhancement"],
     updatedOffsetMinutes: 120,
   },
   {
@@ -458,7 +462,7 @@ const ISSUES: DemoIssue[] = [
     author: 1,
     assignee: 3,
     milestone: 1,
-    labels: ["backlog", "min", "high", "lg"],
+    labels: ["backlog", "min", "high", "lg", "bug"],
     updatedOffsetMinutes: 480,
   },
 ];
@@ -631,6 +635,33 @@ async function seedRows(sqlite: Database, secret: string): Promise<SeedResult> {
   run(
     "INSERT INTO state_setting (key, value, updated_at) VALUES (?, ?, ?)",
     ["intake.default_repo", JSON.stringify("acme/widgets"), now],
+  );
+
+  // --- Staged intake submissions ---------------------------------------
+  // Two pending public submissions keep the Inbox triage table realistic:
+  // Accept and Decline act on live rows, and the header's pending count is
+  // sourced from the same queue the production screen renders.
+  run(
+    `INSERT INTO state_intake_submission (id, title, body, source, created_at)
+     VALUES (?, ?, ?, ?, ?)`,
+    [
+      "screenshot-submission-widgets",
+      "Widget export omits column headers",
+      "When I export the widget table as CSV the first row is data instead of the column names.\n\nSteps:\n1. Open a repository.\n2. Choose Export.\n3. Inspect the first line.",
+      "support@example.com",
+      now - 2 * HOUR,
+    ],
+  );
+  run(
+    `INSERT INTO state_intake_submission (id, title, body, source, created_at)
+     VALUES (?, ?, ?, ?, ?)`,
+    [
+      "screenshot-submission-auth",
+      "Sign-in loop after switching GitHub accounts",
+      "Signing out and back in with a second GitHub account returns to the login page. Clearing site data fixes it for one session.",
+      "intake-form",
+      now - 6 * HOUR,
+    ],
   );
 
   // Planning defaults (the same values `src/lib/server/settings/store.ts`

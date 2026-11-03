@@ -3,18 +3,10 @@
 	import { beforeNavigate, goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import { onDestroy, onMount, tick, untrack } from 'svelte';
-	import CircleAlertIcon from '@lucide/svelte/icons/circle-alert';
-	import CircleCheckIcon from '@lucide/svelte/icons/circle-check';
-	import CopyIcon from '@lucide/svelte/icons/copy';
-	import LinkIcon from '@lucide/svelte/icons/link';
+	import { Button, FormFeedback, FormGroup, FormText, Label } from '@sveltestrap/sveltestrap';
 	import FocusedShell from '#lib/components/onboarding/focused-shell.svelte';
 	import InlineStatus from '#lib/components/common/InlineStatus.svelte';
 	import PageHead from '#lib/components/common/PageHead.svelte';
-	import { Button } from '#lib/components/ui/button';
-	import * as Field from '#lib/components/ui/field';
-	import { Input } from '#lib/components/ui/input';
-	import * as NativeSelect from '#lib/components/ui/native-select';
-	import { Textarea } from '#lib/components/ui/textarea';
 	import { encodeSubmitDeeplinkQuery } from '#lib/client/intake-deeplink';
 	import {
 		hasSubmitPrefill,
@@ -291,77 +283,77 @@
 
 <FocusedShell>
 	{#if submitted}
-		<section class="flex flex-col gap-4" role="status">
-			<div class="flex flex-wrap items-start gap-3">
-				<CircleCheckIcon class="mt-0.5 size-5 shrink-0 text-success" aria-hidden="true" />
-				<div class="flex min-w-0 flex-col gap-2">
-					<h1
-						bind:this={successEl}
-						tabindex="-1"
-						class="break-words text-heading-md font-semibold leading-heading-md text-fg outline-none"
-					>
+		<section class="d-flex flex-column gap-3" role="status">
+			<div class="d-flex flex-wrap align-items-start gap-2">
+				<i class="bi bi-check-circle mt-1 flex-shrink-0 text-success" aria-hidden="true"></i>
+				<div class="min-w-0">
+					<h1 bind:this={successEl} tabindex="-1" class="h4 text-break mb-1">
 						Issue Submitted
 					</h1>
-					<p class="text-body leading-body text-fg-secondary">
+					<p class="mb-0 text-body-secondary">
 						Your submission is staged for triage. Nothing is created on GitHub until a triager
 						accepts it.
 					</p>
 				</div>
 			</div>
 
-			<dl class="label-value max-sm:grid-cols-[auto_1fr]">
+			<dl class="property-list">
 				{#if submittedRef}
 					<dt>Reference</dt>
-					<dd><span class="mono">{submittedRef}</span></dd>
+					<dd><span class="font-monospace">{submittedRef}</span></dd>
 				{/if}
 				<dt>Status</dt>
 				<dd>
-					<span class="status status-success whitespace-normal">
-						<CircleCheckIcon aria-hidden="true" />
+					<span class="d-inline-flex align-items-center gap-1 small text-success text-wrap">
+						<i class="bi bi-check-circle" aria-hidden="true"></i>
 						Staged for triage
 					</span>
 				</dd>
 				{#if source}
 					<dt>Source</dt>
 					<dd>
-						<span class="min-w-0 break-words">{sourceLabel}</span>
+						<span class="min-w-0 text-break">{sourceLabel}</span>
 					</dd>
 				{/if}
 			</dl>
 
-			<div class="flex flex-wrap items-center gap-2">
-				<Button onclick={() => void copyCurrentLink()}>
-					<CopyIcon />
+			<div class="d-flex flex-wrap align-items-center gap-2">
+				<Button color="primary" onclick={() => void copyCurrentLink()}>
+					<i class="bi bi-clipboard me-1" aria-hidden="true"></i>
 					Copy Link
 				</Button>
-				<Button variant="outline" href="/intake">Submit Another</Button>
+				<Button color="outline-secondary" href="/intake">Submit Another</Button>
 			</div>
-			<p class="min-h-4 text-caption" aria-live="polite">
+			<p class="small mb-0" style="min-height: 1.5rem" aria-live="polite">
 				{#if copyMessage}
-					<span class="status" class:status-error={copyFailed} class:status-success={!copyFailed}>
+					<span
+						class="small"
+						class:text-danger={copyFailed}
+						class:text-success={!copyFailed}
+					>
 						{copyMessage}
 					</span>
 				{/if}
 			</p>
 		</section>
 	{:else}
-		<div class="flex flex-col gap-2">
-			<h1 class="text-heading-md font-semibold leading-heading-md text-fg">Submit an Issue</h1>
-			<p class="max-w-[var(--layout-measure)] text-body leading-body text-fg-secondary">
+		<header>
+			<h1 class="h4 mb-1">Submit an Issue</h1>
+			<p class="text-body-secondary mb-0">
 				Your submission goes to the intake queue for triage. Nothing is created on GitHub
 				until it is accepted.
 			</p>
-		</div>
+		</header>
 
 		{#if showPrefillStrip}
 			<div
-				class="flex flex-wrap items-center gap-2 border-y border-border-subtle py-2 text-caption text-fg-secondary"
+				class="d-flex flex-wrap align-items-center gap-2 border-top border-bottom py-2 small text-body-secondary"
 			>
-				<span class="flex min-w-0 items-center gap-2">
-					<LinkIcon class="size-4 shrink-0" aria-hidden="true" />
+				<span class="d-flex min-w-0 align-items-center gap-2">
+					<i class="bi bi-link-45deg flex-shrink-0" aria-hidden="true"></i>
 					<span>Prefilled from a shared link</span>
 				</span>
-				<a href="/intake" class="link ms-auto" onclick={() => (dirty = false)}>Clear</a>
+				<a href="/intake" class="ms-auto" onclick={() => (dirty = false)}>Clear</a>
 			</div>
 		{/if}
 
@@ -369,7 +361,6 @@
 			bind:this={formEl}
 			method="POST"
 			autocomplete="off"
-			class="flex flex-col gap-6"
 			use:enhance={() => {
 				submitting = true;
 				copyMessage = null;
@@ -388,21 +379,23 @@
 				<InlineStatus tone="error" message={formError} />
 			{/if}
 
-			<Field.Field data-invalid={titleError ? true : undefined}>
-				<div class="flex items-baseline justify-between gap-3">
-					<Field.Label for="submission-title">Title</Field.Label>
+			<FormGroup>
+				<div class="d-flex align-items-baseline justify-content-between gap-3">
+					<Label for="submission-title">Title</Label>
 					{#if showCounter}
-						<span class="mono text-caption text-fg-muted" aria-hidden="true">
+						<span class="font-monospace small text-body-tertiary" aria-hidden="true">
 							{titleLength}/{INTAKE_TITLE_MAX}
 						</span>
 					{/if}
 				</div>
-				<Input
-					bind:ref={titleEl}
+				<input
+					bind:this={titleEl}
 					bind:value={title}
 					id="submission-title"
 					name="title"
 					type="text"
+					class="form-control"
+					class:is-invalid={Boolean(titleError)}
 					required
 					maxlength={INTAKE_TITLE_MAX}
 					placeholder="A short summary of the problem"
@@ -412,101 +405,96 @@
 					oninput={markDirty}
 				/>
 				{#if titleError}
-					<p
-						id="submission-title-error"
-						class="flex items-center gap-1 text-caption text-error"
-						role="alert"
-					>
-						<CircleAlertIcon class="size-4 shrink-0" aria-hidden="true" />
-						{titleError}
-					</p>
+					<FormFeedback id="submission-title-error" role="alert">
+						<i class="bi bi-exclamation-circle me-1" aria-hidden="true"></i>{titleError}
+					</FormFeedback>
 				{/if}
-			</Field.Field>
+			</FormGroup>
 
-			<Field.Field data-invalid={bodyError ? true : undefined}>
-				<Field.Label for="submission-body">Description</Field.Label>
-				<Textarea
-					bind:ref={bodyEl}
+			<FormGroup>
+				<Label for="submission-body">Description</Label>
+				<textarea
+					bind:this={bodyEl}
 					bind:value={body}
 					id="submission-body"
 					name="body"
+					class="form-control"
+					class:is-invalid={Boolean(bodyError)}
 					maxlength={INTAKE_BODY_MAX}
 					rows={8}
-					class="min-h-40"
 					placeholder="What happened, what you expected, and anything that would help a triager."
 					aria-invalid={bodyError ? true : undefined}
 					aria-describedby={bodyError ? 'submission-body-error' : undefined}
 					oninput={markDirty}
-				/>
+				></textarea>
 				{#if bodyError}
-					<p
-						id="submission-body-error"
-						class="flex items-center gap-1 text-caption text-error"
-						role="alert"
-					>
-						<CircleAlertIcon class="size-4 shrink-0" aria-hidden="true" />
-						{bodyError}
-					</p>
+					<FormFeedback id="submission-body-error" role="alert">
+						<i class="bi bi-exclamation-circle me-1" aria-hidden="true"></i>{bodyError}
+					</FormFeedback>
 				{/if}
-			</Field.Field>
+			</FormGroup>
 
 			{#if source}
-				<p class="break-words text-body leading-body text-fg-secondary">
-					Source: <span class="text-fg">{sourceLabel}</span>
+				<p class="mb-0 text-body-secondary text-break">
+					Source: <span class="text-body">{sourceLabel}</span>
 				</p>
 				<input type="hidden" name="source" value={source} />
 			{:else}
-				<Field.Field>
-					<Field.Label for="submission-source">Source</Field.Label>
-					<NativeSelect.Root
+				<FormGroup>
+					<Label for="submission-source">Source</Label>
+					<select
+						class="form-select"
 						id="submission-source"
 						name="source"
 						bind:value={source}
 						onchange={markDirty}
 					>
-						<NativeSelect.Option value="">No source</NativeSelect.Option>
+						<option value="">No source</option>
 						{#each sourceOptions as option (option.value)}
-							<NativeSelect.Option value={option.value}>{option.label}</NativeSelect.Option>
+							<option value={option.value}>{option.label}</option>
 						{/each}
-					</NativeSelect.Root>
-					<Field.Description>Where this request came from.</Field.Description>
-				</Field.Field>
+					</select>
+					<FormText>Where this request came from.</FormText>
+				</FormGroup>
 			{/if}
 
-			<footer class="flex flex-wrap items-center justify-between gap-3 border-t border-border-subtle pt-4">
-				<div class="flex min-w-0 flex-wrap items-center gap-2">
+			<footer
+				class="mt-4 d-flex flex-wrap align-items-center justify-content-between gap-3 border-top pt-3"
+			>
+				<div class="d-flex min-w-0 flex-wrap align-items-center gap-2">
 					<Button
 						type="button"
-						variant="ghost"
-						size="xs"
+						color="link"
+						size="sm"
+						class="px-0 text-decoration-none"
 						onclick={copyDeeplink}
 						disabled={!hasContent}
 					>
-						<CopyIcon />
+						<i class="bi bi-clipboard me-1" aria-hidden="true"></i>
 						{copied ? 'Copied' : 'Copy Draft Link'}
 					</Button>
-					<p class="min-h-4 min-w-0 text-caption" aria-live="polite">
+					<p class="min-w-0 small mb-0" style="min-height: 1.5rem" aria-live="polite">
 						{#if copyMessage}
 							<span
-								class="status"
-								class:status-error={copyFailed}
-								class:status-success={!copyFailed}
+								class="small"
+								class:text-danger={copyFailed}
+								class:text-success={!copyFailed}
 							>
 								{copyMessage}
 							</span>
 						{/if}
 					</p>
 				</div>
-				<div class="flex min-w-0 flex-wrap items-center justify-end gap-3">
-					<span class="text-caption text-fg-secondary" aria-hidden="true">
+				<div class="d-flex min-w-0 flex-wrap align-items-center justify-content-end gap-3">
+					<span class="small text-body-secondary" aria-hidden="true">
 						{isMac ? '⌘' : 'Ctrl'} Enter
 					</span>
 					<Button
 						type="submit"
+						color="primary"
 						disabled={submitting}
 						aria-busy={submitting}
 						aria-keyshortcuts="Meta+Enter Control+Enter"
-						class="min-w-28"
 					>
 						{submitting ? 'Submitting…' : 'Submit Issue'}
 					</Button>

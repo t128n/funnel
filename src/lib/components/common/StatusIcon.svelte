@@ -1,25 +1,18 @@
 <script lang="ts">
 	import { canonicalLabel } from '#lib/labels';
-	import { cn } from '#lib/utils';
-	import BanIcon from '@lucide/svelte/icons/ban';
-	import CircleCheckIcon from '@lucide/svelte/icons/circle-check';
-	import CircleDashedCheckIcon from '@lucide/svelte/icons/circle-dashed-check';
-	import CircleDashedIcon from '@lucide/svelte/icons/circle-dashed';
-	import CircleDotDashedIcon from '@lucide/svelte/icons/circle-dot-dashed';
-	import CircleIcon from '@lucide/svelte/icons/circle';
 
 	/**
-	 * Status glyph shared by the board and the dense list feeds. Standard Lucide
-	 * shapes rather than CSS dots, tinted with the reserved label's hue.
+	 * Status glyph shared by the board and the dense list feeds. Bootstrap Icons
+	 * carry the shape; the reserved label's hue tints it.
 	 */
-	const STATUS_ICONS = {
-		backlog: CircleDashedIcon,
-		todo: CircleIcon,
-		'in-progress': CircleDotDashedIcon,
-		'in-review': CircleDashedCheckIcon,
-		done: CircleCheckIcon,
-		blocked: BanIcon
-	} as const;
+	const STATUS_ICONS: Record<string, string> = {
+		backlog: 'bi-circle',
+		todo: 'bi-circle',
+		'in-progress': 'bi-circle-half',
+		'in-review': 'bi-eye',
+		done: 'bi-check-circle',
+		blocked: 'bi-slash-circle'
+	};
 
 	interface Props {
 		/** Canonical status key, `done`, `blocked`, or `null` for untriaged. */
@@ -29,25 +22,25 @@
 		label?: string;
 	}
 
-	let { status, class: className, label }: Props = $props();
+	let { status, class: className = '', label }: Props = $props();
 
 	const key = $derived(status?.toLowerCase() ?? '');
-	const Icon = $derived(STATUS_ICONS[key as keyof typeof STATUS_ICONS] ?? CircleIcon);
+	const icon = $derived(STATUS_ICONS[key] ?? 'bi-circle');
 	const color = $derived(
 		key === 'done'
-			? 'var(--syntax-constant)'
+			? 'var(--bs-success)'
 			: key === 'blocked'
-				? 'var(--destructive)'
+				? 'var(--bs-danger)'
 				: canonicalLabel(key)?.color
 					? `#${canonicalLabel(key)?.color}`
 					: undefined
 	);
 </script>
 
-<Icon
-	class={cn('size-3.5 shrink-0', !color && 'text-muted-foreground', className)}
+<i
+	class="bi {icon} {className}"
 	style={color ? `color:${color}` : undefined}
 	role={label ? 'img' : undefined}
 	aria-label={label}
 	aria-hidden={label ? undefined : 'true'}
-/>
+></i>

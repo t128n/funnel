@@ -29,8 +29,6 @@
 		repoShortcodes: Record<string, string>;
 		/** Signed-in viewer for the card's quick assign action. */
 		viewer?: UserRef | null;
-		/** The docked detail's issue, highlighted with a 2px leading bar. */
-		selected?: { repo: string; number: number } | null;
 		/** RBAC `read`: disable dragging and the per-column new-issue link. */
 		readonly?: boolean;
 	}
@@ -41,12 +39,10 @@
 		doneDays,
 		repoShortcodes,
 		viewer = null,
-		selected = null,
 		readonly = false
 	}: Props = $props();
 
 	const columns = $derived(board.columns.filter((column) => column.key !== 'backlog'));
-	const selectedKey = $derived(selected ? `${selected.repo}#${selected.number}` : null);
 
 	/** Identity shared with `data-board-card`. */
 	function cardKey(issue: IssueListItem): string {
@@ -267,7 +263,7 @@
 <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 <div
 	bind:this={grid}
-	class="flex min-h-0 flex-1 snap-x snap-mandatory gap-4 overflow-x-auto overflow-y-hidden scroll-pl-[var(--layout-page-padding)] px-[var(--layout-page-padding)] py-4 md:snap-none"
+	class="status-board d-flex min-h-0 flex-grow-1 gap-2 overflow-x-auto overflow-y-hidden pb-1"
 	role="region"
 	aria-label="Status board"
 	data-keyboard-move={keyboard.active}
@@ -290,12 +286,23 @@
 			{doneDays}
 			{repoShortcodes}
 			{viewer}
-			{selectedKey}
 			{readonly}
 			activeKey={effectiveActive}
 			draggingKey={draggingKey}
 		/>
 	{/each}
 
-	<p class="sr-only" role="status" aria-live="polite">{keyboard.message}</p>
+	<p class="visually-hidden mb-0" role="status" aria-live="polite">{keyboard.message}</p>
 </div>
+
+<style>
+	.status-board {
+		scroll-snap-type: x mandatory;
+	}
+
+	@media (min-width: 768px) {
+		.status-board {
+			scroll-snap-type: none;
+		}
+	}
+</style>

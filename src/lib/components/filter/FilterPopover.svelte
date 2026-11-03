@@ -1,13 +1,25 @@
+<script module lang="ts">
+	/** A filter dimension a caller can take ownership of. */
+	export type FilterDimension =
+		| 'repo'
+		| 'status'
+		| 'assignee'
+		| 'priority'
+		| 'size'
+		| 'label'
+		| 'milestone'
+		| 'state';
+</script>
+
 <script lang="ts">
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
-	import * as Popover from '#lib/components/ui/popover';
+	import { Button, ButtonGroup, Offcanvas } from '@sveltestrap/sveltestrap';
 	import MultiSelect from '#lib/components/common/MultiSelect.svelte';
+	import { focusTrap } from '#lib/client/focus-trap';
 	import { SIZE_OPTIONS, STATUS_OPTIONS } from '#lib/labels';
 	import { PRIORITY_SCALE } from '#lib/priority';
 	import type { FilterOptions } from '#lib/server/issues/types';
-	import { cn } from '#lib/utils';
-	import ListFilterIcon from '@lucide/svelte/icons/list-filter';
 	import {
 		activeFilterCount,
 		buildFilterUrl,
@@ -17,10 +29,9 @@
 	} from '#lib/url-filter';
 
 	/**
-	 * Compact, single-trigger filter control for the narrow feed column.
-	 * Collapses the six multi-selects behind a `Filters` button so the master
-	 * list stays legible. The long-tail dimensions live here; the primary
-	 * controls stay visible in the toolbar.
+	 * Compact filter control for the narrow feed column. Collapses the six
+	 * multi-selects into an offcanvas so the master list stays legible. The
+	 * long-tail dimensions live here; the primary controls stay in the toolbar.
 	 */
 	interface Props {
 		options: FilterOptions;
@@ -28,24 +39,46 @@
 		allowNoStatus?: boolean;
 		/** Offer the Open / Closed / All state switch (folded in from the header). */
 		showState?: boolean;
+		/**
+		 * Dimensions owned by another surface (the Issues single-row toolbar).
+		 * Hidden dimensions stay in the URL and are preserved by this
+		 * offcanvas's own Clear action.
+		 */
+		hide?: readonly FilterDimension[];
+		/** A quiet link instead of an outline button (the Issues header). */
+		quiet?: boolean;
 	}
 
-	let { options, allowNoStatus = true, showState = false }: Props = $props();
+	let {
+		options,
+		allowNoStatus = true,
+		showState = false,
+		hide = [],
+		quiet = false
+	}: Props = $props();
+
+	const hidden = $derived(new Set(hide));
+
+	let open = $state(false);
 
 	const filter = $derived(parseFilterParams(page.url.searchParams));
 
 	// "Me" is owned by the All/Mine scope switch (ViewSegment), so the Assignee
 	// multi-select only offers other people and ignores the scope when it counts
-	// active filters. Selecting a specific person replaces the scope.
+	// active filters.
 	const ME = 'me';
 	const scopedAssignees = $derived(filter.assignees.filter((value) => value !== ME));
 	const count = $derived(
 		activeFilterCount({
 			...filter,
-			// State lives in the page-header scope switch, not this panel, unless
-			// the panel explicitly owns it (Matrix).
-			states: showState ? filter.states : [],
-			assignees: scopedAssignees
+			repos: hidden.has('repo') ? [] : filter.repos,
+			states: showState && !hidden.has('state') ? filter.states : [],
+			statuses: hidden.has('status') ? [] : filter.statuses,
+			assignees: hidden.has('assignee') ? [] : scopedAssignees,
+			priorities: hidden.has('priority') ? [] : filter.priorities,
+			sizes: hidden.has('size') ? [] : filter.sizes,
+			labels: hidden.has('label') ? [] : filter.labels,
+			milestones: hidden.has('milestone') ? [] : filter.milestones
 		})
 	);
 
@@ -70,8 +103,6 @@
 		...STATUS_OPTIONS,
 		...(allowNoStatus ? [{ value: NONE, label: 'No status', color: null }] : [])
 	]);
-	// The Issues view never offers `none`, so a stale `?status=none` must not
-	// render an unknown chip in the trigger.
 	const selectedStatuses = $derived(
 		allowNoStatus ? filter.statuses : filter.statuses.filter((value) => value !== NONE)
 	);
@@ -85,13 +116,6 @@
 	]);
 	const sizeOptions = $derived([...SIZE_OPTIONS, { value: NONE, label: 'No size', color: null }]);
 
-	let open = $state(false);
-
-	/**
-	 * State switch (formerly the header's Open / Closed / All segment). The
-	 * server defaults to `open` when no `state` param is present, so "Open"
-	 * serializes as an empty dimension and only the non-default views add a key.
-	 */
 	type StateView = 'open' | 'closed' | 'all';
 	const currentState = $derived.by((): StateView => {
 		const set = new Set(filter.states);
@@ -105,140 +129,140 @@
 		{ value: 'all', label: 'All' }
 	];
 
-	function setState(next: StateView) {
-		set('states', next === 'all' ? ['open', 'closed'] : next === 'closed' ? ['closed'] : []);
-	}
-
 	function apply(next: ClientFilter) {
 		void goto(buildFilterUrl(page.url.pathname, page.url.searchParams, next), { reset: false });
 	}
 
-	// Merge a single dimension while preserving the current query string.
 	function set<K extends keyof ClientFilter>(key: K, value: ClientFilter[K]) {
 		apply({ ...filter, search: filter.search, [key]: value });
 	}
 
+	function setState(next: StateView) {
+		set('states', next === 'all' ? ['open', 'closed'] : next === 'closed' ? ['closed'] : []);
+	}
+
 	function clearAll() {
+		// Hidden dimensions belong to another control, so Clear leaves them
+		// untouched. Callers that omit `hide` keep the historical behaviour,
+		// including preserving the `me` scope.
 		apply({
-			repos: [],
-			states: [],
-			statuses: [],
-			// Keep the All/Mine scope: the popover does not own `assignee=me`.
-			assignees: filter.assignees.filter((value) => value === ME),
-			priorities: [],
-			sizes: [],
-			labels: [],
-			milestones: [],
+			repos: hidden.has('repo') ? filter.repos : [],
+			states: hidden.has('state') ? filter.states : [],
+			statuses: hidden.has('status') ? filter.statuses : [],
+			assignees: hidden.has('assignee')
+				? filter.assignees
+				: filter.assignees.filter((value) => value === ME),
+			priorities: hidden.has('priority') ? filter.priorities : [],
+			sizes: hidden.has('size') ? filter.sizes : [],
+			labels: hidden.has('label') ? filter.labels : [],
+			milestones: hidden.has('milestone') ? filter.milestones : [],
 			search: filter.search
 		});
 	}
 
-	/**
-	 * Keep the panel open while a nested menu is in use. The multi-selects render
-	 * their lists in a portal, so a click there reads as "outside" this popover;
-	 * bits-ui itself guards floating layers the same way.
-	 */
-	function onInteractOutside(event: PointerEvent) {
-		const target = event.target;
-		if (
-			target instanceof Element &&
-			target.closest(
-				'[data-slot="dropdown-menu-content"], [data-slot="dropdown-menu-trigger"], [data-slot="popover-content"], [data-slot="command"]'
-			)
-		) {
-			event.preventDefault();
-		}
+	function toggle() {
+		open = !open;
 	}
 </script>
 
-<Popover.Root bind:open>
-	<Popover.Trigger
-		class="inline-flex h-(--size-control-md) shrink-0 items-center gap-1.5 rounded-sm border border-border-strong bg-canvas px-3 text-body text-fg-secondary hover:bg-surface hover:text-fg data-[state=open]:bg-surface-2 data-[state=open]:text-fg"
-	>
-		<ListFilterIcon class="size-4 shrink-0" aria-hidden="true" />
-		<span>Filters</span>
-		{#if count > 0}
-			<span class="tabular-nums text-fg">{count}</span>
-		{/if}
-	</Popover.Trigger>
+<Button
+	color={quiet ? 'link' : 'outline-secondary'}
+	size={quiet ? 'sm' : ''}
+	class={quiet ? 'text-decoration-none px-1' : ''}
+	onclick={() => (open = true)}
+>
+	<i class="bi bi-funnel me-1" aria-hidden="true"></i>
+	Filters
+	{#if count > 0}
+		<span class="badge text-bg-secondary ms-1">{count}</span>
+	{/if}
+</Button>
 
-	<Popover.Content
-		align="end"
-		class="w-80 max-w-[calc(100vw-2rem)] gap-3 p-3"
-		{onInteractOutside}
-	>
-		<div class="flex items-center justify-between gap-3">
-			<span class="text-body font-semibold text-fg">Filters</span>
+<Offcanvas isOpen={open} {toggle} placement="end" header="Filters" body={false}>
+	<div class="d-flex flex-column gap-3 p-3" use:focusTrap={open}>
+		<div class="d-flex align-items-center justify-content-between gap-3">
+			<span class="fw-semibold">Filters</span>
 			{#if count > 0}
-				<button type="button" class="link text-caption" onclick={clearAll}>Clear</button>
+				<Button color="link" size="sm" onclick={clearAll}>Clear</Button>
 			{/if}
 		</div>
-		{#if showState}
-			<div class="flex flex-col gap-1">
-				<span class="text-caption font-semibold text-fg-secondary">State</span>
-				<div class="inline-flex overflow-hidden rounded-sm border border-border-strong">
-					{#each STATE_OPTIONS as option, index (option.value)}
-						<button
-							type="button"
-							class={cn(
-								'inline-flex h-(--size-control-sm) flex-1 items-center justify-center px-2 text-body',
-								index > 0 && 'border-l border-border-subtle',
-								currentState === option.value
-									? 'bg-surface-2 font-semibold text-fg'
-									: 'text-fg-secondary hover:bg-surface hover:text-fg'
-							)}
+
+		{#if showState && !hidden.has('state')}
+			<div class="d-flex flex-column gap-1">
+				<span class="small fw-semibold text-body-secondary">State</span>
+				<ButtonGroup size="sm">
+					{#each STATE_OPTIONS as option (option.value)}
+						<Button
+							color="outline-secondary"
+							size="sm"
+							active={currentState === option.value}
 							aria-pressed={currentState === option.value}
 							onclick={() => setState(option.value)}
 						>
 							{option.label}
-						</button>
+						</Button>
 					{/each}
-				</div>
+				</ButtonGroup>
 			</div>
 		{/if}
-		<div class="flex flex-wrap gap-2">
-			<MultiSelect
-				label="Repo"
-				options={repoOptions}
-				selected={filter.repos}
-				onselect={(values) => set('repos', values)}
-			/>
-			<MultiSelect
-				label="Status"
-				options={statusOptions}
-				selected={selectedStatuses}
-				onselect={(values) => set('statuses', values)}
-			/>
-			<MultiSelect
-				label="Assignee"
-				options={assigneeOptions}
-				selected={scopedAssignees}
-				onselect={(values) => set('assignees', values)}
-			/>
-			<MultiSelect
-				label="Priority"
-				options={priorityOptions}
-				selected={filter.priorities}
-				onselect={(values) => set('priorities', values)}
-			/>
-			<MultiSelect
-				label="Size"
-				options={sizeOptions}
-				selected={filter.sizes}
-				onselect={(values) => set('sizes', values)}
-			/>
-			<MultiSelect
-				label="Labels"
-				options={labelOptions}
-				selected={filter.labels}
-				onselect={(values) => set('labels', values)}
-			/>
-			<MultiSelect
-				label="Milestone"
-				options={milestoneOptions}
-				selected={filter.milestones}
-				onselect={(values) => set('milestones', values)}
-			/>
+
+		<div class="d-flex flex-wrap gap-2">
+			{#if !hidden.has('repo')}
+				<MultiSelect
+					label="Repo"
+					options={repoOptions}
+					selected={filter.repos}
+					onselect={(values) => set('repos', values)}
+				/>
+			{/if}
+			{#if !hidden.has('status')}
+				<MultiSelect
+					label="Status"
+					options={statusOptions}
+					selected={selectedStatuses}
+					onselect={(values) => set('statuses', values)}
+				/>
+			{/if}
+			{#if !hidden.has('assignee')}
+				<MultiSelect
+					label="Assignee"
+					options={assigneeOptions}
+					selected={scopedAssignees}
+					onselect={(values) => set('assignees', values)}
+				/>
+			{/if}
+			{#if !hidden.has('priority')}
+				<MultiSelect
+					label="Priority"
+					options={priorityOptions}
+					selected={filter.priorities}
+					onselect={(values) => set('priorities', values)}
+				/>
+			{/if}
+			{#if !hidden.has('size')}
+				<MultiSelect
+					label="Size"
+					options={sizeOptions}
+					selected={filter.sizes}
+					onselect={(values) => set('sizes', values)}
+				/>
+			{/if}
+			{#if !hidden.has('label')}
+				<MultiSelect
+					label="Labels"
+					options={labelOptions}
+					selected={filter.labels}
+					onselect={(values) => set('labels', values)}
+				/>
+			{/if}
+			{#if !hidden.has('milestone')}
+				<MultiSelect
+					label="Milestone"
+					options={milestoneOptions}
+					selected={filter.milestones}
+					onselect={(values) => set('milestones', values)}
+				/>
+			{/if}
 		</div>
-	</Popover.Content>
-</Popover.Root>
+	</div>
+</Offcanvas>

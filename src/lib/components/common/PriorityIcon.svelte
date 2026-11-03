@@ -1,41 +1,34 @@
 <script lang="ts">
-	import { cn } from '#lib/utils';
 	import { priorityMeta } from '#lib/priority';
-	import SignalHighIcon from '@lucide/svelte/icons/signal-high';
-	import SignalLowIcon from '@lucide/svelte/icons/signal-low';
-	import SignalMediumIcon from '@lucide/svelte/icons/signal-medium';
 
 	/**
-	 * Compact priority glyph (SPEC §5.1, DESIGN "Priority & Urgency Tokens").
-	 * The three tiers reuse the signal-bar metaphor. Kept icon-only so a card's
-	 * metadata line stays legible at a glance.
+	 * Compact priority glyph. The three tiers reuse the signal-bar metaphor and
+	 * stay icon-only so a card's metadata line remains legible at a glance.
 	 */
-	const ICONS = {
-		P1: SignalHighIcon,
-		P2: SignalMediumIcon,
-		P3: SignalLowIcon
-	} as const;
+	const ICONS: Record<string, string> = {
+		P1: 'bi-reception-4',
+		P2: 'bi-reception-2',
+		P3: 'bi-reception-0'
+	};
 
 	interface Props {
 		priority: string | null;
 		class?: string;
 	}
 
-	let { priority, class: className }: Props = $props();
+	let { priority, class: className = '' }: Props = $props();
 
 	const meta = $derived(priorityMeta(priority));
-	const Icon = $derived(meta ? ICONS[meta.value] : null);
+	const icon = $derived(meta ? ICONS[meta.value] : null);
 	const cssColor = $derived(meta ? `#${meta.color}` : undefined);
 	const label = $derived(meta ? `Priority ${meta.value} (${meta.name})` : null);
 </script>
 
-{#if Icon && label}
-	<Icon
-		class={cn('size-3.5 shrink-0', className)}
+{#if icon && label}
+	<i
+		class="bi {icon} {className}"
 		style={cssColor ? `color:${cssColor}` : undefined}
-		strokeWidth={1.5}
-		absoluteStrokeWidth
 		role="img"
 		aria-label={label}
-	/>
+	></i>
 {/if}

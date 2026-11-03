@@ -18,9 +18,13 @@
 </script>
 
 <script lang="ts">
-	import * as DropdownMenu from '#lib/components/ui/dropdown-menu/index.js';
-	import * as Tooltip from '#lib/components/ui/tooltip/index.js';
-	import { Button } from '#lib/components/ui/button';
+	import {
+		Button,
+		Dropdown,
+		DropdownItem,
+		DropdownMenu,
+		DropdownToggle
+	} from '@sveltestrap/sveltestrap';
 	import PriorityText from '#lib/components/common/PriorityText.svelte';
 	import RefText from '#lib/components/common/RefText.svelte';
 	import StatusText from '#lib/components/common/StatusText.svelte';
@@ -44,25 +48,17 @@
 	import { issueRef } from '#lib/issue-ref';
 	import { STATUS_OPTIONS } from '#lib/labels';
 	import type { IssueListItem, UserRef } from '#lib/server/issues/types';
-	import { cn } from '#lib/utils';
 	import { cardData, draggableCard } from './dnd';
-	import BanIcon from '@lucide/svelte/icons/ban';
-	import CircleCheckIcon from '@lucide/svelte/icons/circle-check';
-	import EllipsisIcon from '@lucide/svelte/icons/ellipsis';
-	import ExternalLinkIcon from '@lucide/svelte/icons/external-link';
-	import RotateCcwIcon from '@lucide/svelte/icons/rotate-ccw';
-	import TriangleAlertIcon from '@lucide/svelte/icons/triangle-alert';
-	import UserPlusIcon from '@lucide/svelte/icons/user-plus';
 
 	/**
-	 * One draggable board card in the t128n idiom: a canvas article with a 1px
-	 * subtle rule and no shadow. The column already carries the workflow status,
-	 * so the card only marks a blocked issue (icon + word).
+	 * One draggable board card: a plain bordered item with stock Bootstrap
+	 * spacing and no shadow. The column already carries the workflow status, so
+	 * the card only marks a blocked issue (icon + word).
 	 *
 	 * - **Head** — mono reference and the always available actions menu.
-	 * - **Title** — 0.875 rem / 600, clamped to two lines; the full title stays
-	 *   available on hover and through the card's accessible name.
-	 * - **Metadata** — priority and size, with the assignee trailing.
+	 * - **Title** — 0.875 rem, normal weight, clamped to two lines; the full
+	 *   title stays available on hover and through the card's accessible name.
+	 * - **Metadata** — 12px priority and size, with the assignee trailing.
 	 */
 	interface Props {
 		issue: IssueListItem;
@@ -72,8 +68,6 @@
 		repoShortcodes: Record<string, string>;
 		/** Signed-in viewer, when their GitHub identity is mirrored. */
 		viewer?: UserRef | null;
-		/** The docked detail's issue; draws a 2px primary leading bar. */
-		selected?: boolean;
 		/** Roving tab index owned by the board. */
 		tabIndex?: number;
 		/** Dim the card while it is the source of an active drag. */
@@ -87,7 +81,6 @@
 		columnKey,
 		repoShortcodes,
 		viewer = null,
-		selected = false,
 		tabIndex = -1,
 		dragging = false,
 		readonly = false
@@ -114,7 +107,7 @@
 	const stage = $derived(closed ? 'done' : (issue.status ?? ''));
 	const stageOptions = $derived([
 		...STATUS_OPTIONS,
-		{ value: 'done', label: 'Done', color: 'var(--syntax-constant)' }
+		{ value: 'done', label: 'Done' }
 	]);
 
 	const canAssign = $derived(
@@ -158,13 +151,9 @@
      hover-only) so every drag has a keyboard- and touch-reachable equivalent. -->
 <!-- svelte-ignore a11y_no_noninteractive_element_to_interactive_role -->
 <article
-	class={cn(
-		'board-card group/card relative flex flex-col gap-1 rounded-md border border-border-subtle bg-canvas px-3 py-3',
-		'hover:border-border-strong',
-		!readonly && 'cursor-grab active:cursor-grabbing',
-		selected && 'is-selected-row',
-		dragging && 'opacity-50'
-	)}
+	class="board-card position-relative d-flex flex-column gap-1 rounded border bg-body px-2 py-2"
+	class:board-card--draggable={!readonly}
+	class:opacity-50={dragging}
 	use:draggableCard={dragPayload}
 	role="button"
 	tabindex={tabIndex}
@@ -182,107 +171,144 @@
 	onfocusout={onFocusOut}
 >
 	<!-- Head: mono reference, always-visible menu. -->
-	<div class="flex min-w-0 items-center gap-1.5">
-		<Tooltip.Root>
-			<Tooltip.Trigger>
-				{#snippet child({ props })}
-					<span {...props} class="inline-flex min-w-0 shrink-0">
-						<RefText value={ref} title={`${issue.repo}#${issue.number}`} />
-					</span>
-				{/snippet}
-			</Tooltip.Trigger>
-			<Tooltip.Content>{issue.repo}#{issue.number}</Tooltip.Content>
-		</Tooltip.Root>
+	<div class="d-flex min-w-0 align-items-center gap-1">
+		<span class="d-inline-flex min-w-0 flex-shrink-0 link-primary">
+			<RefText value={ref} title={`${issue.repo}#${issue.number}`} class="text-reset" />
+		</span>
 
-		<DropdownMenu.Root bind:open={menuOpen}>
-			<DropdownMenu.Trigger>
-				{#snippet child({ props })}
-					<Button
-						variant="ghost"
-						size="icon-sm"
-						class="ml-auto shrink-0 text-fg-secondary"
-						aria-label="Issue actions"
-						{...props}
+		<Dropdown bind:isOpen={menuOpen}>
+			<DropdownToggle
+				color="link"
+				size="sm"
+				caret={false}
+				class="ms-auto flex-shrink-0 text-body-secondary text-decoration-none px-1"
+				aria-label="Issue actions"
+				title="Issue actions"
+			>
+				<i class="bi bi-three-dots" aria-hidden="true"></i>
+			</DropdownToggle>
+			<DropdownMenu class="board-card-menu">
+				<DropdownItem header>Move to…</DropdownItem>
+				{#each stageOptions as option (option.value)}
+					<DropdownItem
+						active={stage === option.value}
+						on:click={() => void moveToStatus(issue, option.value)}
 					>
-						<EllipsisIcon />
-					</Button>
-				{/snippet}
-			</DropdownMenu.Trigger>
-			<DropdownMenu.Content align="start" class="w-56">
-				<DropdownMenu.Label>Move to…</DropdownMenu.Label>
-				<DropdownMenu.RadioGroup
-					value={stage}
-					onValueChange={(value) => void moveToStatus(issue, value)}
-				>
-					{#each stageOptions as option (option.value)}
-						<DropdownMenu.RadioItem value={option.value}>
-							<span class="flex-1 truncate">{option.label}</span>
-						</DropdownMenu.RadioItem>
-					{/each}
-				</DropdownMenu.RadioGroup>
+						<i
+							class="bi {stage === option.value ? 'bi-check-lg' : 'bi-circle'} me-2 small"
+							aria-hidden="true"
+						></i>
+						<span class="text-truncate">{option.label}</span>
+					</DropdownItem>
+				{/each}
 
-				<DropdownMenu.Separator />
+				<DropdownItem divider />
 				{#if canAssign}
-					<DropdownMenu.Item class="gap-2" onSelect={() => void assignToMe(issue, viewer!)}>
-						<UserPlusIcon class="size-4" />
+					<DropdownItem on:click={() => void assignToMe(issue, viewer!)}>
+						<i class="bi bi-person-plus me-2" aria-hidden="true"></i>
 						Assign to me
-					</DropdownMenu.Item>
+					</DropdownItem>
 				{/if}
-				<DropdownMenu.Item
-					class="gap-2"
-					onSelect={() => (issue.blocked ? requestUnblock(issue) : requestBlock(issue))}
+				<DropdownItem
+					on:click={() => (issue.blocked ? requestUnblock(issue) : requestBlock(issue))}
 				>
-					<BanIcon class="text-error size-4" />
+					<i class="bi bi-slash-circle text-danger me-2" aria-hidden="true"></i>
 					{issue.blocked ? 'Unblock…' : 'Block…'}
-				</DropdownMenu.Item>
-				<DropdownMenu.Item
-					class="gap-2"
-					onSelect={() => (closed ? requestReopen(issue) : requestClose(issue))}
+				</DropdownItem>
+				<DropdownItem
+					on:click={() => (closed ? requestReopen(issue) : requestClose(issue))}
 				>
 					{#if closed}
-						<RotateCcwIcon class="size-4" />
+						<i class="bi bi-arrow-counterclockwise me-2" aria-hidden="true"></i>
 						Reopen issue
 					{:else}
-						<CircleCheckIcon class="size-4" />
+						<i class="bi bi-check-circle me-2" aria-hidden="true"></i>
 						Close issue
 					{/if}
-				</DropdownMenu.Item>
+				</DropdownItem>
 
-				<DropdownMenu.Separator />
-				<DropdownMenu.Item class="gap-2" onSelect={open}>
-					<ExternalLinkIcon class="size-4" />
+				<DropdownItem divider />
+				<DropdownItem on:click={open}>
+					<i class="bi bi-box-arrow-up-right me-2" aria-hidden="true"></i>
 					Open details
-				</DropdownMenu.Item>
-			</DropdownMenu.Content>
-		</DropdownMenu.Root>
+				</DropdownItem>
+			</DropdownMenu>
+		</Dropdown>
 	</div>
 
-	<h3 class="flex items-start gap-1 text-body leading-[1.35] font-semibold">
-		<span class="line-clamp-2 min-w-0 break-words text-fg" title={issue.title}>
+	<h3 class="d-flex align-items-start gap-1 small lh-sm mb-0">
+		<span class="board-card-title min-w-0 text-body" title={issue.title}>
 			{issue.title}
 		</span>
 		{#if issue.labelConflict}
-			<TriangleAlertIcon class="mt-0.5 size-4 shrink-0 text-warning" aria-hidden="true" />
-			<span class="sr-only">Conflicting reserved label or retired priority label on GitHub</span>
+			<i
+				class="bi bi-exclamation-triangle mt-1 flex-shrink-0 text-warning"
+				aria-hidden="true"
+			></i>
+			<span class="visually-hidden"
+				>Conflicting reserved label or retired priority label on GitHub</span
+			>
 		{/if}
 	</h3>
 
 	{#if hasMetadata}
-		<div class="flex min-w-0 items-baseline gap-x-2 text-caption text-fg-secondary">
+		<div class="board-card-meta d-flex min-w-0 align-items-baseline gap-2 text-body-secondary">
 			{#if issue.blocked}
-				<StatusText blocked class="shrink-0" />
+				<StatusText blocked class="flex-shrink-0" />
 			{/if}
 			{#if issue.priority}
-				<PriorityText priority={issue.priority} class="shrink-0" />
+				<PriorityText priority={issue.priority} class="flex-shrink-0" />
 			{/if}
 			{#if sizeText}
-				<span class="shrink-0" title={`Size: ${issue.size}`}>{sizeText}</span>
+				<span class="flex-shrink-0" title={`Size: ${issue.size}`}>{sizeText}</span>
 			{/if}
 			{#if assigneeText}
-				<span class="ml-auto min-w-0 max-w-[45%] truncate text-right" title={assigneeText}>
+				<span
+					class="ms-auto min-w-0 text-truncate text-end board-card-assignee"
+					title={assigneeText}
+				>
 					{assigneeText}
 				</span>
 			{/if}
 		</div>
 	{/if}
 </article>
+
+<style>
+	.board-card {
+		transition: border-color 120ms ease-in-out;
+	}
+
+	.board-card:hover {
+		border-color: var(--bs-secondary-color);
+	}
+
+	.board-card--draggable {
+		cursor: grab;
+	}
+
+	.board-card--draggable:active {
+		cursor: grabbing;
+	}
+
+	.board-card-meta {
+		font-size: 0.75rem;
+	}
+
+	.board-card-title {
+		display: -webkit-box;
+		overflow: hidden;
+		-webkit-box-orient: vertical;
+		-webkit-line-clamp: 2;
+		line-clamp: 2;
+		overflow-wrap: anywhere;
+	}
+
+	.board-card-assignee {
+		max-width: 45%;
+	}
+
+	:global(.board-card-menu) {
+		min-width: 14rem;
+	}
+</style>

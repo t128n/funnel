@@ -120,7 +120,7 @@ Learning-oriented, with one path and expected results.
 - [Security model](explanation/security-model.md) — sessions, encrypted credentials, role enforcement, and user-token writes.
 - [Deployment model](explanation/deployment-model.md) — why Funnel is one long-lived process with local state.
 - [Design principles](explanation/design-principles.md) — the register-first, text-state, density and keyboard standards behind the cockpit.
-- [Design language](explanation/design-language.md) — why Funnel adopted the t128n design language and how the cockpit applies it.
+- [Design language](explanation/design-language.md) — how Funnel applies Bootstrap 5, Sveltestrap, and Bootstrap Icons to the cockpit.
 
 ## Project documents
 

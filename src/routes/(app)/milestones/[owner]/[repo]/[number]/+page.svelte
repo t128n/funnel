@@ -1,12 +1,10 @@
 <script lang="ts">
-	import ArrowLeftIcon from '@lucide/svelte/icons/arrow-left';
-	import CircleIcon from '@lucide/svelte/icons/circle';
+	import { Button } from '@sveltestrap/sveltestrap';
 	import PageHead from '#lib/components/common/PageHead.svelte';
 	import StatusText from '#lib/components/common/StatusText.svelte';
 	import IssueList from '#lib/components/issue/IssueList.svelte';
 	import ProgressBar from '#lib/components/epics/ProgressBar.svelte';
 	import PageHeader from '#lib/components/shell/PageHeader.svelte';
-	import { Button } from '#lib/components/ui/button';
 	import { projectIssues } from '#lib/client/optimistic.svelte';
 	import { barPercent } from '#lib/planning';
 	import type { PageProps } from './$types';
@@ -22,8 +20,8 @@
 </script>
 
 {#snippet backLink()}
-	<Button variant="ghost" size="sm" href="/milestones">
-		<ArrowLeftIcon />
+	<Button color="link" size="sm" href="/milestones" class="text-decoration-none">
+		<i class="bi bi-arrow-left me-1" aria-hidden="true"></i>
 		Milestones
 	</Button>
 {/snippet}
@@ -33,36 +31,24 @@
 	description={data.milestone.description || undefined}
 />
 
-<div class="flex min-h-0 flex-1 flex-col">
+<main class="container-xl py-4">
 	<PageHeader
 		title={data.milestone.title || 'Untitled milestone'}
 		description={data.milestone.description || undefined}
 		actions={backLink}
 	/>
 
-	<div
-		class="flex flex-wrap items-center gap-x-3 gap-y-1 px-[var(--layout-page-padding)] pb-4 text-body text-fg-secondary"
-	>
-		<span class="mono text-fg-secondary">
-			{data.milestone.repo}#{data.milestone.number}
-		</span>
-		<span class="tabular-nums">
-			{data.milestone.dueOn === null ? 'No due date' : `Due ${dueLabel(data.milestone.dueOn)}`}
-		</span>
+	<div class="d-flex flex-wrap align-items-baseline column-gap-3 row-gap-1 pb-3 small text-body-secondary">
+		<span>{data.milestone.repo}#{data.milestone.number}</span>
+		<span>{data.milestone.dueOn === null ? 'No due date' : `Due ${dueLabel(data.milestone.dueOn)}`}</span>
 		{#if data.milestone.state === 'closed'}
 			<StatusText state="closed" />
 		{:else}
-			<span class="status status-muted">
-				<CircleIcon aria-hidden="true" />
-				<span>Open</span>
-			</span>
+			<StatusText status="open" />
 		{/if}
-		<span class="flex items-center gap-2 tabular-nums">
+		<span class="d-inline-flex align-items-center gap-2">
 			<span>{data.milestone.closedIssues} / {totalIssues} closed</span>
-			<ProgressBar
-				value={barPercent(data.milestone.closedIssues, totalIssues)}
-				class="w-10"
-			/>
+			<ProgressBar value={barPercent(data.milestone.closedIssues, totalIssues)} />
 		</span>
 	</div>
 
@@ -72,4 +58,4 @@
 		repoShortcodes={data.repoShortcodes}
 		groupable={false}
 	/>
-</div>
+</main>

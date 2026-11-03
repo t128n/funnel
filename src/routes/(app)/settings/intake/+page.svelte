@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
-	import * as Field from '#lib/components/ui/field';
-	import * as NativeSelect from '#lib/components/ui/native-select';
+	import { FormGroup, FormText, Input, Label } from '@sveltestrap/sveltestrap';
 	import Section from '#lib/components/settings/section.svelte';
 	import SettingsForm from '#lib/components/settings/settings-form.svelte';
 	import type { SettingsFormResult } from '#lib/components/settings/sections';
@@ -17,22 +16,20 @@
 	);
 </script>
 
-<SettingsForm
-	form={form as SettingsFormResult | null}
-	{payload}
->
+<SettingsForm form={form as SettingsFormResult | null} {payload}>
 	<Section
 		title="Routing"
 		description="Where accepted submissions go by default. Must be one of the configured repositories."
 	>
-		<Field.Field>
-			<Field.Label for="intake-default-repo">Default repository</Field.Label>
-			<NativeSelect.Root id="intake-default-repo" bind:value={defaultRepo}>
-				<NativeSelect.Option value="">First repository</NativeSelect.Option>
+		<FormGroup spacing="">
+			<Label for="intake-default-repo">Default repository</Label>
+			<Input type="select" id="intake-default-repo" bind:value={defaultRepo}>
+				<option value="">First repository</option>
 				{#each repoOptions as repo (repo)}
-					<NativeSelect.Option value={repo}>{repo}</NativeSelect.Option>
+					<option value={repo}>{repo}</option>
 				{/each}
-			</NativeSelect.Root>
-		</Field.Field>
+			</Input>
+			<FormText>The first configured repository is used when no default is set.</FormText>
+		</FormGroup>
 	</Section>
 </SettingsForm>

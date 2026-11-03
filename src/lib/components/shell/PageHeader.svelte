@@ -1,52 +1,56 @@
 <script lang="ts">
-	import type { Snippet } from "svelte";
-	import { cn } from "#lib/utils";
+	import type { Snippet } from 'svelte';
 
+	/**
+	 * Composition A page header: a quiet `h3`-scale title, an optional muted
+	 * count, one description line, and right-aligned page actions. Containers
+	 * own the horizontal gutter, so the header adds only vertical rhythm.
+	 */
 	interface Props {
 		title: string;
 		description?: string;
 		/** Live count or scope summary shown beside the title. */
 		count?: string | number;
-		/** Demote the title to h2 when a split-view detail owns the screen h1. */
+		/** Demote the title to h2 when a detail document owns the screen h1. */
 		level?: 1 | 2;
 		/** Primary and secondary page actions, right-aligned on the title baseline. */
 		actions?: Snippet;
-		/** Override the page gutter, e.g. a narrower split-view feed column. */
 		class?: string;
+		/** Layout classes for the action cluster (for example responsive growth). */
+		actionsClass?: string;
 	}
 
-	let { title, description, count, level = 1, actions, class: className }: Props = $props();
+	let {
+		title,
+		description,
+		count,
+		level = 1,
+		actions,
+		class: className = '',
+		actionsClass = ''
+	}: Props = $props();
 </script>
 
-<header
-	class={cn(
-		"flex flex-wrap items-end justify-between gap-x-4 gap-y-3 px-[var(--layout-page-padding)] pb-4 pt-5",
-		className
-	)}
->
+<header class="d-flex flex-wrap align-items-end justify-content-between gap-3 mb-3 {className}">
 	<div class="min-w-0">
-		<div class="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+		<div class="d-flex flex-wrap align-items-baseline gap-2">
 			<svelte:element
-				this={level === 1 ? "h1" : "h2"}
-				class={level === 1
-					? "min-w-0 text-heading-md font-semibold leading-heading-md tracking-[-0.01em] text-fg"
-					: "min-w-0 text-heading-sm font-semibold leading-heading-sm text-fg"}
+				this={level === 1 ? 'h1' : 'h2'}
+				class={level === 1 ? 'h3 mb-0' : 'h4 mb-0'}
 			>
 				{title}
 			</svelte:element>
-			{#if count !== undefined && count !== ""}
-				<span class="text-body text-fg-secondary tabular-nums">{count}</span>
+			{#if count !== undefined && count !== ''}
+				<span class="fs-6 fw-normal text-body-secondary">{count}</span>
 			{/if}
 		</div>
 		{#if description}
-			<p class="mt-1 max-w-[var(--layout-measure)] text-body leading-body text-fg-secondary">
-				{description}
-			</p>
+			<p class="mb-0 mt-1 text-body-secondary">{description}</p>
 		{/if}
 	</div>
 
 	{#if actions}
-		<div class="flex shrink-0 flex-wrap items-center gap-2">
+		<div class="d-flex flex-wrap align-items-center gap-2 {actionsClass}">
 			{@render actions()}
 		</div>
 	{/if}

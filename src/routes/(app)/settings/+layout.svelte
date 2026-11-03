@@ -1,19 +1,21 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
+	import { Input, Nav, NavItem, NavLink } from '@sveltestrap/sveltestrap';
 	import PageHead from '#lib/components/common/PageHead.svelte';
 	import PageHeader from '#lib/components/shell/PageHeader.svelte';
-	import * as NativeSelect from '#lib/components/ui/native-select';
 	import { settingsGroups } from '#lib/components/settings/sections';
 	import { hasRole } from '#lib/roles';
 	import type { LayoutProps } from './$types';
 
 	/**
-	 * Settings shell: a two-pane surface inside the app shell. The desktop nav
-	 * is a 12.5 rem `surface` column grouped Personal / Workspace / System; below
-	 * 1024 px it becomes one labelled NativeSelect. h1 comes from the active
-	 * section. The server layout still enforces admin-only sections for direct
-	 * URLs, and the nav filters anything the viewer cannot open.
+	 * Settings page and its local navigation. Composition A has no global
+	 * sidebar; the settings sections are a legitimate local page column inside
+	 * a normal `container-xl` page. Above `lg` the nav is a grouped
+	 * Bootstrap `nav-pills` column; below `lg` it becomes one labelled section
+	 * switcher above the content. The h1 comes from the active section. The
+	 * server layout still enforces admin-only sections for direct URLs, and the
+	 * nav filters anything the viewer cannot open.
 	 */
 	let { data, children }: LayoutProps = $props();
 
@@ -44,70 +46,49 @@
 
 <PageHead title={`${active.label} · Settings`} />
 
-<!-- The nav starts directly under the app bar; the title lives in the content
-     column so the surface column and canvas meet at one edge instead of a
-     full-width header band. The nav's top inset aligns “Personal” with the h1. -->
-<div class="flex min-h-0 min-w-0 flex-1 overflow-hidden">
-	<nav
-		class="hidden w-[var(--layout-settings-nav)] shrink-0 overflow-y-auto border-r border-border-subtle bg-surface pt-6 pb-4 lg:block"
-		aria-label="Settings"
-	>
-		{#each groups as group (group.id)}
-			<div class="mb-2">
-				<p class="px-2 pb-1 text-caption font-semibold text-fg-secondary">{group.label}</p>
-				<ul>
-					{#each group.sections as section (section.id)}
-						{@const Icon = section.icon}
-						<li>
-							<a
-								href={section.href}
-								aria-current={active.id === section.id ? 'page' : undefined}
-								class="flex min-h-(--size-control-md) items-center gap-2 rounded-sm px-2 text-body text-fg-secondary {active.id ===
-								section.id
-									? 'is-selected-nav'
-									: 'hover:bg-surface-2'}"
-							>
-								<span class="flex size-4 shrink-0 items-center justify-center {active.id === section.id ? 'text-primary' : 'text-fg-muted'}">
-									<Icon class="size-4" aria-hidden="true" />
-								</span>
-								<span class="truncate">{section.label}</span>
-							</a>
-						</li>
-					{/each}
-				</ul>
-			</div>
-		{/each}
-	</nav>
+<main class="container-xl py-4">
+	<PageHeader title={active.label} description={active.description} />
 
-	<div class="min-h-0 min-w-0 flex-1 overflow-y-auto">
-		<PageHeader title={active.label} description={active.description} />
-
-		<div class="px-[var(--layout-page-padding)] pb-6">
-			<div class="mb-6 flex max-w-[var(--layout-form-max)] flex-col gap-1 lg:hidden">
-				<label class="text-caption font-semibold text-fg-secondary" for="settings-section">
-					Settings section
-				</label>
-				<NativeSelect.Root
-					id="settings-section"
-					value={active.href}
-					onchange={navigateTo}
-					class="w-full"
-				>
+	<div class="row g-4">
+		<div class="col-lg-3">
+			<div class="d-lg-none mb-3">
+				<label class="form-label" for="settings-section">Section</label>
+				<Input type="select" id="settings-section" value={active.href} on:change={navigateTo}>
 					{#each groups as group (group.id)}
-						<NativeSelect.OptGroup label={group.label}>
+						<optgroup label={group.label}>
 							{#each group.sections as section (section.id)}
-								<NativeSelect.Option value={section.href}>
-									{section.label}
-								</NativeSelect.Option>
+								<option value={section.href}>{section.label}</option>
 							{/each}
-						</NativeSelect.OptGroup>
+						</optgroup>
 					{/each}
-				</NativeSelect.Root>
+				</Input>
 			</div>
 
-			<div class="w-full max-w-[var(--layout-settings-max)]">
-				{@render children()}
-			</div>
+			<nav class="d-none d-lg-block" aria-label="Settings">
+				{#each groups as group, index (group.id)}
+					<div class="small fw-semibold text-body-secondary {index === 0 ? 'mb-1' : 'mt-3 mb-1'}">
+						{group.label}
+					</div>
+					<Nav vertical pills>
+						{#each group.sections as section (section.id)}
+							<NavItem>
+								<NavLink
+									href={section.href}
+									active={active.id === section.id}
+									aria-current={active.id === section.id ? 'page' : undefined}
+									class="text-truncate"
+								>
+									{section.label}
+								</NavLink>
+							</NavItem>
+						{/each}
+					</Nav>
+				{/each}
+			</nav>
+		</div>
+
+		<div class="col-lg-9">
+			{@render children()}
 		</div>
 	</div>
-</div>
+</main>

@@ -1,18 +1,14 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { Button, ButtonGroup } from '@sveltestrap/sveltestrap';
 	import Spinner from '#lib/components/common/Spinner.svelte';
-	import { Button } from '#lib/components/ui/button';
-	import * as InputGroup from '#lib/components/ui/input-group';
-	import * as Kbd from '#lib/components/ui/kbd';
-	import { cn } from '#lib/utils';
-	import MessageSquareIcon from '@lucide/svelte/icons/message-square';
-	import PaperclipIcon from '@lucide/svelte/icons/paperclip';
 
 	/**
-	 * The embedded action composer: a one-line prompt at rest that expands in
-	 * place on focus (or whenever a draft exists) to show the attachment
-	 * control, the Comment / Internal note switch, a primary submit and a
-	 * `⌘ Enter` hint. The parent owns which mutation `onsubmit` performs.
+	 * The embedded action composer: an ordinary Bootstrap textarea that starts
+	 * as a one-line prompt and expands in place on focus (or whenever a draft
+	 * exists) to show the attachment control, the Comment / Internal note
+	 * switch, a primary submit and a `⌘ Enter` hint. The parent owns which
+	 * mutation `onsubmit` performs.
 	 *
 	 * ⌘/Ctrl+Enter submits. `value` is bindable so the parent owns the draft,
 	 * and the textarea is never unmounted, so collapsing never loses content,
@@ -118,111 +114,116 @@
 	}
 </script>
 
-<div bind:this={root} class="relative">
-	<InputGroup.Root class="border-border-strong bg-canvas">
-		{#if !expanded}
-			<MessageSquareIcon
-				class="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-fg-muted"
-				aria-hidden="true"
-			/>
-		{/if}
-		<InputGroup.Textarea
-			class={cn(
-				'text-body leading-body',
-				expanded
-					? 'min-h-24 resize-y px-3 py-3'
-					: 'h-(--size-control-comfortable) min-h-(--size-control-comfortable) resize-none py-2.5 pr-3 pl-9'
-			)}
-			placeholder={effectivePlaceholder}
-			value={value}
-			oninput={onInput}
-			onfocus={onFocus}
-			onblur={onBlur}
-			onkeydown={onKeydown}
-			rows={expanded ? 3 : 1}
-			aria-label={effectiveLabel}
-		></InputGroup.Textarea>
+<div bind:this={root} class="position-relative">
+	{#if !expanded}
+		<i class="bi bi-chat-left-text composer-prompt-icon" aria-hidden="true"></i>
+	{/if}
+	<textarea
+		id="issue-composer"
+		class="form-control composer-input {expanded
+			? 'composer-input--expanded'
+			: 'composer-input--collapsed'}"
+		placeholder={effectivePlaceholder}
+		{value}
+		oninput={onInput}
+		onfocus={onFocus}
+		onblur={onBlur}
+		onkeydown={onKeydown}
+		rows={expanded ? 3 : 1}
+		aria-label={effectiveLabel}
+	></textarea>
 
-		<InputGroup.Addon
-			align="block-end"
-			class={cn('cursor-default justify-between gap-3 px-3 pt-1 pb-3', !expanded && 'hidden')}
-		>
-			<div class="flex min-w-0 items-center gap-2">
-				<button
-					type="button"
-					class="inline-flex h-(--size-control-sm) items-center gap-1.5 rounded-sm px-2 text-caption text-fg-secondary hover:bg-surface hover:text-fg disabled:pointer-events-none disabled:text-fg-disabled"
-					disabled={!onattach}
-					title={onattach ? 'Attach files' : 'Attachments are unavailable'}
-					tabindex={onattach ? undefined : -1}
-					onclick={() => fileInput?.click()}
-				>
-					<PaperclipIcon class="size-4 shrink-0" aria-hidden="true" />
-					Attach
-				</button>
-				{#if onattach}
-					<input
-						bind:this={fileInput}
-						type="file"
-						multiple
-						class="hidden"
-						onchange={onFiles}
-						aria-hidden="true"
-						tabindex={-1}
-					/>
-				{/if}
-			</div>
-			<div class="flex min-w-0 flex-wrap items-center justify-end gap-2">
-				{#if showModeToggle}
-					<div
-						class="inline-flex overflow-hidden rounded-sm border border-border-strong"
-						role="group"
-						aria-label="Submission channel"
+	<div
+		class="composer-actions d-flex min-w-0 flex-wrap align-items-center justify-content-between gap-2 mt-2 {expanded
+			? ''
+			: 'd-none'}"
+	>
+		<div class="d-flex min-w-0 align-items-center gap-2">
+			<Button
+				color="link"
+				size="sm"
+				class="d-inline-flex align-items-center gap-1 text-decoration-none px-1 py-0 text-body-secondary"
+				disabled={!onattach}
+				title={onattach ? 'Attach files' : 'Attachments are unavailable'}
+				tabindex={onattach ? undefined : -1}
+				onclick={() => fileInput?.click()}
+			>
+				<i class="bi bi-paperclip flex-shrink-0" aria-hidden="true"></i>
+				Attach
+			</Button>
+			{#if onattach}
+				<input
+					bind:this={fileInput}
+					type="file"
+					multiple
+					class="d-none"
+					onchange={onFiles}
+					aria-hidden="true"
+					tabindex={-1}
+				/>
+			{/if}
+			<span class="small text-body-secondary">Markdown supported</span>
+		</div>
+		<div class="d-flex min-w-0 flex-wrap align-items-center justify-content-end gap-2">
+			{#if showModeToggle}
+				<ButtonGroup size="sm" role="group" aria-label="Submission channel">
+					<Button
+						color="outline-secondary"
+						active={mode === 'comment'}
+						aria-pressed={mode === 'comment'}
+						onclick={() => (mode = 'comment')}
 					>
-						<button
-							type="button"
-							class={cn(
-								'inline-flex h-(--size-control-sm) items-center px-2 text-caption',
-								mode === 'comment'
-									? 'bg-surface-2 font-semibold text-fg'
-									: 'text-fg-secondary hover:bg-surface hover:text-fg'
-							)}
-							aria-pressed={mode === 'comment'}
-							onclick={() => (mode = 'comment')}
-						>
-							Comment
-						</button>
-						<button
-							type="button"
-							class={cn(
-								'inline-flex h-(--size-control-sm) items-center border-l border-border-subtle px-2 text-caption',
-								mode === 'note'
-									? 'bg-surface-2 font-semibold text-fg'
-									: 'text-fg-secondary hover:bg-surface hover:text-fg'
-							)}
-							aria-pressed={mode === 'note'}
-							onclick={() => (mode = 'note')}
-						>
-							Internal note
-						</button>
-					</div>
+						Comment
+					</Button>
+					<Button
+						color="outline-secondary"
+						active={mode === 'note'}
+						aria-pressed={mode === 'note'}
+						onclick={() => (mode = 'note')}
+					>
+						Internal note
+					</Button>
+				</ButtonGroup>
+			{/if}
+			<kbd class="border px-1 d-none d-sm-inline-flex text-body-secondary" aria-hidden="true">
+				{isMac ? '⌘' : 'Ctrl'}&nbsp;Enter
+			</kbd>
+			<Button
+				color="primary"
+				size="sm"
+				onclick={submit}
+				disabled={!canSubmit}
+				title={effectiveLabel}
+				aria-label={effectiveLabel}
+			>
+				{#if busy}
+					<Spinner size={13} class="me-1" />
 				{/if}
-				<Kbd.Root class="hidden sm:inline-flex" aria-hidden="true">
-					{isMac ? '⌘' : 'Ctrl'}&nbsp;Enter
-				</Kbd.Root>
-				<Button
-					size="sm"
-					class="min-w-20"
-					onclick={submit}
-					disabled={!canSubmit}
-					title={effectiveLabel}
-					aria-label={effectiveLabel}
-				>
-					{#if busy}
-						<Spinner size={13} />
-					{/if}
-					{busy ? (mode === 'note' ? 'Saving…' : 'Posting…') : mode === 'note' ? 'Add note' : 'Comment'}
-				</Button>
-			</div>
-		</InputGroup.Addon>
-	</InputGroup.Root>
+				{busy ? (mode === 'note' ? 'Saving…' : 'Posting…') : mode === 'note' ? 'Add note' : 'Comment'}
+			</Button>
+		</div>
+	</div>
 </div>
+
+<style>
+	.composer-prompt-icon {
+		position: absolute;
+		top: 50%;
+		left: 0.75rem;
+		color: var(--bs-secondary-color);
+		pointer-events: none;
+		transform: translateY(-50%);
+	}
+
+	.composer-input--collapsed {
+		height: 2.5rem;
+		min-height: 2.5rem;
+		padding-left: 2.25rem;
+		resize: none;
+	}
+
+	.composer-input--expanded {
+		min-height: 6rem;
+		resize: vertical;
+	}
+</style>

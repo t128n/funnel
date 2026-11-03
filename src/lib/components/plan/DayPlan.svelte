@@ -14,8 +14,13 @@
 
 <script lang="ts">
 	import { invalidateAll } from '$app/navigation';
-	import { Button } from '#lib/components/ui/button';
-	import * as Dialog from '#lib/components/ui/dialog';
+	import {
+		Button,
+		Modal,
+		ModalBody,
+		ModalFooter,
+		ModalHeader
+	} from '@sveltestrap/sveltestrap';
 	import EmptyState from '#lib/components/common/EmptyState.svelte';
 	import InlineStatus from '#lib/components/common/InlineStatus.svelte';
 	import { formatMinutes } from '#lib/planning';
@@ -72,7 +77,7 @@
 
 	/** Relative minute offset in the timeline, sized by the hour token. */
 	function hourOffset(minutes: number): string {
-		return `calc(${(minutes / 60).toFixed(4)} * var(--layout-timeline-hour))`;
+		return `calc(${(minutes / 60).toFixed(4)} * var(--funnel-timeline-hour))`;
 	}
 
 	/** Drop the stored id/date before sending a block back to the API. */
@@ -166,26 +171,28 @@
 	}
 </script>
 
-<section class="flex flex-col gap-4" data-testid="day-plan" data-day={view.date}>
-	<header class="flex flex-wrap items-end justify-between gap-3">
-		<div class="flex flex-col gap-0.5">
-			<h2 class="text-heading-sm font-semibold text-fg">{view.label}</h2>
-			<p class="text-caption text-fg-secondary tabular-nums">
+<section class="d-flex flex-column gap-3" data-testid="day-plan" data-day={view.date}>
+	<header class="d-flex flex-wrap align-items-end justify-content-between gap-3">
+		<div class="d-flex flex-column gap-1">
+			<h2 class="fs-6 fw-semibold text-body mb-0">{view.label}</h2>
+			<p class="small text-body-secondary tnum mb-0">
 				{formatMinutes(view.availableMinutes)} available · {formatMinutes(view.plannedMinutes)} planned ·
 				{formatMinutes(view.bufferMinutes)} buffer target
 			</p>
 		</div>
 
 		{#if mayWrite}
-			<div class="flex flex-wrap items-center gap-2">
+			<div class="d-flex flex-wrap align-items-center gap-2">
 				{#if busy}
-					<span class="text-caption text-fg-secondary" role="status">Saving…</span>
+					<span class="small text-body-secondary" role="status">Saving…</span>
 				{/if}
-				<Button size="sm" onclick={autoPlan} disabled={busy}>Auto-plan</Button>
-				<Button variant="outline" size="sm" onclick={() => (confirmClear = true)} disabled={busy}>
+				<Button color="primary" size="sm" onclick={autoPlan} disabled={busy}>Auto-plan</Button>
+				<Button color="outline-secondary" size="sm" onclick={() => (confirmClear = true)} disabled={busy}>
 					Clear day
 				</Button>
-				<Button variant="ghost" size="sm" href="/settings/availability">Working hours</Button>
+				<Button color="link" size="sm" href="/settings/availability" class="text-decoration-none">
+					Working hours
+				</Button>
 			</div>
 		{/if}
 	</header>
@@ -194,8 +201,8 @@
 		<InlineStatus tone="error" message={error}>
 			{#snippet action()}
 				<Button
-					variant="ghost"
-					size="xs"
+					color="link"
+					size="sm"
 					disabled={busy || lastRequest === null}
 					onclick={() => lastRequest && void send(lastRequest)}
 				>
@@ -205,37 +212,34 @@
 		</InlineStatus>
 	{/if}
 
-	<div class="flex flex-wrap items-start gap-x-6 gap-y-2">
-		<dl
-			class="grid min-w-0 flex-1 grid-cols-2 gap-x-6 gap-y-2 border-y border-border-subtle py-2 sm:grid-cols-5"
-			aria-label="ALPEN summary"
-		>
-			<div data-alpen="A" class="flex min-w-0 flex-col gap-0.5">
-				<dt class="text-caption text-fg-secondary">Tasks</dt>
-				<dd class="m-0 text-body text-fg tabular-nums">
+	<div class="d-flex flex-wrap align-items-start gap-3">
+		<dl class="day-alpen min-w-0 flex-grow-1 border-top border-bottom py-2 mb-0" aria-label="ALPEN summary">
+			<div data-alpen="A" class="d-flex min-w-0 flex-column gap-1">
+				<dt class="small text-body-secondary fw-normal">Tasks</dt>
+				<dd class="m-0 text-body tnum">
 					{view.candidates.length}
 					{view.candidates.length === 1 ? 'candidate' : 'candidates'}
 				</dd>
 			</div>
-			<div data-alpen="L" class="flex min-w-0 flex-col gap-0.5">
-				<dt class="text-caption text-fg-secondary">Planned</dt>
-				<dd class="m-0 text-body text-fg tabular-nums">{formatMinutes(view.plannedMinutes)}</dd>
+			<div data-alpen="L" class="d-flex min-w-0 flex-column gap-1">
+				<dt class="small text-body-secondary fw-normal">Planned</dt>
+				<dd class="m-0 text-body tnum">{formatMinutes(view.plannedMinutes)}</dd>
 			</div>
-			<div data-alpen="P" class="flex min-w-0 flex-col gap-0.5">
-				<dt class="text-caption text-fg-secondary">Buffer</dt>
-				<dd class="m-0 text-body text-fg tabular-nums">{formatMinutes(view.bufferMinutes)}</dd>
+			<div data-alpen="P" class="d-flex min-w-0 flex-column gap-1">
+				<dt class="small text-body-secondary fw-normal">Buffer</dt>
+				<dd class="m-0 text-body tnum">{formatMinutes(view.bufferMinutes)}</dd>
 			</div>
-			<div data-alpen="E" class="flex min-w-0 flex-col gap-0.5">
-				<dt class="text-caption text-fg-secondary">Priority order</dt>
-				<dd class="m-0 text-body text-fg">Highest first</dd>
+			<div data-alpen="E" class="d-flex min-w-0 flex-column gap-1">
+				<dt class="small text-body-secondary fw-normal">Priority order</dt>
+				<dd class="m-0 text-body">Highest first</dd>
 			</div>
-			<div data-alpen="N" class="flex min-w-0 flex-col gap-0.5">
-				<dt class="text-caption text-fg-secondary">Variance</dt>
-				<dd class="m-0 text-body text-fg tabular-nums">{signed(view.review.varianceMinutes)}</dd>
+			<div data-alpen="N" class="d-flex min-w-0 flex-column gap-1">
+				<dt class="small text-body-secondary fw-normal">Variance</dt>
+				<dd class="m-0 text-body tnum">{signed(view.review.varianceMinutes)}</dd>
 			</div>
 		</dl>
 
-		<div class="flex flex-col gap-1">
+		<div class="d-flex flex-column gap-1">
 			{#if view.availableMinutes === 0}
 				<InlineStatus
 					tone="info"
@@ -257,28 +261,28 @@
 		</div>
 	</div>
 
-	<div class="grid gap-4 lg:grid-cols-[minmax(0,1fr)_18rem]">
-		<div class="flex flex-col gap-2">
-			<h3 class="text-body font-semibold text-fg">Timeline</h3>
+	<div class="day-layout">
+		<div class="d-flex flex-column gap-2">
+			<h3 class="small fw-semibold text-body mb-0">Timeline</h3>
 			{#if view.blocks.length === 0}
 				<EmptyState
 					title="No blocks yet."
 					description="Auto-plan the day or add a candidate."
-					class="border-y border-border-subtle py-6"
+					class="border-top border-bottom py-3"
 				/>
 			{/if}
 			<div
-				class="relative overflow-hidden border border-border-subtle bg-canvas"
-				style={`height: calc(${((view.endMinute - view.startMinute) / 60).toFixed(4)} * var(--layout-timeline-hour));`}
+				class="day-timeline position-relative overflow-hidden border bg-body"
+				style={`height: calc(${((view.endMinute - view.startMinute) / 60).toFixed(4)} * var(--funnel-timeline-hour));`}
 			>
 				{#each hourMarks as minute (minute)}
 					<div
-						class="absolute start-16 end-0 border-t border-border-subtle"
+						class="day-hour-line position-absolute"
 						style={`top: ${hourOffset(minute - view.startMinute)};`}
 						aria-hidden="true"
 					></div>
 					<span
-						class="mono absolute start-0 top-0 w-14 text-end text-caption text-fg-muted"
+						class="day-hour-label font-monospace position-absolute text-end small text-body-tertiary"
 						style={`top: ${hourOffset(minute - view.startMinute)};`}
 					>
 						{formatClock(minute)}
@@ -287,35 +291,36 @@
 
 				{#each view.blocks as block (block.id)}
 					<div
-						class="absolute start-16 end-2 overflow-hidden border border-border-subtle border-s-2 border-s-primary bg-canvas px-2 py-1"
-						style={`top: ${hourOffset(block.startMinute - view.startMinute)}; height: ${hourOffset(block.minutes)}; min-height: var(--size-timeline-block);`}
+						class="day-block position-absolute overflow-hidden border bg-body px-2 py-1"
+						style={`top: ${hourOffset(block.startMinute - view.startMinute)}; height: ${hourOffset(block.minutes)}; min-height: var(--funnel-row-compact);`}
 						data-block={block.id}
 					>
-						<div class="flex min-w-0 items-baseline gap-2 leading-tight">
-							<span class="mono shrink-0 text-caption text-fg-secondary">
+						<div class="d-flex min-w-0 align-items-baseline gap-2 lh-1">
+							<span class="font-monospace flex-shrink-0 small text-body-secondary">
 								{planBlockLabel(block.startMinute, block.startMinute + block.minutes)}
 							</span>
-							<span class="min-w-0 flex-1 truncate text-body text-fg">{blockTitle(block)}</span>
-							<span class="shrink-0 text-caption text-fg-secondary tabular-nums">
+							<span class="min-w-0 flex-grow-1 text-truncate text-body">{blockTitle(block)}</span>
+							<span class="flex-shrink-0 small text-body-secondary tnum">
 								{formatMinutes(block.minutes)}
 							</span>
 						</div>
 						{#if mayWrite}
-							<div class="mt-0.5 flex items-center gap-1">
+							<div class="mt-1 d-flex align-items-center gap-1">
 								<input
 									type="time"
-									class="mono h-(--size-control-sm) rounded-sm border border-border-strong bg-canvas px-1 text-caption"
+									class="form-control form-control-sm day-block-time font-monospace"
 									value={formatClock(block.startMinute)}
 									aria-label={`Start time for ${blockTitle(block)}`}
 									onchange={(event) => editStart(block, event.currentTarget.value)}
 								/>
-								<button
-									type="button"
-									class="ms-auto inline-flex h-(--size-control-sm) items-center rounded-sm px-1 text-caption text-fg-secondary hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+								<Button
+									color="link"
+									size="sm"
+									class="ms-auto text-decoration-none text-body-secondary p-0 small"
 									onclick={() => removeBlock(block.id)}
 								>
 									Remove
-								</button>
+								</Button>
 							</div>
 						{/if}
 					</div>
@@ -323,24 +328,22 @@
 			</div>
 		</div>
 
-		<aside class="flex flex-col gap-2" aria-label="Day candidates">
-			<h3 class="text-body font-semibold text-fg">Candidates</h3>
+		<aside class="d-flex flex-column gap-2" aria-label="Day candidates">
+			<h3 class="small fw-semibold text-body mb-0">Candidates</h3>
 			{#if view.candidates.length === 0}
 				<EmptyState
 					title="No candidates."
 					description="No open, sized issues in this week."
-					class="border-y border-border-subtle py-6"
+					class="border-top border-bottom py-3"
 				/>
 			{:else}
-				<ul class="flex flex-col border-t border-border-subtle">
+				<ul class="d-flex flex-column border-top list-unstyled mb-0">
 					{#each view.candidates as candidate (`${candidate.org}/${candidate.name}#${candidate.issueNumber}`)}
-						<li
-							class="flex items-center gap-2 border-b border-border-subtle px-1 py-1.5 last:border-b-0"
-						>
-							<div class="min-w-0 flex-1">
-								<p class="truncate text-body text-fg">{candidate.title}</p>
-								<p class="flex flex-wrap items-baseline gap-x-2 text-caption text-fg-secondary">
-									<span class="mono tabular-nums">
+						<li class="d-flex align-items-center gap-2 border-bottom px-1 py-1">
+							<div class="min-w-0 flex-grow-1">
+								<p class="text-truncate text-body mb-0">{candidate.title}</p>
+								<p class="d-flex flex-wrap align-items-baseline gap-2 small text-body-secondary mb-0">
+									<span class="font-monospace tnum">
 										{candidate.org}/{candidate.name}#{candidate.issueNumber}
 									</span>
 									{#if candidate.priority}
@@ -348,16 +351,16 @@
 									{/if}
 								</p>
 							</div>
-							<span class="w-6 shrink-0 text-end text-caption text-fg-secondary">
-								<span class="sr-only">Size </span>{sizeLabel(candidate.size)}
+							<span class="flex-shrink-0 text-end small text-body-secondary" style="width: 1.5rem">
+								<span class="visually-hidden">Size </span>{sizeLabel(candidate.size)}
 							</span>
-							<span class="w-12 shrink-0 text-end text-caption text-fg-secondary tabular-nums">
-								<span class="sr-only">Estimate </span>{formatMinutes(candidate.minutes)}
+							<span class="flex-shrink-0 text-end small text-body-secondary tnum" style="width: 3rem">
+								<span class="visually-hidden">Estimate </span>{formatMinutes(candidate.minutes)}
 							</span>
 							{#if mayWrite}
 								<Button
-									variant="outline"
-									size="xs"
+									color="outline-secondary"
+									size="sm"
 									onclick={() => addCandidate(candidate)}
 									disabled={busy}
 								>
@@ -371,29 +374,25 @@
 		</aside>
 	</div>
 
-	<section class="flex flex-col gap-2" aria-label="Planned versus actual">
-		<h3 class="text-body font-semibold text-fg">Planned vs actual</h3>
+	<section class="d-flex flex-column gap-2" aria-label="Planned versus actual">
+		<h3 class="small fw-semibold text-body mb-0">Planned vs actual</h3>
 		{#if view.review.rows.length === 0}
 			<EmptyState
 				title="Nothing to compare."
 				description="Add an issue block to compare planned and actual time."
-				class="border-y border-border-subtle py-4"
+				class="border-top border-bottom py-3"
 			/>
 		{:else}
-			<ul class="flex flex-col border-t border-border-subtle">
+			<ul class="d-flex flex-column border-top list-unstyled mb-0">
 				{#each view.review.rows as row (row.key)}
 					<li
-						class="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 border-b border-border-subtle px-1 py-1.5 text-body last:border-b-0"
+						class="d-flex flex-wrap align-items-baseline gap-2 border-bottom px-1 py-1 text-body"
 					>
-						<span class="mono min-w-0 flex-1 truncate">{row.key}</span>
-						<span class="text-caption text-fg-secondary tabular-nums">
+						<span class="font-monospace min-w-0 flex-grow-1 text-truncate">{row.key}</span>
+						<span class="small text-body-secondary tnum">
 							planned {formatMinutes(row.plannedMinutes)} · actual {formatMinutes(row.actualMinutes)}
 						</span>
-						<span
-							class={row.varianceMinutes > 0
-								? 'status status-error tabular-nums'
-								: 'status status-muted tabular-nums'}
-						>
+						<span class={row.varianceMinutes > 0 ? 'small text-danger tnum' : 'small text-body-secondary tnum'}>
 							{signed(row.varianceMinutes)}
 						</span>
 					</li>
@@ -403,20 +402,66 @@
 	</section>
 </section>
 
-<Dialog.Root open={confirmClear} onOpenChange={(next) => (confirmClear = next)}>
-	<Dialog.Content class="sm:max-w-[var(--layout-dialog-width)]">
-		<Dialog.Header>
-			<Dialog.Title>Clear the day?</Dialog.Title>
-			<Dialog.Description>
-				This removes all {view.blocks.length} planned blocks from {view.label}. Auto-plan can
-				rebuild them from the current week.
-			</Dialog.Description>
-		</Dialog.Header>
-		<Dialog.Footer>
-			<Button variant="outline" size="sm" onclick={() => (confirmClear = false)}>Cancel</Button>
-			<Button variant="destructive" size="sm" disabled={busy} onclick={() => void clearDay()}>
-				Clear Day
-			</Button>
-		</Dialog.Footer>
-	</Dialog.Content>
-</Dialog.Root>
+<Modal isOpen={confirmClear} toggle={() => (confirmClear = false)}>
+	<ModalHeader toggle={() => (confirmClear = false)}>Clear the day?</ModalHeader>
+	<ModalBody>
+		This removes all {view.blocks.length} planned blocks from {view.label}. Auto-plan can
+		rebuild them from the current week.
+	</ModalBody>
+	<ModalFooter>
+		<Button color="secondary" outline size="sm" onclick={() => (confirmClear = false)}>Cancel</Button>
+		<Button color="danger" size="sm" disabled={busy} onclick={() => void clearDay()}>
+			Clear Day
+		</Button>
+	</ModalFooter>
+</Modal>
+
+<style>
+	.day-alpen {
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: 0.5rem 1.5rem;
+	}
+
+	.day-layout {
+		display: grid;
+		gap: 1rem;
+	}
+
+	.day-hour-line {
+		inset-inline-start: 4rem;
+		inset-inline-end: 0;
+		border-top: 1px solid var(--bs-border-color);
+	}
+
+	.day-hour-label {
+		inset-inline-start: 0;
+		width: 3.5rem;
+	}
+
+	.day-block {
+		inset-inline-start: 4rem;
+		inset-inline-end: 0.5rem;
+		border-inline-start: 2px solid var(--bs-primary) !important;
+	}
+
+	.day-block-time {
+		width: 6.5rem;
+	}
+
+	.tnum {
+		font-variant-numeric: tabular-nums;
+	}
+
+	@media (min-width: 576px) {
+		.day-alpen {
+			grid-template-columns: repeat(5, minmax(0, 1fr));
+		}
+	}
+
+	@media (min-width: 992px) {
+		.day-layout {
+			grid-template-columns: minmax(0, 1fr) 18rem;
+		}
+	}
+</style>

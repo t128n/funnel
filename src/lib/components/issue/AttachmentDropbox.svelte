@@ -1,15 +1,10 @@
 <script lang="ts">
+	import { Button } from '@sveltestrap/sveltestrap';
 	import Avatar from '#lib/components/common/Avatar.svelte';
-	import { Button } from '#lib/components/ui/button';
 	import { attachmentUrl } from '#lib/client/mutations';
 	import { timeAgo } from '#lib/client/clock.svelte';
 	import { absoluteTime } from '#lib/time';
 	import type { AttachmentItem } from '#lib/server/issues/types';
-	import { cn } from '#lib/utils';
-	import DownloadIcon from '@lucide/svelte/icons/download';
-	import FileIcon from '@lucide/svelte/icons/file';
-	import TrashIcon from '@lucide/svelte/icons/trash-2';
-	import UploadIcon from '@lucide/svelte/icons/upload';
 
 	/**
 	 * The issue "dropbox": drag-and-drop (or pick) files to upload, list what is
@@ -66,18 +61,17 @@
 	}
 </script>
 
-<section class="flex flex-col gap-3" aria-label="Attachments">
-	<div class="flex items-center justify-between gap-3 border-t border-border-subtle pt-3">
-		<h2 class="text-heading-sm font-semibold text-fg">Attachments</h2>
-		<span class="text-caption tabular-nums text-fg-secondary">{attachments.length}</span>
+<section class="d-flex flex-column gap-2" aria-label="Attachments">
+	<div class="d-flex align-items-center justify-content-between gap-3 border-top pt-3">
+		<h2 class="h6 fw-semibold mb-0">Attachments</h2>
+		<span class="small text-body-secondary attachment-count">{attachments.length}</span>
 	</div>
 
 	{#if !readonly}
 		<div
-			class={cn(
-				'rounded-sm border border-dashed border-border-strong px-4 py-4 text-center',
-				dragging && 'border-primary bg-surface-2'
-			)}
+			class="attachment-dropzone d-flex align-items-center gap-2 px-2 py-1 {dragging
+				? 'border-primary'
+				: ''}"
 			role="group"
 			aria-label="Attachment drop zone"
 			ondragover={(e) => {
@@ -91,40 +85,45 @@
 				bind:this={input}
 				type="file"
 				multiple
-				class="hidden"
+				class="d-none"
 				onchange={onPick}
 				aria-hidden="true"
 				tabindex={-1}
 			/>
-			<button
-				type="button"
-				class="flex w-full cursor-pointer flex-col items-center gap-1.5 text-caption text-fg-secondary hover:text-fg disabled:pointer-events-none disabled:text-fg-disabled"
+			<Button
+				color="link"
+				size="sm"
+				class="d-inline-flex align-items-center gap-1 text-decoration-none px-1 py-0 text-body-secondary"
 				disabled={uploading > 0}
 				onclick={() => input?.click()}
 			>
-				<UploadIcon class="size-4" aria-hidden="true" />
-				<span>
+				<i class="bi bi-upload" aria-hidden="true"></i>
+				<span class="small">
 					{#if uploading > 0}
 						Uploading {uploading} file{uploading === 1 ? '' : 's'}…
 					{:else}
-						Drop files here, or <span class="font-semibold text-fg">browse</span>
+						Drop files here or <span class="text-body">browse</span>
 					{/if}
 				</span>
-			</button>
+			</Button>
 		</div>
 	{/if}
 
 	{#if attachments.length > 0}
-		<ul class="flex flex-col">
-			{#each attachments as item (item.id)}
-				<li class="flex items-center gap-2.5 border-t border-border-subtle py-2 text-body first:border-t-0">
-					<FileIcon class="size-4 shrink-0 text-fg-muted" aria-hidden="true" />
-					<div class="flex min-w-0 flex-1 flex-col gap-0.5">
-						<span class="truncate font-semibold text-fg" title={item.filename}>{item.filename}</span>
-						<span class="flex flex-wrap items-center gap-x-2 gap-y-1 text-caption text-fg-secondary">
-							<span class="tabular-nums">{formatBytes(item.sizeBytes)}</span>
+		<ul class="list-unstyled mb-0">
+			{#each attachments as item, index (item.id)}
+				<li
+					class="attachment-row d-flex align-items-center gap-2 py-2 {index > 0
+						? 'border-top'
+						: ''}"
+				>
+					<i class="bi bi-file-earmark flex-shrink-0 text-body-tertiary" aria-hidden="true"></i>
+					<div class="d-flex min-w-0 flex-grow-1 flex-column">
+						<span class="text-truncate" title={item.filename}>{item.filename}</span>
+						<span class="d-flex flex-wrap align-items-center gap-2 small text-body-secondary">
+							<span class="attachment-count">{formatBytes(item.sizeBytes)}</span>
 							{#if item.uploadedBy}
-								<span class="inline-flex items-center gap-1">
+								<span class="d-inline-flex align-items-center gap-1">
 									<Avatar
 										login={item.uploadedBy.login}
 										avatarUrl={item.uploadedBy.avatarUrl}
@@ -137,24 +136,26 @@
 						</span>
 					</div>
 					<Button
-						variant="ghost"
-						size="icon-xs"
+						color="link"
+						size="sm"
+						class="text-decoration-none px-1"
 						href={attachmentUrl(item.id)}
 						title="Download"
 						aria-label="Download {item.filename}"
 					>
-						<DownloadIcon />
+						<i class="bi bi-download" aria-hidden="true"></i>
 					</Button>
 					{#if !readonly}
 						<Button
-							variant="ghost"
-							size="icon-xs"
+							color="link"
+							size="sm"
+							class="text-decoration-none px-1 text-body-secondary"
 							title="Delete"
 							aria-label="Delete {item.filename}"
 							disabled={busyId === item.id}
 							onclick={() => ondelete(item)}
 						>
-							<TrashIcon />
+							<i class="bi bi-trash" aria-hidden="true"></i>
 						</Button>
 					{/if}
 				</li>
@@ -162,3 +163,14 @@
 		</ul>
 	{/if}
 </section>
+
+<style>
+	.attachment-dropzone {
+		border: 1px dashed var(--bs-border-color);
+		border-radius: var(--bs-border-radius-sm);
+	}
+
+	.attachment-count {
+		font-variant-numeric: tabular-nums;
+	}
+</style>

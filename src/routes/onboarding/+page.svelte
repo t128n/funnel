@@ -1,12 +1,9 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
+	import { Button, FormGroup, FormText, Input, Label } from '@sveltestrap/sveltestrap';
 	import InlineStatus from '#lib/components/common/InlineStatus.svelte';
 	import FocusedShell from '#lib/components/onboarding/focused-shell.svelte';
 	import PageHead from '#lib/components/common/PageHead.svelte';
-	import { Button } from '#lib/components/ui/button';
-	import * as Field from '#lib/components/ui/field';
-	import { Input } from '#lib/components/ui/input';
-	import * as NativeSelect from '#lib/components/ui/native-select';
 	import OnboardingSteps from '#lib/components/onboarding/onboarding-steps.svelte';
 	import type { PageProps } from './$types';
 
@@ -23,28 +20,28 @@
 />
 
 <FocusedShell>
-	<div class="flex flex-col gap-2">
-		<h1 class="text-heading-md font-semibold leading-heading-md text-fg">
+	<header>
+		<h1 class="h4 mb-1">
 			{data.locked ? 'Token Required' : 'Create the GitHub App'}
 		</h1>
-		<p class="max-w-[var(--layout-measure)] text-body leading-body text-fg-secondary">
+		<p class="measure text-body-secondary mb-0">
 			{data.locked
 				? 'This instance is protected. Unlock onboarding with the instance token to continue.'
 				: 'Funnel creates and installs a GitHub App for you — no manual copy-pasting of credentials, webhook URLs, or permissions.'}
 		</p>
-	</div>
+	</header>
 
 	<OnboardingSteps active={1} />
 
 	{#if data.locked}
-		<section class="min-w-0 w-full border-t border-border-subtle pt-4">
-			<h2 class="text-heading-sm font-semibold leading-heading-sm text-fg">Instance token</h2>
-			<p class="mt-1 text-body leading-body text-fg-secondary">
+		<section class="min-w-0 w-100 border-top pt-4">
+			<h2 class="h6 mb-1">Instance token</h2>
+			<p class="mb-0 text-body-secondary">
 				Enter the token from FUNNEL_ONBOARDING_TOKEN.
 			</p>
-			<form method="GET" action="/onboarding" class="mt-4 flex flex-col gap-4">
-				<Field.Field>
-					<Field.Label for="token">Token</Field.Label>
+			<form method="GET" action="/onboarding" class="mt-3">
+				<FormGroup>
+					<Label for="token">Token</Label>
 					<Input
 						id="token"
 						name="token"
@@ -53,35 +50,40 @@
 						spellcheck="false"
 						required
 					/>
-				</Field.Field>
+				</FormGroup>
 				{#if data.error}
-					<InlineStatus tone="error" message={data.error} />
+					<InlineStatus tone="error" message={data.error} class="mb-3" />
 				{/if}
 				<div>
-					<Button type="submit">Unlock</Button>
+					<Button type="submit" color="primary">Unlock</Button>
 				</div>
 			</form>
 		</section>
 	{:else}
-		<section class="min-w-0 w-full border-t border-border-subtle pt-4">
-			<h2 class="text-heading-sm font-semibold leading-heading-sm text-fg">App details</h2>
-			<p class="mt-1 text-body leading-body text-fg-secondary">
+		<section class="min-w-0 w-100 border-top pt-4">
+			<h2 class="h6 mb-1">App details</h2>
+			<p class="mb-0 text-body-secondary">
 				GitHub opens a pre-filled registration page. Confirm it there and Funnel stores the
 				generated credentials automatically.
 			</p>
 
-			<form method="POST" action="/onboarding/manifest" class="mt-4 flex flex-col gap-4">
-				<Field.Field>
-					<Field.Label for="account">Account</Field.Label>
-					<NativeSelect.Root class="w-full" id="account" name="account" bind:value={account}>
-						<NativeSelect.Option value="user">My personal account</NativeSelect.Option>
-						<NativeSelect.Option value="organization">An organization</NativeSelect.Option>
-					</NativeSelect.Root>
-				</Field.Field>
+			<form method="POST" action="/onboarding/manifest" class="mt-3">
+				<FormGroup>
+					<Label for="account">Account</Label>
+					<select
+						class="form-select"
+						id="account"
+						name="account"
+						bind:value={account}
+					>
+						<option value="user">My personal account</option>
+						<option value="organization">An organization</option>
+					</select>
+				</FormGroup>
 
 				{#if account === 'organization'}
-					<Field.Field>
-						<Field.Label for="org">Organization</Field.Label>
+					<FormGroup>
+						<Label for="org">Organization</Label>
 						<Input
 							id="org"
 							name="org"
@@ -91,12 +93,12 @@
 							spellcheck="false"
 							required
 						/>
-						<Field.Description>The GitHub organization that will own the App.</Field.Description>
-					</Field.Field>
+						<FormText>The GitHub organization that will own the App.</FormText>
+					</FormGroup>
 				{/if}
 
-				<Field.Field>
-					<Field.Label for="name">App name</Field.Label>
+				<FormGroup>
+					<Label for="name">App name</Label>
 					<Input
 						id="name"
 						name="name"
@@ -106,26 +108,24 @@
 						maxlength={34}
 						required
 					/>
-					<Field.Description>
-						Must be unique across GitHub. Letters, numbers, and hyphens only.
-					</Field.Description>
-				</Field.Field>
+					<FormText>Must be unique across GitHub. Letters, numbers, and hyphens only.</FormText>
+				</FormGroup>
 
-				<dl class="label-value">
+				<dl class="property-list mb-3">
 					<dt>Instance URL</dt>
-					<dd><span class="mono break-all">{data.publicOrigin}</span></dd>
+					<dd><span class="font-monospace text-break">{data.publicOrigin}</span></dd>
 					<dt>GitHub host</dt>
-					<dd><span class="mono break-all">{data.host.url}</span></dd>
+					<dd><span class="font-monospace text-break">{data.host.url}</span></dd>
 					<dt>API</dt>
-					<dd><span class="mono break-all">{data.host.api_url}</span></dd>
+					<dd><span class="font-monospace text-break">{data.host.api_url}</span></dd>
 				</dl>
 
 				{#if data.error}
-					<InlineStatus tone="error" message={data.error} />
+					<InlineStatus tone="error" message={data.error} class="mb-3" />
 				{/if}
 
 				<div>
-					<Button type="submit">Create GitHub App</Button>
+					<Button type="submit" color="primary">Create GitHub App</Button>
 				</div>
 			</form>
 		</section>
