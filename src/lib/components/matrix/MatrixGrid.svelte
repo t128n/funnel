@@ -1,162 +1,286 @@
 <script lang="ts">
-	import CircleIcon from '@lucide/svelte/icons/circle';
-	import CircleDashedIcon from '@lucide/svelte/icons/circle-dashed';
+	import { untrack } from 'svelte';
 	import SignalHighIcon from '@lucide/svelte/icons/signal-high';
 	import SignalLowIcon from '@lucide/svelte/icons/signal-low';
 	import SignalMediumIcon from '@lucide/svelte/icons/signal-medium';
+	import { matrixCellValue } from '#lib/matrix';
 	import {
 		IMPACT_SCALE,
-		MATRIX_IMPACT_VALUES,
-		MATRIX_URGENCY_VALUES,
 		URGENCY_SCALE,
 		scaleLevel,
-		type MatrixCellTone
+		type Priority,
+		type ScaleLevel
 	} from '#lib/priority';
-	import { issuePath } from '#lib/issue-url';
 	import { cn } from '#lib/utils';
-	import type { MatrixGridCell } from './matrix-grid';
+	import { moveMatrixCell, type MatrixGridCell } from './matrix-grid';
 
 	/**
-	 * The 4×4 impact × urgency matrix table. Purely presentational: the caller
-	 * projects the board with `matrixGrid` and passes the rows in. Header cells
-	 * label the two axes; each body cell renders its priority token and name,
-	 * the SQL total, and up to four preview links ordered by priority rank then
-	 * most recently updated.
+	 * The 3×3 impact × urgency matrix. A cell is a selection control, not a
+	 * data table: arrow keys move a roving focus, Enter/Space selects, and the
+	 * selected cell carries both `aria-selected` and a primary leading bar.
+	 * Cells contain only the derived priority and the scoped issue count.
 	 */
 	interface Props {
 		rows: MatrixGridCell[][];
+		selected: { impact: number; urgency: number };
+		onselect: (impact: number, urgency: number) => void;
 	}
 
-	let { rows }: Props = $props();
+	let { rows, selected, onselect }: Props = $props();
 
-	/** Header labels: assessed levels then Not assessed, in the fixed order. */
-	const impactLabels = MATRIX_IMPACT_VALUES.map((value) =>
-		value === null ? 'Not assessed' : `${value} · ${scaleLevel(IMPACT_SCALE, value)?.name}`
-	);
-	const urgencyLabels = MATRIX_URGENCY_VALUES.map((value) =>
-		value === null ? 'Not assessed' : `${value} · ${scaleLevel(URGENCY_SCALE, value)?.name}`
-	);
-
-	const TONE_CLASS: Record<MatrixCellTone, string> = {
-		p1: 'text-error',
-		p2: 'text-warning',
-		p3: 'text-fg-secondary',
-		partial: 'text-fg-secondary',
-		none: 'text-fg-muted'
+	const TONE_CLASS: Record<Priority, string> = {
+		P1: 'text-error',
+		P2: 'text-warning',
+		P3: 'text-fg-secondary'
 	};
 
 	const TONE_ICON = {
-		p1: SignalHighIcon,
-		p2: SignalMediumIcon,
-		p3: SignalLowIcon,
-		partial: CircleDashedIcon,
-		none: CircleIcon
+		P1: SignalHighIcon,
+		P2: SignalMediumIcon,
+		P3: SignalLowIcon
 	} as const;
 
-	/** `data-matrix-cell` identity, unambiguous across `null` axes. */
-	function dataKey(cell: MatrixGridCell): string {
-		return `${cell.impact ?? 'na'}-${cell.urgency ?? 'na'}`;
+	const impactScale = IMPACT_SCALE;
+	const urgencyScale = URGENCY_SCALE;
+
+	let gridEl = $state<HTMLDivElement | null>(null);
+	let focusedIndex = $state(
+		untrack(() => indexOf(selected.impact, selected.urgency))
+	);
+
+	function levelName<T extends number>(
+		scale: readonly ScaleLevel<T>[],
+		value: number
+	): string {
+		return scaleLevel(scale, value)?.name ?? 'Unknown';
 	}
 
-	function title(issue: MatrixGridCell['issues'][number]): string {
-		return issue.title.trim() || 'Untitled';
+	function indexOf(impact: number, urgency: number): number {
+		return (impact - 1) * 3 + (urgency - 1);
+	}
+
+	const selectedIndex = $derived(indexOf(selected.impact, selected.urgency));
+
+	/** Keep the roving tab stop on the selected cell. */
+	$effect(() => {
+		focusedIndex = selectedIndex;
+	});
+
+	function focusCell(index: number): void {
+		gridEl
+			?.querySelectorAll<HTMLElement>('[data-matrix-cell-button]')
+			?.[index]?.focus();
+	}
+
+	function onKeydown(event: KeyboardEvent): void {
+		const target = event.target;
+		if (
+			!(target instanceof HTMLElement) ||
+			!target.matches('[data-matrix-cell-button]')
+		) {
+			return;
+		}
+
+		const next = moveMatrixCell(
+			Number(target.dataset.impact),
+			Number(target.dataset.urgency),
+			event.key
+		);
+		if (next === null) return;
+
+		event.preventDefault();
+		focusedIndex = indexOf(next.impact, next.urgency);
+		focusCell(focusedIndex);
+	}
+
+	function select(impact: number, urgency: number): void {
+		focusedIndex = indexOf(impact, urgency);
+		onselect(impact, urgency);
+	}
+
+	function cellLabel(cell: MatrixGridCell): string {
+		const impact = levelName(impactScale, cell.impact);
+		const urgency = levelName(urgencyScale, cell.urgency);
+		const issues = `${cell.total} ${cell.total === 1 ? 'issue' : 'issues'}`;
+		return `${impact} impact, ${urgency} urgency, ${cell.priority} ${cell.name}, ${issues}`;
 	}
 </script>
 
-<div class="p-3" data-testid="matrix-grid">
-	<div class="overflow-x-auto">
-		<table class="table-fixed w-full min-w-[var(--layout-table-min)] border-collapse text-body">
-			<caption class="sr-only">Impact by urgency issue matrix</caption>
-			<colgroup>
-				<col class="w-44" />
-				<col />
-				<col />
-				<col />
-				<col />
-			</colgroup>
-			<thead>
-				<tr>
-					<th
-						scope="col"
-						class="sticky start-0 z-10 border border-border-subtle bg-surface-2 p-2 text-left align-bottom font-semibold"
-					>
-						<div class="text-caption text-fg-secondary">Impact ↓</div>
-						<div class="text-caption text-fg-secondary">How much does it hurt?</div>
-						<div class="mt-2 text-caption text-fg-secondary">Urgency →</div>
-						<div class="text-caption text-fg-secondary">How soon must it be fixed?</div>
-					</th>
-					{#each urgencyLabels as label (label)}
-						<th
-							scope="col"
-							class="border border-border-subtle bg-surface-2 p-2 text-left align-bottom font-semibold"
-						>
-							{label}
-						</th>
-					{/each}
-				</tr>
-			</thead>
-			<tbody>
-				{#each rows as row, rowIndex (impactLabels[rowIndex])}
-					<tr>
-						<th
-							scope="row"
-							class="sticky start-0 z-10 border border-border-subtle bg-surface p-2 text-left align-top font-semibold whitespace-nowrap"
-						>
-							{impactLabels[rowIndex]}
-						</th>
-						{#each row as cell (dataKey(cell))}
-							{@const Icon = TONE_ICON[cell.meta.tone]}
-							<td
-								data-matrix-cell={dataKey(cell)}
-								class="min-w-0 border border-border-subtle p-0 align-top"
-							>
-								<div
-									class="flex items-baseline justify-between gap-2 border-b border-border-subtle px-2 pt-1.5 pb-1"
-								>
-									<span
-										class={cn(
-											'flex min-w-0 items-center gap-1.5 text-body font-semibold',
-											TONE_CLASS[cell.meta.tone]
-										)}
-									>
-										<Icon class="size-4 shrink-0" aria-hidden="true" />
-										<span class="truncate">{cell.meta.label}</span>
-									</span>
-									<span class="shrink-0 text-body text-fg-secondary tabular-nums">
-										{cell.total}
-									</span>
-								</div>
+<div class="min-w-0" data-testid="matrix-grid">
+	<!-- The column axis sits above the level names so each cell can stay compact. -->
+	<div class="matrix-columns text-caption text-fg-secondary" aria-hidden="true">
+		<span></span>
+		<span class="col-span-3 text-center">Urgency →</span>
+	</div>
 
-								{#if cell.total === 0}
-									<p class="px-2 py-1.5 text-body text-fg-muted">—</p>
-								{:else}
-									<ul class="my-1">
-										{#each cell.issues.slice(0, 4) as issue (`${issue.repoId}:${issue.number}`)}
-											<li>
-												<a
-													href={issuePath('matrix', issue.repo, issue.number)}
-													class="flex min-w-0 items-baseline gap-1.5 px-2 py-0.5 text-caption hover:bg-surface-2"
-													title={`${issue.repo}#${issue.number} ${title(issue)}`}
-												>
-													<span class="mono shrink-0 text-fg-secondary">
-														{issue.repo}#{issue.number}
-													</span>
-													<span class="min-w-0 truncate text-fg">{title(issue)}</span>
-												</a>
-											</li>
-										{/each}
-										{#if cell.total > Math.min(4, cell.issues.length)}
-											<li class="px-2 py-0.5 text-caption text-fg-secondary tabular-nums">
-												+ {cell.total - Math.min(4, cell.issues.length)} more
-											</li>
-										{/if}
-									</ul>
-								{/if}
-							</td>
-						{/each}
-					</tr>
+	<div
+		class="matrix-columns matrix-grid mt-1"
+		role="grid"
+		aria-label="Impact by urgency priority matrix"
+		aria-rowcount={4}
+		aria-colcount={4}
+		tabindex="-1"
+		bind:this={gridEl}
+		onkeydown={onKeydown}
+	>
+		<div role="row" class="contents">
+			<div role="columnheader" class="matrix-axis-heading" aria-label="Impact">
+				Impact ↓
+			</div>
+			{#each rows[0] as cell (cell.urgency)}
+				<div
+					role="columnheader"
+					class="matrix-column-heading"
+					aria-label={`${levelName(urgencyScale, cell.urgency)} urgency`}
+				>
+					{levelName(urgencyScale, cell.urgency)}
+				</div>
+			{/each}
+		</div>
+
+		{#each rows as row (row[0].impact)}
+			<div role="row" class="contents">
+				<div
+					role="rowheader"
+					class="matrix-row-heading"
+					aria-label={`${levelName(impactScale, row[0].impact)} impact`}
+				>
+					{levelName(impactScale, row[0].impact)}
+				</div>
+				{#each row as cell (cell.urgency)}
+					{@const Icon = TONE_ICON[cell.priority]}
+					<div
+						role="gridcell"
+						data-matrix-cell-button
+						data-matrix-cell={matrixCellValue(cell.impact, cell.urgency)}
+						data-impact={cell.impact}
+						data-urgency={cell.urgency}
+						tabindex={indexOf(cell.impact, cell.urgency) === focusedIndex ? 0 : -1}
+						aria-selected={cell.impact === selected.impact &&
+							cell.urgency === selected.urgency}
+						aria-label={cellLabel(cell)}
+						class="matrix-cell"
+						class:is-empty={cell.total === 0}
+						onclick={() => select(cell.impact, cell.urgency)}
+						onkeydown={(event) => {
+							if (event.key === 'Enter' || event.key === ' ') {
+								event.preventDefault();
+								select(cell.impact, cell.urgency);
+							}
+						}}
+					>
+						<span
+							class="matrix-count tabular-nums"
+							class:is-long={cell.total >= 1000}
+							class:is-longer={cell.total >= 10000}
+						>
+							{cell.total}
+						</span>
+						<span class={cn('matrix-priority', TONE_CLASS[cell.priority])}>
+							<Icon class="size-3.5 shrink-0" aria-hidden="true" />
+							<span aria-hidden="true">{cell.priority}</span>
+						</span>
+					</div>
 				{/each}
-			</tbody>
-		</table>
+			</div>
+		{/each}
 	</div>
 </div>
+
+<style>
+	.matrix-columns {
+		display: grid;
+		grid-template-columns: var(--layout-matrix-axis) repeat(3, minmax(0, 1fr));
+	}
+
+	.matrix-axis-heading,
+	.matrix-column-heading {
+		display: flex;
+		align-items: end;
+		min-height: var(--size-row-compact);
+		padding: var(--space-1) var(--space-3);
+		border-bottom: 1px solid var(--color-border-subtle);
+		background: var(--color-surface-2);
+		color: var(--color-text-secondary);
+		font-size: var(--font-size-caption);
+		font-weight: var(--font-weight-semibold);
+		line-height: var(--font-leading-caption);
+	}
+
+	.matrix-column-heading {
+		border-left: 1px solid var(--color-border-subtle);
+	}
+
+	.matrix-row-heading {
+		display: flex;
+		align-items: center;
+		min-height: var(--size-matrix-cell);
+		padding: var(--space-2) var(--space-3);
+		border-bottom: 1px solid var(--color-border-subtle);
+		color: var(--color-text-primary);
+		font-size: var(--font-size-body);
+		font-weight: var(--font-weight-semibold);
+		line-height: var(--font-leading-interface);
+	}
+
+	.matrix-cell {
+		display: flex;
+		min-height: var(--size-matrix-cell);
+		cursor: pointer;
+		flex-direction: column;
+		justify-content: space-between;
+		gap: var(--space-1);
+		padding: var(--space-2) var(--space-3);
+		border-bottom: 1px solid var(--color-border-subtle);
+		border-left: 1px solid var(--color-border-subtle);
+		background: var(--color-canvas);
+		color: var(--color-text-primary);
+		outline: none;
+	}
+
+	.matrix-cell:focus-visible {
+		outline: 2px solid var(--color-primary);
+		outline-offset: -2px;
+	}
+
+	.matrix-cell[aria-selected='true'] {
+		box-shadow: inset 2px 0 0 0 var(--color-primary);
+	}
+
+	.matrix-count {
+		font-size: var(--font-size-heading-sm);
+		font-weight: var(--font-weight-semibold);
+		line-height: var(--font-leading-none);
+		overflow-wrap: anywhere;
+	}
+
+	.matrix-count.is-long {
+		font-size: var(--font-size-body);
+		line-height: var(--font-leading-caption);
+	}
+
+	.matrix-count.is-longer {
+		font-size: var(--font-size-caption);
+		line-height: var(--font-leading-caption);
+	}
+
+	.matrix-priority {
+		display: inline-flex;
+		align-items: center;
+		gap: var(--space-1);
+		font-size: var(--font-size-caption);
+		font-weight: var(--font-weight-semibold);
+		line-height: var(--font-leading-caption);
+	}
+
+	.matrix-cell.is-empty .matrix-count,
+	.matrix-cell.is-empty .matrix-priority {
+		color: var(--color-text-muted);
+	}
+
+	@media (hover: hover) and (pointer: fine) {
+		.matrix-cell:hover {
+			background: var(--color-surface);
+		}
+	}
+</style>

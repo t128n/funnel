@@ -226,8 +226,10 @@ export const DEFAULT_PRIORITY_MATRIX: PriorityMatrix = {
 };
 
 /**
- * The fixed 4×4 matrix axis order: the three assessed levels followed by the
- * "not assessed" null. Rows are impact, columns urgency.
+ * The legacy 4×4 axis order (three assessed levels followed by the unassessed
+ * null) used by {@link matrixCellMeta} to describe partial pairs. The `/matrix`
+ * view itself renders only the nine assessed combinations; incomplete issues
+ * live in its assessment queue.
  */
 export const MATRIX_IMPACT_VALUES: readonly (Impact | null)[] = [1, 2, 3, null];
 export const MATRIX_URGENCY_VALUES: readonly (Urgency | null)[] = [1, 2, 3, null];
@@ -251,6 +253,10 @@ const PRIORITY_SET = new Set<string>(PRIORITY_VALUES);
 
 export function isImpact(value: unknown): value is Impact {
   return typeof value === "number" && IMPACT_SET.has(value);
+}
+
+export function isUrgency(value: unknown): value is Urgency {
+  return typeof value === "number" && URGENCY_SET.has(value);
 }
 
 /** Coerce a stored value (`1` or `"1"`) to an impact, or `null`. */
@@ -399,7 +405,7 @@ export type MatrixAssessment = "both" | "partial" | "none";
 /** Visual tone for a matrix cell, keyed by priority tier or assessment state. */
 export type MatrixCellTone = "p1" | "p2" | "p3" | "partial" | "none";
 
-/** Display metadata for one cell of the 4×4 priority matrix. */
+/** Display metadata for one classified pair (legacy 4×4 labels). */
 export interface MatrixCellMeta {
   priority: Priority | null;
   assessment: MatrixAssessment;

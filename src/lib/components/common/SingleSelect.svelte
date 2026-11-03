@@ -23,6 +23,8 @@
 		variant?: 'default' | 'ghost' | 'pill';
 		/** Optional leading glyph rendered inside the trigger. */
 		icon?: Snippet;
+		/** Accessible name when the visible label sits outside the trigger. */
+		ariaLabel?: string;
 	}
 
 	let {
@@ -34,7 +36,8 @@
 		clearLabel = 'None',
 		disabled = false,
 		variant = 'default',
-		icon
+		icon,
+		ariaLabel
 	}: Props = $props();
 
 	/** bits-ui needs a concrete value; a sentinel is clearer than an empty one. */
@@ -62,6 +65,7 @@
 >
 	<Select.Trigger
 		size="sm"
+		aria-label={ariaLabel}
 		class={selectTriggerClass(
 			variant,
 			cn(

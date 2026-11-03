@@ -142,6 +142,10 @@
   --layout-inspector: 48rem;
   --layout-settings-nav: 12.5rem;
   --layout-board-lane: 18rem;
+  --layout-matrix-axis: 6.5rem;
+  --layout-matrix-pane: 26rem;
+  --layout-matrix-queue-max: 50vh;
+  --size-matrix-cell: 4.5rem;
   --layout-timeline-hour: 3.5rem;
   --size-timeline-block: 1.5rem;
   --layout-timeline-min: 44rem;

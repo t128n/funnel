@@ -136,8 +136,10 @@ controls and 2.75rem rows. Below 768px, controls and rows are at least 2.75rem.
   subtle separator — not full-height bordered/rounded lane containers. Individual
   cards keep a 1px `border-subtle`; WIP counts and over-cap warnings remain.
   Drag, keyboard move, and a menu-based move are all supported.
-- Matrix is a real table; the rating guide is a dialog. Cells show a priority
-  token + name and tabular count, not colour alone.
+- Matrix is an interactive 3×3 selection grid; the rating guide is a dialog.
+  Cells show a priority token, icon, and tabular count, not colour alone. The
+  assessment summary above it separates unrated work from the nine classified
+  cells, and the selected cell's issue list earns the second column.
 - Plan lanes are ruled sections, not cards. Capacity is stated explicitly as
   scheduled hours over the cap (which already includes allocation and window
   length); bars use the same denominator, with no unexplained marker. Over-cap

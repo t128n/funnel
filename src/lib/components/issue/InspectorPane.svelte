@@ -280,7 +280,13 @@
 		};
 		return `← ${view ? names[view] : 'Issues'}`;
 	});
-	const backHref = $derived(`/${viewOf(page.url.pathname) ?? 'issues'}`);
+	const backHref = $derived.by(() => {
+		// Returning from the Inspector must keep the view's query state: filters,
+		// and the matrix's selected cell, live there.
+		const url = new URL(page.url.href);
+		url.pathname = `/${viewOf(page.url.pathname) ?? 'issues'}`;
+		return `${url.pathname}${url.search}`;
+	});
 
 	/** Guards against an out-of-order fetch clobbering a newer one. */
 	let loadSeq = 0;

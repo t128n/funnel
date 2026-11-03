@@ -3,10 +3,10 @@
  * feature contract in `docs/plans/2026-10-28-priority-matrix.spec.md`.
  *
  * The `/matrix` route and grid are documented before the implementation lands,
- * so these checks assert the durable vocabulary — the criteria labels, the 4×4
- * semantics, the partial-assessment rule, and the route/nav surface — rather
- * than any code path. When a documented name changes, the spec must change
- * first and this test follows it.
+ * so these checks assert the durable vocabulary — the criteria labels, the 3×3
+ * semantics, the assessment queue, and the route/nav surface — rather than any
+ * code path. When a documented name changes, the spec must change first and
+ * this test follows it.
  */
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
@@ -20,9 +20,9 @@ function read(relative: string): string {
 }
 
 describe("priority matrix documentation", () => {
-  test("priority reference documents criteria and the 4x4", () => {
+  test("priority reference documents criteria and the 3x3", () => {
     const text = read("docs/reference/priority.md");
-    for (const term of ["Reach", "Data", "Money", "Locations", "Workaround", "Harm", "Exposure", "Spread", "Dependencies", "Deadline", "Needs assessment", "No priority", "4×4"]) {
+    for (const term of ["Reach", "Data", "Money", "Locations", "Workaround", "Harm", "Exposure", "Spread", "Dependencies", "Deadline", "Needs assessment", "Rated issues", "Review queue", "3×3"]) {
       expect(text).toContain(term);
     }
   });
