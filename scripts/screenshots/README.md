@@ -1,7 +1,7 @@
 # Screenshot harness
 
-Reproducible 1440×900 captures of the fifteen cockpit views, in light and dark,
-against a throwaway database. Used for the before/after design gallery.
+Reproducible 1440×900 captures of the cockpit views, in light and dark, against
+a throwaway database. Used for the before/after design gallery.
 
 Both scripts run under Bun outside Vite. They import only `bun:sqlite`,
 `node:*`, `better-call` (cookie signing) and `playwright`; `$app/*` and `#lib/*`
@@ -22,9 +22,8 @@ COOKIE="$(bun scripts/screenshots/seed.ts --out /tmp/funnel-shots)"
   untriaged, two partially assessed, one unassessed for the priority matrix)
   and two markdown comments on each of the first six issues.
 - Enriches the planning views: a maintainer roster with weekly capacity, the
-  default size map/allocation/cycle/work-hours settings, plan items for the
-  current ISO week (issues 1, 2, 3, 6), and two saved day blocks for today in
-  the viewer's UTC day.
+  default size map/allocation/cycle settings, and plan items for the current
+  ISO week (issues 1, 2, 3, 6).
 - Makes the blocked issue's re-check date two days out (computed at seed time,
   never stale) so Attention shows an `in 2d` flag, and adds a work note by
   dana on issue 1.
@@ -76,10 +75,11 @@ bun scripts/screenshots/capture.ts \
 
 `--db` and `--secret` are accepted as flags for the self-starting path.
 
-Output is 30 PNGs named `<view>-<light|dark>.png`: `issues`, `issue`,
-`issue-activity`, `board`, `plan`, `epics`, `milestones`, `attention`, `inbox`,
-`notifications`, `settings-appearance`, `settings-repositories`, `matrix`,
-`priority-guidance`, `intake`.
+Output is one PNG per view and theme, named `<view>-<light|dark>.png`. The
+current set is `issues`, `issue`, `issue-activity`, `board`, `plan`, `epics`,
+`milestones`, `timeline`, `attention`, `inbox`, `notifications`,
+`settings-appearance`, `settings-repositories`, `matrix`, `settings-planning`
+and `intake`.
 The viewport is 1440×900 at `deviceScaleFactor: 2` by default; pass
 `--scale 1` for lighter previews. The theme is driven by `data-theme` on
 `<html>`, set from `funnel:theme` and `prefers-color-scheme` emulated per theme.

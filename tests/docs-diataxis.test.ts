@@ -10,7 +10,6 @@ const pages = {
 
 const screenshots = [
   "docs/assets/screenshots/plan-week.png",
-  "docs/assets/screenshots/plan-day.png",
   "docs/assets/screenshots/issue-planned.png",
   "docs/assets/screenshots/issues-planned.png",
   "docs/assets/screenshots/settings-planning.png",

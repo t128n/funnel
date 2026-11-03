@@ -43,7 +43,6 @@ export const OVERFLOW_NAV: readonly NavDestination[] = [
 		match: '/issues',
 		context: 'mine'
 	},
-	{ href: '/day', label: 'My Day', icon: 'bi-calendar2-week', match: '/day' },
 	{ href: '/attention', label: 'Attention', icon: 'bi-exclamation-triangle', match: '/attention' },
 	{ href: '/epics', label: 'Epics', icon: 'bi-layers', match: '/epics' },
 	{ href: '/milestones', label: 'Milestones', icon: 'bi-flag', match: '/milestones' }

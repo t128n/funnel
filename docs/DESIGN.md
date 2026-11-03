@@ -26,9 +26,9 @@ current-to-target mapping in
 - There is no persistent application sidebar and no split list/detail pane.
   The page is the unit of composition: index page, document page, inbox page.
 - Page content sits in a centered Bootstrap container: `container-xl` for the
-  issue index, Inbox, Matrix, Timeline, Milestones, Epics, Settings, and
+  issue index, Inbox, Matrix, Timeline, Milestones, Epics, Plan, Settings, and
   Notifications; `container-lg` for the issue document; `container-fluid` for
-  the Board and Plan canvases that need the width.
+  the Board canvas that needs the width.
 - Bootstrap's default system font stack and 1rem body size are retained.
 - Structure comes from alignment, whitespace, and Bootstrap border utilities.
   Content is not wrapped in decorative cards or shadows.
@@ -68,9 +68,9 @@ There is no Sveltestrap `Select` or `Textarea`; use Bootstrap
 
 Application-specific components (`IssueTable`, `IssueDetailPage`,
 `IssuePropertiesCard`, `IssueDetailsCard`, `InboxTable`, `MatrixGrid`,
-`StatusBoard`, `TimelineChart`, `DayPlan`, `PlanLanes`) remain. They own domain
-behavior and compose Sveltestrap internally; they are not a replacement design
-system.
+`StatusBoard`, `TimelineChart`) remain. They own domain behavior and compose
+Sveltestrap internally; they are not a replacement design system. Plan is
+composed directly from Sveltestrap tables in its route page.
 
 The shared presentation components are `PageHeader`, `StatusText`,
 `StatusIcon`, `PriorityText`, `PriorityIcon`, `InlineStatus`, `EmptyState`,
@@ -117,8 +117,9 @@ libraries.
   menu equivalent. The matrix is an interactive 3×3 selection grid inside
   `container-xl` with an assessment summary, a rating-guide dialog, and the
   selected cell's issues in the second column; issues missing an axis stay in
-  the assessment queue. Plan lanes are ruled sections with Bootstrap progress
-  meters and explicit over-cap warnings, not cards. The timeline uses an
+  the assessment queue. Plan is a conventional document view: a capacity table
+  followed by scheduled, unassigned and unestimated tables, with no progress
+  meters or dashboard cards. The timeline uses an
   `Apache ECharts` Gantt with an HTML label column, a real list of milestone
   links, and an undated table below the chart. The chart reads its palette from
   `--funnel-chart-*` (and Bootstrap colour variables) so it follows the theme.

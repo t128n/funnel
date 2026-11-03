@@ -462,7 +462,7 @@ No production screenshots were provided.
 
 - Global sidebar plus a local settings subnavigation column.
 - Settings subnav groups:
-  - Personal: Account, Appearance, Features, Availability.
+  - Personal: Account, Appearance, Features.
   - Workspace: Repositories, Projects, Intake, Board, Planning, Notifications.
   - System: People, GitHub App, Sync, Session.
 - Content area with section heading, description, form fields, help text.

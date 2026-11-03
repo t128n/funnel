@@ -66,13 +66,6 @@ export const settingsGroups: SettingsGroup[] = [
 				description: 'Enable or disable functionality for this browser.',
 				href: '/settings/features',
 				minRole: 'read'
-			},
-			{
-				id: 'availability',
-				label: 'Availability',
-				description: 'Working hours, blocked windows, and a read-only calendar feed for the day planner.',
-				href: '/settings/availability',
-				minRole: 'read'
 			}
 		]
 	},

@@ -8,7 +8,7 @@ The workflow now has three layers:
 
 1. **Forge-owned facts** — labels, assignees, milestones, open/closed state and the body. Funnel mirrors them and treats them as authoritative.
 2. **Funnel-owned observations and intent** — the plan item, the event log, delays and the epic child list. These are durable, local and never rewritten by a sync.
-3. **Derived projections** — actual minutes, capacity lanes, epic rollups, the week view at `/plan` and the personal day at `/day`. They are recomputed from layers 1 and 2 on every read and stored nowhere.
+3. **Derived projections** — actual minutes, capacity rows, epic rollups and the week view at `/plan`. They are recomputed from layers 1 and 2 on every read and stored nowhere.
 
 Keeping the layers apart is what lets a GitHub edit propagate without losing the plan, and lets a re-sync rebuild the mirror without losing actuals.
 
@@ -28,15 +28,17 @@ The alternative — copying minutes into the plan row — would make a five-minu
 
 Capacity comes from people, not labels. Each maintainer has net weekly hours — contracted hours minus recurring meetings, on-call and other fixed commitments — and Funnel plans at most 60% of that by default. The remaining 40% is not idle: it covers reviews, unplanned work, incidents and the normal cost of coordination.
 
-A hard cap on plan mutations makes the buffer real. Without it, a planner becomes a wish list: every lane fills to 100% and the first interruption breaks the cycle. Rejecting a write that would exceed the cap forces the choice — move work, shrink it, or consciously change the allocation — at the moment the plan is made, not after the sprint has failed.
+A hard cap on plan mutations makes the buffer real. Without it, a planner becomes a wish list: every maintainer fills to 100% and the first interruption breaks the cycle. Rejecting a write that would exceed the cap forces the choice — move work, shrink it, or consciously change the allocation — at the moment the plan is made, not after the sprint has failed.
 
-The cap is deliberately not retroactive. GitHub remains authoritative for assignees and size, so a later edit can push a lane over. Funnel shows that state instead of rewriting the plan or blocking a GitHub edit it does not own. This is the same eventual-consistency trade-off as the rest of the mirror.
+The cap is deliberately not retroactive. GitHub remains authoritative for assignees and size, so a later edit can push a maintainer over. Funnel shows that state instead of rewriting the plan or blocking a GitHub edit it does not own. This is the same eventual-consistency trade-off as the rest of the mirror.
 
-## Days narrow the week
+## Days are deliberately not modeled
 
-A plan item records intent at week granularity; it does not say which hour. The **ALPEN** day view narrows one local day without becoming a second backlog: its candidates are the same open, sized issues from the Monday week, and a `state_day_block` is a timed placement of one of them. Working hours and blocked windows are personal, with `planning.work_defaults` as the instance fallback.
+A plan item records intent at week granularity; it does not say which hour. Funnel used to narrow the week into a personal timed day, with working hours, unavailable windows, explicit buffer blocks and a read-only ICS feed. That surface has been removed. It was a second scheduling model, and it made the week view look like a planning dashboard rather than the issue-management view it is.
 
-The buffer is emitted as explicit `buffer` blocks rather than subtracted at read time, so the reserved slack is visible on the grid and survives a manual edit. Auto-plan spends at most `available − buffer`; a manual plan may overrun the window and the UI flags it. Funnel enforces hours only when it is the one choosing the blocks. The [calendar feed](../how-to/plan/plan-your-day.md#subscribe-outlook-to-the-calendar-feed) is a read-only projection of the same blocks, so nothing flows back from Outlook. The day lives at `/day`; it is personal and reachable by every signed-in viewer, independently of the weekly write role.
+The week is now the only planning horizon. The capacity table answers who has room, the scheduled-issues table answers what is committed, and the unestimated and unassigned tables answer what still needs a decision. If individual work needs a time box, use the issue tracker's own schedule or the calendar tool the team already uses; Funnel does not keep a second copy of that intent.
+
+Removing the day also removes its persistence and API surface. The retired tables are retained in existing databases so an upgrade does not destroy data, but no application code reads or writes them.
 
 ## Actual time is observed, not reconstructed
 

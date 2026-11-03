@@ -34,11 +34,11 @@ Select **Save changes**. Funnel validates the values and broadcasts a settings e
 
 Open **Plan** in the navigation bar. The page opens on the current week.
 
-![The week planner with maintainer lanes, capacity bars, unassigned and unestimated sections](../assets/screenshots/plan-week.png)
+![The week planner with a capacity table, scheduled issues, and the unassigned and unestimated tables](../assets/screenshots/plan-week.png)
 
-Each lane shows a maintainer, their net hours, the committed hours against the 60% cap, and the issues committed to that week. The **Unassigned** section holds issues with no active, configured maintainer; **Unestimated** holds issues with no size label.
+The capacity table shows each maintainer's net hours, planning capacity, scheduled hours and remaining hours. The scheduled-issues table lists what is committed to the week. The **Unassigned** section, when present, holds issues with no active, configured maintainer; **Unestimated** holds issues with no size label.
 
-Use the arrows beside the week to move to the previous or next week.
+Use **Previous week** and **Next week** beside the heading to move through weeks. **This week** returns to the current week.
 
 ## 4. Commit an issue to the week
 
@@ -86,7 +86,7 @@ You have configured a capacity model, committed an issue to a week, blocked an i
 From here:
 
 - [Plan a week](../how-to/use/plan-work.md) for the day-to-day task.
-- [Plan your day](../how-to/plan/plan-your-day.md) for the personal time box and the Outlook feed.
+- [Why planning and actuals work this way](../explanation/planning-and-actuals.md) for the capacity model and observed actual time.
 - [Track time and delays](../how-to/use/track-time-and-delays.md) for the delay rules.
 - [Manage epics](../how-to/use/epics.md) for the child-list workflow.
 - [Planning and time reference](../reference/planning-and-time.md) for exact values and contracts.

@@ -164,7 +164,7 @@ export function resetPlanning(): void {
 
 /**
  * Ensure the durable owner of per-viewer `state_*` rows exists. Deleting the
- * row cascades working hours, windows, day blocks and the calendar feed.
+ * row cascades any retained legacy daily-planner rows.
  */
 export function seedPlanningAuthUser(id: string, role = "read"): void {
   const now = new Date();

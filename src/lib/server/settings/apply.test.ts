@@ -25,13 +25,6 @@ const BASE: SettingsInput = {
     allocation_percent: 60,
     cycle_weeks: 2,
     cycle_anchor: "2024-01-01",
-    work_defaults: {
-      timezone: "UTC",
-      start_minute: 540,
-      end_minute: 1020,
-      work_days: [1, 2, 3, 4, 5],
-      buffer_percent: 20,
-    },
     maintainers: [],
   },
 };
@@ -125,45 +118,6 @@ describe("saveSettings", () => {
     if (!result.ok) expect(result.issues.length).toBeGreaterThan(0);
     expect(readSettings().planning.allocation_percent).toBe(60);
     expect(readSettings().planning.cycle_anchor).toBe("2025-01-06");
-  });
-
-  test("test_patch_round_trip_keeps_other_sections", () => {
-    writeSettings(BASE);
-    const workDefaults = {
-      timezone: "Europe/Berlin",
-      start_minute: 480,
-      end_minute: 960,
-      work_days: [1, 2, 3, 4, 5, 6],
-      buffer_percent: 25,
-    };
-
-    const result = saveSettings({
-      planning: { ...BASE.planning, work_defaults: workDefaults },
-    });
-
-    expect(result).toEqual({ ok: true });
-    const settings = readSettings();
-    expect(settings.planning.work_defaults).toEqual(workDefaults);
-    expect(settings.board).toEqual(BASE.board);
-    expect(settings.sync).toEqual(BASE.sync);
-    expect(settings.session).toEqual(BASE.session);
-  });
-
-  test("rejects a planning patch with out-of-bounds work defaults", () => {
-    writeSettings(BASE);
-
-    const result = saveSettings({
-      planning: {
-        ...BASE.planning,
-        work_defaults: { ...BASE.planning.work_defaults, buffer_percent: 91 },
-      },
-    });
-
-    expect(result.ok).toBe(false);
-    if (!result.ok) expect(result.issues.length).toBeGreaterThan(0);
-    expect(readSettings().planning.work_defaults).toEqual(
-      BASE.planning.work_defaults,
-    );
   });
 
   test("rejects a duplicate maintainer roster on save", () => {

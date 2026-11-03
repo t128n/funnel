@@ -2,11 +2,8 @@
  * Presentation helpers for the planner.
  *
  * Pure and dependency-free so the Svelte components and bun tests share one
- * definition of the capacity thresholds.
+ * definition of the week headline.
  */
-
-/** How a lane's committed load compares with its cap. */
-export type CapacityTone = "empty" | "near" | "over";
 
 const MONTHS = [
 	"Jan",
@@ -21,16 +18,6 @@ const MONTHS = [
 	"Oct",
 	"Nov",
 	"Dec",
-] as const;
-
-const WEEKDAYS = [
-	"Monday",
-	"Tuesday",
-	"Wednesday",
-	"Thursday",
-	"Friday",
-	"Saturday",
-	"Sunday",
 ] as const;
 
 interface CalendarDay {
@@ -63,35 +50,4 @@ export function weekHeadline(week: string): string {
 	const date = calendarDay(week);
 	if (date === null) return week;
 	return `Week of ${date.day} ${MONTHS[date.month - 1]} ${date.year}`;
-}
-
-/** `2026-11-02` → `Day: Monday 2 Nov`. */
-export function dayHeadline(date: string): string {
-	const parsed = calendarDay(date);
-	if (parsed === null) return "Day";
-	const weekdayIndex = new Date(
-		Date.UTC(parsed.year, parsed.month - 1, parsed.day),
-	).getUTCDay();
-	const weekday = WEEKDAYS[(weekdayIndex + 6) % 7];
-	return `Day: ${weekday} ${parsed.day} ${MONTHS[parsed.month - 1]}`;
-}
-
-/**
- * Traffic-light tone for a capacity meter.
- *
- * A zero cap is empty until work exists, then over. Work above the cap is over;
- * from 80% of the cap upward is near. The cap already includes allocation, so
- * there is no separate allocation line to leave room for.
- */
-export function capacityTone(
-	committedMinutes: number,
-	capMinutes: number,
-): CapacityTone {
-	if (!Number.isFinite(committedMinutes) || committedMinutes <= 0) {
-		return "empty";
-	}
-	if (capMinutes <= 0) return "over";
-	if (committedMinutes > capMinutes) return "over";
-	if (committedMinutes / capMinutes >= 0.8) return "near";
-	return "empty";
 }

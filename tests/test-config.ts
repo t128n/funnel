@@ -28,13 +28,6 @@ export const TEST_CONFIG: FunnelConfig = {
     allocation_percent: 60,
     cycle_weeks: 2,
     cycle_anchor: "2024-01-01",
-    work_defaults: {
-      timezone: "UTC",
-      start_minute: 540,
-      end_minute: 1020,
-      work_days: [1, 2, 3, 4, 5],
-      buffer_percent: 20,
-    },
     maintainers: [],
   },
 };

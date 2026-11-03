@@ -67,10 +67,11 @@ mono ref, and icon+text status. Dragging still works, and every drag has a
 keyboard and menu equivalent. The matrix is an interactive 3×3 selection grid
 inside `container-xl`, with an assessment summary above it, a rating-guide
 dialog, and the selected cell's issue list in the second column; issues missing
-an axis stay in the assessment queue. Plan lanes are ruled sections with
-Bootstrap progress meters and explicit over-cap warnings, not cards. These
-layouts keep small scoped stylesheets because their geometry is specific to the
-task; their colors and typography still come from Bootstrap.
+an axis stay in the assessment queue. Plan is a conventional document view: a
+capacity table followed by scheduled, unassigned and unestimated tables, with
+no progress meters or dashboard cards. These layouts keep small scoped
+stylesheets only where their geometry is specific to the task; their colors and
+typography still come from Bootstrap.
 
 The timeline is an Apache ECharts canvas with an HTML label column and a
 separate undated table. It reads its palette from `--funnel-chart-*` and

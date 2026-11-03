@@ -6,8 +6,8 @@
  * buckets. Scheduling itself lives on the issue (`IssuePropertiesCard`), so
  * this page is read-only apart from removing an issue from the plan.
  *
- * The old `horizon=day` links move to `/day`; `cycle` and `milestone` no longer
- * have their own surfaces and settle on the current week.
+ * Legacy `horizon=day`, `cycle` and `milestone` links no longer have their own
+ * surfaces and settle on `/plan`.
  */
 import { redirect } from "@sveltejs/kit";
 import { requireUser } from "#lib/server/auth/guard";
@@ -25,11 +25,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
   requireUser(locals, url);
 
   const horizon = url.searchParams.get("horizon");
-  if (horizon === "day") {
-    const day = url.searchParams.get("day");
-    throw redirect(307, day ? `/day?day=${encodeURIComponent(day)}` : "/day");
-  }
-  if (horizon === "cycle" || horizon === "milestone") {
+  if (horizon === "day" || horizon === "cycle" || horizon === "milestone") {
     throw redirect(307, "/plan");
   }
 
@@ -42,7 +38,6 @@ export const load: PageServerLoad = async ({ locals, url }) => {
     previous: addWeeks(week, -1),
     next: addWeeks(week, 1),
     weekPlan: weekView,
-    allocationPercent: config.planning.allocation_percent,
     sizeMinutes: config.planning.size_minutes,
     today: weekStartOf(new Date()),
   };

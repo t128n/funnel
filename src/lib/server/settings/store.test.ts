@@ -3,13 +3,7 @@ import { eq } from "drizzle-orm";
 import { db } from "#lib/server/db/index";
 import { stateSetting } from "#lib/server/db/schema";
 import {
-  DEFAULT_WORK_HOURS,
-  defaultsFromHours,
-  hoursFromDefaults,
-} from "#lib/planning/availability";
-import {
   clearSettings,
-  DEFAULT_WORK_DEFAULTS,
   readSettings,
   SettingsError,
   writeSettings,
@@ -33,13 +27,6 @@ const BASE: SettingsInput = {
     allocation_percent: 50,
     cycle_weeks: 3,
     cycle_anchor: "2025-01-06",
-    work_defaults: {
-      timezone: "Europe/Berlin",
-      start_minute: 480,
-      end_minute: 960,
-      work_days: [1, 2, 3, 4, 5, 6],
-      buffer_percent: 25,
-    },
     maintainers: [
       {
         forge: "github",
@@ -81,86 +68,8 @@ describe("settings store", () => {
       allocation_percent: 60,
       cycle_weeks: 2,
       cycle_anchor: "2024-01-01",
-      work_defaults: {
-        timezone: "UTC",
-        start_minute: 540,
-        end_minute: 1020,
-        work_days: [1, 2, 3, 4, 5],
-        buffer_percent: 20,
-      },
       maintainers: [],
     });
-  });
-
-  test("test_work_defaults_default_matches_work_hours", () => {
-    const settings = readSettings();
-
-    // §4: the admin default is exactly the spec's default working hours.
-    expect(settings.planning.work_defaults).toEqual(DEFAULT_WORK_DEFAULTS);
-    expect(settings.planning.work_defaults).toEqual(defaultsFromHours(DEFAULT_WORK_HOURS));
-    expect(hoursFromDefaults(settings.planning.work_defaults)).toEqual(DEFAULT_WORK_HOURS);
-    expect(JSON.stringify(settings.planning.work_defaults)).toBe(
-      '{"timezone":"UTC","start_minute":540,"end_minute":1020,"work_days":[1,2,3,4,5],"buffer_percent":20}',
-    );
-  });
-
-  test("test_work_defaults_bad_timezone", () => {
-    expect(() =>
-      writeSettings({
-        ...BASE,
-        planning: {
-          ...BASE.planning,
-          work_defaults: {
-            ...BASE.planning.work_defaults,
-            timezone: "Mars/Base",
-          },
-        },
-      }),
-    ).toThrow(SettingsError);
-  });
-
-  test("test_work_defaults_bounds", () => {
-    const rejected = [
-      { start_minute: 1020, end_minute: 1020 },
-      { start_minute: 1080, end_minute: 1020 },
-      { buffer_percent: 91 },
-      { buffer_percent: -1 },
-      { work_days: [] as number[] },
-      { work_days: [1, 1] },
-      { work_days: [0] },
-      { work_days: [8] },
-    ];
-
-    for (const change of rejected) {
-      expect(() =>
-        writeSettings({
-          ...BASE,
-          planning: {
-            ...BASE.planning,
-            work_defaults: { ...BASE.planning.work_defaults, ...change },
-          },
-        }),
-      ).toThrow(SettingsError);
-    }
-
-    // The inclusive boundaries are accepted and round-trip unchanged.
-    for (const change of [
-      { start_minute: 0, end_minute: 1440 },
-      { buffer_percent: 0 },
-      { buffer_percent: 90 },
-    ]) {
-      writeSettings({
-        ...BASE,
-        planning: {
-          ...BASE.planning,
-          work_defaults: { ...BASE.planning.work_defaults, ...change },
-        },
-      });
-      expect(readSettings().planning.work_defaults).toEqual({
-        ...BASE.planning.work_defaults,
-        ...change,
-      });
-    }
   });
 
   test("test_monday_anchor_rejected", () => {

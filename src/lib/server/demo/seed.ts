@@ -40,14 +40,12 @@ import {
   saveManifestCredentials,
   setInstallationId,
 } from "#lib/server/github/credentials";
-import { writeWorkHours } from "#lib/server/planning/day-store";
 import { setPlanItem } from "#lib/server/planning/store";
 import {
   DEFAULT_ALLOCATION_PERCENT,
   DEFAULT_CYCLE_ANCHOR,
   DEFAULT_CYCLE_WEEKS,
   DEFAULT_SIZE_MINUTES,
-  DEFAULT_WORK_DEFAULTS,
   writeSettings,
   type MaintainerInput,
 } from "#lib/server/settings/store";
@@ -241,18 +239,18 @@ const ISSUES: DemoIssue[] = [
   {
     repo: "funnel",
     number: 4,
-    title: "Cockpit day view over-counts focus time by the buffer reserve",
+    title: "Cockpit time panel double-counts review time in the actual total",
     body: [
       "## Summary",
       "",
-      "The day view adds the configured buffer to every block instead of reserving it once per day.",
+      "Review time is counted twice when an issue moves from in-progress to in-review and back.",
       "",
-      "Expected: 6h net for a 7.5h window with a 20% buffer. Actual: 7.5h.",
+      "Expected: one merged interval per active period. Actual: the total keeps two.",
       "",
       "### Acceptance criteria",
       "",
-      "- [ ] Buffer is applied to the work window, not each block.",
-      "- [ ] Day totals reconcile with the capacity panel.",
+      "- [ ] Overlapping active intervals merge before totalling.",
+      "- [ ] Time totals reconcile with the capacity panel.",
     ].join("\n"),
     labels: ["in-progress", "frontend", "sev", "high"],
     assignees: ["demo", "mira"],
@@ -647,10 +645,6 @@ function writeSettingsSeed(): void {
       allocation_percent: DEFAULT_ALLOCATION_PERCENT,
       cycle_weeks: DEFAULT_CYCLE_WEEKS,
       cycle_anchor: DEFAULT_CYCLE_ANCHOR,
-      work_defaults: {
-        ...DEFAULT_WORK_DEFAULTS,
-        work_days: [...DEFAULT_WORK_DEFAULTS.work_days],
-      },
       maintainers,
     },
   });
@@ -871,8 +865,8 @@ function writeDurableStateSeed(now: number): void {
       },
       {
         id: "demo-intake-3",
-        title: "Dark mode for the planning calendar",
-        body: "The calendar is the one page that ignores the theme switch.",
+        title: "Dark mode for the activity feed",
+        body: "The activity list is the one view that ignores the theme switch.",
         source: "email",
         createdAt: now - 20 * 60 * 60 * 1000,
       },
@@ -895,7 +889,7 @@ function writeDurableStateSeed(now: number): void {
         kind: "assigned",
         dedupeKey: "demo:assigned:funnel#4:demo",
         title: "You were assigned demo/funnel#4",
-        body: "Cockpit day view over-counts focus time by the buffer reserve",
+        body: "Cockpit time panel double-counts review time in the actual total",
         url: "/issues/demo/funnel/4",
         actorLogin: "mira",
         actorAvatarUrl: mira.avatarUrl,
@@ -1064,14 +1058,6 @@ function writeDurableStateSeed(now: number): void {
     ])
     .onConflictDoNothing()
     .run();
-
-  writeWorkHours(DEMO_USER_ID, {
-    timezone: "UTC",
-    startMinute: 540,
-    endMinute: 1020,
-    workDays: [1, 2, 3, 4, 5],
-    bufferPercent: 20,
-  });
 }
 
 /**

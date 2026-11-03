@@ -30,13 +30,6 @@ const BASE: SettingsInput = {
     allocation_percent: 60,
     cycle_weeks: 2,
     cycle_anchor: "2024-01-01",
-    work_defaults: {
-      timezone: "UTC",
-      start_minute: 540,
-      end_minute: 1020,
-      work_days: [1, 2, 3, 4, 5],
-      buffer_percent: 20,
-    },
     maintainers: [],
   },
 };
@@ -95,13 +88,6 @@ describe("loadFunnelConfig", () => {
         allocation_percent: 60,
         cycle_weeks: 2,
         cycle_anchor: "2024-01-01",
-        work_defaults: {
-          timezone: "UTC",
-          start_minute: 540,
-          end_minute: 1020,
-          work_days: [1, 2, 3, 4, 5],
-          buffer_percent: 20,
-        },
         maintainers: [],
       },
     });
@@ -140,13 +126,6 @@ describe("loadFunnelConfig", () => {
       allocation_percent: 60,
       cycle_weeks: 2,
       cycle_anchor: "2024-01-01",
-      work_defaults: {
-        timezone: "UTC",
-        start_minute: 540,
-        end_minute: 1020,
-        work_days: [1, 2, 3, 4, 5],
-        buffer_percent: 20,
-      },
       maintainers: [],
     });
   });
@@ -177,13 +156,6 @@ describe("loadFunnelConfig", () => {
         allocation_percent: 75,
         cycle_weeks: 4,
         cycle_anchor: "2025-01-06",
-        work_defaults: {
-          timezone: "Europe/Berlin",
-          start_minute: 480,
-          end_minute: 960,
-          work_days: [1, 2, 3, 4, 5],
-          buffer_percent: 30,
-        },
         maintainers: [
           {
             forge: "github",
@@ -201,13 +173,6 @@ describe("loadFunnelConfig", () => {
 
     expect(config.planning.allocation_percent).toBe(75);
     expect(config.planning.cycle_anchor).toBe("2025-01-06");
-    expect(config.planning.work_defaults).toEqual({
-      timezone: "Europe/Berlin",
-      start_minute: 480,
-      end_minute: 960,
-      work_days: [1, 2, 3, 4, 5],
-      buffer_percent: 30,
-    });
     expect(config.planning.maintainers).toHaveLength(1);
   });
 
