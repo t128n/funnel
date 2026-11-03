@@ -179,7 +179,7 @@
 
 <PageHead title={`${horizonTitle} · Plan`} description="Week, cycle, milestone and day capacity planning." />
 
-<div class="d-flex min-h-0 flex-grow-1 flex-column overflow-y-auto">
+<main class="container-fluid px-3 px-lg-4 py-4">
 	<PageHeader title={horizonTitle}>
 		{#snippet actions()}
 			{#if mayWrite && horizon !== 'milestone' && horizon !== 'day'}
@@ -196,7 +196,7 @@
 	</PageHeader>
 
 	<nav
-		class="d-flex flex-shrink-0 flex-wrap align-items-center gap-2 border-bottom px-3 py-1"
+		class="d-flex flex-wrap align-items-center gap-2 border-bottom pb-2 mb-3"
 		aria-label="Planning horizon"
 	>
 		<ButtonGroup size="sm" role="group" aria-label="Planning horizon">
@@ -267,7 +267,7 @@
 		{/if}
 	</nav>
 
-	<div class="d-flex w-100 flex-column gap-3 px-3 py-3">
+	<div class="d-flex flex-column gap-3">
 		{#if removeError}
 			<InlineStatus tone="error" message={removeError}>
 				{#snippet action()}
@@ -307,9 +307,9 @@
 			{#if data.cyclePlan}
 				<section class="d-flex flex-column gap-2" aria-label="Per-week summaries" data-testid="week-summaries">
 					<h2 class="fs-6 text-body mb-0">Weeks in this cycle</h2>
-					<div class="overflow-x-auto">
+					<div class="table-responsive border rounded">
 						<Table class="funnel-table table-sm align-middle mb-0">
-							<thead>
+							<thead class="bg-body-tertiary small text-body-secondary">
 								<tr>
 									<th scope="col">Week</th>
 									<th scope="col" class="text-end">Scheduled</th>
@@ -370,7 +370,7 @@
 			<MilestonePlans plans={milestones} {allocationPercent} {sizeMinutes} />
 		{/if}
 	</div>
-</div>
+</main>
 
 {#if mayWrite}
 	<ScheduleDialog

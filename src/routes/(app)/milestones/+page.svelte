@@ -26,7 +26,7 @@
 
 <PageHead title="Milestones" />
 
-<div class="d-flex min-h-0 flex-grow-1 flex-column overflow-y-auto">
+<main class="container-xl py-4">
 	<PageHeader title="Milestones">
 		{#snippet actions()}
 			<Button color="outline-secondary" href="/timeline">
@@ -40,22 +40,23 @@
 		<EmptyState
 			title="No milestones yet."
 			description="Create one from an issue, or on GitHub."
-			class="flex-grow-1"
+			class="border-top border-bottom py-5"
 		/>
 	{:else}
-		<div class="d-flex flex-column gap-4 px-3 pb-4">
+		<div class="d-flex flex-column gap-4">
 			{#each data.groups as group (group.repo)}
 				<section class="d-flex flex-column">
 					<h2 class="small text-body-secondary fw-normal mb-2">{group.repo}</h2>
-					<Table hover responsive size="sm" class="align-middle funnel-table">
-						<thead>
-							<tr>
-								<th scope="col">Milestone</th>
-								<th scope="col" class="text-end">Due</th>
-								<th scope="col" class="text-end">Progress</th>
-								<th scope="col">Created by</th>
-							</tr>
-						</thead>
+					<div class="table-responsive border rounded">
+						<Table hover size="sm" class="align-middle funnel-table mb-0">
+							<thead class="bg-body-tertiary small text-body-secondary">
+								<tr>
+									<th scope="col">Milestone</th>
+									<th scope="col" class="text-end">Due</th>
+									<th scope="col" class="text-end">Progress</th>
+									<th scope="col">Created by</th>
+								</tr>
+							</thead>
 						<tbody>
 							{#each group.milestones as milestone (milestone.number)}
 								<tr
@@ -95,9 +96,10 @@
 								</tr>
 							{/each}
 						</tbody>
-					</Table>
+						</Table>
+					</div>
 				</section>
 			{/each}
 		</div>
 	{/if}
-</div>
+</main>

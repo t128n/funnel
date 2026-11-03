@@ -31,14 +31,14 @@
 	description={data.milestone.description || undefined}
 />
 
-<div class="d-flex min-h-0 flex-grow-1 flex-column">
+<main class="container-xl py-4">
 	<PageHeader
 		title={data.milestone.title || 'Untitled milestone'}
 		description={data.milestone.description || undefined}
 		actions={backLink}
 	/>
 
-	<div class="d-flex flex-wrap align-items-baseline column-gap-3 row-gap-1 px-3 pb-2 small text-body-secondary">
+	<div class="d-flex flex-wrap align-items-baseline column-gap-3 row-gap-1 pb-3 small text-body-secondary">
 		<span>{data.milestone.repo}#{data.milestone.number}</span>
 		<span>{data.milestone.dueOn === null ? 'No due date' : `Due ${dueLabel(data.milestone.dueOn)}`}</span>
 		{#if data.milestone.state === 'closed'}
@@ -58,4 +58,4 @@
 		repoShortcodes={data.repoShortcodes}
 		groupable={false}
 	/>
-</div>
+</main>

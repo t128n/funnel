@@ -93,7 +93,7 @@
 						</td>
 					</tr>
 					<tr>
-						<td colspan="5" class="px-3 py-2 align-top">
+						<td colspan="5" class="py-2 align-top">
 							<p class="small text-body-secondary mb-0">
 								{#if plan.capacityWeeks === null}
 									No due date — no cap; scheduled hours are shown without a bar.

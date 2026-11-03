@@ -30,9 +30,9 @@
 	}
 </script>
 
-<div data-testid="epic-list">
-	<Table hover responsive size="sm" class="align-middle funnel-table">
-		<thead>
+<div class="table-responsive border rounded" data-testid="epic-list">
+	<Table hover size="sm" class="align-middle funnel-table mb-0">
+		<thead class="bg-body-tertiary small text-body-secondary">
 			<tr>
 				<th scope="col">Epic</th>
 				<th scope="col">Title</th>

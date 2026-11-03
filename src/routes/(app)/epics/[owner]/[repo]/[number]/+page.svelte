@@ -89,10 +89,10 @@
 {#if epic}
 	<PageHead title={epic.title || 'Epic'} />
 
-	<div class="d-flex min-h-0 flex-grow-1 flex-column overflow-y-auto">
+	<main class="container-xl py-4">
 		<PageHeader title={epic.title || 'Untitled epic'} actions={epicActions} />
 
-		<div class="d-flex flex-column gap-3 px-3 pb-4">
+		<div class="d-flex flex-column gap-3 pb-2">
 			<div class="d-flex flex-wrap align-items-baseline column-gap-3 row-gap-1 small text-body-secondary">
 				<a
 					href={issuePath('issues', epic.repo, epic.number)}
@@ -127,7 +127,7 @@
 				<EpicChildTable children={epic.children} {mayWrite} onremove={remove} {removing} />
 			</section>
 		</div>
-	</div>
+	</main>
 
 	{#if mayWrite}
 		<AddChildDialog

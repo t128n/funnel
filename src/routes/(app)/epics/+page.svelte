@@ -18,22 +18,20 @@
 
 <PageHead title="Epics" />
 
-<div class="d-flex min-h-0 flex-grow-1 flex-column overflow-y-auto">
+<main class="container-xl py-4">
 	<PageHeader title="Epics" count={`${openCount} open · ${epics.length} total`} />
 
 	{#if epics.length === 0}
 		<EmptyState
 			title="No epics yet."
 			description="Mark an issue as an epic from its Inspector, then add children here."
-			class="flex-grow-1"
+			class="border-top border-bottom py-5"
 		>
 			{#snippet action()}
 				<Button color="outline-secondary" href="/issues">View Issues</Button>
 			{/snippet}
 		</EmptyState>
 	{:else}
-		<div class="px-3 pb-4">
-			<EpicList {epics} />
-		</div>
+		<EpicList {epics} />
 	{/if}
-</div>
+</main>

@@ -107,7 +107,7 @@
 	{:else}
 		{#each lanes as lane (lane.maintainer.externalId)}
 			<section class="d-flex flex-column border-top pt-2" data-lane={lane.maintainer.login}>
-				<header class="d-flex flex-wrap align-items-baseline gap-2 px-3 pb-1">
+				<header class="d-flex flex-wrap align-items-baseline gap-2 pb-1">
 					<h2 class="min-w-0 text-truncate text-body fw-semibold small mb-0">
 						<a
 							class="link-body-emphasis text-decoration-none"
@@ -126,7 +126,7 @@
 					</span>
 				</header>
 
-				<div class="px-3 py-1">
+				<div class="py-1">
 					<CapacityBar
 						committedMinutes={lane.committedMinutes}
 						capMinutes={lane.capMinutes}
@@ -134,7 +134,7 @@
 				</div>
 
 				{#if lane.issues.length === 0}
-					<p class="px-3 pb-2 small text-body-secondary mb-0">No planned issues.</p>
+					<p class="pb-2 small text-body-secondary mb-0">No planned issues.</p>
 				{:else}
 					<ul class="d-flex flex-column list-unstyled mb-0 border-top">
 						{#each lane.issues as issue (issueKey(issue))}
@@ -148,7 +148,7 @@
 
 	{#if unassigned.issues.length === 0}
 		<p
-			class="d-flex flex-wrap align-items-baseline gap-2 border-top px-3 py-1 small mb-0"
+			class="d-flex flex-wrap align-items-baseline gap-2 border-top py-1 small mb-0"
 			data-testid="unassigned"
 		>
 			<span class="fw-semibold text-body">Unassigned</span>
@@ -159,13 +159,13 @@
 			class="d-flex flex-column border-top pt-2"
 			data-testid="unassigned"
 		>
-			<header class="d-flex flex-wrap align-items-baseline gap-2 px-3 pb-1">
+			<header class="d-flex flex-wrap align-items-baseline gap-2 pb-1">
 				<h2 class="text-body fw-semibold small mb-0">Unassigned</h2>
 				<span class="ms-auto small text-body-secondary tnum">
 					Scheduled {formatMinutes(unassigned.committedMinutes)} · no cap
 				</span>
 			</header>
-			<p class="px-3 py-1 small text-body-secondary mb-0">
+			<p class="py-1 small text-body-secondary mb-0">
 				No active maintainer. Assign these issues to a configured maintainer to place them
 				in a lane.
 			</p>
@@ -179,7 +179,7 @@
 
 	{#if unestimated.length === 0}
 		<p
-			class="d-flex flex-wrap align-items-baseline gap-2 border-top px-3 py-1 small mb-0"
+			class="d-flex flex-wrap align-items-baseline gap-2 border-top py-1 small mb-0"
 			data-testid="unestimated"
 		>
 			<span class="fw-semibold text-body">Unestimated</span>
@@ -190,13 +190,13 @@
 			class="d-flex flex-column border-top pt-2"
 			data-testid="unestimated"
 		>
-			<header class="d-flex flex-wrap align-items-baseline gap-2 px-3 pb-1">
+			<header class="d-flex flex-wrap align-items-baseline gap-2 pb-1">
 				<h2 class="text-body fw-semibold small mb-0">Unestimated</h2>
 				<span class="ms-auto small text-body-secondary tnum">
 					{unestimated.length} {unestimated.length === 1 ? 'issue' : 'issues'}
 				</span>
 			</header>
-			<p class="px-3 py-1 small text-body-secondary mb-0">
+			<p class="py-1 small text-body-secondary mb-0">
 				These open issues have no size label. Add a size to make them schedulable.
 			</p>
 			<ul class="d-flex flex-column border-top list-unstyled mb-0">
@@ -210,7 +210,7 @@
 
 {#snippet issueRow(issue: PlanningIssue, removable: boolean)}
 	<li
-		class="plan-issue-row d-flex min-w-0 align-items-center gap-2 border-bottom px-3"
+		class="plan-issue-row d-flex min-w-0 align-items-center gap-2 border-bottom"
 	>
 		<a
 			class="d-flex min-w-0 flex-grow-1 flex-column gap-1 text-decoration-none text-body"

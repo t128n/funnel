@@ -43,7 +43,7 @@
 	description="Open milestones projected from planned weeks and observed status changes to their due dates."
 />
 
-<div class="d-flex min-h-0 flex-grow-1 flex-column overflow-y-auto">
+<main class="container-xl py-4">
 	<PageHeader
 		title="Timeline"
 		count={`${total} open`}
@@ -74,15 +74,13 @@
 		</div>
 	</Toolbar>
 
-	<div class="px-3 py-3">
-		<TimelineChart
-			rows={data.timeline.rows}
-			window={data.timeline.window}
-			now={data.timeline.now}
-			undated={data.timeline.undated}
-			repoShortcodes={data.repoShortcodes}
-			{emptyTitle}
-			{emptyDescription}
-		/>
-	</div>
-</div>
+	<TimelineChart
+		rows={data.timeline.rows}
+		window={data.timeline.window}
+		now={data.timeline.now}
+		undated={data.timeline.undated}
+		repoShortcodes={data.repoShortcodes}
+		{emptyTitle}
+		{emptyDescription}
+	/>
+</main>
