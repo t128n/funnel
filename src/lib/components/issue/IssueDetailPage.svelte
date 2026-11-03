@@ -1,29 +1,28 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { onDestroy, tick, untrack } from 'svelte';
-	import { Button, Input } from '@sveltestrap/sveltestrap';
-	import MultiSelect from '#lib/components/common/MultiSelect.svelte';
-	import SingleSelect from '#lib/components/common/SingleSelect.svelte';
-	import Spinner from '#lib/components/common/Spinner.svelte';
+	import {
+		Alert,
+		Badge,
+		Breadcrumb,
+		BreadcrumbItem,
+		Button,
+		Input
+	} from '@sveltestrap/sveltestrap';
 	import InlineStatus from '#lib/components/common/InlineStatus.svelte';
-	import PriorityText from '#lib/components/common/PriorityText.svelte';
-	import RefText from '#lib/components/common/RefText.svelte';
-	import StatusIcon from '#lib/components/common/StatusIcon.svelte';
+	import PageHead from '#lib/components/common/PageHead.svelte';
+	import Spinner from '#lib/components/common/Spinner.svelte';
 	import StatusText from '#lib/components/common/StatusText.svelte';
 	import BlockActionDialog from '#lib/components/board/BlockActionDialog.svelte';
 	import Composer from '#lib/components/detail/Composer.svelte';
-	import DetailShell from '#lib/components/detail/DetailShell.svelte';
 	import ActivityTimeline from '#lib/components/issue/ActivityTimeline.svelte';
 	import AttachmentDropbox from '#lib/components/issue/AttachmentDropbox.svelte';
-	import { severityWord } from '#lib/components/issue/bug-vocabulary';
-	import DelayList from '#lib/components/issue/DelayList.svelte';
-	import EpicProperty from '#lib/components/issue/EpicProperty.svelte';
 	import IssueActionDialog from '#lib/components/issue/IssueActionDialog.svelte';
-	import IssueTimeCard from '#lib/components/issue/IssueTimeCard.svelte';
-	import MilestonePicker from '#lib/components/issue/MilestonePicker.svelte';
-	import RecordDelayDialog from '#lib/components/issue/RecordDelayDialog.svelte';
+	import IssueDetailsCard from '#lib/components/issue/IssueDetailsCard.svelte';
+	import IssuePropertiesCard from '#lib/components/issue/IssuePropertiesCard.svelte';
 	import { delayReasonLabel } from '#lib/components/issue/inspector-format';
-	import PriorityPicker from '#lib/components/issue/PriorityPicker.svelte';
+	import { codeBlocks } from '#lib/client/code-blocks';
+	import { mermaidDiagrams } from '#lib/client/mermaid';
 	import {
 		addIssueComment,
 		addIssueLabels,
@@ -61,11 +60,7 @@
 	} from '#lib/funnel-metadata';
 	import { issueThreadMarkdown, shouldScopeSelectAll } from '#lib/issue-copy';
 	import { timeAgo } from '#lib/client/clock.svelte';
-	import {
-		SIZE_OPTIONS,
-		STATUS_OPTIONS,
-		canonicalLabel
-	} from '#lib/labels';
+	import { canonicalLabel, isUntriaged } from '#lib/labels';
 	import {
 		derivePriorityOrNull,
 		impactLabel,
@@ -77,7 +72,6 @@
 	import { absoluteTime } from '#lib/time';
 	import { ATTACHMENTS_FLAG, WORK_NOTES_FLAG } from '#lib/features';
 	import { canWrite } from '#lib/roles';
-	import { viewOf } from '#lib/issue-url';
 	import type {
 		AttachmentItem,
 		RenderedIssueDetail,
@@ -85,18 +79,24 @@
 		UserRef
 	} from '#lib/server/issues/types';
 
+	/**
+	 * Composition A's dedicated issue page: a document at `col-lg-8` and a
+	 * Properties/Details rail at `col-lg-4`, on the normal page scroll.
+	 *
+	 * The data flow is the former inspector pane's, unchanged: the payload is
+	 * fetched client-side, SSE refreshes are scoped to this issue and deferred
+	 * while a draft is open, and every write is applied optimistically with a
+	 * `funnel_metadata` envelope kept out of the description editor.
+	 */
 	interface Props {
 		repo: string;
 		number: number;
 		githubUrl: string;
-		onclose: () => void;
-		/** Fill the parent column instead of docking beside it. */
-		fill?: boolean;
 		/** Render comments as chat bubbles instead of the compact list. */
 		commentBubbles?: boolean;
 	}
 
-	let { repo, number, githubUrl, onclose, fill = false, commentBubbles = false }: Props = $props();
+	let { repo, number, githubUrl, commentBubbles = false }: Props = $props();
 
 	/** Matches the server default, so a first load needs no query parameter. */
 	const DEFAULT_COMMENT_LIMIT = 1000;
@@ -132,7 +132,7 @@
 	/** The trailing `funnel_metadata` envelope, kept out of the body editor. */
 	let metadataBlock = $state<string | null>(null);
 
-	/** Footer composer channel: a GitHub comment or an internal work note. */
+	/** Composer channel: a GitHub comment or an internal work note. */
 	let composerMode = $state<'comment' | 'note'>('comment');
 	/** In-flight Funnel-local note mutation, e.g. `note:<uuid>`. */
 	let noteBusy = $state<string | null>(null);
@@ -141,8 +141,8 @@
 	/** Attachment being deleted. */
 	let deletingId = $state<string | null>(null);
 
-	/** Pane root, so Mod+A can be scoped to this issue instead of the page. */
-	let paneEl = $state<HTMLElement | null>(null);
+	/** Page root, so Mod+A can be scoped to this issue instead of the page. */
+	let pageEl = $state<HTMLElement | null>(null);
 	/** The title heading; the start of a Mod+A thread selection. */
 	let titleEl = $state<HTMLElement | null>(null);
 	/** The Activity section; the end of a Mod+A thread selection. */
@@ -153,7 +153,7 @@
 
 	/**
 	 * Inline write feedback. Issue mutations never raise a floating toast; the
-	 * last outcome sits above the composer until the next change, with an
+	 * last outcome sits below the header until the next change, with an
 	 * optional undo affordance.
 	 */
 	type WriteStatus = {
@@ -184,16 +184,11 @@
 		(page.data as { viewerGithub?: { login?: string } | null }).viewerGithub?.login ?? null
 	);
 	/** RBAC: `read` viewers see the issue but cannot edit it. */
-	const mayWrite = $derived(
-		canWrite((page.data as { user?: { role?: unknown } }).user?.role)
-	);
+	const mayWrite = $derived(canWrite((page.data as { user?: { role?: unknown } }).user?.role));
 
 	/** Structured block/unblock dialog (SPEC §5.1). */
 	let blockedDialogMode = $state<'block' | 'unblock' | null>(null);
 	let blockError = $state<string | null>(null);
-
-	/** Manual delay dialog (SPEC §2, §5). */
-	let delayDialogOpen = $state(false);
 
 	// `detail` is the raw fetched payload; `issue` reflects pending overlays so
 	// optimistic edits show instantly and reconcile on the next SSE refresh.
@@ -211,60 +206,23 @@
 			? detail.bodyHtml
 			: null
 	);
-
-	/** Done is the closed state; the picker surfaces it beside the open statuses. */
-	const closed = $derived(issue?.state === 'closed');
-	const statusOptions = [
-		...STATUS_OPTIONS,
-		{ value: 'done', label: 'Done', color: 'var(--bs-success)' }
-	];
-	const statusValue = $derived(closed ? 'done' : (issue?.status ?? null));
-	const priorityValue = $derived(issue?.priority ?? null);
-	const impactValue = $derived(issue?.impact ?? null);
-	const urgencyValue = $derived(issue?.urgency ?? null);
-	const sizeValue = $derived(issue?.size ?? null);
-	const milestoneValue = $derived(issue?.milestone ?? null);
-	const milestoneOptions = $derived(detail?.milestoneOptions ?? []);
-
-	/** Plain-text tokens rendered by the metadata table. */
-	const severityDisplay = $derived(severityWord(impactValue));
-	const sizeDisplay = $derived(
-		SIZE_OPTIONS.find((option) => option.value === sizeValue)?.label ?? '—'
+	const contentKey = $derived(
+		`${detail?.bodyHtml ?? ''}:${detail?.comments.length ?? 0}:${detail?.workNotes.length ?? 0}`
 	);
 
-	const assigneeLogins = $derived(issue?.assignees.map((a) => a.login) ?? []);
-	const assigneeDisplay = $derived(assigneeLogins.join(', '));
-	const assigneeOptions = $derived(detail?.assigneeOptions ?? []);
+	const closed = $derived(issue?.state === 'closed');
+	const impactValue = $derived(issue?.impact ?? null);
+	const urgencyValue = $derived(issue?.urgency ?? null);
+
 	const selectedLabels = $derived(
 		(issue?.labels ?? []).filter(
 			(name) => !canonicalLabel(name) && !isRetiredPriorityLabel(name)
 		)
 	);
-	const labelOptions = $derived(
-		(detail?.repoLabels ?? [])
-			.filter(
-				(label) =>
-					!canonicalLabel(label.name) && !isRetiredPriorityLabel(label.name)
-			)
-			.map((label) => ({ value: label.name, label: label.name, color: label.color }))
-	);
 
 	const githubLink = $derived(`${githubUrl}/${repo}/issues/${number}`);
 	/** Only show the composer once the issue has loaded. */
 	const canEdit = $derived(issue !== null && detail !== null);
-
-	/** Label for the mobile back link; the Issues route says “← Issues”. */
-	const backLabel = $derived.by(() => {
-		const view = viewOf(page.url.pathname);
-		const names: Record<string, string> = {
-			issues: 'Issues',
-			board: 'Board',
-			matrix: 'Matrix',
-			inbox: 'Inbox'
-		};
-		return `← ${view ? names[view] : 'Issues'}`;
-	});
-	const backHref = $derived(`/${viewOf(page.url.pathname) ?? 'issues'}`);
 
 	/** Guards against an out-of-order fetch clobbering a newer one. */
 	let loadSeq = 0;
@@ -299,24 +257,17 @@
 		loading = false;
 	}
 
-	/** The pane's scroll container (DetailShell's body), or the page scroller. */
-	function paneScroller(): HTMLElement | null {
-		return (
-			paneEl?.querySelector<HTMLElement>('.overflow-y-auto') ??
-			(document.scrollingElement as HTMLElement | null)
-		);
-	}
-
 	/**
 	 * Widen the comment window by one step and reload. Older comments are
 	 * prepended, so the scroll offset grows by the inserted height to keep the
-	 * reader on the comment they were looking at.
+	 * reader on the comment they were looking at. The page itself scrolls now,
+	 * so the document scroller is the reference.
 	 */
 	async function loadEarlierComments() {
 		if (!detail?.hasMoreComments || loading) return;
 		if (commentLimit >= MAX_COMMENT_LIMIT) return;
 		const target = `${repo}#${number}`;
-		const scroller = paneScroller();
+		const scroller = document.scrollingElement as HTMLElement | null;
 		const beforeTop = scroller?.scrollTop ?? 0;
 		const beforeHeight = scroller?.scrollHeight ?? 0;
 		commentLimit = Math.min(commentLimit + COMMENT_LIMIT_STEP, MAX_COMMENT_LIMIT);
@@ -391,7 +342,7 @@
 
 	function localAssignee(login: string): UserRef {
 		return (
-			assigneeOptions.find((u) => u.login === login) ?? {
+			(detail?.assigneeOptions ?? []).find((user) => user.login === login) ?? {
 				externalId: '',
 				forge: '',
 				instance: '',
@@ -501,8 +452,7 @@
 			patch: issuePatch,
 			failure: 'Could not reopen issue',
 			notify: false,
-			commit: () =>
-				reopenIssue(repo, number, payload.note, pendingStatus ?? undefined)
+			commit: () => reopenIssue(repo, number, payload.note, pendingStatus ?? undefined)
 		});
 		busy = null;
 		if (!outcome.ok) {
@@ -517,7 +467,7 @@
 	/**
 	 * A click that did not select text. The title and the description open
 	 * their editor on such a click only, so dragging to select prose — which
-	 * is how the thread gets copied — never flips the pane into edit mode.
+	 * is how the thread gets copied — never flips the page into edit mode.
 	 */
 	function isPlainClick(): boolean {
 		return window.getSelection()?.isCollapsed ?? true;
@@ -546,16 +496,16 @@
 	}
 
 	/**
-	 * Whether the caret or focus already lives in this pane. Clicking prose
+	 * Whether the caret or focus already lives on this page. Clicking prose
 	 * puts a collapsed caret in its text node while focus stays on `<body>`,
 	 * so both are checked before Mod+A is re-scoped.
 	 */
-	function paneHasFocusOrCaret(): boolean {
-		if (!paneEl) return false;
+	function pageHasFocusOrCaret(): boolean {
+		if (!pageEl) return false;
 		const active = document.activeElement;
-		if (active && paneEl.contains(active)) return true;
+		if (active && pageEl.contains(active)) return true;
 		const anchor = window.getSelection()?.anchorNode ?? null;
-		return anchor !== null && paneEl.contains(anchor);
+		return anchor !== null && pageEl.contains(anchor);
 	}
 
 	/**
@@ -565,7 +515,7 @@
 	 */
 	function onWindowKeydown(event: KeyboardEvent) {
 		if (!shouldScopeSelectAll(event)) return;
-		if (!titleEl || !activityEl || !paneHasFocusOrCaret()) return;
+		if (!titleEl || !activityEl || !pageHasFocusOrCaret()) return;
 		event.preventDefault();
 		const range = document.createRange();
 		range.setStartBefore(titleEl);
@@ -598,16 +548,16 @@
 	}
 
 	/**
-	 * Focus the footer composer from a comment's reply link. `Composer` owns the
-	 * textarea and exposes no ref, so reach it by its intended id first and fall
-	 * back to the group control inside this pane.
+	 * Focus the comment composer from a reply link. `Composer` owns the
+	 * textarea and exposes no ref, so reach it by its intended id first and
+	 * fall back to the group control on this page.
 	 */
 	function focusComposer() {
 		const byId = document.getElementById('issue-composer');
 		const field =
 			byId instanceof HTMLTextAreaElement
 				? byId
-				: paneEl?.querySelector<HTMLTextAreaElement>('textarea.composer-input') ?? null;
+				: (pageEl?.querySelector<HTMLTextAreaElement>('textarea.composer-input') ?? null);
 		if (!field) return;
 		field.focus();
 		const end = field.value.length;
@@ -651,14 +601,7 @@
 			openDialog('reopen', value);
 			return;
 		}
-		// Triage from the Inbox: setting the first status moves the issue out of
-		// the queue (see `projectInboxEntries`). Confirm the exit with an undo,
-		// since the row leaves immediately and the picker is the only feedback.
-		const wasUntriaged = issue?.status == null;
-		const ok = await runPatch({ status: value }, 'status');
-		if (ok && wasUntriaged && viewOf(page.url.pathname) === 'inbox') {
-			setWriteSuccess('Triaged · moved to Issues', () => void runPatch({ status: null }, 'status'));
-		}
+		await runPatch({ status: value }, 'status');
 	}
 
 	/**
@@ -708,11 +651,6 @@
 			: setPriorityLabels({ urgency: urgencyLabel(value) });
 	}
 
-	function clearPriority(): Promise<boolean> {
-		if (impactValue === null && urgencyValue === null) return Promise.resolve(true);
-		return setPriorityLabels({ impact: null, urgency: null });
-	}
-
 	async function setSize(value: string | null) {
 		await runPatch({ size: value }, 'size');
 	}
@@ -738,11 +676,9 @@
 			setWriteError(outcome.error);
 			return;
 		}
-		if (outcome.ok) {
-			bake(issuePatch);
-			// Re-read the detail so a freshly created milestone joins the options.
-			await load();
-		}
+		bake(issuePatch);
+		// Re-read the detail so a freshly created milestone joins the options.
+		await load();
 	}
 
 	/** Open the structured block/unblock dialog (SPEC §5.1). */
@@ -954,7 +890,12 @@
 </script>
 
 {#snippet undoAction()}
-	<Button color="link" size="sm" class="text-decoration-none px-1 py-0" onclick={() => writeStatus?.undo?.()}>
+	<Button
+		color="link"
+		size="sm"
+		class="text-decoration-none px-1 py-0"
+		onclick={() => writeStatus?.undo?.()}
+	>
 		Undo
 	</Button>
 {/snippet}
@@ -963,18 +904,6 @@
 	<Button color="link" size="sm" class="text-decoration-none px-1 py-0" onclick={() => void load()}>
 		Retry
 	</Button>
-{/snippet}
-
-{#snippet statusIcon()}
-	<StatusIcon status={issue?.status ?? null} />
-{/snippet}
-
-{#snippet assigneeIcon()}
-	<i class="bi bi-person"></i>
-{/snippet}
-
-{#snippet labelIcon()}
-	<i class="bi bi-tags"></i>
 {/snippet}
 
 {#snippet composer()}
@@ -989,62 +918,38 @@
 	/>
 {/snippet}
 
-<DetailShell
-	bind:element={paneEl}
-	ariaLabel="Issue inspector"
-	class="min-w-0 flex-grow-1 {fill ? '' : 'border-start'}"
-	contentKey={`${repo}#${number}:${detail?.bodyHtml ?? ''}:${detail?.comments.length ?? 0}:${detail?.workNotes.length ?? 0}`}
-	footer={canEdit && mayWrite ? composer : undefined}
->
-	{#snippet header()}
-		<div class="d-flex min-w-0 flex-grow-1 flex-column gap-1">
-			<div class="d-flex min-w-0 flex-wrap align-items-center gap-2 small text-body-secondary">
-				<a href={backHref} class="link-primary text-decoration-none d-lg-none">{backLabel}</a>
-				<RefText value={`${repo}#${number}`} />
-				<Button
-					color="link"
-					size="sm"
-					href={githubLink}
-					target="_blank"
-					rel="noreferrer"
-					class="d-inline-flex align-items-center gap-1 text-decoration-none px-1 py-0 text-body-secondary"
-					title="Open on GitHub"
-				>
-					<i class="bi bi-box-arrow-up-right" aria-hidden="true"></i>
-					GitHub
-				</Button>
-				<Button
-					color="link"
-					size="sm"
-					class="d-inline-flex align-items-center gap-1 text-decoration-none px-1 py-0 text-body-secondary"
-					title={copied ? 'Copied' : 'Copy issue as Markdown'}
-					onclick={() => void copyThread()}
-				>
-					{#if copied}
-						<i class="bi bi-check-lg" aria-hidden="true"></i>
-						Copied
-					{:else}
-						<i class="bi bi-clipboard" aria-hidden="true"></i>
-						Copy
-					{/if}
-				</Button>
+<div class="d-flex flex-column" bind:this={pageEl}>
+	<PageHead title={`${repo}#${number} · Issues`} />
+
+	<Breadcrumb class="mb-2">
+		<BreadcrumbItem>
+			<a href="/issues" class="link-primary text-decoration-none">Issues</a>
+		</BreadcrumbItem>
+		<BreadcrumbItem active class="text-break">{repo}#{number}</BreadcrumbItem>
+	</Breadcrumb>
+
+	<div class="d-flex flex-wrap align-items-start justify-content-between gap-3">
+		<div class="min-w-0">
+			<div class="small text-body-secondary mb-1 text-break">
+				<i class="bi bi-folder2 me-1" aria-hidden="true"></i>{repo}
+				<span class="mx-1">/</span><span class="font-monospace">#{number}</span>
 			</div>
 
 			{#if issue}
-				<div class="d-flex min-w-0 align-items-center gap-2">
-					{#if editingTitle}
+				{#if editingTitle}
+					<div class="d-flex min-w-0 align-items-center gap-2">
 						<Input
 							bsSize="lg"
 							class="min-w-0 flex-grow-1 border-0 bg-transparent px-0 fw-semibold shadow-none"
 							value={title}
-							oninput={(e) => (title = e.currentTarget.value)}
+							oninput={(event) => (title = event.currentTarget.value)}
 							onblur={saveTitle}
-							onkeydown={(e) => {
-								if (e.key === 'Enter') {
-									e.preventDefault();
-									e.currentTarget.blur();
-								} else if (e.key === 'Escape') {
-									e.preventDefault();
+							onkeydown={(event) => {
+								if (event.key === 'Enter') {
+									event.preventDefault();
+									event.currentTarget.blur();
+								} else if (event.key === 'Escape') {
+									event.preventDefault();
 									cancelTitleEdit();
 								}
 							}}
@@ -1056,496 +961,356 @@
 						{:else if titleDirty}
 							<Button color="primary" size="sm" onclick={saveTitle}>Save</Button>
 						{/if}
-					{:else}
-						<!--
-							Plain text rather than an input: a rendered input value is not
-							part of a text selection, so Mod+A could never include it.
-						-->
-						<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
-						<h1
-							bind:this={titleEl}
-							class="inspector-title min-w-0 flex-grow-1 fs-4 fw-medium text-body text-break mb-0 {mayWrite
-								? 'inspector-title--editable px-1'
-								: ''}"
-							tabindex={mayWrite ? 0 : undefined}
-							role={mayWrite ? 'button' : undefined}
-							aria-label={mayWrite ? 'Issue title; activate to edit' : 'Issue title'}
-							onclick={() => mayWrite && isPlainClick() && startTitleEdit()}
-							onkeydown={(e) => {
-								if (mayWrite && (e.key === 'Enter' || e.key === ' ')) {
-									e.preventDefault();
-									startTitleEdit();
-								}
-							}}
-						>
-							{title}
-						</h1>
-					{/if}
-				</div>
-
-				<!-- Triage: the values a reader or triager changes most often. -->
-				<section
-					class="d-flex min-w-0 flex-wrap align-items-center gap-2"
-					aria-label="Issue triage"
-				>
-					<div class="triage-field triage-field--status" data-picker="status">
-						{#if mayWrite}
-							<SingleSelect
-								label="No status"
-								options={statusOptions}
-								value={statusValue}
-								onselect={setStatus}
-								disabled={busy === 'status'}
-								icon={statusIcon}
-							/>
-						{:else}
-							<span class="d-inline-flex min-w-0 align-items-center gap-1 text-nowrap">
-								<StatusText status={issue.status} state={issue.state} />
-							</span>
-						{/if}
 					</div>
-
-					<div class="triage-field triage-field--auto" data-picker="priority">
-						{#if mayWrite}
-							<PriorityPicker
-								impact={impactValue}
-								urgency={urgencyValue}
-								priority={priorityValue}
-								disabled={busy === 'priority'}
-								oncommit={commitPriorityAxis}
-								onclear={clearPriority}
-							/>
-						{:else}
-							<span class="d-inline-flex min-w-0 align-items-center gap-1 text-nowrap">
-								{#if priorityValue}
-									<PriorityText priority={priorityValue} showName />
-								{:else}
-									<span class="text-body-secondary">No priority</span>
-								{/if}
-							</span>
-						{/if}
-					</div>
-
-					<div class="triage-field triage-field--size" data-picker="size">
-						{#if mayWrite}
-							<div class="input-group input-group-sm">
-								<span class="input-group-text px-2" aria-hidden="true">
-									<i class="bi bi-rulers"></i>
-								</span>
-								<select
-									class="form-select"
-									aria-label="Estimate size"
-									disabled={busy === 'size'}
-									value={sizeValue ?? ''}
-									onchange={(event) => void setSize(event.currentTarget.value || null)}
-								>
-									<option value="">Not estimated</option>
-									{#each SIZE_OPTIONS as option (option.value)}
-										<option value={option.value}>{option.label}</option>
-									{/each}
-								</select>
-							</div>
-						{:else}
-							<span class="d-inline-flex min-w-0 align-items-center gap-1 text-nowrap">
-								<i class="bi bi-rulers text-body-tertiary" aria-hidden="true"></i>
-								<span class="text-truncate">
-									{#if sizeValue}
-										{sizeDisplay}
-									{:else}
-										<span class="text-body-secondary">Not estimated</span>
-									{/if}
-								</span>
-							</span>
-						{/if}
-					</div>
-
-					<div class="triage-field triage-field--auto" data-picker="assignee">
-						{#if mayWrite}
-							<MultiSelect
-								hideCount
-								label="Assignee"
-								placeholder="Unassigned"
-								display="selection"
-								options={assigneeOptions.map((u) => ({ value: u.login, label: u.login }))}
-								selected={assigneeLogins}
-								onselect={setAssignees}
-								disabled={busy === 'assignees'}
-								icon={assigneeIcon}
-							/>
-						{:else}
-							<span class="d-inline-flex min-w-0 align-items-center gap-1 text-nowrap">
-								<i class="bi bi-person text-body-tertiary" aria-hidden="true"></i>
-								<span class="text-truncate">{assigneeDisplay || 'Unassigned'}</span>
-							</span>
-						{/if}
-					</div>
-
-					<div class="triage-field triage-field--milestone" data-picker="milestone">
-						{#if mayWrite}
-							<MilestonePicker
-								{repo}
-								value={milestoneValue}
-								options={milestoneOptions}
-								disabled={busy === 'milestone'}
-								onselect={(milestone) => void setMilestone(milestone)}
-							/>
-						{:else}
-							<span class="d-inline-flex min-w-0 align-items-center gap-1 text-nowrap">
-								<i class="bi bi-signpost-split text-body-tertiary" aria-hidden="true"></i>
-								<span class="text-truncate">{milestoneValue?.title ?? 'No milestone'}</span>
-							</span>
-						{/if}
-					</div>
-
-					<span
-						class="ms-auto flex-shrink-0 px-2 small text-body-secondary"
-						title={absoluteTime(issue.updatedAt)}
+				{:else}
+					<!--
+						Plain text rather than an input: a rendered input value is not
+						part of a text selection, so Mod+A could never include it.
+					-->
+					<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+					<h1
+						bind:this={titleEl}
+						class="issue-title h3 mb-2 min-w-0 text-break {mayWrite
+							? 'issue-title--editable px-1'
+							: ''}"
+						tabindex={mayWrite ? 0 : undefined}
+						role={mayWrite ? 'button' : undefined}
+						aria-label={mayWrite ? 'Issue title; activate to edit' : 'Issue title'}
+						onclick={() => mayWrite && isPlainClick() && startTitleEdit()}
+						onkeydown={(event) => {
+							if (mayWrite && (event.key === 'Enter' || event.key === ' ')) {
+								event.preventDefault();
+								startTitleEdit();
+							}
+						}}
 					>
-						Updated {timeAgo(issue.updatedAt)}
+						{title}
+					</h1>
+				{/if}
+
+				<div class="d-flex flex-wrap align-items-center gap-2 small text-body-secondary">
+					<StatusText status={issue.status} state={issue.state} />
+					{#each selectedLabels as label (label)}
+						<Badge color="light" class="border fw-normal text-body-secondary text-break"
+							>{label}</Badge
+						>
+					{/each}
+					<span>
+						opened <span title={absoluteTime(issue.createdAt)}>{timeAgo(issue.createdAt)}</span>
+						by {issue.author?.login ?? 'unknown'}
 					</span>
-				</section>
-
-				{#if detail && (detail.epic || issue.isEpic)}
-					<EpicProperty
-						issue={detail.issue}
-						parent={detail.epic}
-						{repo}
-						{number}
-						{mayWrite}
-					/>
-				{/if}
-
-				{#if writeStatus}
-					<div class="pt-1">
-						{#if writeStatus.undo}
-							<InlineStatus
-								tone={writeStatus.tone}
-								message={writeStatus.message}
-								action={undoAction}
-							/>
-						{:else}
-							<InlineStatus tone={writeStatus.tone} message={writeStatus.message} />
-						{/if}
-					</div>
-				{/if}
+					<span title={absoluteTime(issue.updatedAt)}>updated {timeAgo(issue.updatedAt)}</span>
+				</div>
 			{/if}
 		</div>
-		<div class="d-flex flex-shrink-0 align-items-center gap-1 align-self-start">
-			<Button
-				color="link"
-				size="sm"
-				class="text-decoration-none px-1 py-0 text-body-secondary"
-				aria-label="Close inspector"
-				title="Close inspector"
-				onclick={onclose}
-			>
-				<i class="bi bi-x-lg" aria-hidden="true"></i>
-			</Button>
-		</div>
-	{/snippet}
 
-	{#if loading && !detail}
-		<div class="d-flex flex-grow-1 align-items-center justify-content-center p-4 text-body-secondary">
-			<Spinner size={16} label="Loading issue" />
+		<div class="d-flex flex-wrap align-items-center gap-2">
+			<Button
+				color="secondary"
+				outline
+				size="sm"
+				href={githubLink}
+				target="_blank"
+				rel="noreferrer"
+			>
+				<i class="bi bi-box-arrow-up-right me-1" aria-hidden="true"></i>
+				Open in GitHub
+			</Button>
+			{#if issue}
+				<Button
+					color="secondary"
+					outline
+					size="sm"
+					title={copied ? 'Copied' : 'Copy issue as Markdown'}
+					onclick={() => void copyThread()}
+				>
+					{#if copied}
+						<i class="bi bi-check-lg me-1" aria-hidden="true"></i>
+						Copied
+					{:else}
+						<i class="bi bi-clipboard me-1" aria-hidden="true"></i>
+						Copy as Markdown
+					{/if}
+				</Button>
+			{/if}
 		</div>
-	{:else if error}
-		<div class="d-flex flex-grow-1 align-items-start justify-content-center p-4">
-			<InlineStatus tone="error" message={error} action={retryLoad} class="measure" />
+	</div>
+
+	{#if writeStatus}
+		<div class="mt-2">
+			{#if writeStatus.undo}
+				<InlineStatus
+					tone={writeStatus.tone}
+					message={writeStatus.message}
+					action={undoAction}
+				/>
+			{:else}
+				<InlineStatus tone={writeStatus.tone} message={writeStatus.message} />
+			{/if}
 		</div>
-	{:else if issue && detail}
-		{#if issue.labelConflict}
+	{/if}
+
+	{#if issue?.labelConflict}
+		<div class="mt-2">
 			<InlineStatus
 				tone="warning"
 				message="GitHub carries a conflicting reserved label or a retired priority label. Funnel uses the derived priority and does not trust the label."
 			/>
-		{/if}
+		</div>
+	{/if}
 
-		{#if blockerActive}
-			<section class="d-flex flex-column gap-2" aria-label="Blocker">
-				<div class="d-flex flex-wrap align-items-center gap-3 border-top pt-3">
-					<StatusText blocked />
-					{#if blockedState.info?.recheck}
-						<span class="small text-body-secondary">
-							Re-check {blockedState.info.recheck}
-						</span>
-					{/if}
-					{#if mayWrite}
-						<Button
-							color="link"
-							size="sm"
-							class="ms-auto text-decoration-none px-1 py-0"
-							disabled={busy === 'blocked' || !canEdit}
-							onclick={() => openBlockDialog('unblock')}
-						>
-							Unblock
-						</Button>
-					{/if}
-				</div>
-				{#if blockedState.info}
-					<dl class="property-list mb-0">
-						<dt>Reason</dt>
-						<dd>{delayReasonLabel(blockedState.info.reason)}</dd>
-						<dt>Blocker</dt>
-						<dd class="text-break">{blockedState.info.blocker}</dd>
-						{#if blockedState.info.needs}
-							<dt>Needs to unblock</dt>
-							<dd class="text-break">{blockedState.info.needs}</dd>
-						{/if}
-						{#if blockedState.info.trying}
-							<dt>Currently trying</dt>
-							<dd class="text-break">{blockedState.info.trying}</dd>
-						{/if}
-					</dl>
-				{/if}
-			</section>
-		{/if}
-
-		<section class="d-flex measure flex-column" aria-label="Description">
-			{#if editingBody}
-				<textarea
-					class="form-control"
-					style="min-height: 8rem"
-					value={body}
-					oninput={(e) => (body = e.currentTarget.value)}
-					onkeydown={onBodyKeydown}
-					placeholder="Describe the issue…"
-					rows="6"
-					aria-label="Issue description"
-				></textarea>
-				<div class="mt-2 d-flex align-items-center justify-content-end gap-1">
-					{#if busy === 'body'}
-						<Spinner size={13} />
-					{:else}
-						<Button color="link" size="sm" class="text-decoration-none" onclick={cancelBody}>
-							Cancel
-						</Button>
-						<Button color="primary" size="sm" onclick={saveBody} disabled={!bodyDirty}>
-							Save
-						</Button>
-					{/if}
-				</div>
-			{:else}
-				<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
-				<div
-					class="inspector-description {mayWrite
-						? 'inspector-description--editable'
-						: ''} {bodyHtml !== null ? 'markdown' : 'plain-text'}"
-					role={mayWrite ? 'button' : undefined}
-					tabindex={mayWrite ? 0 : undefined}
-					aria-label={mayWrite ? 'Issue description; activate to edit' : 'Issue description'}
-					onclick={() => mayWrite && isPlainClick() && (editingBody = true)}
-					onkeydown={(e) => {
-						if (mayWrite && (e.key === 'Enter' || e.key === ' ')) {
-							e.preventDefault();
-							editingBody = true;
-						}
-					}}
-				>
-					{#if body.trim().length === 0}
-						<span class="text-body-tertiary">Add a description…</span>
-					{:else if bodyHtml !== null}
-						{@html bodyHtml}
-					{:else}
-						{body}
-					{/if}
-				</div>
-			{/if}
-		</section>
-
-		<section
-			bind:this={activityEl}
-			class="d-flex measure flex-column gap-2"
-			aria-label="Activity"
+	{#if issue && isUntriaged(issue)}
+		<Alert
+			color="light"
+			class="border d-flex flex-wrap align-items-center justify-content-between gap-2 mt-3"
 		>
-			<div class="d-flex align-items-baseline justify-content-between gap-3 border-top pt-3">
-				<h2 class="h6 fw-semibold mb-0">Activity</h2>
-				<span class="small text-body-secondary metric-number">{detail.commentTotal}</span>
-			</div>
-			{#if detail.hasMoreComments && commentLimit < MAX_COMMENT_LIMIT}
-				<div class="d-flex justify-content-center">
+			<span>This issue is still in the Inbox and has not been triaged.</span>
+			<span class="d-flex flex-wrap align-items-center gap-2">
+				{#if mayWrite}
 					<Button
-						color="link"
+						color="primary"
 						size="sm"
-						class="text-decoration-none"
-						disabled={loading}
-						onclick={() => void loadEarlierComments()}
+						disabled={busy === 'status'}
+						onclick={() => void setStatus('backlog')}
 					>
-						Load earlier comments
+						Accept
 					</Button>
-				</div>
-			{/if}
-			{#if detail.comments.length === 0}
-				<p class="text-body-secondary mb-0">No comments yet.</p>
-			{:else}
-				<ActivityTimeline
-					comments={detail.comments}
-					workNotes={[]}
-					filter="comments"
-					bubbles={commentBubbles}
-					reporterLogin={detail.issue.author?.login ?? null}
-					readonly={!mayWrite}
-					onreply={mayWrite ? () => focusComposer() : undefined}
-					onedit={editWorkNote}
-					ondelete={removeWorkNote}
-					onpublish={publishNote}
-				/>
-			{/if}
-		</section>
-
-		{#if workNotesEnabled}
-			<section class="d-flex measure flex-column gap-2" aria-label="Work notes">
-				<div class="d-flex align-items-baseline justify-content-between gap-3 border-top pt-3">
-					<h2 class="h6 fw-semibold mb-0">Work notes</h2>
-					<span class="small text-body-secondary metric-number">
-						{detail.workNotes.length}
-					</span>
-				</div>
-				{#if detail.workNotes.length === 0}
-					<p class="text-body-secondary mb-0">
-						No work notes yet. Internal notes stay in Funnel unless you publish them.
-					</p>
-				{:else}
-					<ActivityTimeline
-						comments={[]}
-						workNotes={detail.workNotes}
-						filter="notes"
-						viewerLogin={viewerLogin}
-						reporterLogin={detail.issue.author?.login ?? null}
-						readonly={!mayWrite}
-						busyId={noteBusy}
-						onreply={mayWrite ? () => focusComposer() : undefined}
-						onedit={editWorkNote}
-						ondelete={removeWorkNote}
-						onpublish={publishNote}
-					/>
 				{/if}
-			</section>
-		{/if}
+				<a href="/inbox" class="link-primary small">Open Inbox</a>
+			</span>
+		</Alert>
+	{/if}
 
-		{#if attachmentsEnabled}
-			<AttachmentDropbox
-				attachments={detail.attachments}
-				uploading={uploading}
-				busyId={deletingId}
-				readonly={!mayWrite}
-				onupload={(files) => void uploadFiles(files)}
-				ondelete={(item) => void removeAttachment(item)}
-			/>
-		{/if}
-
-		<details class="inspector-details border-top">
-			<summary
-				class="d-flex align-items-center gap-2 py-2 fw-semibold"
-				style="min-height: 2.25rem"
+	{#if loading && !detail}
+		<div class="d-flex align-items-center gap-2 py-5 text-body-secondary">
+			<Spinner size={16} label="Loading issue" />
+		</div>
+	{:else if error}
+		<div class="d-flex flex-column gap-2 py-4">
+			<InlineStatus tone="error" message={error} action={retryLoad} />
+			<p class="small mb-0">
+				<a href="/issues" class="link-primary">Return to Issues</a>
+			</p>
+		</div>
+	{:else if issue && detail}
+		<div class="row g-4 mt-2">
+			<div
+				class="col-lg-8"
+				use:codeBlocks={contentKey}
+				use:mermaidDiagrams={contentKey}
 			>
-				<i class="bi bi-chevron-right flex-shrink-0 text-body-tertiary" aria-hidden="true"></i>
-				Details
-				<span class="small fw-normal text-body-secondary">
-					Severity, labels, people, time
-				</span>
-			</summary>
-
-			<div class="d-flex flex-column gap-3 pb-1">
-				<dl class="property-list mb-0">
-					<dt>Severity</dt>
-					<dd>{severityDisplay}</dd>
-
-					<dt>Reporter</dt>
-					<dd class="text-break">{issue.author?.login ?? '—'}</dd>
-
-					<dt>Labels</dt>
-					<dd>
-						{#if mayWrite}
-							<MultiSelect
-								hideCount
-								label="Labels"
-								placeholder="No labels"
-								display="selection"
-								options={labelOptions}
-								selected={selectedLabels}
-								onselect={setLabels}
-								disabled={busy === 'labels'}
-								icon={labelIcon}
-							/>
-						{:else}
-							<span class="text-break text-body-secondary">
-								{selectedLabels.length === 0 ? '—' : selectedLabels.join(', ')}
-							</span>
-						{/if}
-					</dd>
-
-					{#if !blockerActive}
-						<dt>Blocked</dt>
-						<dd>
-							{#if mayWrite}
-								<Button
-									color="link"
-									size="sm"
-									class="text-decoration-none px-0 py-0"
-									disabled={busy === 'blocked' || !canEdit}
-									title="Block issue"
-									onclick={() => openBlockDialog('block')}
-								>
-									Block issue
-								</Button>
-							{:else}
-								<span>Not blocked</span>
+				{#if blockerActive}
+					<section class="mb-4" aria-label="Blocker">
+						<div class="d-flex flex-wrap align-items-center gap-3">
+							<StatusText blocked />
+							{#if blockedState.info?.recheck}
+								<span class="small text-body-secondary">
+									Re-check {blockedState.info.recheck}
+								</span>
 							{/if}
-						</dd>
-					{/if}
+						</div>
+						{#if blockedState.info}
+							<dl class="property-list mt-2 mb-0">
+								<dt>Reason</dt>
+								<dd>{delayReasonLabel(blockedState.info.reason)}</dd>
+								<dt>Blocker</dt>
+								<dd class="text-break">{blockedState.info.blocker}</dd>
+								{#if blockedState.info.needs}
+									<dt>Needs to unblock</dt>
+									<dd class="text-break">{blockedState.info.needs}</dd>
+								{/if}
+								{#if blockedState.info.trying}
+									<dt>Currently trying</dt>
+									<dd class="text-break">{blockedState.info.trying}</dd>
+								{/if}
+							</dl>
+						{/if}
+					</section>
+				{/if}
 
-					<dt>Watching</dt>
-					<dd>
-						{#if mayWrite}
+				<section aria-label="Description">
+					{#if editingBody}
+						<textarea
+							class="form-control"
+							style="min-height: 8rem"
+							value={body}
+							oninput={(event) => (body = event.currentTarget.value)}
+							onkeydown={onBodyKeydown}
+							placeholder="Describe the issue…"
+							rows="6"
+							aria-label="Issue description"
+						></textarea>
+						<div class="mt-2 d-flex align-items-center justify-content-end gap-1">
+							{#if busy === 'body'}
+								<Spinner size={13} />
+							{:else}
+								<Button color="link" size="sm" class="text-decoration-none" onclick={cancelBody}>
+									Cancel
+								</Button>
+								<Button color="primary" size="sm" onclick={saveBody} disabled={!bodyDirty}>
+									Save
+								</Button>
+							{/if}
+						</div>
+					{:else}
+						<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+						<div
+							class="issue-document {mayWrite
+								? 'issue-description--editable'
+								: ''} {bodyHtml !== null ? 'markdown' : 'plain-text'}"
+							role={mayWrite ? 'button' : undefined}
+							tabindex={mayWrite ? 0 : undefined}
+							aria-label={mayWrite ? 'Issue description; activate to edit' : 'Issue description'}
+							onclick={() => mayWrite && isPlainClick() && (editingBody = true)}
+							onkeydown={(event) => {
+								if (mayWrite && (event.key === 'Enter' || event.key === ' ')) {
+									event.preventDefault();
+									editingBody = true;
+								}
+							}}
+						>
+							{#if body.trim().length === 0}
+								<span class="text-body-tertiary">Add a description…</span>
+							{:else if bodyHtml !== null}
+								{@html bodyHtml}
+							{:else}
+								{body}
+							{/if}
+						</div>
+					{/if}
+				</section>
+
+				<section
+					bind:this={activityEl}
+					class="d-flex flex-column gap-2 border-top pt-3 mt-4"
+					aria-label="Activity"
+				>
+					<div class="d-flex align-items-baseline justify-content-between gap-3">
+						<h2 class="h6 fw-semibold mb-0">Activity</h2>
+						<span class="small text-body-secondary metric-number">
+							{detail.commentTotal}
+							{detail.commentTotal === 1 ? 'comment' : 'comments'}
+						</span>
+					</div>
+					{#if detail.hasMoreComments && commentLimit < MAX_COMMENT_LIMIT}
+						<div class="d-flex justify-content-center">
 							<Button
 								color="link"
 								size="sm"
-								class="d-inline-flex align-items-center gap-1 text-decoration-none px-0 py-0"
-								disabled={watchBusy || !canEdit}
-								aria-pressed={watching}
-								onclick={() => void toggleWatch()}
+								class="text-decoration-none"
+								disabled={loading}
+								onclick={() => void loadEarlierComments()}
 							>
-								{#if watchBusy}
-									<Spinner size={12} />
-								{:else}
-									{watching ? 'Watching' : 'Not watching'}
-								{/if}
+								Load earlier comments
 							</Button>
-						{:else}
-							<span>{watching ? 'Watching' : 'Not watching'}</span>
-						{/if}
-					</dd>
-
-					{#if !detail.epic && !detail.issue.isEpic}
-						<dt>Epic</dt>
-						<dd>
-							<EpicProperty
-								issue={detail.issue}
-								parent={detail.epic}
-								{repo}
-								{number}
-								{mayWrite}
-							/>
-						</dd>
+						</div>
 					{/if}
-				</dl>
+					{#if detail.comments.length === 0}
+						<p class="text-body-secondary mb-0">No comments yet.</p>
+					{:else}
+						<ActivityTimeline
+							comments={detail.comments}
+							workNotes={[]}
+							filter="comments"
+							bubbles={commentBubbles}
+							reporterLogin={detail.issue.author?.login ?? null}
+							readonly={!mayWrite}
+							onreply={mayWrite ? () => focusComposer() : undefined}
+							onedit={editWorkNote}
+							ondelete={removeWorkNote}
+							onpublish={publishNote}
+						/>
+					{/if}
 
-				<IssueTimeCard time={detail.time} />
+					{#if mayWrite}
+						<div class="border-top pt-3 mt-3">
+							<label class="form-label small fw-semibold" for="issue-composer">
+								Add a comment
+							</label>
+							{@render composer()}
+						</div>
+					{/if}
+				</section>
 
-				<DelayList
-					delays={detail.delays}
-					{repo}
-					{number}
-					mayWrite={mayWrite}
-					onrecord={() => (delayDialogOpen = true)}
+				{#if workNotesEnabled}
+					<section class="mt-4" aria-label="Work notes">
+						<div class="d-flex align-items-baseline justify-content-between gap-3 border-top pt-3">
+							<h2 class="h6 fw-semibold mb-0">Work notes</h2>
+							<span class="small text-body-secondary metric-number">
+								{detail.workNotes.length}
+							</span>
+						</div>
+						{#if detail.workNotes.length === 0}
+							<p class="text-body-secondary mb-0 mt-2">
+								No work notes yet. Internal notes stay in Funnel unless you publish them.
+							</p>
+						{:else}
+							<div class="mt-2">
+								<ActivityTimeline
+									comments={[]}
+									workNotes={detail.workNotes}
+									filter="notes"
+									viewerLogin={viewerLogin}
+									reporterLogin={detail.issue.author?.login ?? null}
+									readonly={!mayWrite}
+									busyId={noteBusy}
+									onreply={mayWrite ? () => focusComposer() : undefined}
+									onedit={editWorkNote}
+									ondelete={removeWorkNote}
+									onpublish={publishNote}
+								/>
+							</div>
+						{/if}
+					</section>
+				{/if}
+
+				{#if attachmentsEnabled}
+					<div class="mt-4">
+						<AttachmentDropbox
+							attachments={detail.attachments}
+							uploading={uploading}
+							busyId={deletingId}
+							readonly={!mayWrite}
+							onupload={(files) => void uploadFiles(files)}
+							ondelete={(item) => void removeAttachment(item)}
+						/>
+					</div>
+				{/if}
+			</div>
+
+			<div class="col-lg-4">
+				<IssuePropertiesCard
+					{issue}
+					{detail}
+					labels={selectedLabels}
+					{mayWrite}
+					{busy}
+					onstatus={setStatus}
+					onpriority={commitPriorityAxis}
+					onassignees={setAssignees}
+					onmilestone={setMilestone}
+					onsize={setSize}
+					onlabels={setLabels}
+				/>
+				<IssueDetailsCard
+					{issue}
+					{detail}
+					{mayWrite}
+					{watching}
+					{watchBusy}
+					{canEdit}
+					blocked={blockerActive}
+					{busy}
+					onblock={openBlockDialog}
+					onwatch={toggleWatch}
 				/>
 			</div>
-		</details>
+		</div>
 	{/if}
-</DetailShell>
+</div>
 
 <svelte:window onkeydown={onWindowKeydown} />
-<!-- Announced to screen readers; kept outside the pane so a Mod+A transcript never picks it up. -->
+<!-- Announced to screen readers; kept outside the page so a Mod+A transcript never picks it up. -->
 <span aria-live="polite" class="visually-hidden">{copied ? 'Issue copied' : ''}</span>
 
 <IssueActionDialog
@@ -1565,13 +1330,6 @@
 	}}
 />
 
-<RecordDelayDialog
-	open={delayDialogOpen}
-	{repo}
-	{number}
-	onopenchange={(open) => (delayDialogOpen = open)}
-/>
-
 <BlockActionDialog
 	open={blockedDialogMode !== null}
 	mode={blockedDialogMode ?? 'block'}
@@ -1587,71 +1345,29 @@
 />
 
 <style>
-	.triage-field {
-		min-width: 0;
-		max-width: 100%;
-	}
-
-	.triage-field--status {
-		width: 11rem;
-	}
-
-	.triage-field--size {
-		width: 10rem;
-	}
-
-	.triage-field--milestone {
-		width: 13rem;
-	}
-
-	.triage-field--auto {
-		width: auto;
-	}
-
-	.inspector-title--editable {
+	.issue-title--editable {
 		cursor: text;
 		border-radius: var(--bs-border-radius-sm);
 	}
 
-	.inspector-title--editable:hover {
+	.issue-title--editable:hover {
 		background: var(--bs-tertiary-bg);
 	}
 
-	.inspector-title:focus-visible,
-	.inspector-description:focus-visible {
+	.issue-title:focus-visible,
+	.issue-description--editable:focus-visible {
 		outline: 2px solid var(--bs-primary);
 		outline-offset: 2px;
 	}
 
-	.inspector-description {
+	.issue-description--editable {
 		min-height: 3rem;
-		padding: 0.25rem 0;
-	}
-
-	.inspector-description--editable {
 		cursor: text;
 		border-radius: var(--bs-border-radius-sm);
 	}
 
-	.inspector-description--editable:hover {
+	.issue-description--editable:hover {
 		background: var(--bs-tertiary-bg);
-	}
-
-	.inspector-details > summary {
-		cursor: pointer;
-		list-style: none;
-	}
-
-	.inspector-details > summary::-webkit-details-marker {
-		display: none;
-	}
-
-	.inspector-details > summary .bi {
-		transition: transform 0.15s ease;
-	}
-
-	.inspector-details[open] > summary .bi {
-		transform: rotate(90deg);
 	}
 
 	.metric-number {
