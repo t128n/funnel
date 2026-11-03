@@ -66,6 +66,7 @@ describe("toFilterParams", () => {
 			priorities: ["p1"],
 			sizes: ["sm", "md"],
 			labels: ["bug", "frontend"],
+			planned: ["this-week"],
 			milestones: ["orgA/core#3", NONE],
 			search: "crash on boot",
 		};

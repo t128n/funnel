@@ -86,7 +86,7 @@ describe('Composition A shell', () => {
 });
 
 describe('Composition A pages', () => {
-	test('issues index is a grouped six-column table with a one-row toolbar', () => {
+	test('issues index is a grouped seven-column table with a one-row toolbar', () => {
 		const page = source('src/routes/(app)/issues/+page.svelte');
 		const table = source('src/lib/components/issue/IssueTable.svelte');
 
@@ -96,11 +96,11 @@ describe('Composition A pages', () => {
 		expect(page).not.toContain('SplitView');
 		expect(page).not.toContain('Toolbar'); // the strict one-row grid is explicit
 
-		for (const column of ['Issue', 'Title', 'Status', 'Priority', 'Assignee', 'Updated']) {
+		for (const column of ['Issue', 'Title', 'Status', 'Priority', 'Planned', 'Assignee', 'Updated']) {
 			expect(table).toContain(column);
 		}
 		expect(table).toContain('table-responsive border rounded');
-		expect(table).toContain('colspan="6"');
+		expect(table).toContain('colspan="7"');
 		expect(table).toContain('issuePath(\'issues\'');
 		expect(table).toContain('d-md-none');
 	});

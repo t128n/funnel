@@ -22,7 +22,7 @@ import {
 } from "#lib/server/db/schema";
 import type { FunnelConfig } from "#lib/server/config";
 import type { UserRef } from "#lib/server/issues/types";
-import { cycleForWeek, weekLabel, weekStartOf } from "./calendar";
+import { weekLabel, weekStartOf } from "./calendar";
 import {
   distributeIssues,
   estimateMinutes,
@@ -55,17 +55,6 @@ export interface PlanUnassigned {
 export interface WeekPlan {
   weekStart: string;
   label: string;
-  lanes: PlanLane[];
-  unassigned: PlanUnassigned;
-  unestimated: PlanningIssue[];
-}
-
-/** A cycle's weeks plus aggregate lanes for the whole window. */
-export interface CyclePlan {
-  key: string;
-  start: string;
-  end: string;
-  weeks: WeekPlan[];
   lanes: PlanLane[];
   unassigned: PlanUnassigned;
   unestimated: PlanningIssue[];
@@ -338,55 +327,5 @@ export async function weekPlan(week: string): Promise<WeekPlan> {
     lanes: buckets.lanes,
     unassigned: buckets.unassigned,
     unestimated: openUnestimatedIssues(),
-  };
-}
-
-/**
- * A cycle window: per-week lanes plus aggregate lanes for the full cycle. The
- * aggregate cap uses the number of weeks in the cycle, so two configured weeks
- * double a maintainer's weekly cap.
- */
-export async function cyclePlan(week: string): Promise<CyclePlan> {
-  const weekStart = weekStartOf(week);
-  const config = await getConfig();
-  const { cycle_anchor, cycle_weeks } = config.planning;
-  const cycle = cycleForWeek(weekStart, cycle_anchor, cycle_weeks);
-
-  const planned = listPlannedIssues({ from: cycle.start, to: cycle.end });
-  const byWeek = new Map<string, PlanningIssue[]>();
-  for (const issue of planned) {
-    if (issue.weekStart === null) continue;
-    const list = byWeek.get(issue.weekStart) ?? [];
-    list.push(issue);
-    byWeek.set(issue.weekStart, list);
-  }
-
-  const unestimated = openUnestimatedIssues();
-  const weeks: WeekPlan[] = cycle.weeks.map((start) => {
-    const issues = byWeek.get(start) ?? [];
-    const buckets = planBuckets(issues, config.planning, 1);
-    return {
-      weekStart: start,
-      label: weekLabel(start),
-      lanes: buckets.lanes,
-      unassigned: buckets.unassigned,
-      unestimated,
-    };
-  });
-
-  const aggregate = planBuckets(
-    planned,
-    config.planning,
-    cycle.weeks.length,
-  );
-
-  return {
-    key: cycle.key,
-    start: cycle.start,
-    end: cycle.end,
-    weeks,
-    lanes: aggregate.lanes,
-    unassigned: aggregate.unassigned,
-    unestimated,
   };
 }

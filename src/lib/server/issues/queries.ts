@@ -40,6 +40,7 @@ import {
   mirrorThreadAssignee,
   mirrorThreadLabel,
   mirrorUser,
+  statePlanItem,
 } from "#lib/server/db/schema";
 import {
   computeIssueTime,
@@ -457,6 +458,33 @@ function hydrate(rows: RawRow[]): IssueListItem[] {
     assignees.set(key, list);
   }
 
+  // Plan state is keyed by `owner/name` + number rather than the disposable
+  // mirror id, so it survives pruning. One extra batched lookup keeps it out of
+  // every list query's join and out of the N+1 path.
+  const planTuple = sql.join(
+    rows.map((row) => sql`(${row.org}, ${row.name}, ${row.number})`),
+    sql`, `,
+  );
+  const planRows = db
+    .select({
+      org: statePlanItem.org,
+      name: statePlanItem.name,
+      issueNumber: statePlanItem.issueNumber,
+      weekStart: statePlanItem.weekStart,
+    })
+    .from(statePlanItem)
+    .where(
+      sql`(${statePlanItem.org}, ${statePlanItem.name}, ${statePlanItem.issueNumber}) IN (${planTuple})`,
+    )
+    .all();
+  const planWeeks = new Map<string, string>();
+  for (const row of planRows) {
+    planWeeks.set(
+      `${row.org}\u0000${row.name}\u0000${row.issueNumber}`,
+      row.weekStart,
+    );
+  }
+
   return rows.map((row) => {
     const key = rowKey(row.repoId, row.number);
     const repo = `${row.org}/${row.name}`;
@@ -497,6 +525,8 @@ function hydrate(rows: RawRow[]): IssueListItem[] {
             }
           : null,
       labels: labels.get(key) ?? [],
+      planWeek:
+        planWeeks.get(`${row.org}\u0000${row.name}\u0000${row.number}`) ?? null,
     } satisfies IssueListItem;
   });
 }
@@ -1298,7 +1328,14 @@ export function getIssueDetail(
   const [org, name] = issue.repo.split("/");
 
   const delays = listDelays(org, name, number);
-  const sizeMinutes = readSettings().planning.size_minutes;
+  const settings = readSettings();
+  const sizeMinutes = settings.planning.size_minutes;
+  const activeMaintainers = settings.planning.maintainers
+    .filter((maintainer) => maintainer.active)
+    .map(
+      (maintainer) =>
+        `${maintainer.forge}:${maintainer.instance}:${maintainer.external_id}`,
+    );
   const time: IssueTime = computeIssueTime({
     events: listIssueEvents(org, name, number),
     delays,
@@ -1322,5 +1359,6 @@ export function getIssueDetail(
     repoLabels,
     assigneeOptions,
     milestoneOptions,
+    planning: { activeMaintainers },
   };
 }

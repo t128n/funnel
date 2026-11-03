@@ -13,6 +13,7 @@
 	} from '#lib/client/list-prefs.svelte';
 	import type { Feed } from '#lib/client/feed.svelte';
 	import { buildGroups, type ProjectOption } from '#lib/components/issue/grouping';
+	import { weekHeadline } from '#lib/components/plan/format';
 	import { issuePath } from '#lib/issue-url';
 	import { issueRef } from '#lib/issue-ref';
 	import { canonicalLabel } from '#lib/labels';
@@ -105,6 +106,13 @@
 		return issue.assignees.map((person) => person.login).join(', ');
 	}
 
+	/** `2 Nov 2026` for a committed week, or `null` when unplanned. */
+	function planOf(issue: IssueListItem): string | null {
+		return issue.planWeek
+			? weekHeadline(issue.planWeek).replace('Week of ', '')
+			: null;
+	}
+
 	function openIssue(issue: IssueListItem): void {
 		void goto(issuePath('issues', issue.repo, issue.number));
 	}
@@ -194,6 +202,7 @@
 					<th scope="col" class="small text-body-secondary">Title</th>
 					<th scope="col" class="small text-body-secondary d-none d-md-table-cell" style="width: 8rem;">Status</th>
 					<th scope="col" class="small text-body-secondary d-none d-md-table-cell" style="width: 7rem;">Priority</th>
+					<th scope="col" class="small text-body-secondary d-none d-md-table-cell" style="width: 8rem;">Planned</th>
 					<th scope="col" class="small text-body-secondary d-none d-md-table-cell" style="width: 10rem;">Assignee</th>
 					<th scope="col" class="small text-body-secondary text-end d-none d-lg-table-cell" style="width: 8rem;">Updated</th>
 				</tr>
@@ -205,6 +214,7 @@
 						<td><span class="skeleton" style="width: 62%"></span></td>
 						<td class="d-none d-md-table-cell"><span class="skeleton" style="width: 4.5rem"></span></td>
 						<td class="d-none d-md-table-cell"><span class="skeleton" style="width: 3.5rem"></span></td>
+						<td class="d-none d-md-table-cell"><span class="skeleton" style="width: 4.5rem"></span></td>
 						<td class="d-none d-md-table-cell"><span class="skeleton" style="width: 5.5rem"></span></td>
 						<td class="d-none d-lg-table-cell"><span class="skeleton ms-auto" style="width: 4rem"></span></td>
 					</tr>
@@ -238,6 +248,7 @@
 					<th scope="col" class="small text-body-secondary">Title</th>
 					<th scope="col" class="small text-body-secondary d-none d-md-table-cell" style="width: 8rem;">Status</th>
 					<th scope="col" class="small text-body-secondary d-none d-md-table-cell" style="width: 7rem;">Priority</th>
+					<th scope="col" class="small text-body-secondary d-none d-md-table-cell" style="width: 8rem;">Planned</th>
 					<th scope="col" class="small text-body-secondary d-none d-md-table-cell" style="width: 10rem;">Assignee</th>
 					<th scope="col" class="small text-body-secondary text-end d-none d-lg-table-cell" style="width: 8rem;">Updated</th>
 				</tr>
@@ -247,7 +258,7 @@
 				{@const collapsed = isGroupCollapsed(groupKey)}
 				<tbody>
 					<tr class="table-light">
-						<th colspan="6" class="small fw-semibold text-body-secondary py-2">
+						<th colspan="7" class="small fw-semibold text-body-secondary py-2">
 							<button
 								type="button"
 								class="group-toggle btn btn-link btn-sm border-0 p-0 text-decoration-none text-reset text-wrap text-start fw-semibold"
@@ -301,6 +312,12 @@
 											<span class="mx-1" aria-hidden="true">·</span>
 											<PriorityText priority={issue.priority} showName weight="normal" />
 										{/if}
+										{#if issue.planWeek}
+											<span class="mx-1" aria-hidden="true">·</span>
+											<span class="text-primary">
+												<i class="bi bi-calendar-check me-1" aria-hidden="true"></i>Planned {planOf(issue)}
+											</span>
+										{/if}
 										<span class="mx-1" aria-hidden="true">·</span>
 										{#if assigneesOf(issue)}
 											{assigneesOf(issue)}
@@ -319,6 +336,18 @@
 								<td class="small d-none d-md-table-cell">
 									{#if issue.priority}
 										<PriorityText priority={issue.priority} showName weight="normal" />
+									{:else}
+										<span class="text-body-tertiary">—</span>
+									{/if}
+								</td>
+								<td class="small d-none d-md-table-cell">
+									{#if issue.planWeek}
+										<span
+											class="text-primary text-nowrap"
+											title={`Planned for ${weekHeadline(issue.planWeek)}`}
+										>
+											<i class="bi bi-calendar-check me-1" aria-hidden="true"></i>{planOf(issue)}
+										</span>
 									{:else}
 										<span class="text-body-tertiary">—</span>
 									{/if}

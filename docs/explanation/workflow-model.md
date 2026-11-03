@@ -134,7 +134,7 @@ Both are keyed by `owner/name` plus issue number rather than a foreign key to th
 
 ## Planning sits beside the labels
 
-Time planning is the third kind of state, after GitHub-owned labels and Funnel-owned notes and attachments. A **plan item** in `state_plan_item` schedules one open, sized issue into one Monday week. It is keyed by `owner/name` plus issue number, so it survives mirror pruning and `clearMirror`, and it is never written to GitHub: the issue's assignees, size label and milestone stay authoritative, and the plan only records *when* Funnel intends the work to happen.
+Time planning is the third kind of state, after GitHub-owned labels and Funnel-owned notes and attachments. A **plan item** in `state_plan_item` commits one open, sized issue to one Monday week. It is keyed by `owner/name` plus issue number, so it survives mirror pruning and `clearMirror`, and it is never written to GitHub: the issue's assignees, size label and milestone stay authoritative, and the plan only records *when* Funnel intends the work to happen. The commitment is edited on the issue itself; `/plan` is the team-level capacity projection.
 
 Estimates come from the size label, not the plan row. `planning.size_minutes` maps `sm`, `md` and `lg` to minutes instance-wide, and planned hours are derived from the issue's current size on every read. That is why re-sizing an issue or changing the mapping re-prices every existing plan item without touching the rows, and why an unestimated issue cannot be scheduled at all.
 
@@ -177,7 +177,7 @@ It costs:
 - [Reserved labels reference](../reference/reserved-labels.md) — the exact names, colours, and descriptions.
 - [Settings reference](../reference/settings.md) — `board.done_days`, projects, and repositories.
 - [Configure the board](../how-to/configure/board.md) — setting the Done window and Work-in-Progress limits.
-- [Configure estimates and weekly plans](../how-to/configure/planning.md) — size minutes, net hours, cycles and the 60% cap.
+- [Configure estimates and weekly plans](../how-to/configure/planning.md) — size minutes, net hours and the 60% cap.
 - [Plan your day](../how-to/plan/plan-your-day.md) — working hours, the ALPEN day view, the buffer and the Outlook feed.
 - [Why planning and actuals work this way](planning-and-actuals.md) — the three layers, the buffer, observed actuals and body-based epics.
 - [Track time and delays](../how-to/use/track-time-and-delays.md) — reading actual time and recording a delay.

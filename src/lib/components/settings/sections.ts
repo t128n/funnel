@@ -111,7 +111,7 @@ export const settingsGroups: SettingsGroup[] = [
 			{
 				id: 'planning',
 				label: 'Planning',
-				description: 'Size-to-time estimates, the cycle shape, and planning capacity.',
+				description: 'Size-to-time estimates, the allocation, and maintainer capacity.',
 				href: '/settings/planning',
 				minRole: 'admin'
 			},

@@ -11,7 +11,7 @@ import {
 } from "#tests/planning-helpers";
 import { TEST_CONFIG } from "#tests/test-config";
 import { clearMirror } from "#tests/mirror-helpers";
-import { cyclePlan, weekPlan } from "./plans";
+import { weekPlan } from "./plans";
 
 const WEEK = "2026-10-19";
 
@@ -116,55 +116,6 @@ describe("week and cycle plans", () => {
 
     expect(plan.lanes).toEqual([]);
     expect(plan.unassigned.committedMinutes).toBe(240);
-  });
-
-  test("test_cycle_aggregates_two_weeks", async () => {
-    const repoId = seedPlanningRepo("orgA/core");
-    seedPlanningIssue({
-      repoId,
-      number: 1,
-      size: "md",
-      assignees: [planningUser("ann")],
-    });
-    seedPlanningIssue({
-      repoId,
-      number: 2,
-      size: "md",
-      assignees: [planningUser("ann")],
-    });
-    setPlanItem({
-      org: "orgA",
-      name: "core",
-      issueNumber: 1,
-      weekStart: "2026-10-19",
-    });
-    setPlanItem({
-      org: "orgA",
-      name: "core",
-      issueNumber: 2,
-      weekStart: "2026-10-26",
-    });
-
-    const plan = await cyclePlan(WEEK);
-
-    expect(plan).toMatchObject({
-      key: "2026-10-19",
-      start: "2026-10-19",
-      end: "2026-11-01",
-    });
-    expect(plan.weeks.map((week) => week.weekStart)).toEqual([
-      "2026-10-19",
-      "2026-10-26",
-    ]);
-    expect(plan.weeks.map((week) => week.lanes[0].committedMinutes)).toEqual([
-      240, 240,
-    ]);
-    expect(plan.lanes[0]).toMatchObject({
-      capMinutes: 720,
-      committedMinutes: 480,
-      remainingMinutes: 240,
-      over: false,
-    });
   });
 
   test("a week outside the planned set is empty", async () => {

@@ -7,6 +7,7 @@
 		| 'priority'
 		| 'size'
 		| 'label'
+		| 'planned'
 		| 'milestone'
 		| 'state';
 </script>
@@ -78,6 +79,7 @@
 			priorities: hidden.has('priority') ? [] : filter.priorities,
 			sizes: hidden.has('size') ? [] : filter.sizes,
 			labels: hidden.has('label') ? [] : filter.labels,
+			planned: hidden.has('planned') ? [] : filter.planned,
 			milestones: hidden.has('milestone') ? [] : filter.milestones
 		})
 	);
@@ -115,6 +117,12 @@
 		{ value: NONE, label: 'No priority', color: null }
 	]);
 	const sizeOptions = $derived([...SIZE_OPTIONS, { value: NONE, label: 'No size', color: null }]);
+	const plannedOptions = [
+		{ value: 'this-week', label: 'This week' },
+		{ value: 'next-week', label: 'Next week' },
+		{ value: 'scheduled', label: 'Planned' },
+		{ value: 'unscheduled', label: 'Not planned' }
+	];
 
 	type StateView = 'open' | 'closed' | 'all';
 	const currentState = $derived.by((): StateView => {
@@ -155,6 +163,7 @@
 			priorities: hidden.has('priority') ? filter.priorities : [],
 			sizes: hidden.has('size') ? filter.sizes : [],
 			labels: hidden.has('label') ? filter.labels : [],
+			planned: hidden.has('planned') ? filter.planned : [],
 			milestones: hidden.has('milestone') ? filter.milestones : [],
 			search: filter.search
 		});
@@ -253,6 +262,14 @@
 					options={labelOptions}
 					selected={filter.labels}
 					onselect={(values) => set('labels', values)}
+				/>
+			{/if}
+			{#if !hidden.has('planned')}
+				<MultiSelect
+					label="Planned"
+					options={plannedOptions}
+					selected={filter.planned}
+					onselect={(values) => set('planned', values)}
 				/>
 			{/if}
 			{#if !hidden.has('milestone')}

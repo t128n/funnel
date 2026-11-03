@@ -49,21 +49,6 @@ export function unscheduleRequest(
 }
 
 /**
- * The week the dialog schedules into.
- *
- * The week horizon has one visible week. The cycle horizon has many, so it
- * schedules into the cycle's first week rather than a `week` query parameter
- * that the cycle view does not show.
- */
-export function scheduleWeekFor(
-	horizon: string,
-	week: string,
-	cycleStart: string,
-): string {
-	return horizon === "cycle" && cycleStart.length > 0 ? cycleStart : week;
-}
-
-/**
  * Turn a failed schedule response into the inline message.
  *
  * A `409` names the cap violation; any other status falls back to the server's

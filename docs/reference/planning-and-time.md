@@ -8,8 +8,8 @@ This page describes the facts behind `/plan`, actual time, delays and epics. It 
 | :--- | :--- | :--- | :--- | :--- |
 | `planning.size_minutes` | Object of `sm`, `md`, `lg` to integer minutes | `{ "sm": 120, "md": 240, "lg": 480 }` | Each value is an integer from `1` to `10080`. | Fixed estimate for each size label. |
 | `planning.allocation_percent` | Integer | `60` | `1`–`100`. | Share of net weekly hours that plan items may fill. |
-| `planning.cycle_weeks` | Integer | `2` | `1`–`52`. | Number of contiguous weeks in a cycle. |
-| `planning.cycle_anchor` | String `YYYY-MM-DD` | `2024-01-01` | Must be a real Monday. | First Monday of the cycle numbering. |
+| `planning.cycle_weeks` | Integer | `2` | `1`–`52`. | Legacy stored config; no surface uses it. |
+| `planning.cycle_anchor` | String `YYYY-MM-DD` | `2024-01-01` | Must be a real Monday. | Legacy stored config; anchors the retained cycle helpers. |
 | `planning.maintainers` | Array of maintainer objects | `[]` | Unique `(forge, instance, external_id)`; `weekly_minutes` integer `0`–`10080`; `active` boolean. | People whose net hours make up capacity. |
 | `planning.work_defaults` | Object | `{ "timezone": "UTC", "start_minute": 540, "end_minute": 1020, "work_days": [1,2,3,4,5], "buffer_percent": 20 }` | Real IANA zone; `0 ≤ start_minute < end_minute ≤ 1440`; unique `work_days` in `1..7`, at least one; `buffer_percent` `0..90`. | Fallback working hours for the ALPEN day view. |
 
@@ -17,12 +17,11 @@ A maintainer object has `forge`, `instance`, `external_id`, `login`, `avatar_url
 
 The weekly-hours field carries this hint: **Enter net hours: contracted weekly hours minus recurring meetings, on-call, and other fixed commitments. Funnel plans at most 60% of this; the rest is buffer.**
 
-## Weeks and cycles
+## Weeks
 
 - A week is an ISO week in UTC: Monday 00:00 through Sunday 23:59:59.999, identified by its Monday date in `YYYY-MM-DD` form.
-- A cycle is `planning.cycle_weeks` contiguous weeks counted from `planning.cycle_anchor`.
-- A cycle key is its first Monday. It exposes `start`, `end` and an ordered `weeks` list.
-- Weeks before the anchor floor into negative cycles, so historical plan items keep stable windows.
+- The planner commits work to exactly one week at a time. The old cycle and milestone horizons were removed; `planning.cycle_weeks` and `planning.cycle_anchor` remain in the stored config for compatibility but no longer affect any surface.
+- Weeks before the legacy anchor still floor into negative cycles in the retained calendar helpers, so historical plan items keep stable windows if a cycle view is reintroduced.
 
 ## Estimates
 
@@ -44,8 +43,7 @@ For one maintainer over one period:
 cap = floor(weekly_minutes × weeks × allocation_percent / 100)
 ```
 
-- `weeks` is `1` in the week horizon, the cycle length in the cycle horizon, and the number of weeks from now to the milestone due date in the milestone horizon.
-- A milestone without a due date has no cap.
+- `weeks` is `1`; every visible lane is a single week.
 - An issue's estimate is split evenly across its assignees that are active, configured maintainers. The integer remainder goes to the first such assignee.
 - If no assignee matches, the issue's full estimate is in the **Unassigned** bucket, which has no cap.
 - A lane is over when committed minutes exceed its cap. A maintainer with `weekly_minutes: 0` has zero usable capacity.
@@ -53,7 +51,7 @@ cap = floor(weekly_minutes × weeks × allocation_percent / 100)
 
 ## Day planning
 
-The **Day** horizon at `/plan?horizon=day&day=YYYY-MM-DD` narrows one local day. It is called **ALPEN**: Aufgaben (candidates), Länge (length), Puffer (buffer), Entscheiden (decide) and Nachkontrolle (review).
+The personal **Day** page at `/day?day=YYYY-MM-DD` narrows one local day. It is called **ALPEN**: Aufgaben (candidates), Länge (length), Puffer (buffer), Entscheiden (decide) and Nachkontrolle (review).
 
 - Candidates are the open, sized issues planned into the Monday week of the date that are assigned to the viewer or unassigned, ordered P1 → P3 → unprioritized, then issue number.
 - A day block is timed local minutes from midnight (`0..1440`); `kind` is `issue` (with `org`, `name`, `issue_number`) or `buffer` (no issue).

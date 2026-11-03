@@ -4,10 +4,11 @@ These images are captured from a seeded demo instance so the documentation can s
 
 | File | Page |
 | :--- | :--- |
-| `plan-week.png` | `/plan` (week horizon, with the Day tab) |
-| `plan-cycle.png` | `/plan?horizon=cycle` |
-| `plan-day.png` | `/plan?horizon=day` (ALPEN day view) |
-| `settings-planning.png` | `/settings/planning` (estimates, cycle, working hours, roster) |
+| `plan-week.png` | `/plan` (weekly capacity) |
+| `plan-day.png` | `/day` (ALPEN day view) |
+| `issue-planned.png` | `/issues/acme/widgets/1` (Planned picker in Properties) |
+| `issues-planned.png` | `/issues` (Planned column) |
+| `settings-planning.png` | `/settings/planning` (estimates, allocation, working hours, roster) |
 | `settings-availability.png` | `/settings/availability` (personal hours, blocked windows, calendar feed) |
 | `epics-list.png` | `/epics` |
 | `epic-detail.png` | `/epics/acme/widgets/4` |

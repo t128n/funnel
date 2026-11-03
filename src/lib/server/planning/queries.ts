@@ -11,7 +11,7 @@
  * {@link getPlanningIssue} still returns closed issues so a mutation can explain
  * why an issue cannot be scheduled.
  */
-import { and, asc, desc, eq, isNotNull, isNull, or, sql, type SQL } from "drizzle-orm";
+import { and, asc, eq, or, sql, type SQL } from "drizzle-orm";
 import { db } from "#lib/server/db/index";
 import {
   mirrorMilestone,
@@ -213,57 +213,6 @@ export function listPlannedIssues(
       asc(mirrorRepo.name),
       asc(mirrorThread.number),
     )
-    .all() as PlanningRow[];
-
-  return hydrate(rows);
-}
-
-/** Default candidate cap; the planner's "add issue" picker stays responsive. */
-export const PLAN_CANDIDATE_LIMIT = 300;
-
-/**
- * Issues that can be scheduled: open, triaged (`status` present) and sized,
- * with no plan row. Ordered by priority rank (P1 first, unprioritized last),
- * then most recently updated. Over-fetching is bounded by
- * {@link PLAN_CANDIDATE_LIMIT}.
- */
-export function listPlanCandidates(
-  limit: number = PLAN_CANDIDATE_LIMIT,
-): PlanningIssue[] {
-  const rows = db
-    .select(planningColumns)
-    .from(mirrorThread)
-    .innerJoin(mirrorRepo, eq(mirrorThread.repoId, mirrorRepo.id))
-    .leftJoin(
-      mirrorMilestone,
-      and(
-        eq(mirrorMilestone.repoId, mirrorThread.repoId),
-        eq(mirrorMilestone.number, mirrorThread.milestoneNumber),
-      ),
-    )
-    .leftJoin(
-      statePlanItem,
-      and(
-        eq(statePlanItem.org, mirrorRepo.org),
-        eq(statePlanItem.name, mirrorRepo.name),
-        eq(statePlanItem.issueNumber, mirrorThread.number),
-      ),
-    )
-    .where(
-      and(
-        eq(mirrorThread.state, "open"),
-        isNotNull(mirrorThread.status),
-        isNotNull(mirrorThread.size),
-        isNull(statePlanItem.org),
-      ),
-    )
-    .orderBy(
-      asc(mirrorThread.priorityRank),
-      desc(mirrorThread.updatedAt),
-      asc(mirrorThread.repoId),
-      asc(mirrorThread.number),
-    )
-    .limit(Math.max(0, limit))
     .all() as PlanningRow[];
 
   return hydrate(rows);

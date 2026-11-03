@@ -26,7 +26,7 @@
 	import { formatMinutes } from '#lib/planning';
 	import type { DayBlockInput, DayCandidate } from '#lib/planning/day-plan';
 	import { formatClock, parseClock } from '#lib/time/zoned';
-	import type { DayView } from '#/routes/(app)/plan/+page.server';
+	import type { DayView } from '#/routes/(app)/day/+page.server';
 	import { autoPlanRequest, dayErrorMessage, saveDayRequest, type DayRequest } from './day-plan-request';
 
 	/**
@@ -173,13 +173,10 @@
 
 <section class="d-flex flex-column gap-3" data-testid="day-plan" data-day={view.date}>
 	<header class="d-flex flex-wrap align-items-end justify-content-between gap-3">
-		<div class="d-flex flex-column gap-1">
-			<h2 class="fs-6 fw-semibold text-body mb-0">{view.label}</h2>
-			<p class="small text-body-secondary tnum mb-0">
-				{formatMinutes(view.availableMinutes)} available · {formatMinutes(view.plannedMinutes)} planned ·
-				{formatMinutes(view.bufferMinutes)} buffer target
-			</p>
-		</div>
+		<p class="small text-body-secondary tnum mb-0">
+			{formatMinutes(view.availableMinutes)} available · {formatMinutes(view.plannedMinutes)} planned ·
+			{formatMinutes(view.bufferMinutes)} buffer target
+		</p>
 
 		{#if mayWrite}
 			<div class="d-flex flex-wrap align-items-center gap-2">
@@ -189,9 +186,6 @@
 				<Button color="primary" size="sm" onclick={autoPlan} disabled={busy}>Auto-plan</Button>
 				<Button color="outline-secondary" size="sm" onclick={() => (confirmClear = true)} disabled={busy}>
 					Clear day
-				</Button>
-				<Button color="link" size="sm" href="/settings/availability" class="text-decoration-none">
-					Working hours
 				</Button>
 			</div>
 		{/if}

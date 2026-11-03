@@ -14,12 +14,12 @@
 	import CapacityBar from './CapacityBar.svelte';
 
 	/**
-	 * Maintainer lanes for one week or cycle. Each lane is a ruled section with
-	 * a quiet heading, net weekly availability, the cap for this window and a
-	 * scheduled/cap meter. `capMinutes` already includes allocation and the
-	 * window length, so the bar has no allocation marker. Work with no active
-	 * maintainer sits in its own unassigned section; unestimated issues are
-	 * listed separately because they contribute no scheduled minutes.
+	 * Maintainer lanes for one week. Each lane is a ruled section with a quiet
+	 * heading, net weekly availability, the weekly cap and a scheduled/cap
+	 * meter. `capMinutes` already includes allocation, so the bar has no
+	 * allocation marker. Work with no active maintainer sits in its own
+	 * unassigned section; unestimated issues are listed separately because they
+	 * contribute no scheduled minutes.
 	 */
 	interface Props {
 		lanes: PlanLane[];
@@ -27,14 +27,10 @@
 		unestimated: PlanningIssue[];
 		/** Instance allocation percentage; the cap already includes it. */
 		allocationPercent?: number;
-		/** Weeks in this window, used to explain a multi-week cycle cap. */
-		capWeeks?: number;
 		/** Size label → minutes, supplied by the server's planning settings. */
 		sizeMinutes?: Record<string, number>;
 		/** Writers get a remove control on every planned issue. */
 		mayWrite?: boolean;
-		/** Opens the schedule dialog from the empty state. */
-		onschedule?: () => void;
 		onremove?: (issue: PlanningIssue) => void;
 		removing?: string | null;
 		emptyLabel?: string;
@@ -45,13 +41,11 @@
 		unassigned,
 		unestimated,
 		allocationPercent = 60,
-		capWeeks = 1,
 		sizeMinutes = {},
 		mayWrite = false,
-		onschedule,
 		onremove,
 		removing = null,
-		emptyLabel = 'Nothing is planned for this window.'
+		emptyLabel = 'Nothing is planned for this week.'
 	}: Props = $props();
 
 	const plannedCount = $derived(
@@ -77,9 +71,7 @@
 	}
 
 	function capLabel(lane: PlanLane): string {
-		const cap = `Cap ${formatMinutes(lane.capMinutes)}`;
-		if (capWeeks <= 1) return `${cap} · ${allocationPercent}% of net`;
-		return `${cap} · ${capWeeks} weeks at ${allocationPercent}% of net`;
+		return `Cap ${formatMinutes(lane.capMinutes)} · ${allocationPercent}% of net`;
 	}
 </script>
 
@@ -87,13 +79,11 @@
 	{#if lanes.length > 0 && plannedCount === 0}
 		<EmptyState
 			title={emptyLabel}
-			description="Schedule an issue to commit work to a maintainer."
+			description="Open an issue and set Planned in its Properties panel to commit it to a maintainer."
 			class="border-top border-bottom py-3"
 		>
 			{#snippet action()}
-				{#if mayWrite && onschedule}
-					<Button color="primary" size="sm" onclick={onschedule}>Schedule Issue</Button>
-				{/if}
+				<Button color="secondary" outline size="sm" href="/issues">Browse issues</Button>
 			{/snippet}
 		</EmptyState>
 	{/if}

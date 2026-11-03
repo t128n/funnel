@@ -16,6 +16,7 @@ import {
   exists,
   inArray,
   isNull,
+  notExists,
   or,
   sql,
   type AnyColumn,
@@ -24,12 +25,15 @@ import {
 import { db } from "#lib/server/db/index";
 import {
   mirrorComment,
+  mirrorRepo,
   mirrorThread,
   mirrorThreadAssignee,
   mirrorThreadLabel,
   mirrorUser,
+  statePlanItem,
 } from "#lib/server/db/schema";
 import { CANONICAL_LABELS, type LabelGroup } from "#lib/server/github/labels";
+import { addWeeks, weekStartOf } from "#lib/server/planning/calendar";
 import { isRetiredPriorityLabel } from "#lib/priority";
 
 /** Canonical status label names; absence means "untriaged" (Inbox). */
@@ -46,6 +50,17 @@ export const STATUS_VALUES = [
 export const PRIORITY_VALUES = ["p1", "p2", "p3"] as const;
 export const SIZE_VALUES = ["sm", "md", "lg"] as const;
 
+/**
+ * Plan-state filter vocabulary. `scheduled` and `unscheduled` are whether a
+ * plan item exists at all; `this-week` and `next-week` narrow it to a Monday.
+ */
+export const PLANNED_VALUES = [
+  "scheduled",
+  "unscheduled",
+  "this-week",
+  "next-week",
+] as const;
+
 /** GitHub issue states. The Issues view defaults to `open` (SPEC §9.2). */
 export const STATE_VALUES = ["open", "closed"] as const;
 
@@ -53,6 +68,7 @@ export type StatusValue = (typeof STATUS_VALUES)[number];
 export type PriorityValue = (typeof PRIORITY_VALUES)[number];
 export type SizeValue = (typeof SIZE_VALUES)[number];
 export type StateValue = (typeof STATE_VALUES)[number];
+export type PlannedValue = (typeof PLANNED_VALUES)[number];
 
 /** Sentinel selecting items missing the label for a dimension. */
 export const NONE = "none";
@@ -66,6 +82,7 @@ const STATUS_SET = new Set<string>(STATUS_VALUES);
 const PRIORITY_SET = new Set<string>(PRIORITY_VALUES);
 const SIZE_SET = new Set<string>(SIZE_VALUES);
 const STATE_SET = new Set<string>(STATE_VALUES);
+const PLANNED_SET = new Set<string>(PLANNED_VALUES);
 
 /** A milestone selection resolved to the repo it belongs to. */
 export interface MilestoneFilterRef {
@@ -89,6 +106,8 @@ export interface IssueFilter {
   sizes: string[];
   /** Non-reserved label names (reserved names belong to their dimension). */
   labels: string[];
+  /** Plan-state selection: scheduled, unscheduled, this-week, next-week. */
+  planned: string[];
   /** Repo-scoped milestone selections, resolved against the mirrored repos. */
   milestones: MilestoneFilterRef[];
   /** The {@link NONE} sentinel: unmilestoned issues. */
@@ -115,6 +134,7 @@ export const EMPTY_FILTER: IssueFilter = {
   priorities: [],
   sizes: [],
   labels: [],
+  planned: [],
   milestones: [],
   noMilestone: false,
   search: "",
@@ -244,6 +264,7 @@ export function parseIssueFilter(
         !RESERVED_GROUP.has(name.toLowerCase()) &&
         !isRetiredPriorityLabel(name),
     ),
+    planned: vocab(multi(params, "planned"), PLANNED_SET),
     milestones: milestones.refs,
     noMilestone: milestones.none,
     search: (params.get("q") ?? "").trim().slice(0, 200),
@@ -290,6 +311,42 @@ function labelExists(names: readonly string[]): SQL {
         ),
       ),
   );
+}
+
+/**
+ * The plan-item subquery for the current thread. A plan row is keyed by
+ * `owner/name` + number, so the subquery joins the repo to bridge from the
+ * mirror's numeric `repo_id`. Passing `weekStart` narrows it to one Monday.
+ */
+function planItemQuery(weekStart?: string) {
+  const clauses: SQL[] = [
+    eq(mirrorRepo.id, mirrorThread.repoId),
+    eq(statePlanItem.issueNumber, mirrorThread.number),
+  ];
+  if (weekStart !== undefined) {
+    clauses.push(eq(statePlanItem.weekStart, weekStart));
+  }
+  return db
+    .select({ one: sql`1` })
+    .from(statePlanItem)
+    .innerJoin(
+      mirrorRepo,
+      and(
+        eq(mirrorRepo.org, statePlanItem.org),
+        eq(mirrorRepo.name, statePlanItem.name),
+      ),
+    )
+    .where(and(...clauses));
+}
+
+/** `EXISTS` for a plan row, optionally in one Monday week. */
+function planItemExists(weekStart?: string): SQL {
+  return exists(planItemQuery(weekStart));
+}
+
+/** `EXISTS` for "unplanned" issues. */
+function planItemAbsent(): SQL {
+  return notExists(planItemQuery());
 }
 
 /** One dimension: OR of equality plus an optional "is null" for `none`. */
@@ -340,6 +397,20 @@ export function buildIssueWhere(filter: IssueFilter): SQL | undefined {
   }
   if (filter.labels.length > 0) {
     conditions.push(labelExists(filter.labels));
+  }
+
+  if (filter.planned.length > 0) {
+    const parts: SQL[] = [];
+    if (filter.planned.includes("scheduled")) parts.push(planItemExists());
+    if (filter.planned.includes("unscheduled")) parts.push(planItemAbsent());
+    if (filter.planned.includes("this-week")) {
+      parts.push(planItemExists(weekStartOf(new Date())));
+    }
+    if (filter.planned.includes("next-week")) {
+      parts.push(planItemExists(addWeeks(weekStartOf(new Date()), 1)));
+    }
+    if (parts.length === 1) conditions.push(parts[0]);
+    else if (parts.length > 1) conditions.push(or(...parts) as SQL);
   }
 
   if (filter.milestones.length > 0 || filter.noMilestone) {

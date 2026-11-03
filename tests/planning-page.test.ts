@@ -8,7 +8,6 @@
  */
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
-import { cycleForWeek } from "#lib/server/planning/calendar";
 import { getConfig, resetConfigCache } from "#lib/server/config";
 import { saveSettings } from "#lib/server/settings/apply";
 import {
@@ -162,29 +161,19 @@ describe("planning settings load", () => {
 });
 
 describe("plan load", () => {
-  test("test_default_horizon_is_current_week", async () => {
+  test("test_default_week_is_current", async () => {
     const data = await loadPlan({
       locals: locals(),
       url: url("/plan"),
     } as never);
 
     const monday = currentMonday();
-    expect(data.horizon).toBe("week");
     expect(data.week).toBe(monday);
     expect(data.weekPlan.weekStart).toBe(monday);
     expect(data.allocationPercent).toBe(60);
-  });
-
-  test("test_cycle_horizon", async () => {
-    const data = await loadPlan({
-      locals: locals(),
-      url: url("/plan?horizon=cycle&cycle=2026-10-19"),
-    } as never);
-
-    expect(data.horizon).toBe("cycle");
-    expect(data.cycle).toBe("2026-10-19");
-    expect(data.cyclePlan.key).toBe("2026-10-19");
-    expect(data.cyclePlan.start).toBe("2026-10-19");
+    expect(data).not.toHaveProperty("horizon");
+    expect(data).not.toHaveProperty("cyclePlan");
+    expect(data).not.toHaveProperty("dayView");
   });
 
   test("test_requires_user", async () => {
@@ -192,7 +181,7 @@ describe("plan load", () => {
     try {
       await loadPlan({
         locals: locals(null),
-        url: url("/plan?horizon=week"),
+        url: url("/plan"),
       } as never);
     } catch (error) {
       caught = error;
@@ -207,17 +196,15 @@ describe("plan load", () => {
     expect("actions" in planRoute).toBe(false);
   });
 
-  test("test_invalid_query_falls_back_to_current_week", async () => {
+  test("test_invalid_week_falls_back_to_current_week", async () => {
     const data = await loadPlan({
       locals: locals(),
-      url: url("/plan?horizon=bogus&week=2026-02-30&cycle=2026-10-20"),
+      url: url("/plan?week=2026-02-30"),
     } as never);
 
     const monday = currentMonday();
-    expect(data.horizon).toBe("week");
     expect(data.week).toBe(monday);
     expect(data.weekPlan.weekStart).toBe(monday);
-    expect(data.cycle).toBe(cycleForWeek(monday, "2024-01-01", 2).key);
   });
 
   test("test_week_navigation", async () => {
@@ -230,24 +217,35 @@ describe("plan load", () => {
     expect(data.next).toBe("2026-10-26");
   });
 
-  test("test_cycle_navigation", async () => {
-    const data = await loadPlan({
-      locals: locals(),
-      url: url("/plan?horizon=cycle&cycle=2026-10-19"),
-    } as never);
+  test("test_day_links_move_to_the_day_route", async () => {
+    let caught: unknown;
+    try {
+      await loadPlan({
+        locals: locals(),
+        url: url("/plan?horizon=day&day=2026-10-25"),
+      } as never);
+    } catch (error) {
+      caught = error;
+    }
 
-    expect(data.previous).toBe("2026-10-05");
-    expect(data.next).toBe("2026-11-02");
+    expect((caught as { status?: number }).status).toBe(307);
+    expect((caught as { location?: string }).location).toBe("/day?day=2026-10-25");
   });
 
-  test("test_milestone_horizon_has_no_navigation", async () => {
-    const data = await loadPlan({
-      locals: locals(),
-      url: url("/plan?horizon=milestone"),
-    } as never);
-
-    expect(data.previous).toBeNull();
-    expect(data.next).toBeNull();
+  test("test_cycle_and_milestone_links_settle_on_the_week", async () => {
+    for (const horizon of ["cycle", "milestone"]) {
+      let caught: unknown;
+      try {
+        await loadPlan({
+          locals: locals(),
+          url: url(`/plan?horizon=${horizon}`),
+        } as never);
+      } catch (error) {
+        caught = error;
+      }
+      expect((caught as { status?: number }).status).toBe(307);
+      expect((caught as { location?: string }).location).toBe("/plan");
+    }
   });
 });
 

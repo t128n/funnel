@@ -8,9 +8,15 @@ The workflow now has three layers:
 
 1. **Forge-owned facts** — labels, assignees, milestones, open/closed state and the body. Funnel mirrors them and treats them as authoritative.
 2. **Funnel-owned observations and intent** — the plan item, the event log, delays and the epic child list. These are durable, local and never rewritten by a sync.
-3. **Derived projections** — actual minutes, capacity lanes, epic rollups and the `/plan` page. They are recomputed from layers 1 and 2 on every read and stored nowhere.
+3. **Derived projections** — actual minutes, capacity lanes, epic rollups, the week view at `/plan` and the personal day at `/day`. They are recomputed from layers 1 and 2 on every read and stored nowhere.
 
 Keeping the layers apart is what lets a GitHub edit propagate without losing the plan, and lets a re-sync rebuild the mirror without losing actuals.
+
+## Planning is a property of an issue
+
+A commitment is one field on the issue: the Monday week it is intended for. It is edited beside Status, Assignee, Milestone and Size, so setting it does not require leaving the work item and re-finding it in a separate picker. `/plan` is then only the team-level projection: who is over capacity this week, and what is still unassigned or unestimated.
+
+Keeping the control on the issue is what prevents planning from becoming a second application. The old cycle, milestone and day horizons were removed because they duplicated other surfaces or answered a different question: milestones already own due dates and the timeline, and a day is personal time-blocking, not team commitment.
 
 ## Estimates are derived, not copied
 
@@ -30,7 +36,7 @@ The cap is deliberately not retroactive. GitHub remains authoritative for assign
 
 A plan item records intent at week granularity; it does not say which hour. The **ALPEN** day view narrows one local day without becoming a second backlog: its candidates are the same open, sized issues from the Monday week, and a `state_day_block` is a timed placement of one of them. Working hours and blocked windows are personal, with `planning.work_defaults` as the instance fallback.
 
-The buffer is emitted as explicit `buffer` blocks rather than subtracted at read time, so the reserved slack is visible on the grid and survives a manual edit. Auto-plan spends at most `available − buffer`; a manual plan may overrun the window and the UI flags it. Funnel enforces hours only when it is the one choosing the blocks. The [calendar feed](../how-to/plan/plan-your-day.md#subscribe-outlook-to-the-calendar-feed) is a read-only projection of the same blocks, so nothing flows back from Outlook.
+The buffer is emitted as explicit `buffer` blocks rather than subtracted at read time, so the reserved slack is visible on the grid and survives a manual edit. Auto-plan spends at most `available − buffer`; a manual plan may overrun the window and the UI flags it. Funnel enforces hours only when it is the one choosing the blocks. The [calendar feed](../how-to/plan/plan-your-day.md#subscribe-outlook-to-the-calendar-feed) is a read-only projection of the same blocks, so nothing flows back from Outlook. The day lives at `/day`; it is personal and reachable by every signed-in viewer, independently of the weekly write role.
 
 ## Actual time is observed, not reconstructed
 
@@ -83,7 +89,7 @@ The costs are the ones the model accepts elsewhere: the mirror is eventually con
 ## Related
 
 - [Planning and time reference](../reference/planning-and-time.md) — exact values and contracts.
-- [Plan a week or cycle](../how-to/use/plan-work.md) — the task.
+- [Plan a week](../how-to/use/plan-work.md) — the task.
 - [Track time and delays](../how-to/use/track-time-and-delays.md) — the delay rules.
 - [Manage epics](../how-to/use/epics.md) — the child-list workflow.
 - [Use milestones](../how-to/use/milestones.md#read-the-timeline) — reading the Gantt timeline.

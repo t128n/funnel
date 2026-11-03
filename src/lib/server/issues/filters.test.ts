@@ -58,6 +58,15 @@ describe("parseIssueFilter", () => {
     ).toEqual([]);
   });
 
+  test("validates the plan-state dimension", () => {
+    expect(
+      parseIssueFilter(
+        new URLSearchParams("planned=this-week,unscheduled&planned=bogus"),
+        ctx,
+      ).planned,
+    ).toEqual(["this-week", "unscheduled"]);
+  });
+
   test("validates the state dimension", () => {
     expect(
       parseIssueFilter(new URLSearchParams("state=OPEN,closed"), ctx).states,
