@@ -396,7 +396,7 @@ function Invoke-FunnelSetup {
     }
 
     if ($openBrowserCheck.Checked) {
-      Add-SetupStatus "Waiting for Funnel..."
+      Set-SetupStatus "Waiting for Funnel..."
       Add-SetupLog "Waiting for the health endpoint..."
       if (Wait-FunnelHealth -Port $port -TimeoutSeconds 45) {
         Add-SetupLog "Funnel is healthy."
