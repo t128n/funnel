@@ -31,7 +31,9 @@ import {
   inboxCount,
   listMilestones,
   matrixBoard,
+  matrixCellIssues,
   milestoneIssues,
+  needsAssessmentIssues,
   myIssues,
   statusBoard,
   type MatrixBoard,
@@ -860,8 +862,12 @@ describe("matrixBoard", () => {
     add(6, 2, 2, { state: "closed", stateReason: "completed" });
     return repo;
   }
-  function cell(board: MatrixBoard, impact: number | null, urgency: number | null) {
+  function cell(board: MatrixBoard, impact: number, urgency: number) {
     return board.cells.find((entry) => entry.impact === impact && entry.urgency === urgency)!;
+  }
+
+  function numbers(page: ListPage<{ number: number }>): number[] {
+    return page.items.map((issue) => issue.number);
   }
 
   // The file-level `beforeEach` seeds orgA rows with both axes unset, which
@@ -871,31 +877,23 @@ describe("matrixBoard", () => {
     clearMirror();
   });
 
-  test("matrix counts every axis pair, including unassessed", () => {
+  test("matrix counts the nine classified cells and separates unassessed work", () => {
     matrixSeed();
     const board = matrixBoard({ ...EMPTY_FILTER, states: ["open"] });
-    expect(board.cells).toHaveLength(16);
+    expect(board.cells).toHaveLength(9);
+    expect(board.cells.every((entry) => entry.impact !== null && entry.urgency !== null)).toBe(
+      true,
+    );
     expect(cell(board, 1, 1).total).toBe(1);
-    expect(cell(board, 1, null).total).toBe(1);
-    expect(cell(board, null, 2).total).toBe(1);
-    expect(cell(board, null, null).total).toBe(1);
     expect(cell(board, 3, 3).total).toBe(1);
     expect(cell(board, 2, 2).total).toBe(0);
+    // #2 (impact only), #3 (urgency only) and #4 (neither) stay out of cells.
     expect(board.total).toBe(5);
+    expect(board.rated).toBe(2);
+    expect(board.needsAssessment).toBe(3);
   });
 
-  test("matrix previews are capped and ordered by rank then updated", () => {
-    const repo = seedPlanningRepo("acme/widgets");
-    for (let number = 1; number <= 6; number += 1) {
-      seedPlanningIssue({ repoId: repo, number, impact: 1, urgency: 1, priority: "P1", updatedAt: number });
-    }
-    const board = matrixBoard({ ...EMPTY_FILTER, states: ["open"] });
-    const found = cell(board, 1, 1);
-    expect(found.total).toBe(6);
-    expect(found.issues.map((issue) => issue.number)).toEqual([6, 5, 4, 3]);
-  });
-
-  test("applies the search and status dimensions", () => {
+  test("applies the search and status dimensions to counts", () => {
     matrixSeed();
     const todo = matrixBoard({ ...EMPTY_FILTER, states: ["open"], statuses: ["todo"] });
     expect(cell(todo, 3, 3).total).toBe(1);
@@ -912,5 +910,55 @@ describe("matrixBoard", () => {
     expect(board.total).toBe(6);
     expect(cell(board, 2, 2).total).toBe(1); // closed #6
     expect(cell(board, 1, 1).total).toBe(1); // untriaged #1
+  });
+
+  test("cell issues are scoped to the pair and paginate in stream order", () => {
+    const repo = seedPlanningRepo("acme/widgets");
+    for (let number = 1; number <= 6; number += 1) {
+      seedPlanningIssue({
+        repoId: repo,
+        number,
+        impact: 1,
+        urgency: 1,
+        priority: "P1",
+        updatedAt: number,
+      });
+    }
+    seedPlanningIssue({ repoId: repo, number: 7, impact: 1, urgency: 2, priority: "P1" });
+    seedPlanningIssue({ repoId: repo, number: 8, impact: 2, urgency: 1, priority: "P1" });
+    seedPlanningIssue({ repoId: repo, number: 9, impact: null, urgency: 1 });
+
+    const first = matrixCellIssues(
+      { ...EMPTY_FILTER, states: ["open"] },
+      1,
+      1,
+      { limit: 3 },
+    );
+    expect(first.total).toBe(6);
+    expect(numbers(first)).toEqual([6, 5, 4]);
+    expect(first.nextCursor).not.toBeNull();
+
+    const second = matrixCellIssues(
+      { ...EMPTY_FILTER, states: ["open"] },
+      1,
+      1,
+      { limit: 3, cursor: first.nextCursor },
+    );
+    expect(numbers(second)).toEqual([3, 2, 1]);
+    expect(second.nextCursor).toBeNull();
+  });
+
+  test("the assessment queue holds issues missing either or both axes", () => {
+    matrixSeed();
+    const queue = needsAssessmentIssues({ ...EMPTY_FILTER, states: ["open"] });
+    expect(queue.total).toBe(3);
+    expect(numbers(queue).sort((a, b) => a - b)).toEqual([2, 3, 4]);
+
+    const filtered = needsAssessmentIssues({
+      ...EMPTY_FILTER,
+      states: ["open"],
+      search: "Issue 2",
+    });
+    expect(numbers(filtered)).toEqual([2]);
   });
 });

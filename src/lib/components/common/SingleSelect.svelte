@@ -20,6 +20,8 @@
 		variant?: 'default' | 'ghost' | 'pill';
 		/** Optional leading glyph rendered inside the control. */
 		icon?: Snippet;
+		/** Accessible name when the visible label sits outside the trigger. */
+		ariaLabel?: string;
 	}
 
 	let {
@@ -31,7 +33,8 @@
 		clearLabel = 'None',
 		disabled = false,
 		variant = 'default',
-		icon
+		icon,
+		ariaLabel
 	}: Props = $props();
 
 	const selectClass = $derived(
@@ -53,7 +56,7 @@
 		<span class="input-group-text px-2" aria-hidden="true">{@render icon()}</span>
 		<select
 			class={selectClass}
-			aria-label={label}
+			aria-label={ariaLabel ?? label}
 			{disabled}
 			value={value ?? ''}
 			onchange={onChange}
@@ -70,7 +73,7 @@
 {:else}
 	<select
 		class={selectClass}
-		aria-label={label}
+		aria-label={ariaLabel ?? label}
 		{disabled}
 		value={value ?? ''}
 		onchange={onChange}

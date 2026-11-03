@@ -1,0 +1,90 @@
+/**
+ * Embedded configuration and service templates.
+ *
+ * `.env.example` is the source of truth for the environment template. A unit
+ * test asserts that `envTemplate` stays byte-identical to the repository file,
+ * so the installer cannot drift from the documented configuration.
+ */
+export const envTemplate = `# Public URL where the instance is hosted (Optional in local dev)
+# Example: https://funnel.example.com
+FUNNEL_URL=
+
+# 32-byte encryption secret (Required, min 32 chars)
+# Generate (OpenSSL): openssl rand -base64 32
+# Generate (Node.js): node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
+FUNNEL_SECRET=
+
+# Path to the SQLite database file (Optional, default: ./data/funnel.db)
+# FUNNEL_DB=./data/funnel.db
+
+# Demo mode is development-only and normally set for you by \`bun run dev:demo\`.
+# It seeds a fake GitHub App and demo data into FUNNEL_DB. Production builds ignore
+# \`FUNNEL_DEMO\` entirely, so it can never enable a fake session in a real deploy.
+# FUNNEL_DEMO=1
+
+# GitHub host. Defaults target github.com. For GitHub Enterprise Server set both
+# (e.g. GITHUB_URL=https://acme.ghe.com, GITHUB_API_URL=https://acme.ghe.com/api/v3).
+# GITHUB_URL=https://github.com
+# GITHUB_API_URL=https://api.github.com
+
+# Default issue-comment rendering: compact (dense list) or bubbles (chat-style).
+# Browsers can override this per browser in Settings > Features. (Default: compact)
+# FUNNEL_COMMENT_UI=compact
+
+# ---------------------------------------------------------------------------
+# Attachments (issue dropbox)
+# ---------------------------------------------------------------------------
+
+# Directory where uploaded issue attachments are stored (Default: ./data/uploads)
+# FUNNEL_UPLOAD_DIR=./data/uploads
+
+# Maximum size of a single uploaded attachment, in bytes (Default: 10485760 = 10 MiB).
+# The adapter's BODY_SIZE_LIMIT must be at least this large, or uploads are rejected.
+# FUNNEL_UPLOAD_MAX_BYTES=10485760
+
+# Max request body accepted by adapter-node. Must cover attachment uploads.
+# BODY_SIZE_LIMIT=25M
+
+# ---------------------------------------------------------------------------
+# GitHub App
+# ---------------------------------------------------------------------------
+#
+# There are no GitHub App credential variables. Funnel creates and installs
+# its App through GitHub's App Manifest Flow during first-run onboarding at
+# /onboarding; the App id, client id/secret, webhook secret, and RSA key are
+# stored (encrypted with FUNNEL_SECRET) in the database.
+#
+# Optional one-time token gating that wizard. Leave unset to allow anyone who
+# can reach a fresh instance to claim it.
+# FUNNEL_ONBOARDING_TOKEN=
+
+# Options: fatal | error | warn | info | debug | trace | silent (Default: info)
+LOG_LEVEL=info
+
+# ---------------------------------------------------------------------------
+# Server (single-file executable / service)
+# ---------------------------------------------------------------------------
+
+# Base directory for the database and uploads. Used by the packaged executable;
+# the Windows service installer sets it to C:\\ProgramData\\Funnel and runs with
+# that directory as the working directory (so this file is picked up there).
+# FUNNEL_DATA_DIR=./data
+
+# Listen port and address (Default: 3000 / 0.0.0.0)
+# PORT=3000
+# HOST=0.0.0.0
+
+# Recommended: set the timezone explicitly (e.g. UTC).
+# TZ=UTC
+`;
+
+export function renderTemplate(
+  template: string,
+  values: Record<string, string | number>,
+): string {
+  let output = template;
+  for (const [key, value] of Object.entries(values)) {
+    output = output.split(`%%${key}%%`).join(String(value));
+  }
+  return output;
+}

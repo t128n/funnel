@@ -6,6 +6,7 @@ Application variables are declared and validated in `src/env.ts` using valibot. 
 
 | Variable | Required | Default | Purpose | Consumer | Constraints |
 | :--- | :--- | :--- | :--- | :--- | :--- |
+| `FUNNEL_ENV_FILE` | Optional | Unset | Absolute path to an environment file loaded before validation, migrations, and server startup. Installed services set this to their chosen config file. | `src/standalone.ts` | Absolute path to a readable `.env`-format file. Existing process variables win. Bun's runtime `--env-file` flag does not work inside a compiled executable, so this is the supported installed-service mechanism. |
 | `FUNNEL_SECRET` | Yes | — | Signs and encrypts Better Auth state, encrypts stored GitHub App secrets, and encrypts stored OAuth tokens. | `src/lib/server/auth/index.ts`, `src/lib/server/crypto/secrets.ts` | Trimmed string of at least 32 characters. The application does not start without it. |
 | `FUNNEL_URL` | Optional | Unset | Public origin used for the OAuth callback base URL and onboarding links. | `src/lib/server/auth/index.ts`, `src/lib/server/onboarding/access.ts` | Valid URL string; HTTP/HTTPS is the supported form. An empty string is treated as unset. When unset, the App's captured base URL or the request origin is used. |
 | `FUNNEL_DB` | Optional | `./data/funnel.db`; packaged executable: `<data directory>/funnel.db` | Path to the SQLite database file. | `src/lib/server/db/index.ts`, `src/lib/server/db/release.ts`, `drizzle.config.ts` | Trimmed, non-empty path. `:memory:` is accepted by the migration runner and database layer. |
@@ -34,7 +35,7 @@ The optional Windows intake helper (`tools/funnel-intake`) reads the same `FUNNE
 
 Bun loads a `.env` file from the working directory automatically. Variables already present in the process environment take precedence over values in that file.
 
-The Windows service runs with the data directory as its working directory, so `C:\ProgramData\Funnel\.env` is loaded and `FUNNEL_DATA_DIR` is set to that directory. The container image sets `FUNNEL_DATA_DIR=/data`, `PORT=3000`, and `HOST=0.0.0.0`.
+The standalone bootstrap additionally loads `FUNNEL_ENV_FILE` before anything else. The native service definitions set this to the configured config file, so an installation can keep its configuration outside the data directory. `funnel setup` writes that file from the embedded `.env.example`, preserves an existing `FUNNEL_SECRET`, and backs up a replaced file.
 
 ## Packaged executable defaults
 

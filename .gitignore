@@ -11,6 +11,9 @@ node_modules
 # Release archives assembled by scripts/package-release.ts
 /release
 
+# Fetched at build time by scripts/fetch-winsw.ts
+/vendor/winsw
+
 # Generated during the standalone build only (see scripts/build-standalone.ts)
 /src/standalone-entry.ts
 

@@ -1,8 +1,10 @@
 # Historical t128n redesign gallery (pre-Bootstrap)
 
 Screens captured with [`scripts/screenshots/capture.ts`](../../../scripts/screenshots/capture.ts)
-against the seeded demo database, at 1440×900. The same views are captured in
-light and dark; the files here are the preview set used in the pull request.
+against the seeded demo database, at 1440×900. The core views are captured in
+light and dark; the matrix set also includes its selected-cell, assessment
+queue, Inspector, and mobile states. These files are the preview set used in
+pull requests.
 
 - `issues-light.png`, `issues-dark.png`
 - `issue-light.png`, `issue-dark.png`
@@ -10,7 +12,9 @@ light and dark; the files here are the preview set used in the pull request.
 - `plan-light.png`, `plan-dark.png`
 - `settings-light.png`, `settings-dark.png`
 - `intake-light.png`, `intake-dark.png`
-- `issues-mobile.png`, `plan-mobile.png`
+- `matrix-light.png`, `matrix-dark.png`
+- `matrix-selected-light.png`, `matrix-queue-light.png`, `matrix-inspector-light.png`
+- `issues-mobile.png`, `plan-mobile.png`, `matrix-mobile.png`
 
 Regenerate the full 30-view gallery:
 

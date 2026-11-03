@@ -18,7 +18,7 @@ This index is the entry point to Funnel's documentation, which follows the four 
 | Install Funnel and sign in for the first time | [Getting started](tutorials/getting-started.md) |
 | Run a submission from intake through triage, blocking, notes, and close/reopen | [Triage a backlog](tutorials/triage-a-backlog.md) |
 | Configure estimates, plan a cycle, block work, and read an epic | [Plan a cycle and track it](tutorials/plan-and-track-a-cycle.md) |
-| Put Funnel into production | [Deploy with Docker](how-to/deploy/docker.md), [Windows service](how-to/deploy/windows-service.md), [reverse proxy](how-to/deploy/reverse-proxy.md), or [GitHub Enterprise Server](how-to/deploy/github-enterprise-server.md) |
+| Put Funnel into production | [Install Funnel](how-to/deploy/install.md), [reverse proxy](how-to/deploy/reverse-proxy.md), or [GitHub Enterprise Server](how-to/deploy/github-enterprise-server.md) |
 | Back up, upgrade, or fix an instance | [Backup and restore](how-to/operate/backup-and-restore.md), [upgrade](how-to/operate/upgrade.md), [troubleshoot](how-to/operate/troubleshoot.md) |
 | Configure the App, repositories, projects, people, or sync | [Configure Funnel](#configure) |
 | Work an issue queue day to day | [Use the cockpit](#use) |
@@ -43,8 +43,7 @@ Learning-oriented, with one path and expected results.
 
 ### Deploy
 
-- [Deploy with Docker](how-to/deploy/docker.md) — build and run the container with a persistent `/data` volume.
-- [Install as a Windows service](how-to/deploy/windows-service.md) — install the standalone executable under WinSW and manage its lifecycle.
+- [Install Funnel](how-to/deploy/install.md) — run the cross-platform `funnel setup` wizard and manage the native service.
 - [Put Funnel behind a reverse proxy](how-to/deploy/reverse-proxy.md) — forward the proto and host headers and expose the health endpoints.
 - [Use GitHub Enterprise Server](how-to/deploy/github-enterprise-server.md) — point the web and API hosts at a GHES instance before onboarding.
 
@@ -93,7 +92,7 @@ Learning-oriented, with one path and expected results.
 
 - [Development](how-to/contribute/development.md) — set up a checkout, run the dev server, and find your way around the code.
 - [Testing](how-to/contribute/testing.md) — run the Bun test suite, type checks, and build verification.
-- [Release](how-to/contribute/release.md) — produce the executable, the container image, and the release checks.
+- [Release](how-to/contribute/release.md) — produce the executable and the release checks.
 
 ## Reference
 
@@ -103,7 +102,7 @@ Learning-oriented, with one path and expected results.
 - [Settings](reference/settings.md) — the instance settings stored in SQLite, with defaults and validation rules.
 - [Planning and time](reference/planning-and-time.md) — estimates, capacity, weeks and cycles, actual-time and delay rules, epic metadata, tables and endpoints.
 - [Reserved labels](reference/reserved-labels.md) — the canonical status, impact, urgency, size, flag, and epic vocabulary plus the retired priority labels.
-- [Impact, urgency, and priority](reference/priority.md) — the three-point input labels, the P1–P3 lookup matrix, the 4×4 matrix view, the rating criteria, and the retired priority labels.
+- [Impact, urgency, and priority](reference/priority.md) — the three-point input labels, the P1–P3 lookup matrix, the 3×3 matrix view, the rating criteria, and the retired priority labels.
 - [Roles and permissions](reference/roles-and-permissions.md) — what `read`, `write`, and `admin` may do.
 - [HTTP API](reference/http-api.md) — the intake endpoint, mutation endpoints, mirror reads, and health probes.
 - [Database schema](reference/database-schema.md) — mirror tables, Funnel-owned state, and authentication tables.

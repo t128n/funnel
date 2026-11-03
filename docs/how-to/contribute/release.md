@@ -1,13 +1,12 @@
 # Release
 
-Build and ship Funnel's artefacts — the adapter-node server, the self-contained executable, and the container image — from the single source of truth in `mise.toml`.
+Build and ship Funnel's artefacts — the adapter-node server and the self-contained executable — from the single source of truth in `mise.toml`.
 
 ## Prerequisites
 
 - **mise**, trusted once per checkout (`mise trust`) so its tasks load. If you do not use mise, the underlying `bun run` scripts in `package.json` are equivalent.
 - **Bun 1.4.3** (pinned by `mise.toml`).
 - **Go 1.27** for the optional Windows intake helper (also pinned by `mise.toml`).
-- **Docker**, only for the container path.
 
 ## Tasks
 
@@ -22,7 +21,6 @@ Build and ship Funnel's artefacts — the adapter-node server, the self-containe
 | `mise run build`    | `bun run build`                   | Production SvelteKit build in `build/`. |
 | `mise run exe`      | `bun scripts/build-standalone.ts`, plus `intake:exe` | Self-contained executable in `dist/`, and `dist\funnel-intake.exe`; depends on `build`. |
 | `mise run intake:exe` | `bun scripts/build-intake.ts`   | Native Windows intake helper in `dist\funnel-intake.exe`. |
-| `mise run docker`   | `docker build -t funnel:<version> .` | Container image (secondary / PaaS target). |
 | `mise run release`  | `bun run release`                 | Applies pending migrations (the release phase). |
 
 Overrides documented in `mise.toml`:
@@ -30,15 +28,13 @@ Overrides documented in `mise.toml`:
 ```sh
 mise run exe --target=bun-linux-x64   # cross-target (needs that platform's satteri package)
 TARGET=bun-linux-x64 mise run exe     # same, via the environment
-mise run docker --version=1.2.3
-VERSION=1.2.3 mise run docker
 ```
 
 ## Version source
 
 The version lives in **`package.json`** (`"version"`). It is read at build time by `vite.config.ts` into `__APP_VERSION__` (shown in the public `/intake` page footer) and by `scripts/build-standalone.ts` when compiling the executable (`--version` prints it).
 
-Do not bump it by hand. **Changesets** owns the version: a user-facing change adds a changeset, and the Changesets GitHub Action opens a version PR that updates `package.json` and `CHANGELOG.md`. Merging that PR produces the `v<version>` tag and starts the executable release pipeline. Pass `--version`/`VERSION` to `mise run docker` when you build the container image.
+Do not bump it by hand. **Changesets** owns the version: a user-facing change adds a changeset, and the Changesets GitHub Action opens a version PR that updates `package.json` and `CHANGELOG.md`. Merging that PR produces the `v<version>` tag and starts the executable release pipeline.
 
 ## Migrations
 
@@ -46,7 +42,7 @@ Schema changes ship as **committed SQL** under `drizzle/<timestamp>_<name>/migra
 
 They are applied:
 
-- **automatically on boot** by the packaged executable (and therefore the container), before it starts listening, and
+- **automatically on boot** by the packaged executable, before it starts listening, and
 - **manually** for a separate release phase: `mise run release` (`bun run release`) or `./funnel --migrate` against `FUNNEL_DB`.
 
 `src/lib/server/db/release.ts` is deliberately independent of the app environment and the `db` singleton: it opens its own `bun:sqlite` connection, so the release step can run before the server boots and without the deploy secrets. The database path comes from `FUNNEL_DB` (default `./data/funnel.db`); the migrations folder from `FUNNEL_MIGRATIONS_DIR`, else from candidates covering an embedded executable, an adapter-node deploy, and a source checkout. `runMigrations()` is idempotent and wrapped in transactions; `/readyz` reports `503` until every committed migration has been applied.
@@ -57,7 +53,7 @@ They are applied:
 [release] <n> migration(s) applied — db=… migrations=… total=…
 ```
 
-On a PaaS use it as the release / pre-deploy command. The runtime container has no Bun or source tree, so apply migrations there with `docker run --rm <image> --migrate` instead. The packaged executable runs the same step on boot.
+Use it as the release / pre-deploy command when you run migrations separately. The packaged executable runs the same step on boot.
 
 ## Standalone executable data defaults
 
@@ -69,7 +65,7 @@ The standalone bootstrap (`src/standalone.ts`) points the app at a writable data
 | `FUNNEL_DB`         | `<data dir>/funnel.db`           |
 | `FUNNEL_UPLOAD_DIR` | `<data dir>/uploads`             |
 
-The Windows service sets `FUNNEL_DATA_DIR` to `C:\ProgramData\Funnel` and runs with that directory as its working directory, so state — `funnel.db`, `uploads/`, `.env` — lives there. The container sets `FUNNEL_DATA_DIR=/data`, which should be a mounted volume.
+The installed service sets `FUNNEL_DATA_DIR` and `FUNNEL_ENV_FILE` in its service definition. On Windows the defaults are `C:\ProgramData\Funnel`; on Linux and macOS the installer uses the paths chosen during `funnel setup`.
 
 The executable also handles `--migrate`, `--healthcheck` (probes `/healthz`), `--version`, and `--help`.
 
@@ -80,7 +76,6 @@ The executable also handles `--migrate`, `--healthcheck` (probes `/healthz`), `-
 | adapter-node server   | `build/`                              | Run with `bun ./build/index.js` (`bun run start`); client assets in `build/client`. |
 | Standalone executable | `dist/funnel` (Linux/macOS), `dist/funnel.exe` (Windows) | One file: Bun runtime, adapter-node output, dependencies, client assets, and `drizzle/` migrations embedded. |
 | Intake helper         | `dist\funnel-intake.exe` (Windows)    | Optional per-user hotkey helper; pure Go, no cgo. Built by `intake:exe`, which `exe` also runs. |
-| Container image       | tagged `funnel:<version>`             | Built from `Dockerfile`; compiles the Linux executable and copies it to `/usr/local/bin/funnel`; `ENTRYPOINT ["/usr/local/bin/funnel"]`, `VOLUME /data`, healthcheck via `funnel --healthcheck`. |
 
 `scripts/build-standalone.ts` accepts `--target=<bun-target>`, `--outdir=<dir>` (default `dist`), and `--outfile=<name>` (default `funnel`, or `funnel.exe` for a Windows target). Cross-target builds need that platform's `satteri` package installed, so building natively per OS is the reliable path.
 
@@ -122,11 +117,10 @@ applies versions and changelogs locally; CI normally does this in a version PR.
 5. If the schema changed, make sure the new `drizzle/<timestamp>_<name>/` directory was committed with the change (`bun run db:generate`).
 6. Deploy the executable or image:
    - **Windows:** stop the service, replace `funnel.exe`, start it — migrations run automatically on boot.
-   - **Container / PaaS:** mount the `/data` volume, or run the separate release phase (`mise run release` against the same `FUNNEL_DB`, or `<image> --migrate`) before starting the new version.
 7. Confirm `/healthz` (liveness) and `/readyz` (readiness, `503` until migrations are applied) after the rollout.
 
 You can still build artifacts locally before merging: `mise run verify`,
-`mise run build`, `mise run exe`, and `mise run docker --version=<version>`.
+`mise run build` and `mise run exe`.
 
 Funnel is a **single instance**: it owns one SQLite file, so do not scale it horizontally or run multiple replicas against one volume.
 
@@ -164,8 +158,7 @@ Two workflows split versioning from artifact publishing:
 
 Build jobs call the same `bun run build` and `bun scripts/build-standalone.ts`
 commands as `mise run exe`, so a release artefact is the same build a local
-checkout produces. The container image is not published by these workflows;
-build it with `mise run docker --version=<version>` where you deploy it.
+checkout produces.
 
 ## Related
 

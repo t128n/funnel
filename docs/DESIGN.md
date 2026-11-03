@@ -112,12 +112,18 @@ libraries.
 - **Settings**: `container-xl py-4` with a local `row g-4` page column
   (`col-lg-3` nav, `col-lg-9` content) and a `form-select` switcher below `lg`.
   This is local settings navigation, not a global sidebar.
-- **Workspaces**: the board keeps `18rem` lanes and a `60svh` canvas; the
-  matrix is a fixed-layout table inside `container-xl`; the timeline uses an
-  `Apache ECharts` canvas with an HTML label column and an undated table. The
-  chart reads its palette from `--funnel-chart-*` (and Bootstrap colour
-  variables) so it follows the theme. These layouts keep minimal scoped CSS
-  because Bootstrap grid cannot express them.
+- **Workspaces**: the board keeps flat 1px-bordered cards in horizontally
+  scrollable `18rem` lanes and a `60svh` canvas; every drag has a keyboard and
+  menu equivalent. The matrix is an interactive 3×3 selection grid inside
+  `container-xl` with an assessment summary, a rating-guide dialog, and the
+  selected cell's issues in the second column; issues missing an axis stay in
+  the assessment queue. Plan lanes are ruled sections with Bootstrap progress
+  meters and explicit over-cap warnings, not cards. The timeline uses an
+  `Apache ECharts` Gantt with an HTML label column, a real list of milestone
+  links, and an undated table below the chart. The chart reads its palette from
+  `--funnel-chart-*` (and Bootstrap colour variables) so it follows the theme.
+  These layouts keep minimal scoped CSS because Bootstrap grid cannot express
+  them.
 - **Focused flows** (intake, login, onboarding): no app navigation, one
   centered `.form-measure` column, one primary action.
 

@@ -5,6 +5,7 @@
  * describe exactly what the cockpit renders: dense stream rows, the Inbox's
  * mixed submission/issue queue, and the six-column status board.
  */
+import type { Impact, Urgency } from "#lib/priority";
 import type { StagedSubmission } from "#lib/server/intake/staging";
 import type { DelayReason } from "#lib/server/actuals/reasons";
 import type { DelayItem } from "#lib/server/actuals/store";
@@ -141,21 +142,28 @@ export interface StatusBoard {
   columns: BoardColumn[];
 }
 
-/** One counted cell in the impact × urgency matrix (SPEC §2.3–§2.4). */
+/** One classified cell in the impact × urgency matrix. */
 export interface MatrixCell {
-  impact: number | null;
-  urgency: number | null;
-  /** Exact SQL count, never derived from the preview list. */
+  impact: Impact;
+  urgency: Urgency;
+  /** Exact SQL count for the assessed pair. */
   total: number;
-  /** Up to {@link MATRIX_PREVIEW_LIMIT} previews ordered by rank then updated. */
-  issues: IssueListItem[];
 }
 
-/** The 4×4 priority matrix over the filtered mirror stream. */
+/**
+ * The 3×3 priority matrix over the filtered mirror stream. Issues missing an
+ * impact and/or urgency stay out of the cells and surface in the assessment
+ * counts instead.
+ */
 export interface MatrixBoard {
+  /** The nine classified combinations, in impact-major order. */
   cells: MatrixCell[];
-  /** Sum of every cell's total. */
+  /** Every issue in the scoped dataset, assessed or not. */
   total: number;
+  /** Issues with both axes assigned. */
+  rated: number;
+  /** Issues missing an impact and/or urgency classification. */
+  needsAssessment: number;
 }
 
 /**

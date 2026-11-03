@@ -115,5 +115,5 @@ The trade-offs are equally real: no horizontal scaling, no independent worker sc
 - [Deployment model](./deployment-model.md) — why one instance, how it is packaged and upgraded.
 - [Design principles](./design-principles.md) — the UI standards the cockpit is built to.
 - [Environment variables reference](../reference/environment-variables.md) — the deploy-time variables that sit alongside `state_setting`.
-- [Release how-to](../how-to/contribute/release.md) — building the adapter-node server, executable and container.
+- [Release how-to](../how-to/contribute/release.md) — building the adapter-node server and executable.
 - [Production and deployment](../../README.md#production) — operational summary in the repository README.

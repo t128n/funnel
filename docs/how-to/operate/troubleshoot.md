@@ -16,7 +16,6 @@ Confirm which instance and version you are looking at:
 
 ```sh
 funnel --version
-docker ps --filter name=funnel        # container
 ```
 
 ```powershell
@@ -26,7 +25,6 @@ Get-Service Funnel                    # Windows service
 Set `LOG_LEVEL=debug` temporarily if the default `info` logs do not show the failure, restart, reproduce, then set it back. Read logs where the process writes stdout:
 
 ```sh
-docker logs --tail 200 -f funnel
 ```
 
 ```powershell
@@ -42,7 +40,7 @@ This is expected while no GitHub App exists: every route except the wizard, heal
 **Checks**
 
 - Can you open **Settings → GitHub App**? If it shows an App, the instance is onboarded and `/onboarding` redirects to `/login`; the problem is sign-in, not the first-run gate.
-- Is `FUNNEL_ONBOARDING_TOKEN` set in the effective environment (`.env`, container variables, service variables)? Changes are read at boot; a restart is required.
+- Is `FUNNEL_ONBOARDING_TOKEN` set in the effective environment (`FUNNEL_ENV_FILE`, service variables)? Changes are read at boot; a restart is required.
 - The accepted token is stored in an `HttpOnly` cookie named `funnel_onboarding_token` for one hour. An expired cookie, a different browser, or a different hostname (including IP versus DNS name) presents the token prompt again.
 - The token form submits a `GET` to `/onboarding?token=...`. Special characters must be URL-encoded if you type the URL directly.
 
@@ -58,7 +56,7 @@ This is expected while no GitHub App exists: every route except the wizard, heal
 
 - **Settings → GitHub App** shows no App after you were previously signed in, or the wizard keeps returning to `/onboarding` after creating one.
 - The process logs contain `No GitHub App configured; complete onboarding first` or a credential-decryption failure (for example `Unsupported state or unable to authenticate data`).
-- The database is on a persistent volume. A container recreated without `/data`, or a PaaS service with an ephemeral filesystem, loses the `state_github_app` row and the App appears to vanish.
+- The database is on a persistent path. A reinstall or move that loses the data directory loses the `state_github_app` row and the App appears to vanish.
 - The App still exists on GitHub and is not suspended. **Settings → GitHub App → Open App** must point at the correct host.
 - For GitHub Enterprise Server (GHES), both `GITHUB_URL` and `GITHUB_API_URL` are set and Funnel was restarted.
 
@@ -114,7 +112,7 @@ Read the JSON body; it distinguishes the two cases:
 **Checks**
 
 - `FUNNEL_DB` points at the database the running instance actually uses. Relative defaults resolve from the working directory, so `./data/funnel.db` from a different directory is a different file.
-- The container has its volume mounted at `/data`, and the process can write there.
+- The service user can write to the data directory recorded by `funnel status`.
 - The data directory and database file are writable, and the disk is not full.
 - A release step ran against the same database, not a copy or a different relative path.
 - The process logs show `[funnel] database ready at ...` or `[funnel] migration failed: ...`.
@@ -131,8 +129,6 @@ FUNNEL_DATA_DIR=/path/to/data /path/to/funnel --migrate
 # From a checkout
 FUNNEL_DB=/path/to/data/funnel.db mise run release
 
-# Container
-docker run --rm -v funnel-data:/data funnel:<tag> --migrate
 ```
 
 - On Windows, a manual `funnel.exe --migrate` does not inherit `FUNNEL_DATA_DIR` from `funnel-service.xml`. Set it explicitly, or set `FUNNEL_DB` to the service database:
@@ -225,7 +221,7 @@ Three independent limits can reject an upload:
 **Checks**
 
 - Read the response body and headers to see which layer answered. A proxy rejection usually never reaches Funnel's logs.
-- Confirm `BODY_SIZE_LIMIT` is at least `FUNNEL_UPLOAD_MAX_BYTES` plus multipart overhead. The Windows service definition sets `BODY_SIZE_LIMIT=25M`; the container does not set it, so Docker installations use adapter-node's `512K` unless you pass it.
+- Confirm `BODY_SIZE_LIMIT` is at least `FUNNEL_UPLOAD_MAX_BYTES` plus multipart overhead. The Windows service definition sets `BODY_SIZE_LIMIT=25M`; the native service definition sets `BODY_SIZE_LIMIT=25M`; a manually started process uses adapter-node's `512K` unless you set it.
 - Confirm the proxy's body limit is at least as large. nginx defaults to `1m`.
 
 **Fix**
@@ -263,7 +259,6 @@ Identify which layer produced the 403:
 
 Funnel logs structured JSON to stdout in production. Set `LOG_LEVEL` to `fatal`, `error`, `warn`, `info`, `debug`, `trace` or `silent`; the default is `info`. Restart after changing it. `debug` is useful for a single reproduction but verbose for steady state.
 
-- Docker: `docker logs --tail 200 -f funnel`.
 - Windows service: WinSW's rolled log files in the install directory (`C:\ProgramData\Funnel` by default), 10 MB per file and eight files kept.
 - Bare metal or systemd: wherever the process's stdout is captured, for example `journalctl -u <unit>`.
 
@@ -298,8 +293,8 @@ Log fields redact authorisation headers, cookies, tokens, client secrets and pri
 - [Add or remove repositories](../configure/repositories.md)
 - [Configure sync](../configure/sync.md)
 - [Manage people and roles](../configure/people-and-roles.md)
-- [Deploy with Docker](../deploy/docker.md)
-- [Install as a Windows service](../deploy/windows-service.md)
+- [Install Funnel](../deploy/install.md)
+- [Install Funnel](../deploy/install.md)
 - [Put Funnel behind a reverse proxy](../deploy/reverse-proxy.md)
 - [Use GitHub Enterprise Server](../deploy/github-enterprise-server.md)
 - [Back up and restore](backup-and-restore.md)

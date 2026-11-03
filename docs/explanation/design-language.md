@@ -62,11 +62,15 @@ and code blocks. Activity is a ruled list, not chat bubbles.
 
 ## Board, matrix, and plan
 
-The board keeps fixed-width Bootstrap cards in horizontally scrollable lanes.
-The matrix is a fixed-layout Bootstrap table so all five columns fit and titles
-truncate. The plan uses ruled maintainer lanes and Bootstrap progress meters.
-These layouts keep small scoped stylesheets because their geometry is specific
-to the task; their colors and typography still come from Bootstrap.
+The board keeps its kanban function with flat Bootstrap cards, 1px borders, a
+mono ref, and icon+text status. Dragging still works, and every drag has a
+keyboard and menu equivalent. The matrix is an interactive 3×3 selection grid
+inside `container-xl`, with an assessment summary above it, a rating-guide
+dialog, and the selected cell's issue list in the second column; issues missing
+an axis stay in the assessment queue. Plan lanes are ruled sections with
+Bootstrap progress meters and explicit over-cap warnings, not cards. These
+layouts keep small scoped stylesheets because their geometry is specific to the
+task; their colors and typography still come from Bootstrap.
 
 The timeline is an Apache ECharts canvas with an HTML label column and a
 separate undated table. It reads its palette from `--funnel-chart-*` and

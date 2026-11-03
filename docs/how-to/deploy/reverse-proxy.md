@@ -10,7 +10,7 @@ Terminate TLS at a reverse proxy, forward the original protocol and host to Funn
 
 ## 1. Set the public origin and trust the proxy headers
 
-In Funnel's environment (`.env` for the Windows service, `-e` for Docker, service variables on a PaaS):
+In Funnel's environment (the config file written by `funnel setup`, or service variables on a PaaS):
 
 ```dotenv
 FUNNEL_URL=https://funnel.example.com
@@ -22,7 +22,7 @@ HOST_HEADER=x-forwarded-host
 
 Direct HTTP instances do not need these headers: the packaged executable derives the scheme from the request, and onboarding cookies are only marked `Secure` when the request itself is HTTPS.
 
-Only trust these headers when the proxy is the sole route to Funnel. On a native Windows or Linux install, also set `HOST=127.0.0.1` to bind Funnel to loopback. In Docker, leave `HOST=0.0.0.0` (the image default) and publish the port only on the host's loopback (`-p 127.0.0.1:3000:3000`): the container's loopback is private to the container, so binding to `127.0.0.1` inside it would make the published port unreachable. Otherwise, firewall the application port so clients cannot reach it directly and spoof the headers.
+Only trust these headers when the proxy is the sole route to Funnel. On a native Windows or Linux install, also set `HOST=127.0.0.1` to bind Funnel to loopback, and let the proxy be the only route to the application port.
 
 If the proxy runs on another host or in another container on a shared network, keep `HOST=0.0.0.0` and restrict the application port to the proxy's address.
 
@@ -148,7 +148,7 @@ Funnel's default graceful-shutdown window is 30 seconds (`SHUTDOWN_TIMEOUT`). On
 - [Environment variables](../../reference/environment-variables.md) — `PROTOCOL_HEADER`, `HOST_HEADER`, `BODY_SIZE_LIMIT`, `SHUTDOWN_TIMEOUT`.
 - [Command-line interface](../../reference/cli.md) — `--healthcheck` and the release flags.
 - [Deployment model](../../explanation/deployment-model.md) — liveness, readiness and the single instance.
-- [Deploy with Docker](docker.md)
-- [Install as a Windows service](windows-service.md)
+- [Install Funnel](install.md)
+- [Install Funnel](install.md)
 - [Use GitHub Enterprise Server](github-enterprise-server.md)
 - [Troubleshoot](../operate/troubleshoot.md)
