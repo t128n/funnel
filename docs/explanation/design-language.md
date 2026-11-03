@@ -28,15 +28,16 @@ behavior consistent by default.
 ## Density with air where it matters
 
 A maintainer scanning forty issues needs comparison, not decoration. The app
-shell uses a compact dark navbar and a light `bg-body-tertiary` sidebar with
-30 px navigation rows and a quiet neutral active state. Dense list titles are
-14 px, metadata is 12 px, and identifiers are ordinary blue links. Tables use
-Bootstrap `table-sm`, and every metadata column keeps its slot. Density is
-carried by alignment and rules, not by shrinking type.
+shell is one compact dark navbar over a centered page: there is no persistent
+sidebar and no split list/detail pane. The issue index is a grouped six-column
+table; the document is its own page. Index titles are ordinary blue links with
+metadata as icon + text. Density is carried by alignment, rules, and Bootstrap
+spacing, not by shrinking type.
 
-Whitespace does the grouping. A page title is separated from its toolbar by a
-rule, a toolbar from its table by a rule, and a table from its footer by a
-rule. There are no cards around data. A table is the page structure.
+Whitespace does the grouping. A page title, a single toolbar row, the table,
+and its footer follow one another with Bootstrap spacing. There are no cards
+around data. A table is the page structure. Cards are reserved for the issue's
+Properties and Details rail.
 
 ## One theme mechanism
 
@@ -49,14 +50,15 @@ without a second token system.
 
 ## The issue page
 
-The record opens with its identity: ref in monospace, title as a page heading,
-and a status/priority/assignee line. Properties are label–value rows under a
-top rule; edit controls are conventional Bootstrap selects and dropdowns.
+The record is a dedicated route. It opens with a breadcrumb, the repository and
+monospace reference, the title as a page heading, and a status/labels/opened/
+updated line. An eight-column document holds the description, activity, work
+notes, attachments, and composer; a four-column rail holds the Properties and
+Details cards. Properties edits commit immediately and append an activity
+event.
 
-Description and comments use Bootstrap prose capped at a comfortable reading
-measure. Activity is a ruled list, not chat bubbles. Work notes and
-attachments sit inline after activity. The composer closes the page with
-comment/internal-note modes, attachments, and a primary submit.
+Description and comments read as a document at 1rem/1.65 with Bootstrap prose
+and code blocks. Activity is a ruled list, not chat bubbles.
 
 ## Board, matrix, and plan
 

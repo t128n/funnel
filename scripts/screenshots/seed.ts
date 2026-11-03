@@ -633,6 +633,33 @@ async function seedRows(sqlite: Database, secret: string): Promise<SeedResult> {
     ["intake.default_repo", JSON.stringify("acme/widgets"), now],
   );
 
+  // --- Staged intake submissions ---------------------------------------
+  // Two pending public submissions keep the Inbox triage table realistic:
+  // Accept and Decline act on live rows, and the header's pending count is
+  // sourced from the same queue the production screen renders.
+  run(
+    `INSERT INTO state_intake_submission (id, title, body, source, created_at)
+     VALUES (?, ?, ?, ?, ?)`,
+    [
+      "screenshot-submission-widgets",
+      "Widget export omits column headers",
+      "When I export the widget table as CSV the first row is data instead of the column names.\n\nSteps:\n1. Open a repository.\n2. Choose Export.\n3. Inspect the first line.",
+      "support@example.com",
+      now - 2 * HOUR,
+    ],
+  );
+  run(
+    `INSERT INTO state_intake_submission (id, title, body, source, created_at)
+     VALUES (?, ?, ?, ?, ?)`,
+    [
+      "screenshot-submission-auth",
+      "Sign-in loop after switching GitHub accounts",
+      "Signing out and back in with a second GitHub account returns to the login page. Clearing site data fixes it for one session.",
+      "intake-form",
+      now - 6 * HOUR,
+    ],
+  );
+
   // Planning defaults (the same values `src/lib/server/settings/store.ts`
   // documents). The maintainer roster is what turns the week view into lanes;
   // the rest keep capacity and the cycle horizon deterministic.

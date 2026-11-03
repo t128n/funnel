@@ -15,9 +15,14 @@ describe('DESIGN.md', () => {
 
   test('documents the shell and layout conventions', () => {
     expect(doc).toContain('navbar-dark bg-dark');
-    expect(doc).toContain('14.5rem');
-    expect(doc).toContain('22.5rem');
-    expect(doc).toContain('48rem');
+    expect(doc).toContain('container-xl');
+    expect(doc).toContain('container-lg');
+    expect(doc).toContain('IssueDetailPage');
+    expect(doc).toContain('IssueTable');
+    expect(doc).toContain('InboxTable');
+    expect(doc).toContain('no persistent application sidebar');
+    expect(doc).toContain('col-lg-8');
+    expect(doc).toContain('18rem');
   });
 
   test('documents the shared application components', () => {

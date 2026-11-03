@@ -252,15 +252,15 @@ describe("plan load", () => {
 });
 
 describe("planning navigation and copy", () => {
-  test("test_sidebar_has_plan", () => {
-    expect(source("src/lib/components/shell/SidebarNav.svelte")).toMatch(
-      /href:\s*['"]\/plan['"]/,
-    );
+  test("test_navbar_has_plan", () => {
+    const navigation = source("src/lib/components/shell/navigation.ts");
+    expect(navigation).toMatch(/href:\s*['"]\/plan['"]/);
+    expect(navigation).toMatch(/label:\s*['"]Plan['"]/);
   });
 
-  test("test_sidebar_plan_active_state", () => {
-    const sidebar = source("src/lib/components/shell/SidebarNav.svelte");
-    expect(sidebar).toMatch(/active:\s*path\.startsWith\(['"]\/plan['"]\)/);
+  test("test_navbar_plan_active_state", () => {
+    const navigation = source("src/lib/components/shell/navigation.ts");
+    expect(navigation).toMatch(/match:\s*['"]\/plan['"]/);
   });
 
   test("test_settings_nav_has_planning", () => {

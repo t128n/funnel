@@ -2,21 +2,33 @@
 
 Funnel uses **Bootstrap 5** as its visual foundation and
 [**Sveltestrap**](https://sveltestrap.js.org) for Svelte component
-abstractions. Icons come from **Bootstrap Icons**. The application is an
-issue cockpit: content-first, information-dense, and visually restrained.
+abstractions. Icons come from **Bootstrap Icons**. The application follows the
+approved **Composition A — Traditional Bootstrap Application**: one dark
+global navbar, centered page containers, conventional tables and forms, and a
+dedicated document page for every issue.
 
 The Bootstrap CSS is loaded once in `src/routes/+layout.svelte`; application
 layout rules that Bootstrap cannot express live in
 [`src/lib/styles/app.css`](../src/lib/styles/app.css). Rendered Markdown prose
 is styled in [`markdown.css`](../src/lib/styles/markdown.css).
 
+The approved design contract lives in
+[`docs/design/COMPOSITION-A.md`](./design/COMPOSITION-A.md) and the
+current-to-target mapping in
+[`docs/design/MIGRATION-MAP.md`](./design/MIGRATION-MAP.md).
+
 ## 1. Identity
 
-- A compact dark Bootstrap navbar (`navbar-dark bg-dark`) spans the top.
-- A light secondary sidebar (`bg-body-tertiary`) carries navigation with
-  standard Bootstrap `nav-pills`, 30 px rows, and a quiet neutral active state.
-- The content canvas is fluid and uses Bootstrap typography, spacing, tables,
-  forms, buttons, badges, and alerts.
+- A compact dark Bootstrap navbar (`navbar-dark bg-dark`, `py-2`) is the only
+  global navigation layer. It carries the brand, primary destinations, a
+  `More` overflow menu, repository scope, search, notifications, theme, and the
+  user menu.
+- There is no persistent application sidebar and no split list/detail pane.
+  The page is the unit of composition: index page, document page, inbox page.
+- Page content sits in a centered Bootstrap container: `container-xl` for the
+  issue index, Inbox, Matrix, Timeline, Milestones, Epics, Settings, and
+  Notifications; `container-lg` for the issue document; `container-fluid` for
+  the Board and Plan canvases that need the width.
 - Bootstrap's default system font stack and 1rem body size are retained.
 - Structure comes from alignment, whitespace, and Bootstrap border utilities.
   Content is not wrapped in decorative cards or shadows.
@@ -45,24 +57,27 @@ Use Sveltestrap before raw Bootstrap markup:
 | Overlay | `Modal`, `ModalHeader`, `ModalBody`, `ModalFooter` |
 | Drawer | `Offcanvas` |
 | Menu | `Dropdown`, `DropdownToggle`, `DropdownMenu`, `DropdownItem` |
-| Navigation | `Nav`, `NavItem`, `NavLink` |
+| Navigation | `Navbar`, `NavbarBrand`, `NavbarToggler`, `Collapse`, `Nav`, `NavItem`, `NavLink` |
 | Data | `Table`, `ListGroup`, `ListGroupItem` |
+| Surface | `Card`, `CardBody` |
 | Feedback | `Alert`, `Badge`, `Progress`, `Spinner` |
 | Disclosure | `Collapse`, `Fade` |
 
 There is no Sveltestrap `Select` or `Textarea`; use Bootstrap
 `<select class="form-select">` and `<textarea class="form-control">`.
 
-Application-specific components (`IssueList`, `IssueRow`, `InspectorPane`,
-`EisenhowerMatrix`/`MatrixGrid`, `StatusBoard`, `TimelineChart`, `DayPlan`,
-`PlanLanes`) remain. They own domain behavior and compose Sveltestrap
-internally; they are not a replacement design system.
+Application-specific components (`IssueTable`, `IssueDetailPage`,
+`IssuePropertiesCard`, `IssueDetailsCard`, `InboxTable`, `MatrixGrid`,
+`StatusBoard`, `TimelineChart`, `DayPlan`, `PlanLanes`) remain. They own domain
+behavior and compose Sveltestrap internally; they are not a replacement design
+system.
 
 The shared presentation components are `PageHeader`, `StatusText`,
 `StatusIcon`, `PriorityText`, `PriorityIcon`, `InlineStatus`, `EmptyState`,
 `RefText`, `IntakeTag`, `Avatar`, and `Spinner`. They are thin compositions of
 Bootstrap markup and Sveltestrap; keep using them rather than duplicating their
 markup.
+
 
 ## 4. Icons
 
@@ -81,33 +96,46 @@ libraries.
 
 ## 5. Layout
 
-- **App shell**: dark navbar (`3.25rem`), light sidebar (`14.5rem`), fluid
-  main column.
-- **Master–detail**: `SplitView` keeps a feed column clamped between `22.5rem`
-  and `28.75rem` above 992px and shows one surface at a time below it. The
-  detail pane is capped at `48rem` for reading; `DetailShell` owns that measure.
-- **Settings**: light secondary navigation (`12.5rem`) above 992px, a
-  `form-select` switcher below it, and conventional form groups in a
-  `40rem`–`50rem` content column.
-- **Workspaces**: the board keeps `18rem` lanes; the matrix is a fixed-layout
-  table; the timeline uses an `Apache ECharts` canvas with an HTML label column
-  and an undated table. The chart reads its palette from `--funnel-chart-*`
-  (and Bootstrap colour variables) so it follows the theme. These layouts keep
-  minimal scoped CSS because Bootstrap grid cannot express them.
-- **Focused flows** (intake, login, onboarding): no navigation, one centered
-  column, one primary action.
+- **App shell**: one dark navbar (`py-2`, 56 px measured) followed by the page
+  in normal document flow. No persistent sidebar, no fixed-height cockpit
+  frame, no nested pane scrollers. The navbar collapses below `lg` with a
+  one-layer Bootstrap `Collapse`; it never becomes an off-canvas global rail.
+- **Issues index**: `container-xl py-4`, one toolbar row (search, status,
+  priority, assignee, group), and a grouped six-column table inside a bordered
+  `table-responsive` wrapper. Title is the remaining width and the widest
+  column.
+- **Issue detail**: `container-lg py-4` with an 8/4 split at `lg` and above
+  (`col-lg-8` document and activity, `col-lg-4` Properties and Details cards).
+  It stacks below `lg`, document first.
+- **Inbox**: `container-xl py-4` with a conventional six-column table and
+  inline Accept/Decline; no triage pane.
+- **Settings**: `container-xl py-4` with a local `row g-4` page column
+  (`col-lg-3` nav, `col-lg-9` content) and a `form-select` switcher below `lg`.
+  This is local settings navigation, not a global sidebar.
+- **Workspaces**: the board keeps `18rem` lanes and a `60svh` canvas; the
+  matrix is a fixed-layout table inside `container-xl`; the timeline uses an
+  `Apache ECharts` canvas with an HTML label column and an undated table. The
+  chart reads its palette from `--funnel-chart-*` (and Bootstrap colour
+  variables) so it follows the theme. These layouts keep minimal scoped CSS
+  because Bootstrap grid cannot express them.
+- **Focused flows** (intake, login, onboarding): no app navigation, one
+  centered `.form-measure` column, one primary action.
 
 ## 6. Tables, lists, and metadata
 
 Priority is a derived `P1`–`P3` token shown as text (and a signal icon where
-space is tight), never as a GitHub label. Dense list titles are 14 px, metadata
-is 12 px, and identifiers are ordinary blue links. Status and priority use
-muted text and icons; avoid badges for ordinary metadata.
+space is tight), never as a GitHub label. Index titles are ordinary blue links
+with no underline; status and priority are icon + text, not coloured pills.
+Identifiers and group counts are muted.
 
-Use Sveltestrap `Table` with `table-sm align-middle funnel-table` inside
-scrollable regions. Dense feeds may use Bootstrap utilities plus a scoped grid
-for the ref/title/meta/action columns. Metadata uses Bootstrap `dl`/`row`
-patterns or the shared `.property-list`.
+Use Sveltestrap `Table` with `hover align-middle` inside a
+`table-responsive border rounded` wrapper. Group headers are
+`tr.bg-body-tertiary` with `th colspan="6"` (the theme-aware tertiary surface
+keeps light and dark headers legible). Below `md`, the issue index hides the
+ID/status/priority/assignee columns and repeats them in a metadata line under
+the title; the Inbox hides Issue/Source/Submitted and keeps its actions visible.
+Metadata uses Bootstrap `dl`/`row` patterns or the shared `.property-list`.
+
 
 ## 7. Forms
 
