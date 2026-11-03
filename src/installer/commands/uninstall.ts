@@ -47,7 +47,12 @@ export async function runUninstall(argv: string[] = []): Promise<void> {
     );
   }
 
-  removeBinary(manifest);
+  const removed = removeBinary(manifest);
+  if (removed.pending) {
+    warn(
+      `The binary was still in use and was moved to ${removed.pending}. It will be deleted on the next setup or uninstall.`,
+    );
+  }
   safeRemove(manifest.manifestPath, manifest.platform);
   if (purge) {
     step(`Removing config: ${manifest.configFile}`);

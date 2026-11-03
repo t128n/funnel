@@ -96,6 +96,54 @@ describe("writeEnvFile", () => {
     expect(result.written).toBe(false);
     expect(readFileSync(path, "utf8")).toBe("FUNNEL_SECRET=existing\n");
   });
+
+  test("keeps an empty public URL empty", () => {
+    const dir = tempDir();
+    const path = join(dir, "funnel.env");
+    writeEnvFile({ path, publicUrl: "" });
+    const content = readFileSync(path, "utf8");
+    expect(readEnvValue(content, "FUNNEL_URL")).toBe("");
+    expect(content).toContain("\nFUNNEL_URL=\n");
+  });
+
+  test("replaces a commented key instead of the blank line above it", () => {
+    const dir = tempDir();
+    const path = join(dir, "funnel.env");
+    writeEnvFile({
+      path,
+      template: "A=1\n\n# FUNNEL_URL=\n",
+      publicUrl: "https://funnel.example.com",
+    });
+    const content = readFileSync(path, "utf8");
+    expect(content).toContain("FUNNEL_URL=https://funnel.example.com");
+    expect(content).not.toContain("# FUNNEL_URL=");
+  });
+});
+
+describe("readEnvValue", () => {
+  test("reads an empty value as empty, not the next comment line", () => {
+    const content = [
+      "# Public URL where the instance is hosted (Optional in local dev)",
+      "FUNNEL_URL=",
+      "",
+      "# 32-byte encryption secret (Required, min 32 chars)",
+      "FUNNEL_SECRET=abc",
+    ].join("\n");
+    expect(readEnvValue(content, "FUNNEL_URL")).toBe("");
+    expect(readEnvValue(content, "FUNNEL_SECRET")).toBe("abc");
+  });
+
+  test("handles CRLF config files", () => {
+    const content =
+      "FUNNEL_URL=\r\n\r\n# 32-byte encryption secret\r\nPORT=3000\r\n";
+    expect(readEnvValue(content, "FUNNEL_URL")).toBe("");
+    expect(readEnvValue(content, "PORT")).toBe("3000");
+  });
+
+  test("ignores commented keys and keeps quoted values unquoted", () => {
+    const content = '# PORT=3000\nPORT="3100"\n';
+    expect(readEnvValue(content, "PORT")).toBe("3100");
+  });
 });
 
 describe("validation", () => {

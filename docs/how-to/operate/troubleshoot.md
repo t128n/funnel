@@ -33,6 +33,29 @@ Get-ChildItem C:\ProgramData\Funnel\*.log | Get-Content -Tail 200
 
 Use the sections below once you know whether the failure is before onboarding, during sign-in, at readiness, during sync, in the browser stream, or at an upload or write boundary.
 
+## `funnel setup` reports `ECONNREFUSED` or the old version keeps running
+
+A portable setup replaces the binary and starts a new process on the configured port. If an older Funnel process still owns that port, the new process exits and the health check cannot connect. Setup now stops the previous portable process before it replaces the binary.
+
+**Checks**
+
+- `funnel status` reports `not running` even though `http://127.0.0.1:<port>/healthz` answers.
+- `funnel --version` did not change after setup, or the onboarding page still shows the old version.
+- The portable error log in the log directory (or `funnel logs`) ends with an address-in-use or startup error just before the connection was refused.
+
+**Fix**
+
+- Re-run `funnel setup` or `funnel uninstall`. Both find Funnel processes by the installed image path, so they also stop a process whose PID is missing from the manifest, and they retry a binary that Windows still has mapped before moving it aside.
+- When it keeps an existing configuration, setup uses the port from that file, not the port typed in the prompt, and warns when the two differ.
+- If a Funnel process from another location still holds the port, stop it and retry:
+
+  ```powershell
+  Get-CimInstance Win32_Process -Filter "Name='funnel.exe'" | Select-Object ProcessId, CommandLine
+  Stop-Process -Id <pid>
+  ```
+
+- Then run `funnel setup` again and confirm the reported port and URL.
+
 ## The instance keeps redirecting to `/onboarding`
 
 This is expected while no GitHub App exists: every route except the wizard, health probes, assets and `/api/auth/*` is gated. It becomes a lockout when `FUNNEL_ONBOARDING_TOKEN` is set and you do not have the token.
