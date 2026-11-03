@@ -12,9 +12,9 @@
 		priority === 'P1'
 			? { name: 'High', tone: 'text-danger' }
 			: priority === 'P2'
-				? { name: 'Medium', tone: 'text-warning-emphasis' }
+				? { name: 'Medium', tone: 'text-body' }
 				: priority === 'P3'
-					? { name: 'Low', tone: 'text-body-secondary' }
+					? { name: 'Low', tone: 'text-secondary' }
 					: null
 	);
 </script>

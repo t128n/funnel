@@ -45,9 +45,17 @@
 		 * offcanvas's own Clear action.
 		 */
 		hide?: readonly FilterDimension[];
+		/** A quiet link instead of an outline button (the Issues header). */
+		quiet?: boolean;
 	}
 
-	let { options, allowNoStatus = true, showState = false, hide = [] }: Props = $props();
+	let {
+		options,
+		allowNoStatus = true,
+		showState = false,
+		hide = [],
+		quiet = false
+	}: Props = $props();
 
 	const hidden = $derived(new Set(hide));
 
@@ -157,7 +165,12 @@
 	}
 </script>
 
-<Button color="outline-secondary" onclick={() => (open = true)}>
+<Button
+	color={quiet ? 'link' : 'outline-secondary'}
+	size={quiet ? 'sm' : ''}
+	class={quiet ? 'text-decoration-none px-1' : ''}
+	onclick={() => (open = true)}
+>
 	<i class="bi bi-funnel me-1" aria-hidden="true"></i>
 	Filters
 	{#if count > 0}

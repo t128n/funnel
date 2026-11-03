@@ -192,6 +192,7 @@
 				allowNoStatus={false}
 				showState
 				hide={HIDDEN_FILTERS}
+				quiet
 			/>
 		{/snippet}
 	</PageHeader>

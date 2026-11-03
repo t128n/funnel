@@ -141,21 +141,21 @@
 <div class="table-responsive border rounded">
 	<Table hover class="inbox-table align-middle mb-0">
 		<caption class="visually-hidden">Inbox triage queue</caption>
-		<thead class="bg-body-tertiary">
+		<thead>
 			<tr>
-				<th scope="col" class="small text-body-secondary d-none d-md-table-cell inbox-col-issue">
+				<th scope="col" class="bg-body-tertiary small text-body-secondary d-none d-md-table-cell inbox-col-issue">
 					Issue
 				</th>
-				<th scope="col" class="small text-body-secondary">Title</th>
-				<th scope="col" class="small text-body-secondary d-none d-lg-table-cell">Repository</th>
-				<th scope="col" class="small text-body-secondary d-none d-md-table-cell">Source</th>
+				<th scope="col" class="bg-body-tertiary small text-body-secondary">Title</th>
+				<th scope="col" class="bg-body-tertiary small text-body-secondary d-none d-lg-table-cell">Repository</th>
+				<th scope="col" class="bg-body-tertiary small text-body-secondary d-none d-md-table-cell">Source</th>
 				<th
 					scope="col"
-					class="small text-body-secondary d-none d-md-table-cell inbox-col-submitted"
+					class="bg-body-tertiary small text-body-secondary d-none d-md-table-cell inbox-col-submitted"
 				>
 					Submitted
 				</th>
-				<th scope="col" class="small text-body-secondary text-end inbox-col-triage">Triage</th>
+				<th scope="col" class="bg-body-tertiary small text-body-secondary text-end inbox-col-triage">Triage</th>
 			</tr>
 		</thead>
 		<tbody>

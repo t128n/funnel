@@ -49,11 +49,11 @@
 					<h2 class="small text-body-secondary fw-normal mb-2">{group.repo}</h2>
 					<div class="table-responsive border rounded">
 						<Table hover size="sm" class="align-middle funnel-table mb-0">
-							<thead class="bg-body-tertiary small text-body-secondary">
+							<thead class="small text-body-secondary">
 								<tr>
 									<th scope="col">Milestone</th>
-									<th scope="col" class="text-end">Due</th>
-									<th scope="col" class="text-end">Progress</th>
+									<th scope="col" class="bg-body-tertiary text-end">Due</th>
+									<th scope="col" class="bg-body-tertiary text-end">Progress</th>
 									<th scope="col">Created by</th>
 								</tr>
 							</thead>

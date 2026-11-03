@@ -130,7 +130,7 @@ Identifiers and group counts are muted.
 
 Use Sveltestrap `Table` with `hover align-middle` inside a
 `table-responsive border rounded` wrapper. Group headers are
-`tr.bg-body-tertiary` with `th colspan="6"` (the theme-aware tertiary surface
+`th.bg-body-tertiary` with `colspan="6"` (the theme-aware tertiary surface
 keeps light and dark headers legible). Below `md`, the issue index hides the
 ID/status/priority/assignee columns and repeats them in a metadata line under
 the title; the Inbox hides Issue/Source/Submitted and keeps its actions visible.

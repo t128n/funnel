@@ -130,7 +130,9 @@
 					>
 						{destination.label}
 						{#if countFor(destination.href) > 0}
-							<span class="badge rounded-pill text-bg-light ms-1">
+							<span
+								class="badge rounded-pill fw-normal text-white bg-white bg-opacity-10 border border-secondary-subtle ms-1"
+							>
 								{countFor(destination.href) > 99 ? '99+' : countFor(destination.href)}
 								<span class="visually-hidden">waiting</span>
 							</span>

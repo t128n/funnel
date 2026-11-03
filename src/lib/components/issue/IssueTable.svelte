@@ -188,14 +188,14 @@
 {#if loading}
 	<div class="table-responsive border rounded" role="status" aria-label="Loading issues…">
 		<Table hover class="align-middle mb-0">
-			<thead class="bg-body-tertiary">
+			<thead>
 				<tr>
-					<th scope="col" class="small text-body-secondary d-none d-md-table-cell" style="width: 7rem;">Issue</th>
-					<th scope="col" class="small text-body-secondary">Title</th>
-					<th scope="col" class="small text-body-secondary d-none d-md-table-cell" style="width: 8rem;">Status</th>
-					<th scope="col" class="small text-body-secondary d-none d-md-table-cell" style="width: 7rem;">Priority</th>
-					<th scope="col" class="small text-body-secondary d-none d-md-table-cell" style="width: 10rem;">Assignee</th>
-					<th scope="col" class="small text-body-secondary text-end d-none d-lg-table-cell" style="width: 8rem;">Updated</th>
+					<th scope="col" class="bg-body-tertiary small text-body-secondary d-none d-md-table-cell" style="width: 7rem;">Issue</th>
+					<th scope="col" class="bg-body-tertiary small text-body-secondary">Title</th>
+					<th scope="col" class="bg-body-tertiary small text-body-secondary d-none d-md-table-cell" style="width: 8rem;">Status</th>
+					<th scope="col" class="bg-body-tertiary small text-body-secondary d-none d-md-table-cell" style="width: 7rem;">Priority</th>
+					<th scope="col" class="bg-body-tertiary small text-body-secondary d-none d-md-table-cell" style="width: 10rem;">Assignee</th>
+					<th scope="col" class="bg-body-tertiary small text-body-secondary text-end d-none d-lg-table-cell" style="width: 8rem;">Updated</th>
 				</tr>
 			</thead>
 			<tbody>
@@ -232,33 +232,35 @@
 {:else}
 	<div class="table-responsive border rounded">
 		<Table hover class="align-middle mb-0">
-			<thead class="bg-body-tertiary">
+			<thead>
 				<tr>
-					<th scope="col" class="small text-body-secondary d-none d-md-table-cell" style="width: 7rem;">Issue</th>
-					<th scope="col" class="small text-body-secondary">Title</th>
-					<th scope="col" class="small text-body-secondary d-none d-md-table-cell" style="width: 8rem;">Status</th>
-					<th scope="col" class="small text-body-secondary d-none d-md-table-cell" style="width: 7rem;">Priority</th>
-					<th scope="col" class="small text-body-secondary d-none d-md-table-cell" style="width: 10rem;">Assignee</th>
-					<th scope="col" class="small text-body-secondary text-end d-none d-lg-table-cell" style="width: 8rem;">Updated</th>
+					<th scope="col" class="bg-body-tertiary small text-body-secondary d-none d-md-table-cell" style="width: 7rem;">Issue</th>
+					<th scope="col" class="bg-body-tertiary small text-body-secondary">Title</th>
+					<th scope="col" class="bg-body-tertiary small text-body-secondary d-none d-md-table-cell" style="width: 8rem;">Status</th>
+					<th scope="col" class="bg-body-tertiary small text-body-secondary d-none d-md-table-cell" style="width: 7rem;">Priority</th>
+					<th scope="col" class="bg-body-tertiary small text-body-secondary d-none d-md-table-cell" style="width: 10rem;">Assignee</th>
+					<th scope="col" class="bg-body-tertiary small text-body-secondary text-end d-none d-lg-table-cell" style="width: 8rem;">Updated</th>
 				</tr>
 			</thead>
 			{#each groups as group (group.key)}
 				{@const groupKey = `${groupBy}:${group.key}`}
 				{@const collapsed = isGroupCollapsed(groupKey)}
 				<tbody>
-					<tr class="bg-body-tertiary">
-						<th colspan="6" class="small fw-semibold text-body-secondary py-2">
+					<tr>
+						<th colspan="6" class="bg-body-tertiary small fw-semibold text-body-secondary py-2">
 							<button
 								type="button"
-								class="btn btn-link btn-sm p-0 text-decoration-none text-reset text-wrap text-start fw-semibold"
+								class="group-toggle btn btn-link btn-sm p-0 text-decoration-none text-reset text-wrap text-start fw-semibold"
 								aria-expanded={!collapsed}
 								onclick={() => toggleGroup(groupKey)}
 							>
+								{group.label} <span class="fw-normal ms-1">{group.issues.length}</span>
 								<i
-									class="bi {collapsed ? 'bi-chevron-right' : 'bi-chevron-down'} me-1 small"
+									class="group-chevron bi {collapsed
+										? 'bi-chevron-right'
+										: 'bi-chevron-down'} ms-1 small"
 									aria-hidden="true"
 								></i>
-								{group.label} <span class="fw-normal ms-1">{group.issues.length}</span>
 							</button>
 						</th>
 					</tr>
@@ -316,7 +318,7 @@
 								</td>
 								<td class="small d-none d-md-table-cell">
 									{#if issue.priority}
-										<PriorityText priority={issue.priority} />
+										<PriorityText priority={issue.priority} showName />
 									{:else}
 										<span class="text-body-tertiary">—</span>
 									{/if}
@@ -372,5 +374,22 @@
 		height: 0.75rem;
 		border-radius: var(--bs-border-radius-sm);
 		background: var(--bs-secondary-bg);
+	}
+
+	/* The group row stays as quiet as the approved table; the collapse
+	   affordance appears on hover or keyboard focus. */
+	.group-chevron {
+		opacity: 0;
+	}
+
+	.group-toggle:hover .group-chevron,
+	.group-toggle:focus-visible .group-chevron {
+		opacity: 0.55;
+	}
+
+	@media (hover: none) {
+		.group-chevron {
+			opacity: 0.45;
+		}
 	}
 </style>
