@@ -40,7 +40,6 @@
 	<DropdownToggle
 		color="secondary"
 		outline
-		size="sm"
 		class="d-inline-flex align-items-center gap-2"
 		aria-label={`Group issues by: ${current}`}
 	>

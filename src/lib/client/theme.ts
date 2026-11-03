@@ -6,8 +6,8 @@
  * `localStorage` under `funnel:theme`, keeps a `system` choice in sync with
  * the OS, and updates the browser theme-color to the active canvas.
  *
- * `data-theme` and `.dark` remain in sync for ECharts and other non-Bootstrap
- * consumers, but Bootstrap components read `data-bs-theme`.
+ * Bootstrap components and every application-facing CSS variable read
+ * `data-bs-theme`; there is no second theme attribute.
  */
 import { get, writable } from "svelte/store";
 
@@ -38,10 +38,8 @@ function resolve(choice: ThemeChoice): ResolvedTheme {
 function apply(theme: ResolvedTheme): void {
   if (!isBrowser()) return;
   const root = document.documentElement;
-  root.setAttribute("data-theme", theme);
   root.setAttribute("data-bs-theme", theme);
   root.style.colorScheme = theme;
-  root.classList.toggle("dark", theme === "dark");
 
   // Read the active Bootstrap canvas rather than hard-coding a value.
   const canvas = getComputedStyle(root).getPropertyValue("--bs-body-bg").trim();

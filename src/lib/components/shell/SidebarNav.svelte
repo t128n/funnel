@@ -55,6 +55,7 @@
 </script>
 
 <nav class="h-100 d-flex flex-column p-2" aria-label="Primary">
+	<div class="sidebar-heading">Personal</div>
 	<Nav vertical pills class="app-nav flex-column gap-1">
 		{#each personal as item (item.href)}
 			<NavItem>
@@ -76,7 +77,7 @@
 		{/each}
 	</Nav>
 
-	<h2 class="h6 text-uppercase text-body-secondary px-2 mt-4 mb-1 small">Workspace</h2>
+	<div class="sidebar-heading mt-4">Workspace</div>
 	<Nav vertical pills class="app-nav flex-column gap-1">
 		{#each workspace as item (item.href)}
 			<NavItem>
@@ -94,6 +95,7 @@
 	</Nav>
 
 	<div class="mt-auto pt-3 border-top">
+		<div class="sidebar-heading mt-2">Configuration</div>
 		<Nav vertical pills class="app-nav flex-column">
 			<NavItem>
 				<NavLink

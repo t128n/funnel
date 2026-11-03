@@ -21,11 +21,10 @@
 	let { items, label }: Props = $props();
 </script>
 
-<ButtonGroup size="sm" role="group" aria-label={label}>
+<ButtonGroup role="group" aria-label={label}>
 	{#each items as item (item.label)}
 		<Button
 			color="outline-secondary"
-			size="sm"
 			href={item.href}
 			active={item.active}
 			aria-current={item.active ? 'page' : undefined}

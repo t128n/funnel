@@ -26,13 +26,13 @@ is styled in [`markdown.css`](../src/lib/styles/markdown.css).
 Light and dark themes are driven by **`data-bs-theme`** on `<html>`, which
 Bootstrap 5.3 uses for every component and CSS variable. The pre-paint script
 in `src/app.html` and the theme controller in `src/lib/client/theme.ts` keep
-`data-bs-theme`, `data-theme`, and `color-scheme` in sync. Persistence uses
-`localStorage` under `funnel:theme` (`system`, `dark`, `light`).
+`data-bs-theme` and `color-scheme` in sync. Persistence uses `localStorage`
+under `funnel:theme` (`system`, `dark`, `light`).
 
 Components must consume Bootstrap variables (`--bs-body-color`,
 `--bs-secondary-color`, `--bs-border-color`, `--bs-primary`, `--bs-danger`,
 `--bs-body-bg`, `--bs-tertiary-bg`, …) rather than hard-coded colours or
-`[data-theme]` selectors.
+parallel theme attributes.
 
 ## 3. Components
 

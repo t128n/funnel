@@ -24,7 +24,7 @@
 		<div class="d-flex flex-wrap align-items-baseline gap-2">
 			<svelte:element
 				this={level === 1 ? 'h1' : 'h2'}
-				class={level === 1 ? 'h4 mb-0' : 'h5 mb-0'}
+				class={level === 1 ? 'h3 mb-0' : 'h4 mb-0'}
 			>
 				{title}
 			</svelte:element>

@@ -125,7 +125,7 @@
 	}
 </script>
 
-<Button color="outline-secondary" size="sm" onclick={() => (open = true)}>
+<Button color="outline-secondary" onclick={() => (open = true)}>
 	<i class="bi bi-funnel me-1" aria-hidden="true"></i>
 	Filters
 	{#if count > 0}

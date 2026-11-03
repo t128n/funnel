@@ -52,20 +52,18 @@
 	}
 </script>
 
-<div class="d-flex min-w-0 flex-column gap-1 {className}">
-	<label for="issue-search" class="form-label small fw-semibold text-body-secondary mb-0"
-		>Search</label
-	>
-	<div class="input-group input-group-sm">
-		<span class="input-group-text text-body-secondary">
+<div class="d-flex min-w-0 flex-grow-1 {className}">
+	<label class="visually-hidden" for="issue-search">Search</label>
+	<div class="input-group">
+		<span class="input-group-text bg-body">
 			<i class="bi bi-search" aria-hidden="true"></i>
 		</span>
 		<input
 			bind:this={input}
 			id="issue-search"
 			type="search"
-			class="form-control form-control-sm"
-			placeholder="Title, body, comments…"
+			class="form-control"
+			placeholder="Search title, body, or issue ID"
 			value={search}
 			oninput={(event) => onInput(event.currentTarget.value)}
 			onfocus={() => (focused = true)}

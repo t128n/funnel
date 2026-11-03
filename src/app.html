@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-theme="light" data-bs-theme="light">
+<html lang="en" data-bs-theme="light">
 	<head>
 		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -32,10 +32,8 @@
 						? "dark"
 						: "light";
 				}
-				root.setAttribute("data-theme", theme);
 				root.setAttribute("data-bs-theme", theme);
 				root.style.colorScheme = theme;
-				root.classList.toggle("dark", theme === "dark");
 				var meta = document.querySelector('meta[name="theme-color"]');
 				if (meta) meta.setAttribute("content", theme === "dark" ? "#212529" : "#ffffff");
 			})();

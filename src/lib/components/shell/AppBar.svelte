@@ -9,7 +9,7 @@
 		DropdownToggle
 	} from '@sveltestrap/sveltestrap';
 	import Avatar from '#lib/components/common/Avatar.svelte';
-	import { resolvedTheme, setTheme } from '#lib/client/theme';
+	import { resolvedTheme, setTheme, themeChoice, type ThemeChoice } from '#lib/client/theme';
 	import { signOut } from '#lib/client/auth';
 	import type { Role } from '#lib/roles';
 
@@ -31,6 +31,12 @@
 	const dark = $derived($resolvedTheme === 'dark');
 	const shortcut = $derived(isMac ? '⌘ K' : 'Ctrl K');
 
+	const themes: { value: ThemeChoice; label: string; icon: string }[] = [
+		{ value: 'light', label: 'Light', icon: 'bi-sun' },
+		{ value: 'dark', label: 'Dark', icon: 'bi-moon' },
+		{ value: 'system', label: 'Match system', icon: 'bi-circle-half' }
+	];
+
 	async function handleSignOut() {
 		await signOut();
 		await goto('/login');
@@ -44,7 +50,7 @@
 <header class="navbar navbar-expand navbar-dark bg-dark app-bar px-3">
 	<Button
 		color="link"
-		class="d-lg-none p-1 text-white text-decoration-none"
+		class="nav-quiet d-xl-none"
 		aria-label={navOpen ? 'Close navigation' : 'Open navigation'}
 		aria-expanded={navOpen}
 		onclick={onmenu}
@@ -55,27 +61,25 @@
 	<a href="/" class="navbar-brand mb-0 text-decoration-none" translate="no">funnel</a>
 
 	<span class="navbar-text d-none d-sm-inline border-start border-secondary ps-3 ms-2 py-0">
-		All repositories
+		<i class="bi bi-folder2 me-1" aria-hidden="true"></i>All repositories
 	</span>
 
 	<div class="ms-auto d-flex align-items-center gap-1">
 		<Button
 			color="link"
-			class="text-white-50 text-decoration-none d-flex align-items-center gap-2 px-2"
+			class="nav-quiet d-flex align-items-center gap-2"
 			aria-label="Search issues"
 			onclick={onsearch}
 		>
 			<i class="bi bi-search" aria-hidden="true"></i>
-			<span class="d-none d-md-inline small">Search</span>
-			<kbd class="d-none d-md-inline bg-transparent border border-secondary text-white-50 px-1 fw-normal"
-				>{shortcut}</kbd
-			>
+			<span class="d-none d-md-inline">Search</span>
+			<kbd class="nav-kbd d-none d-lg-inline">{shortcut}</kbd>
 		</Button>
 
 		<Button
 			color="link"
 			href="/notifications"
-			class="text-white text-decoration-none position-relative px-2"
+			class="nav-quiet position-relative"
 			aria-label={unread > 0 ? `Notifications, ${unread} unread` : 'Notifications'}
 		>
 			<i class="bi bi-bell fs-5" aria-hidden="true"></i>
@@ -89,25 +93,36 @@
 			{/if}
 		</Button>
 
-		<Button
-			color="link"
-			class="text-white text-decoration-none px-2"
-			aria-label={dark ? 'Switch to light theme' : 'Switch to dark theme'}
-			title={dark ? 'Switch to light theme' : 'Switch to dark theme'}
-			onclick={() => setTheme(dark ? 'light' : 'dark')}
-		>
-			<i class="bi {dark ? 'bi-sun' : 'bi-moon-stars'} fs-5" aria-hidden="true"></i>
-		</Button>
+		<Dropdown>
+			<DropdownToggle color="link" caret={false} class="nav-quiet" aria-label="Theme" title="Theme">
+				<i class="bi {dark ? 'bi-moon' : 'bi-sun'} fs-5" aria-hidden="true"></i>
+			</DropdownToggle>
+			<DropdownMenu end>
+				<DropdownItem header>Theme</DropdownItem>
+				{#each themes as theme (theme.value)}
+					<DropdownItem
+						class="d-flex align-items-center gap-2"
+						on:click={() => setTheme(theme.value)}
+					>
+						<i class="bi {theme.icon}" aria-hidden="true"></i>
+						<span>{theme.label}</span>
+						{#if $themeChoice === theme.value}
+							<i class="bi bi-check2 ms-auto" aria-hidden="true"></i>
+						{/if}
+					</DropdownItem>
+				{/each}
+			</DropdownMenu>
+		</Dropdown>
 
 		<Dropdown>
 			<DropdownToggle
 				color="link"
 				caret={false}
-				class="text-white text-decoration-none d-flex align-items-center gap-2 px-2"
+				class="nav-quiet d-flex align-items-center gap-2"
 				aria-label="Account menu"
 			>
 				<Avatar login={user.name} avatarUrl={user.image} size={24} />
-				<span class="d-none d-md-inline text-truncate" style="max-width: 8rem">{user.name}</span>
+				<span class="d-none d-lg-inline text-truncate" style="max-width: 10rem">{user.name}</span>
 				<i class="bi bi-chevron-down small" aria-hidden="true"></i>
 			</DropdownToggle>
 			<DropdownMenu end>
@@ -116,15 +131,21 @@
 					<span class="d-block text-truncate small text-body-secondary">{user.email}</span>
 				</DropdownItem>
 				<DropdownItem divider />
-				<DropdownItem on:click={() => openSettings('/settings')}>
-					<i class="bi bi-person me-2" aria-hidden="true"></i>Account
+				<DropdownItem class="d-flex align-items-center gap-2" on:click={() => openSettings('/settings')}>
+					<i class="bi bi-person" aria-hidden="true"></i>Account
 				</DropdownItem>
-				<DropdownItem on:click={() => openSettings('/settings/appearance')}>
-					<i class="bi bi-gear me-2" aria-hidden="true"></i>Settings
+				<DropdownItem
+					class="d-flex align-items-center gap-2"
+					on:click={() => openSettings('/settings/appearance')}
+				>
+					<i class="bi bi-gear" aria-hidden="true"></i>Settings
 				</DropdownItem>
 				<DropdownItem divider />
-				<DropdownItem class="text-danger" on:click={() => void handleSignOut()}>
-					<i class="bi bi-box-arrow-right me-2" aria-hidden="true"></i>Sign Out
+				<DropdownItem
+					class="d-flex align-items-center gap-2 text-danger"
+					on:click={() => void handleSignOut()}
+				>
+					<i class="bi bi-box-arrow-right" aria-hidden="true"></i>Sign Out
 				</DropdownItem>
 			</DropdownMenu>
 		</Dropdown>
