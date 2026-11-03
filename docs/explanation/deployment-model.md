@@ -65,7 +65,7 @@ Funnel exposes two probes because "the process is running" and "this instance ca
 
 `/readyz` is readiness. It checks that the database is reachable and, where the migrations folder can be located, that every committed migration has been applied. It returns `503` with a reason (`database not migrated` or `migrations pending`, including applied and expected counts) until then, and `200` with the counts once ready. It deliberately does not check GitHub connectivity: a cockpit that can still read its mirror is useful during a GitHub incident, so an upstream outage should not drain traffic from it.
 
-The `funnel --healthcheck` subcommand is the operational bridge. It probes `http://127.0.0.1:${PORT}/healthz` and exits `0` or `1`, which lets the executable act as its own container or service health check with no shell, `curl` or extra runtime in the image. It probes liveness only; orchestrators that route traffic should still use `/readyz`.
+The `funnel --healthcheck` subcommand is the operational bridge. It probes `http://127.0.0.1:${PORT}/healthz` and exits `0` or `1`, which lets the executable act as its own service health check with no shell, `curl`, or extra runtime. It probes liveness only; a load balancer that routes traffic should still use `/readyz`.
 
 Both probes are exempt from the first-run gate, so a fresh, un-onboarded instance still answers them. This matters for the packaged executable, which may be health-checked by a supervisor before anyone has opened the onboarding wizard.
 
