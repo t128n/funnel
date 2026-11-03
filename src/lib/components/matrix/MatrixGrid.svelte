@@ -58,7 +58,7 @@
 	}
 </script>
 
-<div class="px-3 py-2" data-testid="matrix-grid">
+<div class="py-2" data-testid="matrix-grid">
 	<div class="overflow-x-auto">
 		<Table bordered size="sm" class="matrix-table align-middle">
 			<caption class="visually-hidden">Impact by urgency issue matrix</caption>
@@ -116,7 +116,7 @@
 										{#each cell.issues.slice(0, 4) as issue (`${issue.repoId}:${issue.number}`)}
 											<li>
 												<a
-													href={issuePath('matrix', issue.repo, issue.number)}
+													href={issuePath('issues', issue.repo, issue.number)}
 													class="matrix-issue d-flex min-w-0 align-items-baseline gap-2 px-2 py-1 small text-decoration-none"
 													title={`${issue.repo}#${issue.number} ${title(issue)}`}
 												>

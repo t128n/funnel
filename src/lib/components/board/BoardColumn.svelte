@@ -39,8 +39,6 @@
 		activeKey?: string | null;
 		/** Card key currently being dragged anywhere on the board. */
 		draggingKey?: string | null;
-		/** Card key of the docked detail, marked with a 2px leading bar. */
-		selectedKey?: string | null;
 		/** Optional Work-in-Progress cap; `undefined` means unlimited. */
 		limit?: number;
 		/** Done retention window, surfaced as the Done column's tooltip. */
@@ -65,7 +63,6 @@
 		onDrop,
 		activeKey = null,
 		draggingKey = null,
-		selectedKey = null,
 		limit,
 		doneDays,
 		repoShortcodes = {},
@@ -208,7 +205,6 @@
 						columnKey={statusKey}
 						{repoShortcodes}
 						{viewer}
-						selected={selectedKey === cardKey(item)}
 						tabIndex={cardKey(item) === activeKey ? 0 : -1}
 						dragging={draggingKey === cardKey(item)}
 						{readonly}
