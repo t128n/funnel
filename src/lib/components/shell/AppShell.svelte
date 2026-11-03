@@ -1,13 +1,11 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
-	import { Offcanvas } from '@sveltestrap/sveltestrap';
 	import AppBar from './AppBar.svelte';
-	import SidebarNav from './SidebarNav.svelte';
-	import { focusTrap } from '#lib/client/focus-trap';
 	import type { Role } from '#lib/roles';
 
 	interface Props {
 		user: { id: string; name: string; email: string; image: string | null; role: Role };
+		repos?: string[];
 		inboxCount?: number;
 		dueCount?: number;
 		unread?: number;
@@ -15,13 +13,15 @@
 		children: Snippet;
 	}
 
-	let { user, inboxCount = 0, dueCount = 0, unread = 0, onSearch, children }: Props = $props();
-
-	let navOpen = $state(false);
-
-	function toggleNav() {
-		navOpen = !navOpen;
-	}
+	let {
+		user,
+		repos = [],
+		inboxCount = 0,
+		dueCount = 0,
+		unread = 0,
+		onSearch,
+		children
+	}: Props = $props();
 </script>
 
 <a
@@ -29,35 +29,15 @@
 	href="#main">Skip to main content</a
 >
 
-<div class="app-shell">
-	<AppBar
-		{user}
-		{unread}
-		navOpen={navOpen}
-		onmenu={toggleNav}
-		onsearch={onSearch}
-	/>
+<AppBar {user} {repos} {inboxCount} {dueCount} {unread} onsearch={onSearch} />
 
-	<div class="app-shell__body">
-		<aside class="app-sidebar d-none d-lg-block" aria-label="Sidebar">
-			<SidebarNav {inboxCount} {dueCount} {unread} />
-		</aside>
-
-		<main id="main" tabindex="-1" class="app-main">
-			{@render children()}
-		</main>
-	</div>
+<!--
+	Composition A has one navigation layer and normal document scroll. There is
+	no persistent sidebar, no fixed-height cockpit frame, and no nested pane
+	scroller: each route owns its container and the page scrolls as a page.
+	The wrapper is a div rather than a second <main> because each route renders
+	its own page-level main landmark.
+-->
+<div id="main" tabindex="-1" class="app-main">
+	{@render children()}
 </div>
-
-<Offcanvas
-	isOpen={navOpen}
-	toggle={toggleNav}
-	placement="start"
-	header="Navigation"
-	body={false}
-	class="border-end"
->
-	<div class="h-100 overflow-y-auto" use:focusTrap={navOpen}>
-		<SidebarNav {inboxCount} {dueCount} {unread} onNavigate={() => (navOpen = false)} />
-	</div>
-</Offcanvas>

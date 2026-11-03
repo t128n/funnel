@@ -156,6 +156,7 @@
 
 <AppShell
 	user={data.user}
+	repos={data.options.repos.map((repo) => repo.slug)}
 	{dueCount}
 	inboxCount={data.inboxCount}
 	unread={data.unreadNotifications}
