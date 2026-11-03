@@ -98,7 +98,7 @@
 </script>
 
 <Dialog.Root {open} onOpenChange={close}>
-	<Dialog.Content class="sm:max-w-[var(--layout-dialog-width)]">
+	<Dialog.Content class="sm:max-w-[min(var(--layout-dialog-width-wide),calc(100%-2rem))]">
 		<Dialog.Header>
 			<Dialog.Title>Schedule Issue</Dialog.Title>
 			<Dialog.Description>
@@ -107,7 +107,7 @@
 			</Dialog.Description>
 		</Dialog.Header>
 
-		<div class="flex flex-col gap-3">
+		<div class="flex min-w-0 flex-col gap-3">
 			<Field.Field>
 				<Field.Label for="plan-candidate-search">Find an issue</Field.Label>
 				<Input
