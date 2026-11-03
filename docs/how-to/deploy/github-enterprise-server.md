@@ -30,14 +30,13 @@ Both variables have GitHub Cloud defaults (`https://github.com` and `https://api
 Apply the change the same way you manage the deployment:
 
 - Windows service: edit `C:\ProgramData\Funnel\.env`, then run `C:\ProgramData\Funnel\funnel-service.exe restart`.
-- Docker: recreate the container with the new `-e` values.
 - PaaS: change the service variables and redeploy.
 
 These hosts are read at boot; there is no settings-page field for them.
 
 ## 2. Make sure the host trusts GHES
 
-If GHES uses a certificate from a private certificate authority, the Funnel host must trust that CA. The container image ships public CA roots only. On Debian or Ubuntu, copy the certificate to `/usr/local/share/ca-certificates/` and run `sudo update-ca-certificates`; in the container, add it in the Dockerfile and rebuild. On Windows, import it into the machine's trusted root store:
+If GHES uses a certificate from a private certificate authority, the Funnel host must trust that CA. On Debian or Ubuntu, copy the certificate to `/usr/local/share/ca-certificates/` and run `sudo update-ca-certificates`. On Windows, import it into the machine's trusted root store:
 
 ```powershell
 Import-Certificate -FilePath acme-ca.cer -CertStoreLocation Cert:\LocalMachine\Root
@@ -99,7 +98,7 @@ A TLS error here will also fail manifest conversion and sync.
 - [Deployment model](../../explanation/deployment-model.md) — the single-instance deployment and onboarding gate.
 - [Onboard the GitHub App](../configure/onboard-github-app.md) — the full manifest flow.
 - [Add or remove repositories](../configure/repositories.md)
-- [Deploy with Docker](docker.md)
-- [Install as a Windows service](windows-service.md)
+- [Install Funnel](install.md)
+- [Install Funnel](install.md)
 - [Put Funnel behind a reverse proxy](reverse-proxy.md)
 - [Troubleshoot](../operate/troubleshoot.md)

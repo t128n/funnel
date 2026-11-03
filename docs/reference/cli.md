@@ -16,6 +16,7 @@ This page documents the `funnel` executable's flags, exit behaviour, data-direct
 funnel <version>
 
 Usage: funnel [options]
+       funnel <setup|status|logs|uninstall|doctor|upgrade> [options]
 
 Options:
   --migrate      Apply pending database migrations, then exit.
@@ -23,7 +24,16 @@ Options:
   --version      Print the version and exit.
   --help         Show this help and exit.
 
+Commands:
+  setup          Install Funnel, create the config, and start it
+  status         Show service and health status
+  logs           Show service or portable logs
+  uninstall      Stop and remove the service; keep data unless --purge
+  doctor         Diagnose config, permissions, service, and health
+  upgrade        Install a downloaded binary and roll back on failure
+
 Environment:
+  FUNNEL_ENV_FILE        Optional env file loaded before startup
   FUNNEL_DATA_DIR        Directory for the database and uploads (default: ./data)
   FUNNEL_DB              SQLite database path (default: <data dir>/funnel.db)
   FUNNEL_UPLOAD_DIR      Attachment directory (default: <data dir>/uploads)
@@ -49,6 +59,32 @@ Flags are checked in the order shown. Unknown arguments are ignored.
 | `--healthcheck` | Request `http://127.0.0.1:<PORT>/healthz` and stop. | `0` when the response is successful, otherwise `1` |
 | `--migrate` | Apply pending migrations, then stop. | `0` on success, `1` on failure |
 | None | Apply pending migrations, then start the server. | Process lifetime; `1` if migrations fail before serving |
+
+## Installer and lifecycle commands
+
+The self-contained executable also owns installation. Run `funnel setup` from
+the extracted release archive; it copies itself to the chosen install directory.
+
+| Command | Purpose |
+| :--- | :--- |
+| `funnel setup` | Interactive installer: mode, paths, port, URL, token, service/portable, health check. |
+| `funnel setup --yes --mode <system\|user\|portable>` | Non-interactive install; requires explicit mode. |
+| `funnel setup --dry-run` | Print the plan without writing files. |
+| `funnel status [--json]` | Manifest paths, service state, health, readiness, version. |
+| `funnel logs [--follow] [--lines <n>]` | journald, launchd log, WinSW log, or portable log. |
+| `funnel doctor [--json]` | Config, secret, directories, service, health, platform checks. |
+| `funnel uninstall [--purge] [--yes]` | Stop/remove the service; keep data unless purged. |
+| `funnel upgrade --binary <path>` | Replace the binary, restart, health-check, roll back on failure. |
+| `funnel upgrade --check` | Show the current version and the supported upgrade path. |
+
+Setup options: `--mode`, `--install-dir`, `--config-file`, `--data-dir`,
+`--log-dir`, `--port`, `--host`, `--url`, `--onboarding-token`, `--log-level`,
+`--yes`, `--dry-run`, `--force`, `--no-elevate`, `--json`, `--verbose`.
+`--config-file` and `--log-dir` accept arbitrary absolute paths, including a
+different Windows drive.
+
+Lifecycle commands accept `--manifest <path>` when the installation manifest is
+not in the platform default config directory.
 
 ## Healthcheck target
 
@@ -85,7 +121,11 @@ The release module deliberately does not import the application environment, so 
 
 ## `.env` loading
 
-Bun loads a `.env` file from the working directory automatically. For the packaged executable, that is the directory it is started in, not necessarily the directory containing the binary. The Windows service sets the working directory and `FUNNEL_DATA_DIR` to `C:\ProgramData\Funnel`, so the `.env` beside the database is the one that is loaded.
+Bun loads a `.env` file from the working directory automatically. For the packaged executable, that is the directory it is started in, not necessarily the directory containing the binary.
+
+Installed services also set `FUNNEL_ENV_FILE` to an absolute config path. The standalone bootstrap loads that file before validation and migrations, with existing process variables taking precedence. This is required because Bun's runtime `--env-file` flag is not available inside a compiled executable.
+
+The setup wizard writes the configured file (default `funnel.env`) from the embedded `.env.example`, preserves an existing `FUNNEL_SECRET`, and backs up a replaced file.
 
 ## Intake helper (`funnel-intake`)
 

@@ -94,7 +94,7 @@ With mise: `mise run test`. See [testing.md](./testing.md) for what the suite co
 
 Schema changes ship as **committed SQL** under `drizzle/<timestamp>_<name>/migration.sql` (the drizzle-kit v1 layout — there is no `meta/_journal.json`). Generate them with `bun run db:generate` and commit the result; do not hand-edit application tables at runtime. They are applied:
 
-- **automatically on boot** by the packaged executable (and therefore the container), and
+- **automatically on boot** by the packaged executable, and
 - **manually** for a separate release phase via `mise run release` / `bun run release`, or `./funnel --migrate`.
 
 Tests run the committed migration against an in-memory database (see `tests/setup.ts`), so the schema the tests exercise is the one the server gets.
