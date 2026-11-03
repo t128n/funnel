@@ -1,7 +1,7 @@
 {
 	"name": "funnel",
 	"private": true,
-	"version": "0.1.0",
+	"version": "0.0.7",
 	"type": "module",
 	"packageManager": "bun@1.4.3",
 	"engines": {
@@ -19,6 +19,7 @@
 		"fetch-winsw": "bun scripts/fetch-winsw.ts",
 		"changeset": "changeset",
 		"changeset:status": "changeset status",
+		"changeset:check": "bun scripts/check-changesets.ts",
 		"changeset:version": "changeset version",
 		"prepare": "bun --bun svelte-kit sync || echo ''",
 		"check": "bun --bun svelte-kit sync && bun --bun svelte-check --tsconfig ./tsconfig.json",
