@@ -1,6 +1,5 @@
 /**
- * `/plan?horizon=day` — the day view on top of the existing week/cycle/
- * milestone payload (SPEC §7).
+ * `/day` — the personal ALPEN view over the week's commitments.
  *
  * The load is exercised with the same `locals`/`url` shape SvelteKit passes,
  * against the shared in-memory DB. Hours, windows, blocks, actuals and the feed
@@ -10,7 +9,6 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { clearSettings } from "#lib/server/settings/store";
 import { resetConfigCache } from "#lib/server/config";
-import { cycleForWeek } from "#lib/server/planning/calendar";
 import {
   replaceDayBlocks,
   replaceWindows,
@@ -19,7 +17,7 @@ import {
 } from "#lib/server/planning/day-store";
 import { localDateOf } from "#lib/time/zoned";
 import type { Role } from "#lib/roles";
-import { _dayView, load as loadPlan } from "#/routes/(app)/plan/+page.server";
+import { _dayView, load as loadDay } from "#/routes/(app)/day/+page.server";
 import {
   removePlanningAuthUser,
   resetPlanning,
@@ -84,26 +82,24 @@ afterEach(() => {
   resetConfigCache();
 });
 
-describe("day horizon", () => {
+describe("day view", () => {
   test("test_day_param", async () => {
-    const data = await loadPlan({
+    const data = await loadDay({
       locals: locals(),
-      url: url(`/plan?horizon=day&day=${SUNDAY}`),
+      url: url(`/day?day=${SUNDAY}`),
     } as never);
 
-    expect(data.horizon).toBe("day");
     expect(data.dayView.date).toBe(SUNDAY);
     expect(data.previous).toBe("2026-10-24");
     expect(data.next).toBe("2026-10-26");
   });
 
   test("test_bad_day_falls_back_to_viewer_today", async () => {
-    const data = await loadPlan({
+    const data = await loadDay({
       locals: locals(),
-      url: url("/plan?horizon=day&day=2026-02-30"),
+      url: url("/day?day=2026-02-30"),
     } as never);
 
-    expect(data.horizon).toBe("day");
     expect(data.dayView.date).toBe(localDateOf(Date.now(), "UTC"));
   });
 
@@ -218,26 +214,5 @@ describe("day horizon", () => {
     expect(view.startMinute).toBe(480);
     expect(view.availableMinutes).toBe(480);
     expect(view.bufferMinutes).toBe(120);
-  });
-});
-
-describe("week payload", () => {
-  test("test_week_payload_unchanged", async () => {
-    const data = await loadPlan({
-      locals: locals("admin"),
-      url: url("/plan?week=2026-10-19"),
-    } as never);
-
-    expect(data.horizon).toBe("week");
-    expect(data.week).toBe("2026-10-19");
-    expect(data.weekPlan.weekStart).toBe("2026-10-19");
-    expect(data.cycle).toBe(cycleForWeek("2026-10-19", "2024-01-01", 2).key);
-    expect(data.cyclePlan).toBeDefined();
-    expect(data.milestones).toBeDefined();
-    expect(data.candidates).toEqual([]);
-    expect(data.maintainers).toEqual([]);
-    expect(data.allocationPercent).toBe(60);
-    expect(data.previous).toBe("2026-10-12");
-    expect(data.next).toBe("2026-10-26");
   });
 });

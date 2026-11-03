@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { capacityTone, dueLabel, weeksLabel } from "./format";
+import { capacityTone, dayHeadline, weekHeadline } from "./format";
 
 describe("capacityTone", () => {
 	test("test_tone_thresholds", () => {
@@ -18,16 +18,14 @@ describe("capacityTone", () => {
 	});
 });
 
-describe("milestone date labels", () => {
-	test("dueLabel formats UTC days", () => {
-		expect(dueLabel(Date.UTC(2026, 10, 2))).toBe("2026-11-02");
-		expect(dueLabel(null)).toBe("No due date");
+describe("period labels", () => {
+	test("weekHeadline names the Monday week", () => {
+		expect(weekHeadline("2026-11-02")).toBe("Week of 2 Nov 2026");
+		expect(weekHeadline("2026-02-30")).toBe("2026-02-30");
 	});
 
-	test("weeksLabel explains the capacity window", () => {
-		expect(weeksLabel(2)).toBe("2 weeks");
-		expect(weeksLabel(1)).toBe("1 week");
-		expect(weeksLabel(0)).toBe("0 weeks");
-		expect(weeksLabel(null)).toBe("No due date");
+	test("dayHeadline names the weekday and date", () => {
+		expect(dayHeadline("2026-11-02")).toBe("Day: Monday 2 Nov");
+		expect(dayHeadline("nope")).toBe("Day");
 	});
 });

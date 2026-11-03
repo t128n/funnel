@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { scheduleErrorMessage, scheduleRequest, scheduleWeekFor, unscheduleRequest } from "./schedule";
+import { scheduleErrorMessage, scheduleRequest, unscheduleRequest } from "./schedule";
 
 describe("scheduleRequest", () => {
 	test("test_schedule_request_encodes_path", () => {
@@ -22,22 +22,5 @@ describe("unscheduleRequest", () => {
 			url: "/api/repos/orgA/core/issues/7/plan",
 			method: "DELETE",
 		});
-	});
-});
-
-describe("scheduleWeekFor", () => {
-	test("test_cycle_horizon_schedules_into_visible_cycle", () => {
-		// `?horizon=cycle&cycle=2026-09-07` keeps the hidden current week;
-		// the dialog must not schedule outside the cycle on screen.
-		expect(scheduleWeekFor("cycle", "2026-10-19", "2026-09-07")).toBe(
-			"2026-09-07",
-		);
-		expect(scheduleWeekFor("week", "2026-10-19", "2026-09-07")).toBe(
-			"2026-10-19",
-		);
-	});
-
-	test("falls back to the week when the cycle start is unknown", () => {
-		expect(scheduleWeekFor("cycle", "2026-10-19", "")).toBe("2026-10-19");
 	});
 });

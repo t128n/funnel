@@ -59,9 +59,9 @@ describe("ALPEN day-planning documentation", () => {
   test("test_routes", () => {
     expect(routes).toContain("| `/settings/availability` |");
     expect(routes).toContain("| `/plan` |");
-    // The day horizon is a fourth `/plan` horizon selected by `horizon=day`.
-    expect(routes).toContain("horizon=day");
-    expect(routes).toContain("day");
+    // The personal day is its own page; the old `/plan` horizon redirects.
+    expect(routes).toContain("| `/day` |");
+    expect(routes).toContain("/day?day=");
   });
 
   test("test_api", () => {

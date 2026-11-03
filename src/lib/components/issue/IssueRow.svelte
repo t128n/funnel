@@ -13,6 +13,7 @@
 	import PriorityText from '#lib/components/common/PriorityText.svelte';
 	import RefText from '#lib/components/common/RefText.svelte';
 	import StatusText from '#lib/components/common/StatusText.svelte';
+	import { weekHeadline } from '#lib/components/plan/format';
 	import { selectIssue } from '#lib/client/selection.svelte';
 	import { timeAgo } from '#lib/client/clock.svelte';
 	import { issuePath } from '#lib/issue-url';
@@ -76,6 +77,12 @@
 	);
 
 	const assigneeText = $derived(issue.assignees.map((person) => person.login).join(', '));
+
+	const planText = $derived(
+		issue.planWeek
+			? weekHeadline(issue.planWeek).replace('Week of ', '')
+			: null
+	);
 
 	const showStatus = $derived(groupedBy !== 'status');
 
@@ -149,6 +156,15 @@
 
 		{#if sizeText}
 			<span class="issue-size" title={`Size: ${issue.size}`}>{sizeText}</span>
+		{/if}
+
+		{#if planText}
+			<span
+				class="issue-plan text-primary"
+				title={`Planned for ${weekHeadline(issue.planWeek ?? '')}`}
+			>
+				<i class="bi bi-calendar-check me-1" aria-hidden="true"></i>Planned {planText}
+			</span>
 		{/if}
 
 		<span
@@ -255,6 +271,10 @@
 
 	.issue-updated {
 		font-variant-numeric: tabular-nums;
+	}
+
+	.issue-plan {
+		white-space: nowrap;
 	}
 
 	.issue-assignee {

@@ -17,12 +17,12 @@ This index is the entry point to Funnel's documentation, which follows the four 
 | :--- | :--- |
 | Install Funnel and sign in for the first time | [Getting started](tutorials/getting-started.md) |
 | Run a submission from intake through triage, blocking, notes, and close/reopen | [Triage a backlog](tutorials/triage-a-backlog.md) |
-| Configure estimates, plan a cycle, block work, and read an epic | [Plan a cycle and track it](tutorials/plan-and-track-a-cycle.md) |
+| Configure estimates, plan a week, block work, and read an epic | [Plan and track a week](tutorials/plan-and-track-a-cycle.md) |
 | Put Funnel into production | [Install Funnel](how-to/deploy/install.md), [reverse proxy](how-to/deploy/reverse-proxy.md), or [GitHub Enterprise Server](how-to/deploy/github-enterprise-server.md) |
 | Back up, upgrade, or fix an instance | [Backup and restore](how-to/operate/backup-and-restore.md), [upgrade](how-to/operate/upgrade.md), [troubleshoot](how-to/operate/troubleshoot.md) |
 | Configure the App, repositories, projects, people, or sync | [Configure Funnel](#configure) |
 | Work an issue queue day to day | [Use the cockpit](#use) |
-| Plan a week or cycle | [Plan a week or cycle](how-to/use/plan-work.md) |
+| Plan a week | [Plan a week](how-to/use/plan-work.md) |
 | Track milestones and see whether they will land on their due date | [Use milestones](how-to/use/milestones.md), [read the timeline](how-to/use/milestones.md#read-the-timeline) |
 | Plan a day of focused work and export it to Outlook | [Plan your day](how-to/plan/plan-your-day.md) |
 | Measure actual time, record a delay, or group issues into an epic | [Track time and delays](how-to/use/track-time-and-delays.md), [manage epics](how-to/use/epics.md) |
@@ -37,7 +37,7 @@ Learning-oriented, with one path and expected results.
 
 - [Getting started](tutorials/getting-started.md) — install Bun, run Funnel locally, create and install the GitHub App through onboarding, and reach the cockpit.
 - [Triage a backlog](tutorials/triage-a-backlog.md) — stage an intake submission, accept it into a repository, triage an issue, move a board card, block it, add and publish a work note, attach a file, then close and reopen.
-- [Plan a cycle and track it](tutorials/plan-and-track-a-cycle.md) — configure estimates and net hours, plan a cycle, block an issue with a structured reason, create an epic, and read the rollups.
+- [Plan and track a week](tutorials/plan-and-track-a-cycle.md) — configure estimates and net hours, plan a week, block an issue with a structured reason, create an epic, and read the rollups.
 
 ## How-to guides
 
@@ -62,7 +62,7 @@ Learning-oriented, with one path and expected results.
 - [Configure sync](how-to/configure/sync.md) — set the history window and the active/idle polling cadence.
 - [Configure the board](how-to/configure/board.md) — set the Done window and per-stage Work-in-Progress limits.
 - [Configure features](how-to/configure/features.md) — choose per-browser rendering, work-note, and attachment visibility.
-- [Configure estimates and weekly plans](how-to/configure/planning.md) — set size minutes, net hours, cycle length and the 60% allocation cap.
+- [Configure estimates and weekly plans](how-to/configure/planning.md) — set size minutes, net hours and the 60% allocation cap.
 
 ### Plan
 
@@ -73,7 +73,7 @@ Learning-oriented, with one path and expected results.
 - [Triage intake](how-to/use/triage-intake.md) — accept, dismiss, or duplicate a staged submission.
 - [Create and edit issues](how-to/use/create-and-edit-issues.md) — create an issue, then edit its title, description, properties, assignees, and labels.
 - [Close, reopen, and block](how-to/use/close-reopen-block.md) — record resolutions, reopen notes, and structured blockers with re-check dates.
-- [Plan a week or cycle](how-to/use/plan-work.md) — schedule sized issues, move work, and handle the 60% capacity cap.
+- [Plan a week](how-to/use/plan-work.md) — commit sized issues from their Properties panel and handle the 60% capacity cap.
 - [Track time and delays](how-to/use/track-time-and-delays.md) — read actual time, record manual delays, and understand why tracking starts at deployment.
 - [Manage epics](how-to/use/epics.md) — mark an epic, edit its child list in the issue body, and read progress and time rollups.
 - [Use the board](how-to/use/board.md) — drag cards, switch to the Backlog list, and use the Done lane.
@@ -100,7 +100,7 @@ Learning-oriented, with one path and expected results.
 - [CLI](reference/cli.md) — the packaged executable's flags and the Bun scripts it maps to.
 - [Build tasks](reference/build-tasks.md) — the `mise` tasks and what each one produces.
 - [Settings](reference/settings.md) — the instance settings stored in SQLite, with defaults and validation rules.
-- [Planning and time](reference/planning-and-time.md) — estimates, capacity, weeks and cycles, actual-time and delay rules, epic metadata, tables and endpoints.
+- [Planning and time](reference/planning-and-time.md) — estimates, capacity, weeks, actual-time and delay rules, epic metadata, tables and endpoints.
 - [Reserved labels](reference/reserved-labels.md) — the canonical status, impact, urgency, size, flag, and epic vocabulary plus the retired priority labels.
 - [Impact, urgency, and priority](reference/priority.md) — the three-point input labels, the P1–P3 lookup matrix, the 3×3 matrix view, the rating criteria, and the retired priority labels.
 - [Roles and permissions](reference/roles-and-permissions.md) — what `read`, `write`, and `admin` may do.
@@ -137,4 +137,4 @@ Run commands from the repository root unless a document says otherwise. Paths in
 - [Funnel README](../README.md)
 - [Getting started](tutorials/getting-started.md)
 - [Triage a backlog](tutorials/triage-a-backlog.md)
-- [Plan a cycle and track it](tutorials/plan-and-track-a-cycle.md)
+- [Plan and track a week](tutorials/plan-and-track-a-cycle.md)

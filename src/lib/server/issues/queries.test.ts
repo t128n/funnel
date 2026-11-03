@@ -25,6 +25,7 @@ import {
   attentionIssues,
   boardColumnPage,
   filterContext,
+  getIssueDetail,
   getIssueListItem,
   getMilestone,
   inbox,
@@ -43,6 +44,8 @@ import {
   seedPlanningRepo,
   type PlanningIssueSeed,
 } from "#tests/planning-helpers";
+import { weekStartOf } from "#lib/server/planning/calendar";
+import { clearPlanItem, setPlanItem } from "#lib/server/planning/store";
 
 const DAY_MS = 86_400_000;
 const VIEWER = "42";
@@ -265,6 +268,32 @@ describe("allIssues", () => {
     expect(first.assignees.map((a) => a.login)).toEqual(["me"]);
     expect(first.author?.login).toBe("octocat");
     expect(first.author?.avatarUrl).toBe("https://avatars/octocat.png");
+  });
+
+  test("hydrates the planned week and filters by plan state", () => {
+    const monday = weekStartOf(new Date());
+    setPlanItem({
+      org: "orgA",
+      name: "core",
+      issueNumber: 1,
+      weekStart: monday,
+    });
+    try {
+      const planned = allIssues(parse("")).items.find((issue) => issue.number === 1);
+      expect(planned?.planWeek).toBe(monday);
+      expect(numbers(allIssues(parse("planned=scheduled")))).toEqual([1]);
+      expect(numbers(allIssues(parse("planned=unscheduled")))).toEqual([3, 6]);
+      expect(numbers(allIssues(parse("planned=this-week")))).toEqual([1]);
+      expect(numbers(allIssues(parse("planned=next-week")))).toEqual([]);
+
+      // The issue detail carries the same week plus the roster the picker
+      // needs to explain whether a schedule would be accepted.
+      const detail = getIssueDetail(1, 1);
+      expect(detail?.issue.planWeek).toBe(monday);
+      expect(detail?.planning.activeMaintainers).toEqual([]);
+    } finally {
+      clearPlanItem("orgA", "core", 1);
+    }
   });
 
   test("applies the repo dimension", () => {

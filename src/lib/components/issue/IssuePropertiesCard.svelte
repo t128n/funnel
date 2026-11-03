@@ -4,6 +4,12 @@
 	import PriorityText from '#lib/components/common/PriorityText.svelte';
 	import StatusText from '#lib/components/common/StatusText.svelte';
 	import MilestonePicker from '#lib/components/issue/MilestonePicker.svelte';
+	import { weekHeadline } from '#lib/components/plan/format';
+	import {
+		planBlockMessage,
+		planEligibility,
+		planWeekOptions
+	} from '#lib/components/plan/plan-week';
 	import { SIZE_OPTIONS, STATUS_OPTIONS, canonicalLabel } from '#lib/labels';
 	import {
 		IMPACT_SCALE,
@@ -12,6 +18,7 @@
 	} from '#lib/priority';
 	import type {
 		IssueListItem,
+		IssuePlanning,
 		RenderedIssueDetail,
 		RepoMilestoneRef
 	} from '#lib/server/issues/types';
@@ -31,6 +38,8 @@
 	interface Props {
 		issue: IssueListItem;
 		detail: RenderedIssueDetail;
+		/** Exported so only the server decides who counts as a maintainer. */
+		planning: IssuePlanning;
 		/** Non-reserved labels currently on the issue. */
 		labels: string[];
 		mayWrite: boolean;
@@ -41,11 +50,14 @@
 		onmilestone: (milestone: RepoMilestoneRef | null) => void;
 		onsize: (value: string | null) => void;
 		onlabels: (labels: string[]) => void;
+		/** Schedule (`YYYY-MM-DD`) or clear (`null`) the issue's plan week. */
+		onplan: (weekStart: string | null) => void;
 	}
 
 	let {
 		issue,
 		detail,
+		planning,
 		labels,
 		mayWrite,
 		busy,
@@ -54,7 +66,8 @@
 		onassignees,
 		onmilestone,
 		onsize,
-		onlabels
+		onlabels,
+		onplan
 	}: Props = $props();
 
 	/** Done is the closed state; the picker surfaces it beside the open stages. */
@@ -79,6 +92,16 @@
 		SIZE_OPTIONS.find((option) => option.value === issue.size)?.label ?? 'Not estimated'
 	);
 
+	const weekOptions = $derived(planWeekOptions(issue.planWeek ?? null));
+	const eligibility = $derived(
+		planEligibility(issue, planning.activeMaintainers ?? [])
+	);
+	const blockMessage = $derived(planBlockMessage(eligibility.reason));
+	/** A planned-but-unowned issue may still be moved or cleared. */
+	const planDisabled = $derived(
+		busy === 'plan' || (!eligibility.schedulable && (issue.planWeek ?? null) === null)
+	);
+
 	function changeStatus(event: Event) {
 		const value = (event.currentTarget as HTMLSelectElement).value;
 		if (value) onstatus(value);
@@ -92,6 +115,12 @@
 	function changeSize(event: Event) {
 		const value = (event.currentTarget as HTMLSelectElement).value;
 		onsize(value || null);
+	}
+
+	function changePlan(event: Event) {
+		const value = (event.currentTarget as HTMLSelectElement).value || null;
+		if (value === (issue.planWeek ?? null)) return;
+		onplan(value);
 	}
 </script>
 
@@ -184,6 +213,27 @@
 			</div>
 
 			<div class="mb-3">
+				<label class="form-label small" for="issue-plan">Planned</label>
+				<Input
+					id="issue-plan"
+					type="select"
+					value={issue.planWeek ?? ''}
+					disabled={planDisabled}
+					on:change={changePlan}
+				>
+					<option value="">Not planned</option>
+					{#each weekOptions as option (option.value)}
+						<option value={option.value}>{option.label}</option>
+					{/each}
+				</Input>
+				{#if blockMessage}
+					<div class="form-text">{blockMessage}</div>
+				{:else}
+					<div class="form-text">Checks the maintainer's weekly capacity on save.</div>
+				{/if}
+			</div>
+
+			<div class="mb-3">
 				<label class="form-label small" for="issue-size">Size</label>
 				<Input
 					id="issue-size"
@@ -236,6 +286,13 @@
 				<dt class="col-5 fw-normal text-body-secondary">Milestone</dt>
 				<dd class="col-7 mb-2 text-break">
 					{issue.milestone?.title ?? 'No milestone'}
+				</dd>
+
+				<dt class="col-5 fw-normal text-body-secondary">Planned</dt>
+				<dd class="col-7 mb-2 text-break">
+					{issue.planWeek
+						? weekHeadline(issue.planWeek)
+						: 'Not planned'}
 				</dd>
 
 				<dt class="col-5 fw-normal text-body-secondary">Size</dt>

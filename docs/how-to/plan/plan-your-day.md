@@ -1,12 +1,12 @@
 # Plan your day
 
-Use the Day horizon of `/plan` to turn the week's plan into a timed day, using your own working hours and unavailable windows. The day view is called **ALPEN**: Aufgaben (candidates), Länge (length), Puffer (buffer), Entscheiden (decide) and Nachkontrolle (review).
+Use the personal **My Day** page at `/day` to turn the week's plan into a timed day, using your own working hours and unavailable windows. The day view is called **ALPEN**: Aufgaben (candidates), Länge (length), Puffer (buffer), Entscheiden (decide) and Nachkontrolle (review).
 
 ![The Day view with its five ALPEN chips, timed blocks, buffer, candidate list and review](../../assets/screenshots/plan-day.png)
 
-The Day tab sits next to the existing week, cycle and milestone horizons; the week plan still decides *what* is scheduled, and the day only decides *when*.
+The week plan still decides *what* is committed; the day only decides *when*.
 
-![Week, cycle, milestone and day horizons in the planner](../../assets/screenshots/plan-week.png)
+![The week planner with maintainer lanes and capacity](../../assets/screenshots/plan-week.png)
 
 Your availability and day plan are personal. Any signed-in viewer can edit their own rows; the `/api/me/*` routes need a session and never a `write` role, and they touch only the caller's data. Admin defaults in `planning.work_defaults` apply until you save your own hours.
 
@@ -29,7 +29,7 @@ Windows subtract from the work window; overlapping windows count once. An absent
 
 ## Plan a day
 
-1. Open **Plan** and choose the **Day** tab. The URL is `/plan?horizon=day&day=YYYY-MM-DD`; a malformed date falls back to your local today.
+1. Open **My Day** from the navigation menu, or follow **My day** from the week planner. The URL is `/day?day=YYYY-MM-DD`; a malformed date falls back to your local today.
 2. Review the candidate list. Candidates come from the Monday week containing that date: open, sized issues assigned to you or unassigned, ordered P1 → P2 → P3 → unprioritized, then issue number.
 3. Select **Auto-plan**. Funnel fills the available ranges in that order, spending at most `available − buffer`, and writes an explicit **buffer** block for leftover space of 15 minutes or more. A non-work day yields no blocks.
 4. Adjust the plan:

@@ -25,6 +25,8 @@ export interface ClientFilter {
   sizes: string[];
   /** Non-reserved label names. */
   labels: string[];
+  /** Plan-state values: `scheduled`, `unscheduled`, `this-week`, `next-week`. */
+  planned: string[];
   /** Repo-scoped milestone slugs (`owner/name#number`) and/or `none`. */
   milestones: string[];
   /** Free-text search term. */
@@ -39,6 +41,7 @@ export const EMPTY_CLIENT_FILTER: ClientFilter = {
   priorities: [],
   sizes: [],
   labels: [],
+  planned: [],
   milestones: [],
   search: "",
 };
@@ -55,6 +58,7 @@ export const FILTER_KEYS = [
   "priority",
   "size",
   "label",
+  "planned",
   "milestone",
   "q",
 ] as const;
@@ -91,6 +95,7 @@ export function parseFilterParams(params: FilterParams): ClientFilter {
     priorities: collect(params, "priority"),
     sizes: collect(params, "size"),
     labels: collect(params, "label"),
+    planned: collect(params, "planned"),
     milestones: collect(params, "milestone"),
     search: (params.get("q") ?? "").trim(),
   };
@@ -110,6 +115,7 @@ export function toFilterParams(filter: ClientFilter): URLSearchParams {
     ["priority", filter.priorities],
     ["size", filter.sizes],
     ["label", filter.labels],
+    ["planned", filter.planned],
     ["milestone", filter.milestones],
   ];
   for (const [key, values] of groups) {
@@ -157,6 +163,7 @@ export function activeFilterCount(filter: ClientFilter): number {
     (filter.priorities.length > 0 ? 1 : 0) +
     (filter.sizes.length > 0 ? 1 : 0) +
     (filter.labels.length > 0 ? 1 : 0) +
+    (filter.planned.length > 0 ? 1 : 0) +
     (filter.milestones.length > 0 ? 1 : 0) +
     (filter.search.trim().length > 0 ? 1 : 0)
   );

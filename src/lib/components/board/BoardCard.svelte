@@ -46,6 +46,7 @@
 	} from '#lib/client/issue-actions.svelte';
 	import { selectIssue } from '#lib/client/selection.svelte';
 	import { issueRef } from '#lib/issue-ref';
+	import { weekHeadline } from '#lib/components/plan/format';
 	import { STATUS_OPTIONS } from '#lib/labels';
 	import type { IssueListItem, UserRef } from '#lib/server/issues/types';
 	import { cardData, draggableCard } from './dnd';
@@ -97,10 +98,14 @@
 	);
 
 	const assigneeText = $derived(issue.assignees.map((person) => person.login).join(', '));
+	const planText = $derived(
+		issue.planWeek ? weekHeadline(issue.planWeek).replace('Week of ', '') : null
+	);
 	const hasMetadata = $derived(
 		issue.blocked ||
 			Boolean(issue.priority) ||
 			Boolean(sizeText) ||
+			Boolean(planText) ||
 			Boolean(assigneeText)
 	);
 
@@ -261,6 +266,14 @@
 			{/if}
 			{#if sizeText}
 				<span class="flex-shrink-0" title={`Size: ${issue.size}`}>{sizeText}</span>
+			{/if}
+			{#if planText}
+				<span
+					class="flex-shrink-0 text-primary text-nowrap"
+					title={`Planned for ${weekHeadline(issue.planWeek ?? '')}`}
+				>
+					<i class="bi bi-calendar-check me-1" aria-hidden="true"></i>{planText}
+				</span>
 			{/if}
 			{#if assigneeText}
 				<span

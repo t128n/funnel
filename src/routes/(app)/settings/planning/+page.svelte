@@ -41,8 +41,6 @@
 	let sizeMd = $state<number | null>(minutesToHours(planning.size_minutes.md));
 	let sizeLg = $state<number | null>(minutesToHours(planning.size_minutes.lg));
 	let allocationPercent = $state<number | null>(planning.allocation_percent);
-	let cycleWeeks = $state<number | null>(planning.cycle_weeks);
-	let cycleAnchor = $state(planning.cycle_anchor);
 	let timezone = $state(workDefaults.timezone);
 	let startTime = $state(formatClock(workDefaults.start_minute));
 	let endTime = $state(formatClock(workDefaults.end_minute));
@@ -82,8 +80,10 @@
 					lg: hoursToMinutes(sizeLg ?? 0)
 				},
 				allocation_percent: allocationPercent ?? 60,
-				cycle_weeks: cycleWeeks ?? 2,
-				cycle_anchor: cycleAnchor,
+				// Cycle shape is retained in stored config for existing
+				// instances, but the planner no longer exposes a cycle view.
+				cycle_weeks: planning.cycle_weeks,
+				cycle_anchor: planning.cycle_anchor,
 				work_defaults: {
 					timezone,
 					start_minute: parseClock(startTime) ?? workDefaults.start_minute,
@@ -156,8 +156,8 @@
 	</Section>
 
 	<Section
-		title="Cycle"
-		description="The allocation keeps the rest of the week free for reviews, unplanned work, and slack."
+		title="Allocation"
+		description="The share of net hours that commitments may fill. The rest stays free for reviews, unplanned work, and slack."
 	>
 		<div class="row g-3">
 			<div class="col-sm-4">
@@ -171,20 +171,6 @@
 						bind:value={allocationPercent}
 					/>
 					<FormText>Share of net hours planning may fill (1–100).</FormText>
-				</FormGroup>
-			</div>
-			<div class="col-sm-4">
-				<FormGroup spacing="">
-					<Label for="planning-cycle-weeks">Cycle length (weeks)</Label>
-					<Input id="planning-cycle-weeks" type="number" min="1" max="52" bind:value={cycleWeeks} />
-					<FormText>Contiguous weeks per planning cycle (1–52).</FormText>
-				</FormGroup>
-			</div>
-			<div class="col-sm-4">
-				<FormGroup spacing="">
-					<Label for="planning-cycle-anchor">Cycle anchor</Label>
-					<Input id="planning-cycle-anchor" type="date" bind:value={cycleAnchor} />
-					<FormText>Must be a Monday; anchors the cycle numbering.</FormText>
 				</FormGroup>
 			</div>
 		</div>

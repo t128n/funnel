@@ -68,7 +68,8 @@ All cockpit routes live under the `(app)` layout and require at least the `read`
 | `/milestones` | Every mirrored milestone, grouped by repository, with progress and due dates. | `read` | GitHub scopes a milestone to one repository, so equal titles in two repositories are separate entries. |
 | `/milestones/{owner}/{repo}/{number}` | The issues attached to one repo-scoped milestone. | `read` | Returns `404` for an unknown repository or milestone. |
 | `/timeline` | Read-only Apache ECharts Gantt of open milestones, projected from plan weeks and observed status transitions to their due dates. | `read` | Bars start at the earliest planned week or first `in-progress`/`in-review` transition and end at the due date. The HTML milestone column links to the detail pages; the `No due date` table holds milestones without a due date. Optional `?repo=owner/name` filter; the picker still lists the unfiltered set. |
-| `/plan` | Time planner with week, cycle, milestone and day horizons. | `read` to view; `write` to schedule or remove | A week is its Monday date; the default horizon is the current week. `/plan?horizon=day&day=YYYY-MM-DD` adds the ALPEN day view: an hour grid, candidates, planned-versus-actual review and auto-plan. A malformed day falls back to the viewer's local today; previous/next shift by one day. The day's own blocks are saved through `/api/me/day-plan`, so any signed-in viewer may edit their own day. Writer-only **Schedule issue** control on the week horizons; every planned issue links to its Inspector. |
+| `/plan` | One week's committed work against each maintainer's capacity. | `read` to view; `write` to remove | The week is its Monday date (`?week=YYYY-MM-DD`); the page defaults to the current week and has previous/next navigation. Scheduling happens on the issue's Properties panel, not here. `?horizon=day` redirects to `/day`; the retired `cycle` and `milestone` horizons redirect to the current week. Every planned issue links to its Inspector. |
+| `/day` | The signed-in viewer's personal ALPEN day: hour grid, candidates from the committed week, planned-versus-actual review and auto-plan. | `read` | `/day?day=YYYY-MM-DD`; a malformed date falls back to the viewer's local today, and previous/next shift by one day. Day blocks are saved through `/api/me/day-plan`, so any signed-in viewer may edit their own day regardless of the workspace write role. |
 | `/epics` | Every issue carrying the `epic` label, open before closed, with progress and estimate/actual/delay rollups. | `read` | An epic is a normal issue with the `epic` label; its children are parsed from the body's `funnel_metadata` envelope. |
 | `/epics/{owner}/{repo}/{number}` | One epic: header, rollup cards and the ordered child table. | `read` to view; `write` to add or remove children | Writers add a child from open issues not already in another epic. Malformed params return `404`. |
 | `/settings` | Account landing: signed-in identity and sign-out. | `read` | Personal section. |
@@ -84,7 +85,7 @@ All cockpit routes live under the `(app)` layout and require at least the `read`
 | `/settings/github-app` | Current App metadata and install URL. | `admin` | `reset` action clears App credentials and returns to `/onboarding`. |
 | `/settings/sync` | History window and active/idle polling intervals. | `admin` | Shared settings `save` action. |
 | `/settings/session` | Session idle lifetime in days. | `admin` | Shared settings `save` action. |
-| `/settings/planning` | Size-to-time estimates, allocation percentage, cycle shape and the maintainer roster. | `admin` | Shared settings `save` action; `planning` payload with hours converted to minutes. |
+| `/settings/planning` | Size-to-time estimates, allocation percentage, working-hour defaults and the maintainer roster. | `admin` | Shared settings `save` action; `planning` payload with hours converted to minutes. Cycle keys remain in the stored config for compatibility but are not exposed. |
 
 ### Inbox triage actions
 
@@ -187,7 +188,8 @@ API routes are not under the `(app)` layout and enforce their own guards. Detail
 | `/milestones` | Repo-scoped milestones and progress. | `read` |
 | `/milestones/{owner}/{repo}/{number}` | Issues attached to a milestone. | `read` |
 | `/timeline` | Milestone Gantt projection. | `read` |
-| `/plan` | Week, cycle, milestone and day planner. | `read`; scheduling `write` |
+| `/plan` | Weekly capacity for committed work. | `read`; removing work `write` |
+| `/day` | Personal ALPEN day plan. | `read` |
 | `/epics` | Epics with progress and time rollups. | `read` |
 | `/epics/{owner}/{repo}/{number}` | One epic and its children. | `read`; children `write` |
 | `/settings` | Account. | `read` |

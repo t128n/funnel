@@ -65,26 +65,6 @@ export function weekHeadline(week: string): string {
 	return `Week of ${date.day} ${MONTHS[date.month - 1]} ${date.year}`;
 }
 
-/** ISO-8601 week number and week-year for a `YYYY-MM-DD` date. */
-function isoWeek(value: string): { year: number; week: number } | null {
-	const date = calendarDay(value);
-	if (date === null) return null;
-	const utc = new Date(Date.UTC(date.year, date.month - 1, date.day));
-	const day = utc.getUTCDay() || 7;
-	utc.setUTCDate(utc.getUTCDate() + 4 - day);
-	const year = utc.getUTCFullYear();
-	const yearStart = Date.UTC(year, 0, 1);
-	const week = Math.ceil(((utc.getTime() - yearStart) / 86_400_000 + 1) / 7);
-	return { year, week };
-}
-
-/** `2026-11-02` → `Cycle 2026-W45`. */
-export function cycleHeadline(cycleStart: string): string {
-	const iso = isoWeek(cycleStart);
-	if (iso === null) return `Cycle ${cycleStart}`;
-	return `Cycle ${iso.year}-W${String(iso.week).padStart(2, "0")}`;
-}
-
 /** `2026-11-02` → `Day: Monday 2 Nov`. */
 export function dayHeadline(date: string): string {
 	const parsed = calendarDay(date);
@@ -114,31 +94,4 @@ export function capacityTone(
 	if (committedMinutes > capMinutes) return "over";
 	if (committedMinutes / capMinutes >= 0.8) return "near";
 	return "empty";
-}
-
-/** Format a milestone due date (`YYYY-MM-DD` in UTC), or its absence. */
-export function dueLabel(dueOn: number | null | undefined): string {
-	if (dueOn === null || dueOn === undefined || !Number.isFinite(dueOn)) {
-		return "No due date";
-	}
-	return new Date(dueOn).toISOString().slice(0, 10);
-}
-
-/** Describe the milestone capacity window without implying a cap when absent. */
-export function weeksLabel(capacityWeeks: number | null | undefined): string {
-	if (capacityWeeks === null || capacityWeeks === undefined) {
-		return "No due date";
-	}
-	return `${capacityWeeks} ${capacityWeeks === 1 ? "week" : "weeks"}`;
-}
-
-/**
- * A milestone's lane cap. Without a due date there is no capacity window, so
- * the lane has no cap and the bar shows committed hours only.
- */
-export function milestoneCap(
-	capacityWeeks: number | null,
-	capMinutes: number,
-): number | null {
-	return capacityWeeks === null ? null : capMinutes;
 }

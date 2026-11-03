@@ -21,6 +21,12 @@
 	import IssueDetailsCard from '#lib/components/issue/IssueDetailsCard.svelte';
 	import IssuePropertiesCard from '#lib/components/issue/IssuePropertiesCard.svelte';
 	import { delayReasonLabel } from '#lib/components/issue/inspector-format';
+	import { weekHeadline } from '#lib/components/plan/format';
+	import {
+		scheduleErrorMessage,
+		scheduleRequest,
+		unscheduleRequest
+	} from '#lib/components/plan/schedule';
 	import { codeBlocks } from '#lib/client/code-blocks';
 	import { mermaidDiagrams } from '#lib/client/mermaid';
 	import {
@@ -656,6 +662,60 @@
 	}
 
 	/**
+	 * Commit the issue to one Monday week, or clear the commitment. The plan
+	 * endpoint owns the capacity check: a 409 names the over-cap maintainer and
+	 * is shown inline, exactly as the old planner dialog did.
+	 */
+	async function setPlan(weekStart: string | null) {
+		if (!detail) return;
+		writeStatus = null;
+		busy = 'plan';
+		const request =
+			weekStart === null
+				? unscheduleRequest(repo, number)
+				: scheduleRequest(repo, number, weekStart);
+		const outcome = await mutate({
+			key: overlayKey(repo, number),
+			patch: { planWeek: weekStart },
+			failure: 'Could not update plan',
+			notify: false,
+			commit: async () => {
+				try {
+					const response = await fetch(request.url, {
+						method: request.method,
+						headers: { 'Content-Type': 'application/json' },
+						body: request.body
+					});
+					if (!response.ok) {
+						const payload = await response.json().catch(() => null);
+						return {
+							ok: false as const,
+							error: scheduleErrorMessage(response.status, payload)
+						};
+					}
+					return { ok: true as const, value: null };
+				} catch {
+					return {
+						ok: false as const,
+						error: 'Could not reach the server. Check the connection and try again.'
+					};
+				}
+			}
+		});
+		busy = null;
+		if (!outcome.ok) {
+			setWriteError(outcome.error);
+			return;
+		}
+		bake({ planWeek: weekStart });
+		setWriteSuccess(
+			weekStart === null
+				? 'Removed from the plan.'
+				: `Planned for ${weekHeadline(weekStart)}.`
+		);
+	}
+
+	/**
 	 * Set or clear the issue's milestone. Milestones are repo-scoped, so the
 	 * picker (and the "New milestone…" form) only ever targets this issue's repo.
 	 */
@@ -1282,6 +1342,7 @@
 				<IssuePropertiesCard
 					{issue}
 					{detail}
+					planning={detail.planning}
 					labels={selectedLabels}
 					{mayWrite}
 					{busy}
@@ -1291,6 +1352,7 @@
 					onmilestone={setMilestone}
 					onsize={setSize}
 					onlabels={setLabels}
+					onplan={setPlan}
 				/>
 				<IssueDetailsCard
 					{issue}

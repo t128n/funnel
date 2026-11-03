@@ -69,7 +69,7 @@ Every signed-in user with `read` can view `/epics` and the detail page. Marking 
 
 - [Track time and delays](track-time-and-delays.md) — how child actual time is measured.
 - [Create and edit issues](create-and-edit-issues.md) — editing labels and properties.
-- [Plan a cycle and track it](../../tutorials/plan-and-track-a-cycle.md) — a guided first run.
+- [Plan and track a week](../../tutorials/plan-and-track-a-cycle.md) — a guided first run.
 - [Planning and time reference](../../reference/planning-and-time.md) — the exact metadata format and contracts.
 - [Why planning and actuals work this way](../../explanation/planning-and-actuals.md) — why children live in the body.
 - [Reserved labels](../../reference/reserved-labels.md) — the `epic` label and its group.

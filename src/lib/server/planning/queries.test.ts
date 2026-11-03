@@ -13,9 +13,7 @@ import {
   getPlanningIssue,
   listAssigneeCandidates,
   listMilestoneIssues,
-  listPlanCandidates,
   listPlannedIssues,
-  PLAN_CANDIDATE_LIMIT,
 } from "./queries";
 
 describe("planning queries", () => {
@@ -62,81 +60,6 @@ describe("planning queries", () => {
       weekStart: "2026-10-19",
     });
     expect(issue.assignees).toMatchObject([{ login: "ann" }]);
-  });
-
-  test("test_candidates_exclude_planned_and_unsized", () => {
-    const repoId = seedPlanningRepo("orgA/core");
-    seedPlanningIssue({
-      repoId,
-      number: 1,
-      title: "Planned",
-      status: "todo",
-      size: "md",
-      priority: "P1",
-    });
-    seedPlanningIssue({
-      repoId,
-      number: 2,
-      title: "Closed",
-      state: "closed",
-      status: "todo",
-      size: "md",
-      priority: "P1",
-    });
-    seedPlanningIssue({
-      repoId,
-      number: 3,
-      title: "Unsized",
-      status: "todo",
-      size: null,
-      priority: "P1",
-    });
-    seedPlanningIssue({
-      repoId,
-      number: 4,
-      title: "Untriaged",
-      status: null,
-      size: "sm",
-      priority: "P1",
-    });
-    seedPlanningIssue({
-      repoId,
-      number: 5,
-      title: "Later",
-      status: "todo",
-      size: "lg",
-      priority: "P3",
-    });
-    seedPlanningIssue({
-      repoId,
-      number: 6,
-      title: "First",
-      status: "todo",
-      size: "sm",
-      priority: "P1",
-    });
-    setPlanItem({
-      org: "orgA",
-      name: "core",
-      issueNumber: 1,
-      weekStart: "2026-10-19",
-    });
-
-    const candidates = listPlanCandidates();
-    expect(candidates.map((issue) => issue.title)).toEqual(["First", "Later"]);
-    expect(candidates.map((issue) => issue.weekStart)).toEqual([null, null]);
-  });
-
-  test("test_candidates_respect_limit", () => {
-    const repoId = seedPlanningRepo("orgA/core");
-    for (const number of [1, 2, 3]) {
-      seedPlanningIssue({ repoId, number, status: "todo", size: "md" });
-    }
-
-    // The picker asks for a bounded page; most recently updated first.
-    const limited = listPlanCandidates(2);
-    expect(limited.map((issue) => issue.number)).toEqual([3, 2]);
-    expect(PLAN_CANDIDATE_LIMIT).toBe(300);
   });
 
   test("test_closed_issue_is_absent", () => {

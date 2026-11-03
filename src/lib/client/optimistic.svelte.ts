@@ -50,6 +50,8 @@ export interface IssuePatch {
   milestone?: IssueListItem["milestone"];
   labels?: string[];
   closedAt?: number | null;
+  /** Monday `YYYY-MM-DD` of the committed week, or `null` when unplanned. */
+  planWeek?: string | null;
 }
 
 const overlays = new SvelteMap<OverlayKey, IssuePatch>();
@@ -181,6 +183,9 @@ function satisfied(issue: IssueListItem, patch: IssuePatch): boolean {
     return false;
   }
   if (patch.labels !== undefined && !sameSet(issue.labels, patch.labels)) {
+    return false;
+  }
+  if (patch.planWeek !== undefined && issue.planWeek !== patch.planWeek) {
     return false;
   }
   return true;

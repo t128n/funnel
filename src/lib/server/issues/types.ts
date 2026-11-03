@@ -90,6 +90,20 @@ export interface IssueListItem {
   milestone: RepoMilestoneRef | null;
   /** Every label on the issue, reserved and non-reserved. */
   labels: string[];
+  /**
+   * Monday `YYYY-MM-DD` of the week this issue is committed to, or `null` when
+   * it is not planned. Plan state is Funnel-owned and never written to GitHub.
+   */
+  planWeek?: string | null;
+}
+
+/** Planning context the issue page needs to offer a week picker. */
+export interface IssuePlanning {
+  /**
+   * `forge:instance:externalId` keys of the instance's active maintainers.
+   * The key, not the login, matches the server's schedule-eligibility check.
+   */
+  activeMaintainers: string[];
 }
 
 /** A parent epic as the Inspector renders it. */
@@ -247,6 +261,8 @@ export interface IssueDetail {
   assigneeOptions: UserRef[];
   /** The issue's repo's milestones, for the Inspector milestone picker. */
   milestoneOptions: RepoMilestoneRef[];
+  /** Active maintainer roster, so the issue page can explain plan eligibility. */
+  planning: IssuePlanning;
 }
 
 /**

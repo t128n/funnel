@@ -74,6 +74,7 @@ export function filterSignature(filter: IssueFilter, extra?: string): string {
     priorities: [...filter.priorities].sort(),
     sizes: [...filter.sizes].sort(),
     labels: [...filter.labels].sort(),
+    planned: [...filter.planned].sort(),
     milestones: filter.milestones
       .map((m) => `${m.repoId}#${m.number}`)
       .sort(),
