@@ -196,7 +196,7 @@
 							</div>
 
 							<div
-								class="submissions-header d-flex align-items-center gap-3 border-top border-bottom bg-body-secondary px-3 small fw-semibold text-body"
+								class="submissions-header d-flex align-items-center gap-3 border-bottom px-3 py-1 small text-body-secondary"
 								aria-hidden="true"
 							>
 								<span class="submission-source flex-shrink-0">Source</span>
