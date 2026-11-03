@@ -77,14 +77,10 @@
 		min-width: 4rem;
 		height: 0.5rem;
 		flex: 1 1 auto;
-		overflow: hidden;
-		border-radius: var(--bs-border-radius-pill);
-		background: var(--bs-secondary-bg);
 	}
 
 	:global(.capacity-fill) {
 		height: 100%;
-		border-radius: inherit;
 	}
 
 	.tnum {

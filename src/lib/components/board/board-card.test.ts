@@ -38,11 +38,11 @@ describe('cardToken', () => {
 });
 
 describe('board cards', () => {
-	test('cards are canvas articles with a subtle rule, medium radius, 12px inset', () => {
+	test('cards are plain bordered items with a subtle rule, medium radius, 8px inset', () => {
 		expect(source).toContain('<article');
 		expect(source).toContain('border bg-body');
 		expect(source).toContain('rounded');
-		expect(source).toContain('px-3 py-3');
+		expect(source).toContain('px-2 py-2');
 		expect(source).not.toContain('shadow-');
 	});
 
@@ -63,11 +63,15 @@ describe('board cards', () => {
 		expect(source).toContain('board-card-title');
 		expect(source).toContain('-webkit-line-clamp: 2');
 		expect(source).toContain('title={issue.title}');
-		expect(source).toContain('d-flex align-items-start gap-1 small fw-semibold');
+		expect(source).toContain('d-flex align-items-start gap-1 small lh-sm');
 		expect(source).toContain('PriorityText');
 		expect(source).toContain('StatusText blocked');
-		expect(source).toContain('small text-body-secondary');
+		expect(source).toContain('board-card-meta');
+		expect(source).toContain('text-body-secondary');
 		expect(source).toContain('ms-auto');
+		// A dense list title is normal weight, not semibold.
+		expect(source).not.toContain('small fw-semibold');
+		expect(source).toContain('font-size: 0.75rem');
 	});
 
 	test('cards drop labels, extra metadata and completed strikethrough', () => {
@@ -140,6 +144,6 @@ describe('board lanes', () => {
 		expect(board).toContain('.status-board');
 		expect(board).toContain('scroll-snap-type: x mandatory');
 		expect(board).toContain('scroll-snap-type: none');
-		expect(board).toContain('gap-3');
+		expect(board).toContain('gap-2');
 	});
 });

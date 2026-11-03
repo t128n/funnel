@@ -92,16 +92,16 @@
 	<div class="d-flex min-h-0 flex-grow-1 flex-column overflow-y-auto">
 		<PageHeader title={epic.title || 'Untitled epic'} actions={epicActions} />
 
-		<div class="d-flex flex-column gap-4 px-3 pb-4">
-			<div class="d-flex flex-wrap align-items-center column-gap-3 row-gap-1 text-body-secondary">
+		<div class="d-flex flex-column gap-3 px-3 pb-4">
+			<div class="d-flex flex-wrap align-items-baseline column-gap-3 row-gap-1 small text-body-secondary">
 				<a
 					href={issuePath('issues', epic.repo, epic.number)}
-					class="font-monospace text-body-secondary link-primary link-underline-opacity-0 link-underline-opacity-100-hover"
+					class="link-primary link-underline-opacity-0 link-underline-opacity-100-hover"
 				>
 					{epic.ref}
 				</a>
 				{#if epic.milestone}
-					<span class="num">
+					<span>
 						{epic.milestone.title}
 						{#if epic.milestone.dueOn !== null}
 							· due {dueLabel(epic.milestone.dueOn)}
@@ -119,12 +119,10 @@
 				</div>
 			{/if}
 
-			<section class="d-flex flex-column gap-2" aria-labelledby="epic-children-heading">
-				<div class="d-flex align-items-baseline gap-2">
-					<h2 id="epic-children-heading" class="h5 fw-semibold mb-0">Children</h2>
-					<span class="small text-body-secondary num">
-						{epic.childCount}
-					</span>
+			<section aria-labelledby="epic-children-heading">
+				<div class="d-flex align-items-baseline gap-2 mb-2">
+					<h2 id="epic-children-heading" class="h6 mb-0">Children</h2>
+					<span class="small text-body-secondary">{epic.childCount}</span>
 				</div>
 				<EpicChildTable children={epic.children} {mayWrite} onremove={remove} {removing} />
 			</section>

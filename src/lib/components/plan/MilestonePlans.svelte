@@ -70,7 +70,7 @@
 					{@const totals = laneTotals(plan)}
 					<tr data-milestone={`${plan.repo}#${plan.number}`}>
 						<th scope="row" class="min-w-0">
-							<span class="d-block text-truncate text-body fw-semibold">
+							<span class="d-block text-truncate text-body">
 								{plan.title || 'Untitled milestone'}
 							</span>
 							<span class="font-monospace d-block small text-body-secondary">
@@ -93,7 +93,7 @@
 						</td>
 					</tr>
 					<tr>
-						<td colspan="5" class="bg-body px-3 py-3 align-top">
+						<td colspan="5" class="px-3 py-2 align-top">
 							<p class="small text-body-secondary mb-0">
 								{#if plan.capacityWeeks === null}
 									No due date — no cap; scheduled hours are shown without a bar.
@@ -116,7 +116,7 @@
 												size={20}
 											/>
 											<a
-												class="min-w-0 text-truncate text-decoration-none text-body fw-semibold"
+												class="min-w-0 text-truncate text-decoration-none text-body fw-medium"
 												href={`https://github.com/${lane.maintainer.login}`}
 												target="_blank"
 												rel="noreferrer"

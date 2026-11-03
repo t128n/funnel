@@ -190,7 +190,7 @@
 	     The 1px gutter keeps the card focus ring inside the scroller. -->
 	<div
 		bind:this={scroller}
-		class="board-lane__body position-relative min-h-0 flex-grow-1 overflow-y-auto px-1 pb-2 pt-2"
+		class="board-lane__body position-relative min-h-0 flex-grow-1 overflow-y-auto px-1 pb-2 pt-1"
 		class:board-lane__body--target={isDropTarget}
 		use:droppableLane={laneHandlers}
 		onscroll={handleScroll}

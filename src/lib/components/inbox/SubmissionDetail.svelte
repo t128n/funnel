@@ -108,7 +108,7 @@
 				{/if}
 			</div>
 			<h1
-				class="h5 min-w-0 text-truncate fw-semibold text-body mb-0"
+				class="h5 min-w-0 text-truncate mb-0"
 				title={submission.title}
 			>
 				{submission.title.trim() || 'Untitled submission'}
@@ -143,7 +143,8 @@
 		{/if}
 	</section>
 
-	<section class="d-flex flex-column gap-3 border-top pt-4" aria-label="Triage">
+	<section class="d-flex flex-column gap-3 border-top pt-3" aria-label="Triage">
+		<h2 class="h6 mb-0">Triage</h2>
 		<div class="row g-3">
 			{#if repoOptions.length > 0}
 				<div class="col-12 col-sm-6">

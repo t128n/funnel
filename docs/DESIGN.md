@@ -14,7 +14,7 @@ is styled in [`markdown.css`](../src/lib/styles/markdown.css).
 
 - A compact dark Bootstrap navbar (`navbar-dark bg-dark`) spans the top.
 - A light secondary sidebar (`bg-body-tertiary`) carries navigation with
-  standard Bootstrap `nav-pills`.
+  standard Bootstrap `nav-pills`, 30 px rows, and a quiet neutral active state.
 - The content canvas is fluid and uses Bootstrap typography, spacing, tables,
   forms, buttons, badges, and alerts.
 - Bootstrap's default system font stack and 1rem body size are retained.
@@ -81,11 +81,11 @@ libraries.
 
 ## 5. Layout
 
-- **App shell**: dark navbar (`3rem` minimum), light sidebar (`15rem`), fluid
+- **App shell**: dark navbar (`3.25rem`), light sidebar (`14.5rem`), fluid
   main column.
-- **Master–detail**: `SplitView` keeps a `26rem` feed column above 992px and
-  shows one surface at a time below it. The detail pane is capped at `48rem`
-  for reading; `DetailShell` owns that measure.
+- **Master–detail**: `SplitView` keeps a feed column clamped between `22.5rem`
+  and `28.75rem` above 992px and shows one surface at a time below it. The
+  detail pane is capped at `48rem` for reading; `DetailShell` owns that measure.
 - **Settings**: light secondary navigation (`12.5rem`) above 992px, a
   `form-select` switcher below it, and conventional form groups in a
   `40rem`–`50rem` content column.
@@ -100,8 +100,9 @@ libraries.
 ## 6. Tables, lists, and metadata
 
 Priority is a derived `P1`–`P3` token shown as text (and a signal icon where
-space is tight), never as a GitHub label. Status, priority, and metadata use
-Bootstrap badges, muted text, and icons.
+space is tight), never as a GitHub label. Dense list titles are 14 px, metadata
+is 12 px, and identifiers are ordinary blue links. Status and priority use
+muted text and icons; avoid badges for ordinary metadata.
 
 Use Sveltestrap `Table` with `table-sm align-middle funnel-table` inside
 scrollable regions. Dense feeds may use Bootstrap utilities plus a scoped grid

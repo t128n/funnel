@@ -51,14 +51,14 @@
 	import { cardData, draggableCard } from './dnd';
 
 	/**
-	 * One draggable board card: a canvas article with a 1px subtle rule and no
-	 * shadow. The column already carries the workflow status, so the card only
-	 * marks a blocked issue (icon + word).
+	 * One draggable board card: a plain bordered item with stock Bootstrap
+	 * spacing and no shadow. The column already carries the workflow status, so
+	 * the card only marks a blocked issue (icon + word).
 	 *
 	 * - **Head** — mono reference and the always available actions menu.
-	 * - **Title** — 0.875 rem / 600, clamped to two lines; the full title stays
-	 *   available on hover and through the card's accessible name.
-	 * - **Metadata** — priority and size, with the assignee trailing.
+	 * - **Title** — 0.875 rem, normal weight, clamped to two lines; the full
+	 *   title stays available on hover and through the card's accessible name.
+	 * - **Metadata** — 12px priority and size, with the assignee trailing.
 	 */
 	interface Props {
 		issue: IssueListItem;
@@ -154,7 +154,7 @@
      hover-only) so every drag has a keyboard- and touch-reachable equivalent. -->
 <!-- svelte-ignore a11y_no_noninteractive_element_to_interactive_role -->
 <article
-	class="board-card position-relative d-flex flex-column gap-1 rounded border bg-body px-3 py-3"
+	class="board-card position-relative d-flex flex-column gap-1 rounded border bg-body px-2 py-2"
 	class:board-card--draggable={!readonly}
 	class:is-selected-row={selected}
 	class:opacity-50={dragging}
@@ -175,9 +175,9 @@
 	onfocusout={onFocusOut}
 >
 	<!-- Head: mono reference, always-visible menu. -->
-	<div class="d-flex min-w-0 align-items-center gap-2">
-		<span class="d-inline-flex min-w-0 flex-shrink-0">
-			<RefText value={ref} title={`${issue.repo}#${issue.number}`} />
+	<div class="d-flex min-w-0 align-items-center gap-1">
+		<span class="d-inline-flex min-w-0 flex-shrink-0 link-primary">
+			<RefText value={ref} title={`${issue.repo}#${issue.number}`} class="text-reset" />
 		</span>
 
 		<Dropdown bind:isOpen={menuOpen}>
@@ -240,7 +240,7 @@
 		</Dropdown>
 	</div>
 
-	<h3 class="d-flex align-items-start gap-1 small fw-semibold lh-sm mb-0">
+	<h3 class="d-flex align-items-start gap-1 small lh-sm mb-0">
 		<span class="board-card-title min-w-0 text-body" title={issue.title}>
 			{issue.title}
 		</span>
@@ -256,7 +256,7 @@
 	</h3>
 
 	{#if hasMetadata}
-		<div class="d-flex min-w-0 align-items-baseline gap-2 small text-body-secondary">
+		<div class="board-card-meta d-flex min-w-0 align-items-baseline gap-2 text-body-secondary">
 			{#if issue.blocked}
 				<StatusText blocked class="flex-shrink-0" />
 			{/if}
@@ -280,7 +280,6 @@
 
 <style>
 	.board-card {
-		border-color: var(--bs-border-color-translucent);
 		transition: border-color 120ms ease-in-out;
 	}
 
@@ -297,7 +296,12 @@
 	}
 
 	.board-card.is-selected-row {
+		background: var(--bs-tertiary-bg);
 		box-shadow: inset 2px 0 0 0 var(--bs-primary);
+	}
+
+	.board-card-meta {
+		font-size: 0.75rem;
 	}
 
 	.board-card-title {

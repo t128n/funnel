@@ -27,8 +27,8 @@
 />
 
 <FocusedShell>
-	<div class="d-flex flex-column gap-2">
-		<h1 class="h4 fw-semibold mb-0">
+	<header>
+		<h1 class="h4 mb-1">
 			{data.installed ? 'Funnel Is Ready' : 'Installation Required'}
 		</h1>
 		<p class="measure text-body-secondary mb-0">
@@ -36,22 +36,21 @@
 				Choose the repositories Funnel should mirror. You can change this any time in Settings →
 				Repositories.
 			{:else}
-				Install <strong class="fw-semibold text-body">{data.appName}</strong> on GitHub first, then
-				return here.
+				Install <strong>{data.appName}</strong> on GitHub first, then return here.
 			{/if}
 		</p>
-	</div>
+	</header>
 
 	<OnboardingSteps active={3} />
 
 	{#if !data.installed}
 		<section class="min-w-0 w-100 border-top pt-4">
-			<h2 class="h5 fw-semibold mb-0">Installation</h2>
-			<p class="mt-1 mb-0 text-body-secondary">
+			<h2 class="h6 mb-1">Installation</h2>
+			<p class="mb-0 text-body-secondary">
 				Funnel cannot see the installation yet. Finish the GitHub install step, then come back to
 				this page.
 			</p>
-			<div class="mt-4">
+			<div class="mt-3">
 				<Button color="primary" href={data.installUrl}>
 					<i class="bi bi-box-arrow-up-right me-1" aria-hidden="true"></i>
 					Install on GitHub
@@ -59,10 +58,10 @@
 			</div>
 		</section>
 	{:else}
-		<form method="POST" action="?/save" class="d-flex flex-column gap-4">
+		<form method="POST" action="?/save">
 			<section class="min-w-0 w-100 border-top pt-4">
-				<h2 class="h5 fw-semibold mb-0">Repositories</h2>
-				<div class="mt-1 d-flex flex-wrap align-items-baseline justify-content-between gap-2">
+				<h2 class="h6 mb-1">Repositories</h2>
+				<div class="d-flex flex-wrap align-items-baseline justify-content-between gap-2">
 					<p class="mb-0 text-body-secondary">
 						Owner: <span class="font-monospace">{data.ownerLogin}</span>
 					</p>
@@ -72,16 +71,16 @@
 				</div>
 
 				{#if data.error}
-					<InlineStatus tone="error" message={data.error} class="mt-4" />
+					<InlineStatus tone="error" message={data.error} class="mt-3" />
 				{/if}
 
 				{#if data.repos.length === 0}
-					<p class="mt-4 mb-0 text-body-secondary">
+					<p class="mt-3 mb-0 text-body-secondary">
 						This installation has no repositories yet.
 					</p>
 				{:else}
-					<div class="mt-4 d-flex justify-content-end">
-						<Button type="button" color="outline-secondary" onclick={toggleAll}>
+					<div class="mt-3 d-flex justify-content-end">
+						<Button type="button" color="outline-secondary" size="sm" onclick={toggleAll}>
 							{allSelected ? 'Clear All' : 'Select All'}
 						</Button>
 					</div>
@@ -112,7 +111,7 @@
 					</ul>
 				{/if}
 
-				<footer class="mt-4 d-flex justify-content-end border-top pt-4">
+				<footer class="mt-4 d-flex justify-content-end border-top pt-3">
 					<Button type="submit" color="primary" disabled={selected.length === 0}>
 						Save and Continue
 					</Button>

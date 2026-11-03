@@ -1,14 +1,6 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
-	import {
-		Button,
-		FormCheck,
-		FormGroup,
-		FormText,
-		Input,
-		Label,
-		Table
-	} from '@sveltestrap/sveltestrap';
+	import { Button, FormCheck, FormGroup, FormText, Input, Label, Table } from '@sveltestrap/sveltestrap';
 	import ConfirmDialog from '#lib/components/settings/confirm-dialog.svelte';
 	import Section from '#lib/components/settings/section.svelte';
 	import SettingsForm from '#lib/components/settings/settings-form.svelte';
@@ -139,98 +131,123 @@
 	}
 </script>
 
-<SettingsForm
-	form={form as SettingsFormResult | null}
-	{payload}
->
-	<Section
-		title="Estimates"
-		description="Changing the size map re-prices every planned issue."
-	>
-		<FormGroup class="mb-0">
-			<Label for="planning-size-sm">Small (hours)</Label>
-			<Input id="planning-size-sm" type="number" min="0" step="0.25" bind:value={sizeSm} />
-		</FormGroup>
-		<FormGroup class="mb-0">
-			<Label for="planning-size-md">Medium (hours)</Label>
-			<Input id="planning-size-md" type="number" min="0" step="0.25" bind:value={sizeMd} />
-		</FormGroup>
-		<FormGroup class="mb-0">
-			<Label for="planning-size-lg">Large (hours)</Label>
-			<Input id="planning-size-lg" type="number" min="0" step="0.25" bind:value={sizeLg} />
-		</FormGroup>
+<SettingsForm form={form as SettingsFormResult | null} {payload}>
+	<Section title="Estimates" description="Changing the size map re-prices every planned issue.">
+		<div class="row g-3">
+			<div class="col-sm-4">
+				<FormGroup spacing="">
+					<Label for="planning-size-sm">Small (hours)</Label>
+					<Input id="planning-size-sm" type="number" min="0" step="0.25" bind:value={sizeSm} />
+				</FormGroup>
+			</div>
+			<div class="col-sm-4">
+				<FormGroup spacing="">
+					<Label for="planning-size-md">Medium (hours)</Label>
+					<Input id="planning-size-md" type="number" min="0" step="0.25" bind:value={sizeMd} />
+				</FormGroup>
+			</div>
+			<div class="col-sm-4">
+				<FormGroup spacing="">
+					<Label for="planning-size-lg">Large (hours)</Label>
+					<Input id="planning-size-lg" type="number" min="0" step="0.25" bind:value={sizeLg} />
+				</FormGroup>
+			</div>
+		</div>
 	</Section>
 
 	<Section
 		title="Cycle"
 		description="The allocation keeps the rest of the week free for reviews, unplanned work, and slack."
 	>
-		<FormGroup class="mb-0">
-			<Label for="planning-allocation">Allocation (%)</Label>
-			<Input
-				id="planning-allocation"
-				type="number"
-				min="1"
-				max="100"
-				bind:value={allocationPercent}
-			/>
-			<FormText>The share of net hours planning may fill (1–100).</FormText>
-		</FormGroup>
-		<FormGroup class="mb-0">
-			<Label for="planning-cycle-weeks">Cycle length (weeks)</Label>
-			<Input id="planning-cycle-weeks" type="number" min="1" max="52" bind:value={cycleWeeks} />
-			<FormText>Contiguous weeks per planning cycle (1–52).</FormText>
-		</FormGroup>
-		<FormGroup class="mb-0">
-			<Label for="planning-cycle-anchor">Cycle anchor</Label>
-			<Input id="planning-cycle-anchor" type="date" bind:value={cycleAnchor} />
-			<FormText>Must be a Monday; anchors the cycle numbering.</FormText>
-		</FormGroup>
+		<div class="row g-3">
+			<div class="col-sm-4">
+				<FormGroup spacing="">
+					<Label for="planning-allocation">Allocation (%)</Label>
+					<Input
+						id="planning-allocation"
+						type="number"
+						min="1"
+						max="100"
+						bind:value={allocationPercent}
+					/>
+					<FormText>Share of net hours planning may fill (1–100).</FormText>
+				</FormGroup>
+			</div>
+			<div class="col-sm-4">
+				<FormGroup spacing="">
+					<Label for="planning-cycle-weeks">Cycle length (weeks)</Label>
+					<Input id="planning-cycle-weeks" type="number" min="1" max="52" bind:value={cycleWeeks} />
+					<FormText>Contiguous weeks per planning cycle (1–52).</FormText>
+				</FormGroup>
+			</div>
+			<div class="col-sm-4">
+				<FormGroup spacing="">
+					<Label for="planning-cycle-anchor">Cycle anchor</Label>
+					<Input id="planning-cycle-anchor" type="date" bind:value={cycleAnchor} />
+					<FormText>Must be a Monday; anchors the cycle numbering.</FormText>
+				</FormGroup>
+			</div>
+		</div>
 	</Section>
 
 	<Section
 		title="Working hours"
 		description="The default day window for every viewer without personal availability, and the prefill for Settings → Availability."
 	>
-		<FormGroup class="mb-0">
-			<Label for="planning-timezone">Timezone</Label>
-			<Input id="planning-timezone" bind:value={timezone} placeholder="Europe/Berlin" />
-			<FormText>An IANA zone, such as Europe/Berlin or UTC.</FormText>
-		</FormGroup>
-		<FormGroup class="mb-0">
-			<Label for="planning-buffer">Buffer (%)</Label>
-			<Input id="planning-buffer" type="number" min="0" max="90" bind:value={bufferPercent} />
-			<FormText>The share of the work window reserved for slack (0–90).</FormText>
-		</FormGroup>
-		<FormGroup class="mb-0">
-			<Label for="planning-start">Start time</Label>
-			<Input id="planning-start" type="time" bind:value={startTime} />
-			<FormText>Local wall time the working day starts.</FormText>
-		</FormGroup>
-		<FormGroup class="mb-0">
-			<Label for="planning-end">End time</Label>
-			<Input id="planning-end" type="time" bind:value={endTime} />
-			<FormText>Local wall time the working day ends.</FormText>
-		</FormGroup>
-		<FormGroup class="mb-0">
-			<span id="planning-work-days" class="form-label d-block">Work days</span>
-			<div
-				class="d-flex flex-wrap column-gap-4 row-gap-1"
-				role="group"
-				aria-labelledby="planning-work-days"
-			>
-				{#each WORKDAYS as day (day.value)}
-					<FormCheck
-						type="checkbox"
-						class="mb-0"
-						value={day.value}
-						bind:group={workDays}
-						label={day.label}
-					/>
-				{/each}
+		<div class="row g-3">
+			<div class="col-md-8">
+				<FormGroup spacing="">
+					<Label for="planning-timezone">Timezone</Label>
+					<Input id="planning-timezone" bind:value={timezone} placeholder="Europe/Berlin" />
+					<FormText>An IANA zone, such as Europe/Berlin or UTC.</FormText>
+				</FormGroup>
 			</div>
-			<FormText>At least one ISO weekday, Monday through Sunday.</FormText>
-		</FormGroup>
+			<div class="col-md-4">
+				<FormGroup spacing="">
+					<Label for="planning-buffer">Buffer (%)</Label>
+					<Input id="planning-buffer" type="number" min="0" max="90" bind:value={bufferPercent} />
+					<FormText>Share of the work window reserved as slack (0–90).</FormText>
+				</FormGroup>
+			</div>
+			<div class="col-sm-6">
+				<FormGroup spacing="">
+					<Label for="planning-start">Start time</Label>
+					<Input id="planning-start" type="time" bind:value={startTime} />
+					<FormText>Local wall time the working day starts.</FormText>
+				</FormGroup>
+			</div>
+			<div class="col-sm-6">
+				<FormGroup spacing="">
+					<Label for="planning-end">End time</Label>
+					<Input id="planning-end" type="time" bind:value={endTime} />
+					<FormText>Local wall time the working day ends.</FormText>
+				</FormGroup>
+			</div>
+			<div class="col-12">
+				<span id="planning-work-days" class="form-label d-block">Work days</span>
+				<div
+					class="d-flex flex-wrap column-gap-4 row-gap-1"
+					role="group"
+					aria-labelledby="planning-work-days"
+				>
+					{#each WORKDAYS as day (day.value)}
+						<div class="form-check">
+							<input
+								class="form-check-input"
+								type="checkbox"
+								id={`planning-day-${day.value}`}
+								value={day.value}
+								bind:group={workDays}
+							/>
+							<label class="form-check-label" for={`planning-day-${day.value}`}>
+								{day.label}
+							</label>
+						</div>
+					{/each}
+				</div>
+				<FormText>At least one ISO weekday, Monday through Sunday.</FormText>
+			</div>
+		</div>
 	</Section>
 
 	<Section
@@ -244,12 +261,12 @@
 		{#if roster.length === 0}
 			<p class="mb-0 text-body-secondary">No maintainers yet. Add someone below.</p>
 		{:else}
-			<Table responsive hover class="align-middle">
+			<Table responsive class="table-sm align-middle">
 				<colgroup>
 					<col />
 					<col style="width:8rem" />
 					<col style="width:6rem" />
-					<col style="width:4rem" />
+					<col style="width:5rem" />
 				</colgroup>
 				<thead>
 					<tr>
@@ -291,11 +308,11 @@
 								<Button
 									color="link"
 									size="sm"
-									class="px-1 py-0 text-secondary"
+									class="p-0"
 									aria-label={`Remove ${row.login}`}
 									onclick={() => requestRemove(index)}
 								>
-									<i class="bi bi-trash" aria-hidden="true"></i>
+									Remove
 								</Button>
 							</td>
 						</tr>
@@ -312,12 +329,15 @@
 		{#if available.length === 0}
 			<p class="mb-0 text-body-secondary">Every assignable user is already on the roster.</p>
 		{:else}
-			<ul class="list-group list-group-flush border-top">
-				{#each available as candidate (`${candidate.forge}:${candidate.instance}:${candidate.externalId}`)}
-					<li class="list-group-item d-flex flex-wrap align-items-center gap-2 px-0 py-2">
+			<ul class="list-unstyled mb-0">
+				{#each available as candidate, index (`${candidate.forge}:${candidate.instance}:${candidate.externalId}`)}
+					<li
+						class="d-flex flex-wrap align-items-center gap-2 py-2 {index < available.length - 1
+							? 'border-bottom'
+							: ''}"
+					>
 						<span class="min-w-0 flex-grow-1 text-truncate">@{candidate.login}</span>
 						<Button color="outline-secondary" size="sm" onclick={() => addMaintainer(candidate)}>
-							<i class="bi bi-plus-lg me-1" aria-hidden="true"></i>
 							Add
 						</Button>
 					</li>

@@ -18,9 +18,6 @@
 	 * The ordered child table. Missing children stay visible as unavailable
 	 * placeholders so a written ref never silently disappears from the epic.
 	 * Writers get a remove control; readers see the same rows without one.
-	 *
-	 * A dense Bootstrap table replaces the old bordered grid. Removal lives in
-	 * the row menu and on a hover/focus action beside it.
 	 */
 	interface Props {
 		children: EpicChild[];
@@ -58,20 +55,23 @@
 					<tr>
 						<td class="min-w-0">
 							{#if item.available}
-								<a href={issuePath('issues', item.repo, item.number)} class="d-flex min-w-0 align-items-center gap-2">
-									<span class="font-monospace flex-shrink-0 text-body-secondary">
+								<span class="d-flex min-w-0 align-items-center gap-2">
+									<a
+										href={issuePath('issues', item.repo, item.number)}
+										class="flex-shrink-0 link-primary link-underline-opacity-0 link-underline-opacity-100-hover"
+									>
 										{item.repo}#{item.number}
-									</span>
+									</a>
 									<span
 										class="min-w-0 text-truncate text-body"
 										class:text-decoration-line-through={item.state === 'closed'}
 									>
 										{item.title || 'Untitled issue'}
 									</span>
-								</a>
+								</span>
 							{:else}
 								<span class="d-flex min-w-0 align-items-center gap-2 text-body-tertiary" title="Not mirrored">
-									<span class="font-monospace flex-shrink-0">{item.ref}</span>
+									<span class="flex-shrink-0">{item.ref}</span>
 									<span class="text-truncate text-body fst-italic">Unavailable</span>
 								</span>
 							{/if}
@@ -95,23 +95,21 @@
 						<td>
 							{#if mayWrite && onremove}
 								<div class="d-flex align-items-center justify-content-end gap-1">
-									<span class="remove-action d-flex">
-										<Button
-											color="link"
-											size="sm"
-											class="text-body-secondary text-decoration-none px-1 py-0"
-											disabled={removing === item.ref}
-											title="Remove from epic"
-											aria-label={`Remove ${item.ref} from the epic`}
-											onclick={() => onremove?.(item.ref)}
-										>
-											{#if removing === item.ref}
-												<Spinner label="Removing" />
-											{:else}
-												<i class="bi bi-x-lg" aria-hidden="true"></i>
-											{/if}
-										</Button>
-									</span>
+									<Button
+										color="link"
+										size="sm"
+										class="text-body-secondary text-decoration-none px-1 py-0"
+										disabled={removing === item.ref}
+										title="Remove from epic"
+										aria-label={`Remove ${item.ref} from the epic`}
+										onclick={() => onremove?.(item.ref)}
+									>
+										{#if removing === item.ref}
+											<Spinner label="Removing" />
+										{:else}
+											<i class="bi bi-x-lg" aria-hidden="true"></i>
+										{/if}
+									</Button>
 
 									<Dropdown>
 										<DropdownToggle
@@ -144,20 +142,3 @@
 		</Table>
 	{/if}
 </div>
-
-<style>
-	.remove-action {
-		opacity: 1;
-	}
-
-	@media (hover: hover) and (pointer: fine) {
-		.remove-action {
-			opacity: 0;
-		}
-
-		tr:hover .remove-action,
-		tr:focus-within .remove-action {
-			opacity: 1;
-		}
-	}
-</style>

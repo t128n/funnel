@@ -4,10 +4,11 @@
 	import Spinner from '#lib/components/common/Spinner.svelte';
 
 	/**
-	 * The embedded action composer: a one-line prompt at rest that expands in
-	 * place on focus (or whenever a draft exists) to show the attachment
-	 * control, the Comment / Internal note switch, a primary submit and a
-	 * `⌘ Enter` hint. The parent owns which mutation `onsubmit` performs.
+	 * The embedded action composer: an ordinary Bootstrap textarea that starts
+	 * as a one-line prompt and expands in place on focus (or whenever a draft
+	 * exists) to show the attachment control, the Comment / Internal note
+	 * switch, a primary submit and a `⌘ Enter` hint. The parent owns which
+	 * mutation `onsubmit` performs.
 	 *
 	 * ⌘/Ctrl+Enter submits. `value` is bindable so the parent owns the draft,
 	 * and the textarea is never unmounted, so collapsing never loses content,
@@ -114,115 +115,96 @@
 </script>
 
 <div bind:this={root} class="position-relative">
-	<div class="composer">
-		{#if !expanded}
-			<i class="bi bi-chat-left-text composer-prompt-icon" aria-hidden="true"></i>
-		{/if}
-		<textarea
-			id="issue-composer"
-			class="form-control composer-input {expanded
-				? 'composer-input--expanded'
-				: 'composer-input--collapsed'}"
-			placeholder={effectivePlaceholder}
-			{value}
-			oninput={onInput}
-			onfocus={onFocus}
-			onblur={onBlur}
-			onkeydown={onKeydown}
-			rows={expanded ? 3 : 1}
-			aria-label={effectiveLabel}
-		></textarea>
+	{#if !expanded}
+		<i class="bi bi-chat-left-text composer-prompt-icon" aria-hidden="true"></i>
+	{/if}
+	<textarea
+		id="issue-composer"
+		class="form-control composer-input {expanded
+			? 'composer-input--expanded'
+			: 'composer-input--collapsed'}"
+		placeholder={effectivePlaceholder}
+		{value}
+		oninput={onInput}
+		onfocus={onFocus}
+		onblur={onBlur}
+		onkeydown={onKeydown}
+		rows={expanded ? 3 : 1}
+		aria-label={effectiveLabel}
+	></textarea>
 
-		<div
-			class="composer-actions d-flex min-w-0 flex-wrap align-items-center justify-content-between gap-2 px-2 pt-1 pb-2 {expanded
-				? ''
-				: 'd-none'}"
-		>
-			<div class="d-flex min-w-0 align-items-center gap-2">
-				<Button
-					color="link"
-					size="sm"
-					class="d-inline-flex align-items-center gap-1 text-decoration-none px-1 py-0 text-body-secondary"
-					disabled={!onattach}
-					title={onattach ? 'Attach files' : 'Attachments are unavailable'}
-					tabindex={onattach ? undefined : -1}
-					onclick={() => fileInput?.click()}
-				>
-					<i class="bi bi-paperclip flex-shrink-0" aria-hidden="true"></i>
-					Attach
-				</Button>
-				{#if onattach}
-					<input
-						bind:this={fileInput}
-						type="file"
-						multiple
-						class="d-none"
-						onchange={onFiles}
-						aria-hidden="true"
-						tabindex={-1}
-					/>
+	<div
+		class="composer-actions d-flex min-w-0 flex-wrap align-items-center justify-content-between gap-2 mt-2 {expanded
+			? ''
+			: 'd-none'}"
+	>
+		<div class="d-flex min-w-0 align-items-center gap-2">
+			<Button
+				color="link"
+				size="sm"
+				class="d-inline-flex align-items-center gap-1 text-decoration-none px-1 py-0 text-body-secondary"
+				disabled={!onattach}
+				title={onattach ? 'Attach files' : 'Attachments are unavailable'}
+				tabindex={onattach ? undefined : -1}
+				onclick={() => fileInput?.click()}
+			>
+				<i class="bi bi-paperclip flex-shrink-0" aria-hidden="true"></i>
+				Attach
+			</Button>
+			{#if onattach}
+				<input
+					bind:this={fileInput}
+					type="file"
+					multiple
+					class="d-none"
+					onchange={onFiles}
+					aria-hidden="true"
+					tabindex={-1}
+				/>
+			{/if}
+		</div>
+		<div class="d-flex min-w-0 flex-wrap align-items-center justify-content-end gap-2">
+			{#if showModeToggle}
+				<ButtonGroup size="sm" role="group" aria-label="Submission channel">
+					<Button
+						color="outline-secondary"
+						active={mode === 'comment'}
+						aria-pressed={mode === 'comment'}
+						onclick={() => (mode = 'comment')}
+					>
+						Comment
+					</Button>
+					<Button
+						color="outline-secondary"
+						active={mode === 'note'}
+						aria-pressed={mode === 'note'}
+						onclick={() => (mode = 'note')}
+					>
+						Internal note
+					</Button>
+				</ButtonGroup>
+			{/if}
+			<kbd class="border px-1 d-none d-sm-inline-flex text-body-secondary" aria-hidden="true">
+				{isMac ? '⌘' : 'Ctrl'}&nbsp;Enter
+			</kbd>
+			<Button
+				color="primary"
+				size="sm"
+				onclick={submit}
+				disabled={!canSubmit}
+				title={effectiveLabel}
+				aria-label={effectiveLabel}
+			>
+				{#if busy}
+					<Spinner size={13} class="me-1" />
 				{/if}
-			</div>
-			<div class="d-flex min-w-0 flex-wrap align-items-center justify-content-end gap-2">
-				{#if showModeToggle}
-					<ButtonGroup size="sm" role="group" aria-label="Submission channel">
-						<Button
-							color="outline-secondary"
-							active={mode === 'comment'}
-							aria-pressed={mode === 'comment'}
-							onclick={() => (mode = 'comment')}
-						>
-							Comment
-						</Button>
-						<Button
-							color="outline-secondary"
-							active={mode === 'note'}
-							aria-pressed={mode === 'note'}
-							onclick={() => (mode = 'note')}
-						>
-							Internal note
-						</Button>
-					</ButtonGroup>
-				{/if}
-				<kbd class="border px-1 d-none d-sm-inline-flex" aria-hidden="true">
-					{isMac ? '⌘' : 'Ctrl'}&nbsp;Enter
-				</kbd>
-				<Button
-					color="primary"
-					size="sm"
-					style="min-width: 5rem"
-					onclick={submit}
-					disabled={!canSubmit}
-					title={effectiveLabel}
-					aria-label={effectiveLabel}
-				>
-					{#if busy}
-						<Spinner size={13} class="me-1" />
-					{/if}
-					{busy ? (mode === 'note' ? 'Saving…' : 'Posting…') : mode === 'note' ? 'Add note' : 'Comment'}
-				</Button>
-			</div>
+				{busy ? (mode === 'note' ? 'Saving…' : 'Posting…') : mode === 'note' ? 'Add note' : 'Comment'}
+			</Button>
 		</div>
 	</div>
 </div>
 
 <style>
-	.composer {
-		position: relative;
-		overflow: hidden;
-		border: 1px solid var(--bs-border-color);
-		border-radius: var(--bs-border-radius);
-		background: var(--bs-body-bg);
-		transition:
-			border-color 0.15s ease,
-			box-shadow 0.15s ease;
-	}
-
-	.composer:focus-within {
-		border-color: var(--bs-primary);
-		box-shadow: 0 0 0 0.2rem rgba(var(--bs-primary-rgb), 0.2);
-	}
-
 	.composer-prompt-icon {
 		position: absolute;
 		top: 50%;
@@ -232,28 +214,15 @@
 		transform: translateY(-50%);
 	}
 
-	.composer-input {
-		border: 0;
-		background: transparent;
-		font-size: 0.875rem;
-		line-height: 1.5;
-	}
-
-	.composer-input:focus {
-		background: transparent;
-		box-shadow: none;
-	}
-
 	.composer-input--collapsed {
 		height: 2.5rem;
 		min-height: 2.5rem;
-		padding: 0.5rem 0.75rem 0.5rem 2.25rem;
+		padding-left: 2.25rem;
 		resize: none;
 	}
 
 	.composer-input--expanded {
 		min-height: 6rem;
-		padding: 0.75rem;
 		resize: vertical;
 	}
 </style>

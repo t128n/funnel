@@ -72,33 +72,31 @@
 		{#if isClose}
 			<fieldset class="mb-3">
 				<legend class="form-label fs-6 mb-2">Resolution</legend>
-				<div class="d-flex gap-2" role="radiogroup" aria-label="Resolution">
-					<label
-						class="resolution-option d-flex flex-1 align-items-center gap-2 border rounded p-2"
-					>
+				<div class="d-flex flex-wrap gap-4" role="radiogroup" aria-label="Resolution">
+					<div class="form-check">
 						<input
-							class="form-check-input mt-0 flex-shrink-0"
+							class="form-check-input"
 							type="radio"
 							name="resolution"
+							id="resolution-completed"
 							value="completed"
 							checked={reason === 'completed'}
 							onchange={() => (reason = 'completed')}
 						/>
-						<span>Completed</span>
-					</label>
-					<label
-						class="resolution-option d-flex flex-1 align-items-center gap-2 border rounded p-2"
-					>
+						<label class="form-check-label" for="resolution-completed">Completed</label>
+					</div>
+					<div class="form-check">
 						<input
-							class="form-check-input mt-0 flex-shrink-0"
+							class="form-check-input"
 							type="radio"
 							name="resolution"
+							id="resolution-not-planned"
 							value="not_planned"
 							checked={reason === 'not_planned'}
 							onchange={() => (reason = 'not_planned')}
 						/>
-						<span>Not planned</span>
-					</label>
+						<label class="form-check-label" for="resolution-not-planned">Not planned</label>
+					</div>
 				</div>
 			</fieldset>
 		{/if}
@@ -124,8 +122,8 @@
 	</ModalBody>
 
 	<ModalFooter>
-		<Button color="secondary" outline on:click={close} disabled={busy}>Cancel</Button>
-		<Button color="primary" on:click={confirm} disabled={!canConfirm}>
+		<Button color="secondary" outline onclick={close} disabled={busy}>Cancel</Button>
+		<Button color="primary" onclick={confirm} disabled={!canConfirm}>
 			{#if busy}
 				<Spinner size={13} class="me-2" />
 			{/if}
@@ -139,14 +137,3 @@
 		</Button>
 	</ModalFooter>
 </Modal>
-
-<style>
-	.resolution-option {
-		cursor: pointer;
-	}
-
-	.resolution-option:has(input:checked) {
-		border-color: var(--bs-primary) !important;
-		background: var(--bs-secondary-bg);
-	}
-</style>

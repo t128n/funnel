@@ -12,7 +12,7 @@
 
 <button
 	type="button"
-	class="issue-group-header d-flex w-100 align-items-center gap-2 px-3 text-start small fw-semibold text-body-secondary"
+	class="issue-group-header d-flex w-100 align-items-center gap-2 px-3 text-start small fw-medium text-body-secondary"
 	aria-expanded={!collapsed}
 	onclick={ontoggle}
 >
@@ -26,9 +26,9 @@
 
 <style>
 	.issue-group-header {
-		height: var(--funnel-row-compact);
+		height: 2rem;
 		border: 0;
-		border-bottom: 1px solid var(--bs-border-color);
+		border-bottom: 1px solid var(--bs-border-color-translucent);
 		background: var(--bs-body-bg);
 		cursor: pointer;
 	}

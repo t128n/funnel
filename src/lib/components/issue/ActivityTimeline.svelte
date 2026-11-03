@@ -8,7 +8,7 @@
 </script>
 
 <script lang="ts">
-	import { Badge, Button } from '@sveltestrap/sveltestrap';
+	import { Button } from '@sveltestrap/sveltestrap';
 	import { timeAgo } from '#lib/client/clock.svelte';
 	import { absoluteTime } from '#lib/time';
 	import type { RenderedComment, RenderedWorkNote } from '#lib/server/issues/types';
@@ -16,8 +16,8 @@
 	/**
 	 * The issue activity timeline: GitHub comments and internal work notes,
 	 * merged in chronological order and rendered as ruled document entries —
-	 * author and time in the caption line, prose at 1rem/1.6. Internal notes
-	 * carry an `Internal` lock badge on `surface`, never a yellow reporter card.
+	 * author and time in a compact caption line, prose at 1rem/1.6. Internal
+	 * notes carry a small lock label in the caption, never a filled panel.
 	 */
 	interface Props {
 		comments: RenderedComment[];
@@ -104,32 +104,33 @@
 		{@const tone =
 			entry.kind === 'note' ? 'note' : undefined}
 		<article
-			class="activity-entry d-flex measure flex-column gap-2 border-top py-3"
+			class="activity-entry d-flex flex-column gap-1 py-2 {index > 0 ? 'border-top' : ''}"
 			data-index={index}
 			data-tone={tone}
 		>
-			<header class="d-flex min-w-0 flex-wrap align-items-center gap-2 small text-body-secondary">
+			<header class="d-flex min-w-0 flex-wrap align-items-center gap-2 activity-meta text-body-secondary">
 				{#if entry.kind === 'comment'}
 					<a
 						id={`c${index + 1}`}
 						href={`#c${index + 1}`}
-						class="font-monospace link-primary fw-semibold text-decoration-none"
+						class="font-monospace link-primary text-decoration-none"
 						aria-label={`Comment ${commentNumber(index)}`}>{commentNumber(index)}</a
 					>
 				{/if}
-				<strong class="fw-semibold text-body">{author?.login ?? 'ghost'}</strong>
+				<span class="text-body">{author?.login ?? 'ghost'}</span>
 				{#if entry.kind === 'note'}
-					<Badge color="secondary" class="d-inline-flex align-items-center gap-1">
+					<span class="d-inline-flex align-items-center gap-1">
 						<i class="bi bi-lock flex-shrink-0" aria-hidden="true"></i>
 						Internal
-					</Badge>
+					</span>
 				{/if}
 				<span title={absoluteTime(at)}>{timeAgo(at)}</span>
 				{#if onreply}
 					<Button
 						color="link"
 						size="sm"
-						class="d-inline-flex align-items-center text-decoration-none px-1 py-0"
+							style="font-size: 0.8125rem"
+							class="d-inline-flex align-items-center text-decoration-none px-1 py-0"
 						onclick={() => onreply(entryId(entry))}
 					>
 						Reply
@@ -140,6 +141,7 @@
 						<Button
 							color="link"
 							size="sm"
+							style="font-size: 0.8125rem"
 							class="d-inline-flex align-items-center text-decoration-none px-1 py-0"
 							disabled={busyId === `note:${entry.note.id}`}
 							title="Edit note"
@@ -150,6 +152,7 @@
 						<Button
 							color="link"
 							size="sm"
+							style="font-size: 0.8125rem"
 							class="d-inline-flex align-items-center text-decoration-none px-1 py-0"
 							title="Publish to GitHub as a comment (removes the note)"
 							disabled={busyId === `note:${entry.note.id}`}
@@ -160,6 +163,7 @@
 						<Button
 							color="link"
 							size="sm"
+							style="font-size: 0.8125rem"
 							class="d-inline-flex align-items-center text-decoration-none px-1 py-0 text-body-secondary"
 							title="Delete note"
 							disabled={busyId === `note:${entry.note.id}`}
@@ -204,14 +208,14 @@
 			</div>
 		</div>
 	{:else}
-		<div class="markdown fs-6 lh-base">
+		<div class="markdown">
 			{@html note.bodyHtml}
 		</div>
 	{/if}
 {/snippet}
 
 <style>
-	.activity-entry:first-child {
-		border-top: 0 !important;
+	.activity-meta {
+		font-size: 0.8125rem;
 	}
 </style>

@@ -12,8 +12,8 @@
 	let { children, actions, class: className = '' }: Props = $props();
 </script>
 
-<div class="d-flex flex-wrap align-items-end gap-3 border-bottom px-3 py-2 {className}">
-	<div class="d-flex min-w-0 flex-grow-1 flex-wrap align-items-end gap-3">
+<div class="d-flex flex-wrap align-items-end gap-2 border-bottom px-3 py-2 {className}">
+	<div class="d-flex min-w-0 flex-grow-1 flex-wrap align-items-end gap-2">
 		{@render children()}
 	</div>
 	{#if actions}

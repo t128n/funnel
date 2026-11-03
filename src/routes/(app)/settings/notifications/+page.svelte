@@ -37,31 +37,33 @@
 	const payload = $derived(JSON.stringify({ notifications }));
 </script>
 
-<SettingsForm
-	form={form as SettingsFormResult | null}
-	{payload}
->
+<SettingsForm form={form as SettingsFormResult | null} {payload}>
 	<Section
 		title="Channels"
 		description="These switches apply to everyone. Browser notifications still require permission in each browser."
 	>
-		<ul class="list-group list-group-flush border-top">
-			{#each CONTROLS as control (control.key)}
+		<div>
+			{#each CONTROLS as control, index (control.key)}
 				{@const on = notifications[control.key]}
-				<li class="list-group-item d-flex align-items-start gap-3 px-0 py-2">
-					<div class="d-flex min-w-0 flex-grow-1 flex-column gap-1">
-						<span class="fw-semibold">{control.label}</span>
-						<span class="small text-body-secondary">{control.description}</span>
-						<span class="small text-body-tertiary">{on ? 'On' : 'Off'}</span>
+				<div
+					class="d-flex align-items-start justify-content-between gap-3 py-2 {index <
+					CONTROLS.length - 1
+						? 'border-bottom'
+						: ''}"
+				>
+					<div class="min-w-0">
+						<div class="fw-medium">{control.label}</div>
+						<div class="small text-body-secondary">{control.description}</div>
 					</div>
 					<FormCheck
 						type="switch"
+						class="flex-shrink-0"
 						checked={on}
 						on:change={() => toggle(control.key)}
 						aria-label={control.label}
 					/>
-				</li>
+				</div>
 			{/each}
-		</ul>
+		</div>
 	</Section>
 </SettingsForm>

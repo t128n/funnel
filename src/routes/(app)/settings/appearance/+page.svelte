@@ -1,14 +1,13 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { get } from 'svelte/store';
-	import { FormCheck } from '@sveltestrap/sveltestrap';
+	import { FormCheck, FormText } from '@sveltestrap/sveltestrap';
 	import Section from '#lib/components/settings/section.svelte';
 	import { resolvedTheme, setTheme, themeChoice, type ThemeChoice } from '#lib/client/theme';
 
 	/**
 	 * Appearance section: one radio group. The choice applies immediately and is
-	 * remembered in this browser. Options are grouped by spacing alone; the whole
-	 * row is the radio target.
+	 * remembered in this browser.
 	 *
 	 * The theme controller owns persistence, OS following, and the pre-paint
 	 * script lives in `app.html`. Bootstrap reads the `data-bs-theme` attribute it
@@ -38,9 +37,9 @@
 </script>
 
 <Section title="Theme" description="Applies immediately and is remembered in this browser.">
-	<div class="d-flex flex-column gap-2" role="radiogroup" aria-label="Theme">
-		{#each options as option (option.value)}
-			<div>
+	<div>
+		<div role="radiogroup" aria-label="Theme">
+			{#each options as option (option.value)}
 				<FormCheck
 					type="radio"
 					name="theme"
@@ -48,11 +47,12 @@
 					checked={choice === option.value}
 					on:change={() => change(option.value)}
 					label={option.label}
+					class="mb-1"
 				/>
-				{#if mounted && option.value === 'system' && choice === 'system'}
-					<div class="form-text ms-4">Currently {resolvedLabel}</div>
-				{/if}
-			</div>
-		{/each}
+			{/each}
+		</div>
+		{#if mounted && choice === 'system'}
+			<FormText>Following your operating system; currently {resolvedLabel.toLowerCase()}.</FormText>
+		{/if}
 	</div>
 </Section>

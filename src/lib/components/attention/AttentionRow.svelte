@@ -118,7 +118,7 @@
 
 <div
 	role="listitem"
-	class="attention-row position-relative d-flex align-items-center gap-3 px-3 py-2"
+	class="attention-row position-relative d-flex align-items-center gap-3 border-bottom px-3 py-2"
 >
 	<!-- Stretched link: the whole row opens the issue; controls layer above it. -->
 	<a
@@ -151,9 +151,9 @@
 				</time>
 			{/if}
 
-			<RefText value={ref} title={`${issue.repo}#${issue.number}`} class="flex-shrink-0" />
+			<span class="flex-shrink-0 link-primary"><RefText value={ref} title={`${issue.repo}#${issue.number}`} class="text-reset" /></span>
 
-			<span class="min-w-0 flex-grow-1 text-truncate text-body" title={issue.title}>
+			<span class="min-w-0 flex-grow-1 text-truncate small text-body" title={issue.title}>
 				{issue.title}
 			</span>
 		</div>
@@ -243,15 +243,6 @@
 </div>
 
 <style>
-	.attention-row {
-		min-height: var(--funnel-row-compact);
-		border-bottom: 1px solid var(--bs-border-color);
-	}
-
-	.attention-row:hover {
-		background: var(--bs-tertiary-bg);
-	}
-
 	.attention-row__link {
 		position: absolute;
 		inset: 0;

@@ -60,10 +60,7 @@
 	}
 </script>
 
-<SettingsForm
-	form={form as SettingsFormResult | null}
-	{payload}
->
+<SettingsForm form={form as SettingsFormResult | null} {payload}>
 	<Section
 		title="GitHub host"
 		description="Deploy-time configuration from the environment. Changing it requires editing GITHUB_URL / GITHUB_API_URL and restarting."
@@ -80,7 +77,7 @@
 		title="Configured repositories"
 		description="The shortcode is the project key shown on board cards (for example FIT-12). Leave it blank to derive it from the repository name."
 	>
-		<Table responsive hover class="align-middle">
+		<Table responsive class="table-sm align-middle">
 			<colgroup>
 				<col />
 				<col style="width:9rem" />
@@ -129,14 +126,13 @@
 									<DropdownToggle
 										color="link"
 										size="sm"
-										class="px-1 py-0 text-secondary"
+										class="p-0"
 										aria-label={`Actions for repository ${index + 1}`}
 									>
 										<i class="bi bi-three-dots" aria-hidden="true"></i>
 									</DropdownToggle>
 									<DropdownMenu end>
 										<DropdownItem on:click={() => requestRemove(index)}>
-											<i class="bi bi-trash me-2" aria-hidden="true"></i>
 											Remove repository
 										</DropdownItem>
 									</DropdownMenu>
@@ -149,10 +145,7 @@
 		</Table>
 
 		<div>
-			<Button type="button" color="outline-secondary" onclick={addRepo}>
-				<i class="bi bi-plus-lg me-2" aria-hidden="true"></i>
-				Add Repository
-			</Button>
+			<Button type="button" color="outline-secondary" onclick={addRepo}>Add repository</Button>
 		</div>
 	</Section>
 </SettingsForm>

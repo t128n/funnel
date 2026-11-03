@@ -2,12 +2,9 @@
  * Settings-section catalog.
  *
  * Single source for the `/settings` navigation: the desktop sidebar, the mobile
- * section switcher, and the active-section lookup all read this, so labels,
- * icons, and hrefs cannot drift. Declarations only — no data loading — so the
- * shell stays thin.
- *
- * Icons are Bootstrap Icon class names (`bi-*`), rendered as
- * `<i class="bi {section.icon}">` by the settings layout.
+ * section switcher, and the active-section lookup all read this, so labels and
+ * hrefs cannot drift. Declarations only — no data loading — so the shell stays
+ * thin.
  */
 import type { Role } from '#lib/roles';
 
@@ -20,8 +17,6 @@ export interface SettingsSection {
 	href: string;
 	/** Minimum RBAC role required to see and open the section. */
 	minRole: Role;
-	/** Bootstrap Icon class name without the `bi` base class, e.g. `bi-bell`. */
-	icon: string;
 }
 
 /** A scoped block of sections, rendered under one sidebar heading. */
@@ -56,32 +51,28 @@ export const settingsGroups: SettingsGroup[] = [
 				label: 'Account',
 				description: 'Your profile and how you sign in to Funnel.',
 				href: '/settings',
-				minRole: 'read',
-				icon: 'bi-person-circle'
+				minRole: 'read'
 			},
 			{
 				id: 'appearance',
 				label: 'Appearance',
 				description: '',
 				href: '/settings/appearance',
-				minRole: 'read',
-				icon: 'bi-palette'
+				minRole: 'read'
 			},
 			{
 				id: 'features',
 				label: 'Features',
 				description: 'Enable or disable functionality for this browser.',
 				href: '/settings/features',
-				minRole: 'read',
-				icon: 'bi-flag'
+				minRole: 'read'
 			},
 			{
 				id: 'availability',
 				label: 'Availability',
 				description: 'Working hours, blocked windows, and a read-only calendar feed for the day planner.',
 				href: '/settings/availability',
-				minRole: 'read',
-				icon: 'bi-calendar-event'
+				minRole: 'read'
 			}
 		]
 	},
@@ -94,48 +85,42 @@ export const settingsGroups: SettingsGroup[] = [
 				label: 'Repositories',
 				description: 'Repositories Funnel mirrors and can create issues in.',
 				href: '/settings/repositories',
-				minRole: 'admin',
-				icon: 'bi-folder'
+				minRole: 'admin'
 			},
 			{
 				id: 'projects',
 				label: 'Projects',
 				description: 'GitHub labels that mark an issue as belonging to a project.',
 				href: '/settings/projects',
-				minRole: 'admin',
-				icon: 'bi-tag'
+				minRole: 'admin'
 			},
 			{
 				id: 'intake',
 				label: 'Intake',
 				description: 'Where accepted submissions go by default.',
 				href: '/settings/intake',
-				minRole: 'admin',
-				icon: 'bi-inbox'
+				minRole: 'admin'
 			},
 			{
 				id: 'board',
 				label: 'Board',
 				description: 'Done-column retention and per-stage work-in-progress limits.',
 				href: '/settings/board',
-				minRole: 'admin',
-				icon: 'bi-kanban'
+				minRole: 'admin'
 			},
 			{
 				id: 'planning',
 				label: 'Planning',
 				description: 'Size-to-time estimates, the cycle shape, and planning capacity.',
 				href: '/settings/planning',
-				minRole: 'admin',
-				icon: 'bi-calendar-range'
+				minRole: 'admin'
 			},
 			{
 				id: 'notifications',
 				label: 'Notifications',
 				description: 'Which notification channels the instance uses.',
 				href: '/settings/notifications',
-				minRole: 'admin',
-				icon: 'bi-bell'
+				minRole: 'admin'
 			}
 		]
 	},
@@ -148,32 +133,28 @@ export const settingsGroups: SettingsGroup[] = [
 				label: 'People',
 				description: 'Who can use this instance and what each role can do.',
 				href: '/settings/people',
-				minRole: 'admin',
-				icon: 'bi-people'
+				minRole: 'admin'
 			},
 			{
 				id: 'github-app',
 				label: 'GitHub App',
 				description: 'The App Funnel created and uses to mirror issues and post writes.',
 				href: '/settings/github-app',
-				minRole: 'admin',
-				icon: 'bi-robot'
+				minRole: 'admin'
 			},
 			{
 				id: 'sync',
 				label: 'Sync',
 				description: 'How often Funnel polls GitHub for changes.',
 				href: '/settings/sync',
-				minRole: 'admin',
-				icon: 'bi-arrow-clockwise'
+				minRole: 'admin'
 			},
 			{
 				id: 'session',
 				label: 'Session',
 				description: 'How long a signed-in session lasts.',
 				href: '/settings/session',
-				minRole: 'admin',
-				icon: 'bi-stopwatch'
+				minRole: 'admin'
 			}
 		]
 	}

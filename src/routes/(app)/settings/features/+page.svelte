@@ -51,23 +51,23 @@
 	{#if FEATURE_FLAGS.length === 0}
 		<p class="mb-0 text-body-secondary">No feature flags are available.</p>
 	{:else}
-		<ul class="list-group list-group-flush border-top">
-			{#each FEATURE_FLAGS as flag (flag.key)}
+		<div>
+			{#each FEATURE_FLAGS as flag, index (flag.key)}
 				{@const on = effective(flag.key, flag.default)}
-				<li class="list-group-item d-flex align-items-start gap-3 px-0 py-2">
-					<div class="d-flex min-w-0 flex-grow-1 flex-column gap-1">
-						<span class="fw-semibold">{flag.name}</span>
-						<span class="small text-body-secondary">{flag.description}</span>
-						<span class="small text-body-tertiary">{on ? flag.onLabel : flag.offLabel}</span>
+				<div
+					class="d-flex align-items-start justify-content-between gap-3 py-2 {index <
+					FEATURE_FLAGS.length - 1
+						? 'border-bottom'
+						: ''}"
+				>
+					<div class="min-w-0">
+						<div class="fw-medium">{flag.name}</div>
+						<div class="small text-body-secondary">{flag.description}</div>
+						<div class="small text-body-secondary">{on ? flag.onLabel : flag.offLabel}</div>
 					</div>
 					<div class="d-flex flex-shrink-0 align-items-center gap-2">
-						<span style="min-width:4rem" class="text-end" aria-live="polite">
-							{#if savedKey === flag.key}
-								<span class="d-inline-flex align-items-center gap-1 small text-success">
-									<i class="bi bi-check-circle" aria-hidden="true"></i>
-									Saved.
-								</span>
-							{/if}
+						<span class="small text-success" aria-live="polite">
+							{#if savedKey === flag.key}Saved{/if}
 						</span>
 						<FormCheck
 							type="switch"
@@ -77,8 +77,8 @@
 							aria-label={flag.name}
 						/>
 					</div>
-				</li>
+				</div>
 			{/each}
-		</ul>
+		</div>
 	{/if}
 </Section>

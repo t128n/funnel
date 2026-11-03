@@ -283,11 +283,11 @@
 
 <FocusedShell>
 	{#if submitted}
-		<section class="d-flex flex-column gap-4" role="status">
-			<div class="d-flex flex-wrap align-items-start gap-3">
-				<i class="bi bi-check-circle mt-1 flex-shrink-0 fs-5 text-success" aria-hidden="true"></i>
-				<div class="d-flex min-w-0 flex-column gap-2">
-					<h1 bind:this={successEl} tabindex="-1" class="h4 fw-semibold text-break mb-0">
+		<section class="d-flex flex-column gap-3" role="status">
+			<div class="d-flex flex-wrap align-items-start gap-2">
+				<i class="bi bi-check-circle mt-1 flex-shrink-0 text-success" aria-hidden="true"></i>
+				<div class="min-w-0">
+					<h1 bind:this={successEl} tabindex="-1" class="h4 text-break mb-1">
 						Issue Submitted
 					</h1>
 					<p class="mb-0 text-body-secondary">
@@ -337,13 +337,13 @@
 			</p>
 		</section>
 	{:else}
-		<div class="d-flex flex-column gap-2">
-			<h1 class="h4 fw-semibold mb-0">Submit an Issue</h1>
+		<header>
+			<h1 class="h4 mb-1">Submit an Issue</h1>
 			<p class="measure text-body-secondary mb-0">
 				Your submission goes to the intake queue for triage. Nothing is created on GitHub
 				until it is accepted.
 			</p>
-		</div>
+		</header>
 
 		{#if showPrefillStrip}
 			<div
@@ -353,9 +353,7 @@
 					<i class="bi bi-link-45deg flex-shrink-0" aria-hidden="true"></i>
 					<span>Prefilled from a shared link</span>
 				</span>
-				<a href="/intake" class="ms-auto link-primary text-decoration-none" onclick={() => (dirty = false)}
-					>Clear</a
-				>
+				<a href="/intake" class="ms-auto" onclick={() => (dirty = false)}>Clear</a>
 			</div>
 		{/if}
 
@@ -363,7 +361,6 @@
 			bind:this={formEl}
 			method="POST"
 			autocomplete="off"
-			class="d-flex flex-column gap-4"
 			use:enhance={() => {
 				submitting = true;
 				copyMessage = null;
@@ -382,9 +379,9 @@
 				<InlineStatus tone="error" message={formError} />
 			{/if}
 
-			<FormGroup spacing="mb-0">
+			<FormGroup>
 				<div class="d-flex align-items-baseline justify-content-between gap-3">
-					<Label for="submission-title" class="mb-0">Title</Label>
+					<Label for="submission-title">Title</Label>
 					{#if showCounter}
 						<span class="font-monospace small text-body-tertiary" aria-hidden="true">
 							{titleLength}/{INTAKE_TITLE_MAX}
@@ -414,7 +411,7 @@
 				{/if}
 			</FormGroup>
 
-			<FormGroup spacing="mb-0">
+			<FormGroup>
 				<Label for="submission-body">Description</Label>
 				<textarea
 					bind:this={bodyEl}
@@ -443,7 +440,7 @@
 				</p>
 				<input type="hidden" name="source" value={source} />
 			{:else}
-				<FormGroup spacing="mb-0">
+				<FormGroup>
 					<Label for="submission-source">Source</Label>
 					<select
 						class="form-select"
@@ -461,7 +458,9 @@
 				</FormGroup>
 			{/if}
 
-			<footer class="d-flex flex-wrap align-items-center justify-content-between gap-3 border-top pt-4">
+			<footer
+				class="mt-4 d-flex flex-wrap align-items-center justify-content-between gap-3 border-top pt-3"
+			>
 				<div class="d-flex min-w-0 flex-wrap align-items-center gap-2">
 					<Button
 						type="button"
@@ -496,7 +495,6 @@
 						disabled={submitting}
 						aria-busy={submitting}
 						aria-keyshortcuts="Meta+Enter Control+Enter"
-						class="px-3"
 					>
 						{submitting ? 'Submitting…' : 'Submit Issue'}
 					</Button>

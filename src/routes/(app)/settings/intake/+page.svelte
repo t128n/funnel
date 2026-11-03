@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
-	import { FormGroup, Label } from '@sveltestrap/sveltestrap';
+	import { FormGroup, FormText, Input, Label } from '@sveltestrap/sveltestrap';
 	import Section from '#lib/components/settings/section.svelte';
 	import SettingsForm from '#lib/components/settings/settings-form.svelte';
 	import type { SettingsFormResult } from '#lib/components/settings/sections';
@@ -16,22 +16,20 @@
 	);
 </script>
 
-<SettingsForm
-	form={form as SettingsFormResult | null}
-	{payload}
->
+<SettingsForm form={form as SettingsFormResult | null} {payload}>
 	<Section
 		title="Routing"
 		description="Where accepted submissions go by default. Must be one of the configured repositories."
 	>
-		<FormGroup class="mb-0">
+		<FormGroup spacing="">
 			<Label for="intake-default-repo">Default repository</Label>
-			<select id="intake-default-repo" class="form-select" bind:value={defaultRepo}>
+			<Input type="select" id="intake-default-repo" bind:value={defaultRepo}>
 				<option value="">First repository</option>
 				{#each repoOptions as repo (repo)}
 					<option value={repo}>{repo}</option>
 				{/each}
-			</select>
+			</Input>
+			<FormText>The first configured repository is used when no default is set.</FormText>
 		</FormGroup>
 	</Section>
 </SettingsForm>

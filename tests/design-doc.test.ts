@@ -15,8 +15,8 @@ describe('DESIGN.md', () => {
 
   test('documents the shell and layout conventions', () => {
     expect(doc).toContain('navbar-dark bg-dark');
-    expect(doc).toContain('15rem');
-    expect(doc).toContain('26rem');
+    expect(doc).toContain('14.5rem');
+    expect(doc).toContain('22.5rem');
     expect(doc).toContain('48rem');
   });
 

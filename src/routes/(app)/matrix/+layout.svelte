@@ -55,7 +55,7 @@
 			</div>
 			<ViewSegment />
 			<FilterPopover options={data.options} showState />
-			<Button color="outline-secondary" size="sm" onclick={() => (guideOpen = true)}>
+			<Button color="outline-secondary" onclick={() => (guideOpen = true)}>
 				Rating Guide
 			</Button>
 		</Toolbar>
@@ -86,21 +86,21 @@
 			choosing a priority.
 		</p>
 
-		<div class="d-flex flex-column gap-4">
+		<div class="d-flex flex-column gap-3">
 			{#each guides as guide (guide.title)}
 				<section class="d-flex flex-column gap-2" aria-label={guide.title}>
 					<div>
-						<h3 class="fs-6 fw-semibold text-body mb-1">{guide.title}</h3>
+						<h3 class="fs-6 text-body mb-1">{guide.title}</h3>
 						<p class="text-body text-body-secondary mb-0">{guide.question}</p>
 					</div>
 					<div class="d-flex flex-column">
 						{#each guide.levels as level (level.value)}
 							<div class="border-top py-2">
-								<h4 class="text-body fw-semibold mb-1">{level.value} · {level.name}</h4>
+								<h4 class="text-body fw-medium mb-1">{level.value} · {level.name}</h4>
 								<p class="small text-body-secondary mb-0">{level.definition}</p>
-								<dl class="guide-criteria mt-2 mb-0">
+								<dl class="guide-criteria mt-1 mb-0">
 									{#each level.criteria as criterion (criterion.label)}
-										<dt class="small fw-semibold text-body">{criterion.label}</dt>
+										<dt class="small fw-medium text-body">{criterion.label}</dt>
 										<dd class="small text-body-secondary m-0">{criterion.anchor}</dd>
 									{/each}
 								</dl>

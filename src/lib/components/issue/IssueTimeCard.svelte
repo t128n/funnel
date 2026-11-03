@@ -20,7 +20,7 @@
 
 <section class="d-flex flex-column gap-2" aria-label="Time">
 	<div class="d-flex align-items-baseline justify-content-between gap-3 border-top pt-3">
-		<h2 class="h5 fw-semibold mb-0">Time</h2>
+		<h2 class="h6 fw-semibold mb-0">Time</h2>
 		{#if time.delayCount > 0}
 			<span class="small text-body-secondary time-number">
 				{time.delayCount} {time.delayCount === 1 ? 'delay' : 'delays'}
@@ -31,7 +31,7 @@
 		{#each rows as row (row.key)}
 			<div class="col d-flex min-w-0 flex-column gap-1">
 				<dt class="small fw-normal text-body-secondary">{row.label}</dt>
-				<dd class="mb-0 text-truncate fw-semibold {toneClass[row.tone]} time-number">
+				<dd class="mb-0 text-truncate {toneClass[row.tone]} time-number">
 					{row.value}
 				</dd>
 			</div>

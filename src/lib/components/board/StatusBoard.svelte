@@ -267,7 +267,7 @@
 <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 <div
 	bind:this={grid}
-	class="status-board d-flex min-h-0 flex-grow-1 gap-3 overflow-x-auto overflow-y-hidden px-3 py-3"
+	class="status-board d-flex min-h-0 flex-grow-1 gap-2 overflow-x-auto overflow-y-hidden px-3 py-2"
 	role="region"
 	aria-label="Status board"
 	data-keyboard-move={keyboard.active}

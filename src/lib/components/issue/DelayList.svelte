@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { invalidateAll } from '$app/navigation';
-	import { Badge, Button } from '@sveltestrap/sveltestrap';
+	import { Button } from '@sveltestrap/sveltestrap';
 	import Spinner from '#lib/components/common/Spinner.svelte';
 	import InlineStatus from '#lib/components/common/InlineStatus.svelte';
 	import type { DelayItem } from '#lib/server/actuals/store';
@@ -81,7 +81,7 @@
 <section class="d-flex flex-column gap-2" aria-label="Delays">
 	<div class="d-flex align-items-center justify-content-between gap-3 border-top pt-3">
 		<div class="d-flex align-items-baseline gap-2">
-			<h2 class="h5 fw-semibold mb-0">Delays</h2>
+			<h2 class="h6 fw-semibold mb-0">Delays</h2>
 			<span class="small text-body-secondary delay-number">{delays.length}</span>
 		</div>
 		{#if mayWrite}
@@ -95,20 +95,20 @@
 		<p class="text-body-secondary mb-0">No delays recorded.</p>
 	{:else}
 		<ul class="list-unstyled mb-0">
-			{#each delays as row (row.id)}
-				<li class="delay-row d-flex flex-column gap-1 border-top py-2">
+			{#each delays as row, index (row.id)}
+				<li class="delay-row d-flex flex-column gap-1 py-2 {index > 0 ? 'border-top' : ''}">
 					<div class="d-flex min-w-0 flex-wrap align-items-center gap-2">
-						<span class="fw-semibold">{delayReasonLabel(row.reason)}</span>
+						<span>{delayReasonLabel(row.reason)}</span>
 						{#if row.source === 'blocked'}
-							<Badge color="danger" class="d-inline-flex align-items-center gap-1">
+							<span class="d-inline-flex align-items-center gap-1 small text-danger">
 								<i class="bi bi-slash-circle" aria-hidden="true"></i>
 								Blocked
-							</Badge>
+							</span>
 						{:else}
-							<Badge color="secondary" class="d-inline-flex align-items-center gap-1">
+							<span class="d-inline-flex align-items-center gap-1 small text-body-secondary">
 								<i class="bi bi-clock" aria-hidden="true"></i>
 								Manual
-							</Badge>
+							</span>
 						{/if}
 						<span class="ms-auto small text-body-secondary delay-number">
 							{delayDuration(row)}
@@ -171,10 +171,6 @@
 </section>
 
 <style>
-	.delay-row:first-child {
-		border-top: 0 !important;
-	}
-
 	.delay-number {
 		font-variant-numeric: tabular-nums;
 	}

@@ -39,34 +39,24 @@
 />
 
 <FocusedShell>
-	<div class="d-flex flex-column gap-2">
-		<h1 class="h4 fw-semibold mb-0">Sign In</h1>
+	<header>
+		<h1 class="h4 mb-1">Sign In</h1>
 		<p class="measure text-body-secondary mb-0">
 			Access is limited to members of your GitHub organization.
 		</p>
-	</div>
+	</header>
 
 	{#if error}
 		<InlineStatus tone="error" message={error} />
 	{/if}
 
-	<form onsubmit={submit} class="d-flex flex-column gap-3">
-		<Button type="submit" color="primary" disabled={pending} class="align-self-start px-3">
+	<form onsubmit={submit}>
+		<Button type="submit" color="primary" disabled={pending}>
 			{#if pending}
 				<Spinner size="sm" class="me-2" aria-label="Redirecting" />
 				Redirecting…
 			{:else}
-				<svg
-					viewBox="0 0 16 16"
-					aria-hidden="true"
-					fill="currentColor"
-					class="me-2 flex-shrink-0"
-					style="width: 1rem; height: 1rem"
-				>
-					<path
-						d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-2.91-.88-2.91-2.89 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.4 7.4 0 0 1 2-.27c.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 2.01-1.14 2.69-2.91 2.89.35.3.66.89.66 1.8 0 1.3-.01 2.35-.01 2.67 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"
-					/>
-				</svg>
+				<i class="bi bi-github me-2" aria-hidden="true"></i>
 				Continue with GitHub
 			{/if}
 		</Button>

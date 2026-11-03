@@ -28,9 +28,11 @@ behavior consistent by default.
 ## Density with air where it matters
 
 A maintainer scanning forty issues needs comparison, not decoration. The app
-shell uses a compact dark navbar and a light `bg-body-tertiary` sidebar.
-Tables use Bootstrap `table-sm`, and every metadata column keeps its slot.
-Density is carried by alignment and rules, not by shrinking type.
+shell uses a compact dark navbar and a light `bg-body-tertiary` sidebar with
+30 px navigation rows and a quiet neutral active state. Dense list titles are
+14 px, metadata is 12 px, and identifiers are ordinary blue links. Tables use
+Bootstrap `table-sm`, and every metadata column keeps its slot. Density is
+carried by alignment and rules, not by shrinking type.
 
 Whitespace does the grouping. A page title is separated from its toolbar by a
 rule, a toolbar from its table by a rule, and a table from its footer by a

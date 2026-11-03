@@ -58,9 +58,9 @@
 	}
 </script>
 
-<div class="p-3" data-testid="matrix-grid">
+<div class="px-3 py-2" data-testid="matrix-grid">
 	<div class="overflow-x-auto">
-		<Table bordered class="matrix-table align-middle">
+		<Table bordered size="sm" class="matrix-table align-middle">
 			<caption class="visually-hidden">Impact by urgency issue matrix</caption>
 			<colgroup>
 				<col class="matrix-impact-column" />
@@ -71,17 +71,14 @@
 			</colgroup>
 			<thead>
 				<tr>
-					<th scope="col" class="matrix-sticky border bg-body-secondary p-2 text-start align-bottom fw-semibold">
+					<th scope="col" class="matrix-sticky bg-body text-start align-bottom">
 						<div class="small text-body-secondary">Impact ↓</div>
 						<div class="small text-body-secondary">How much does it hurt?</div>
-						<div class="mt-2 small text-body-secondary">Urgency →</div>
+						<div class="mt-1 small text-body-secondary">Urgency →</div>
 						<div class="small text-body-secondary">How soon must it be fixed?</div>
 					</th>
 					{#each urgencyLabels as label (label)}
-						<th
-							scope="col"
-							class="border bg-body-secondary p-2 text-start align-bottom fw-semibold"
-						>
+						<th scope="col" class="text-start align-bottom">
 							{label}
 						</th>
 					{/each}
@@ -92,30 +89,28 @@
 					<tr>
 						<th
 							scope="row"
-							class="matrix-sticky border bg-body p-2 text-start align-top fw-semibold text-nowrap"
+							class="matrix-sticky bg-body text-start align-top text-nowrap"
 						>
 							{impactLabels[rowIndex]}
 						</th>
 						{#each row as cell (dataKey(cell))}
-							<td data-matrix-cell={dataKey(cell)} class="min-w-0 border p-0 align-top">
-								<div
-									class="d-flex align-items-baseline justify-content-between gap-2 border-bottom px-2 pt-1 pb-1"
-								>
+							<td data-matrix-cell={dataKey(cell)} class="min-w-0 p-0 align-top">
+								<div class="d-flex align-items-baseline justify-content-between gap-2 px-2 pt-1">
 									<span
-										class="d-flex min-w-0 align-items-center gap-2 text-body fw-semibold {TONE_CLASS[
+										class="d-flex min-w-0 align-items-center gap-1 {TONE_CLASS[
 											cell.meta.tone
 										]}"
 									>
 										<i class="bi {TONE_ICON[cell.meta.tone]} flex-shrink-0" aria-hidden="true"></i>
 										<span class="text-truncate">{cell.meta.label}</span>
 									</span>
-									<span class="flex-shrink-0 text-body tnum text-body-secondary">
+									<span class="flex-shrink-0 text-body-secondary tnum">
 										{cell.total}
 									</span>
 								</div>
 
 								{#if cell.total === 0}
-									<p class="px-2 py-1 text-body text-body-tertiary mb-0">—</p>
+									<p class="px-2 pb-1 text-body-tertiary mb-0">—</p>
 								{:else}
 									<ul class="my-1 ps-0 list-unstyled">
 										{#each cell.issues.slice(0, 4) as issue (`${issue.repoId}:${issue.number}`)}
@@ -125,7 +120,7 @@
 													class="matrix-issue d-flex min-w-0 align-items-baseline gap-2 px-2 py-1 small text-decoration-none"
 													title={`${issue.repo}#${issue.number} ${title(issue)}`}
 												>
-													<span class="font-monospace flex-shrink-0 text-body-secondary">
+													<span class="font-monospace flex-shrink-0 link-primary">
 														{issue.repo}#{issue.number}
 													</span>
 													<span class="min-w-0 text-truncate text-body">{title(issue)}</span>
@@ -153,7 +148,6 @@
 		table-layout: fixed;
 		min-width: var(--funnel-table-min);
 		margin-bottom: 0;
-		font-size: 0.875rem;
 	}
 
 	.matrix-impact-column {

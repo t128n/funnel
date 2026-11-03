@@ -45,8 +45,8 @@
 	{:else}
 		<div class="d-flex flex-column gap-4 px-3 pb-4">
 			{#each data.groups as group (group.repo)}
-				<section class="d-flex flex-column gap-2">
-					<h2 class="h6 fw-semibold text-body mb-0">{group.repo}</h2>
+				<section class="d-flex flex-column">
+					<h2 class="small text-body-secondary fw-normal mb-2">{group.repo}</h2>
 					<Table hover responsive size="sm" class="align-middle funnel-table">
 						<thead>
 							<tr>
@@ -59,29 +59,25 @@
 						<tbody>
 							{#each group.milestones as milestone (milestone.number)}
 								<tr
-									class="position-relative {milestone.state === 'closed'
-										? 'text-body-tertiary'
-										: ''}"
+									class={milestone.state === 'closed' ? 'text-body-tertiary' : ''}
 								>
 									<td class="min-w-0">
 										<a
 											href={href(milestone)}
-											class="d-flex min-w-0 align-items-center gap-2 stretched-link text-decoration-none"
+											class="link-primary link-underline-opacity-0 link-underline-opacity-100-hover"
 										>
-											<span class="min-w-0 text-truncate text-body">
-												{milestone.title || 'Untitled milestone'}
-											</span>
-											{#if milestone.state === 'closed'}
-												<StatusText state="closed" class="flex-shrink-0" />
-											{/if}
+											{milestone.title || 'Untitled milestone'}
 										</a>
+										{#if milestone.state === 'closed'}
+											<StatusText state="closed" class="ms-2" />
+										{/if}
 									</td>
-									<td class="num text-end text-nowrap">
+									<td class="text-end text-nowrap">
 										{dueLabel(milestone.dueOn)}
 									</td>
-									<td class="text-nowrap">
-										<span class="d-flex align-items-center justify-content-end gap-2">
-											<span class="num text-body">
+									<td class="text-end text-nowrap">
+										<span class="d-inline-flex align-items-center justify-content-end gap-2">
+											<span class="small text-body-secondary">
 												{milestone.closedIssues} / {milestone.closedIssues +
 													milestone.openIssues}
 											</span>
@@ -105,9 +101,3 @@
 		</div>
 	{/if}
 </div>
-
-<style>
-	.num {
-		font-variant-numeric: tabular-nums;
-	}
-</style>

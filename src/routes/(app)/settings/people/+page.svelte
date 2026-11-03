@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
-	import { Alert, Button, Table } from '@sveltestrap/sveltestrap';
+	import { Alert, Button, Input, Table } from '@sveltestrap/sveltestrap';
 	import Section from '#lib/components/settings/section.svelte';
 	import { ROLES, type Role } from '#lib/roles';
 	import type { PageProps } from './$types';
@@ -16,10 +16,6 @@
 		write: 'Write',
 		admin: 'Admin'
 	};
-
-	function initial(name: string): string {
-		return name.slice(0, 1).toUpperCase() || '?';
-	}
 
 	function clearFeedback(userId: string): void {
 		if (savedId === userId) savedId = null;
@@ -43,7 +39,7 @@
 		title="People"
 		description="Read can view the cockpit, write can also edit issues, and admin can manage settings and people."
 	>
-		<Table responsive hover class="align-middle">
+		<Table responsive class="table-sm align-middle">
 			<thead>
 				<tr>
 					<th scope="col">Person</th>
@@ -55,20 +51,11 @@
 				{#each data.users as user (user.id)}
 					<tr>
 						<td>
-							<div class="d-flex min-w-0 align-items-start gap-2">
-								<span
-									class="d-inline-flex flex-shrink-0 align-items-center justify-content-center rounded-circle bg-body-secondary small fw-semibold text-body-secondary"
-									style="width:1.5rem;height:1.5rem"
-									aria-hidden="true"
-								>
-									{initial(user.name)}
-								</span>
-								<div class="d-flex min-w-0 flex-column">
-									<span class="text-truncate fw-semibold">{user.name}</span>
-									{#if user.id === data.currentUserId}
-										<span class="small text-body-tertiary">You</span>
-									{/if}
-								</div>
+							<div class="d-flex min-w-0 align-items-baseline gap-1">
+								<span class="text-truncate">{user.name}</span>
+								{#if user.id === data.currentUserId}
+									<span class="small text-body-secondary">You</span>
+								{/if}
 							</div>
 						</td>
 						<td>
@@ -107,9 +94,10 @@
 								}}
 							>
 								<input type="hidden" name="userId" value={user.id} />
-								<select
+								<Input
+									type="select"
 									name="role"
-									class="form-select form-select-sm"
+									bsSize="sm"
 									value={user.role}
 									aria-label={`Role for ${user.name}`}
 									style="width:7rem"
@@ -117,16 +105,13 @@
 									{#each ROLES as role (role)}
 										<option value={role}>{ROLE_LABELS[role]}</option>
 									{/each}
-								</select>
+								</Input>
 								<Button type="submit" color="outline-secondary" size="sm" disabled={saving === user.id}>
 									{saving === user.id ? 'Saving…' : 'Save'}
 								</Button>
-								<span style="min-height:1rem" aria-live="polite">
+								<span aria-live="polite">
 									{#if savedId === user.id}
-										<span class="d-inline-flex align-items-center gap-1 small text-success">
-											<i class="bi bi-check-circle" aria-hidden="true"></i>
-											Saved.
-										</span>
+										<span class="small text-success">Saved.</span>
 									{:else if rowErrors[user.id]}
 										<span class="small text-danger">{rowErrors[user.id]}</span>
 									{/if}

@@ -9,6 +9,7 @@ design system to Bootstrap 5, Sveltestrap, and Bootstrap Icons.
 Each view uses the same seeded demo database and a 1440×900 viewport at DPR 1.
 Light captures: issues, issue, inbox, board, plan, matrix, timeline, settings
 planning, intake. Dark captures: issues, issue, board, plan, settings planning.
+Mobile captures at 390×844: issues, issue detail, inbox, plan, settings.
 
 Regenerate the "after" set:
 

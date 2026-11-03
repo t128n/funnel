@@ -19,7 +19,7 @@
 <Progress
 	value={percent}
 	color="primary"
-	class="flex-shrink-0 rounded-pill {className}"
+	class="flex-shrink-0 {className}"
 	style="height: 0.25rem; width: 3rem"
 	aria-hidden="true"
 />

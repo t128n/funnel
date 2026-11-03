@@ -125,7 +125,7 @@
 			</div>
 
 			<div class="d-flex align-items-center justify-content-between gap-3 border-top pt-2">
-				<span class="small fw-semibold text-body-secondary">Result</span>
+				<span class="small text-body-secondary">Result</span>
 				<span class="d-inline-flex min-w-0 align-items-center gap-1">
 					{#if previewMeta}
 						<PriorityText priority={previewMeta.value} showName />
@@ -137,7 +137,7 @@
 
 			<div class="d-flex flex-column gap-1">
 				<div class="d-flex align-items-baseline justify-content-between gap-2">
-					<span class="small fw-semibold text-body-secondary">Impact</span>
+					<span class="small text-body-secondary">Impact</span>
 					<span class="small text-body-tertiary">
 						{impactLevel ? `${impactLevel.value} · ${impactLevel.name}` : 'Not assessed'}
 					</span>
@@ -162,7 +162,7 @@
 						<ul class="list-unstyled small text-body-tertiary mb-0 d-flex flex-column gap-1">
 							{#each impactLevel.criteria as criterion (criterion.label)}
 								<li>
-									<span class="fw-semibold text-body-secondary">{criterion.label}</span>
+									<span class="text-body-secondary">{criterion.label}</span>
 									<span aria-hidden="true"> — </span>
 									{criterion.anchor}
 								</li>
@@ -178,7 +178,7 @@
 
 			<div class="d-flex flex-column gap-1">
 				<div class="d-flex align-items-baseline justify-content-between gap-2">
-					<span class="small fw-semibold text-body-secondary">Urgency</span>
+					<span class="small text-body-secondary">Urgency</span>
 					<span class="small text-body-tertiary">
 						{urgencyLevel ? `${urgencyLevel.value} · ${urgencyLevel.name}` : 'Not assessed'}
 					</span>
@@ -203,7 +203,7 @@
 						<ul class="list-unstyled small text-body-tertiary mb-0 d-flex flex-column gap-1">
 							{#each urgencyLevel.criteria as criterion (criterion.label)}
 								<li>
-									<span class="fw-semibold text-body-secondary">{criterion.label}</span>
+									<span class="text-body-secondary">{criterion.label}</span>
 									<span aria-hidden="true"> — </span>
 									{criterion.anchor}
 								</li>

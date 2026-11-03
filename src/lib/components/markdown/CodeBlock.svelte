@@ -39,15 +39,18 @@
 </script>
 
 <div data-slot="code-block" class="code-block">
-	<div data-slot="code-block-header" class="d-flex min-w-0 align-items-center gap-2 px-2 pt-2">
-		<div data-slot="code-block-title" class="small fw-semibold text-body-secondary text-truncate">
+	<div data-slot="code-block-header" class="d-flex min-w-0 align-items-center gap-2 px-2 py-1">
+		<div
+			data-slot="code-block-title"
+			class="font-monospace small text-body-secondary text-truncate"
+		>
 			{label}
 		</div>
 		<div data-slot="code-block-actions" class="ms-auto d-flex flex-shrink-0 align-items-center gap-1">
 			<Button
 				color="link"
 				size="sm"
-				class="text-decoration-none p-0"
+				class="text-decoration-none px-1 py-0"
 				aria-label={copied ? 'Copied' : 'Copy'}
 				title={copied ? 'Copied' : 'Copy'}
 				onclick={copy}
@@ -77,7 +80,7 @@
 		min-width: 0;
 		overflow: hidden;
 		border: 1px solid var(--bs-border-color);
-		border-radius: var(--bs-border-radius);
+		border-radius: var(--bs-border-radius-sm);
 		background: var(--bs-body-bg);
 	}
 

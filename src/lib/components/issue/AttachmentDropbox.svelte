@@ -61,16 +61,16 @@
 	}
 </script>
 
-<section class="d-flex flex-column gap-3" aria-label="Attachments">
+<section class="d-flex flex-column gap-2" aria-label="Attachments">
 	<div class="d-flex align-items-center justify-content-between gap-3 border-top pt-3">
-		<h2 class="h5 fw-semibold mb-0">Attachments</h2>
+		<h2 class="h6 fw-semibold mb-0">Attachments</h2>
 		<span class="small text-body-secondary attachment-count">{attachments.length}</span>
 	</div>
 
 	{#if !readonly}
 		<div
-			class="attachment-dropzone rounded px-4 py-4 text-center {dragging
-				? 'border-primary bg-body-secondary'
+			class="attachment-dropzone d-flex align-items-center gap-2 px-2 py-1 {dragging
+				? 'border-primary'
 				: ''}"
 			role="group"
 			aria-label="Attachment drop zone"
@@ -92,16 +92,17 @@
 			/>
 			<Button
 				color="link"
-				class="d-flex w-100 flex-column align-items-center gap-2 text-decoration-none small text-body-secondary"
+				size="sm"
+				class="d-inline-flex align-items-center gap-1 text-decoration-none px-1 py-0 text-body-secondary"
 				disabled={uploading > 0}
 				onclick={() => input?.click()}
 			>
-				<i class="bi bi-upload fs-5" aria-hidden="true"></i>
-				<span>
+				<i class="bi bi-upload" aria-hidden="true"></i>
+				<span class="small">
 					{#if uploading > 0}
 						Uploading {uploading} file{uploading === 1 ? '' : 's'}…
 					{:else}
-						Drop files here, or <span class="fw-semibold text-body">browse</span>
+						Drop files here or <span class="text-body">browse</span>
 					{/if}
 				</span>
 			</Button>
@@ -110,13 +111,15 @@
 
 	{#if attachments.length > 0}
 		<ul class="list-unstyled mb-0">
-			{#each attachments as item (item.id)}
+			{#each attachments as item, index (item.id)}
 				<li
-					class="attachment-row d-flex align-items-center gap-2 border-top py-2"
+					class="attachment-row d-flex align-items-center gap-2 py-2 {index > 0
+						? 'border-top'
+						: ''}"
 				>
 					<i class="bi bi-file-earmark flex-shrink-0 text-body-tertiary" aria-hidden="true"></i>
-					<div class="d-flex min-w-0 flex-grow-1 flex-column gap-1">
-						<span class="text-truncate fw-semibold" title={item.filename}>{item.filename}</span>
+					<div class="d-flex min-w-0 flex-grow-1 flex-column">
+						<span class="text-truncate" title={item.filename}>{item.filename}</span>
 						<span class="d-flex flex-wrap align-items-center gap-2 small text-body-secondary">
 							<span class="attachment-count">{formatBytes(item.sizeBytes)}</span>
 							{#if item.uploadedBy}
@@ -164,10 +167,7 @@
 <style>
 	.attachment-dropzone {
 		border: 1px dashed var(--bs-border-color);
-	}
-
-	.attachment-row:first-child {
-		border-top: 0 !important;
+		border-radius: var(--bs-border-radius-sm);
 	}
 
 	.attachment-count {

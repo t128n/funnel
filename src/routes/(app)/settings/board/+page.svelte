@@ -30,15 +30,12 @@
 	);
 </script>
 
-<SettingsForm
-	form={form as SettingsFormResult | null}
-	{payload}
->
+<SettingsForm form={form as SettingsFormResult | null} {payload}>
 	<Section
 		title="Done column"
 		description="Issues that moved to Done longer ago than this window are hidden from the board."
 	>
-		<FormGroup class="mb-0">
+		<FormGroup spacing="">
 			<Label for="board-done-days">Done retention (days)</Label>
 			<Input id="board-done-days" type="number" min="0" bind:value={doneDays} />
 		</FormGroup>
@@ -48,17 +45,21 @@
 		title="Work in progress"
 		description="Optional caps per stage. Leave a cap blank for no limit; Done is never capped."
 	>
-		{#each wipStages as stage (stage)}
-			<FormGroup class="mb-0">
-				<Label for={`board-wip-${stage}`} class="text-capitalize">{stage}</Label>
-				<Input
-					id={`board-wip-${stage}`}
-					type="number"
-					min="0"
-					placeholder="No limit"
-					bind:value={wipLimits[stage]}
-				/>
-			</FormGroup>
-		{/each}
+		<div class="row g-3">
+			{#each wipStages as stage (stage)}
+				<div class="col-sm-4">
+					<FormGroup spacing="">
+						<Label for={`board-wip-${stage}`} class="text-capitalize">{stage}</Label>
+						<Input
+							id={`board-wip-${stage}`}
+							type="number"
+							min="0"
+							placeholder="No limit"
+							bind:value={wipLimits[stage]}
+						/>
+					</FormGroup>
+				</div>
+			{/each}
+		</div>
 	</Section>
 </SettingsForm>

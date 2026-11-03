@@ -6,7 +6,6 @@
 	import FeedSearch from '#lib/components/filter/FeedSearch.svelte';
 	import FilterPopover from '#lib/components/filter/FilterPopover.svelte';
 	import IssueGroupHeader from '#lib/components/issue/IssueGroupHeader.svelte';
-	import IssueListHeader from '#lib/components/issue/IssueListHeader.svelte';
 	import PageHead from '#lib/components/common/PageHead.svelte';
 	import EmptyState from '#lib/components/common/EmptyState.svelte';
 	import InlineStatus from '#lib/components/common/InlineStatus.svelte';
@@ -230,8 +229,6 @@
 									{untriagedTotal}
 								</span>
 							</div>
-
-							<IssueListHeader class="sticky-top" />
 
 							<Virtualizer
 								data={rows}

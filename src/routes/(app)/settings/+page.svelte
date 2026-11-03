@@ -68,12 +68,11 @@
 		description="Signing out ends this browser session. You can sign back in with GitHub."
 	>
 		<div>
-			<Button color="outline-secondary" onclick={() => void handleSignOut()}>
-				<i class="bi bi-box-arrow-right me-2" aria-hidden="true"></i>
-				Sign Out
-			</Button>
+			<Button color="outline-secondary" onclick={() => void handleSignOut()}>Sign out</Button>
 		</div>
 	</Section>
 
-	<a class="align-self-start" href="/issues">Back to Issues</a>
+	<div>
+		<a href="/issues">Back to Issues</a>
+	</div>
 </div>

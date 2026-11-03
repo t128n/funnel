@@ -56,15 +56,12 @@
 	}
 </script>
 
-<SettingsForm
-	form={form as SettingsFormResult | null}
-	{payload}
->
+<SettingsForm form={form as SettingsFormResult | null} {payload}>
 	<Section
 		title="Projects"
 		description="GitHub labels that mark an issue as belonging to a project; enables the Project group-by option in the issue feeds. The name defaults to the label."
 	>
-		<Table responsive hover class="align-middle">
+		<Table responsive class="table-sm align-middle">
 			<colgroup>
 				<col />
 				<col />
@@ -111,14 +108,13 @@
 									<DropdownToggle
 										color="link"
 										size="sm"
-										class="px-1 py-0 text-secondary"
+										class="p-0"
 										aria-label={`Actions for project ${index + 1}`}
 									>
 										<i class="bi bi-three-dots" aria-hidden="true"></i>
 									</DropdownToggle>
 									<DropdownMenu end>
 										<DropdownItem on:click={() => requestRemove(index)}>
-											<i class="bi bi-trash me-2" aria-hidden="true"></i>
 											Remove project
 										</DropdownItem>
 									</DropdownMenu>
@@ -131,10 +127,7 @@
 		</Table>
 
 		<div>
-			<Button type="button" color="outline-secondary" onclick={addProject}>
-				<i class="bi bi-plus-lg me-2" aria-hidden="true"></i>
-				Add Project
-			</Button>
+			<Button type="button" color="outline-secondary" onclick={addProject}>Add project</Button>
 		</div>
 	</Section>
 </SettingsForm>

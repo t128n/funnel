@@ -18,10 +18,7 @@
 </script>
 
 {#if hint.visible && hotkey.hotkey}
-	<kbd
-		class="d-inline-flex align-items-center gap-1 border px-1 font-monospace fw-medium pe-none user-select-none {className ??
-			''}"
-	>
+	<kbd class="font-monospace {className ?? ''}">
 		{formatForDisplay(hotkey.hotkey)}
 	</kbd>
 {/if}

@@ -1064,7 +1064,7 @@
 						<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 						<h1
 							bind:this={titleEl}
-							class="inspector-title min-w-0 flex-grow-1 fs-4 fw-semibold text-body text-break mb-0 {mayWrite
+							class="inspector-title min-w-0 flex-grow-1 fs-4 fw-medium text-body text-break mb-0 {mayWrite
 								? 'inspector-title--editable px-1'
 								: ''}"
 							tabindex={mayWrite ? 0 : undefined}
@@ -1358,7 +1358,7 @@
 			aria-label="Activity"
 		>
 			<div class="d-flex align-items-baseline justify-content-between gap-3 border-top pt-3">
-				<h2 class="h5 fw-semibold mb-0">Activity</h2>
+				<h2 class="h6 fw-semibold mb-0">Activity</h2>
 				<span class="small text-body-secondary metric-number">{detail.commentTotal}</span>
 			</div>
 			{#if detail.hasMoreComments && commentLimit < MAX_COMMENT_LIMIT}
@@ -1395,7 +1395,7 @@
 		{#if workNotesEnabled}
 			<section class="d-flex measure flex-column gap-2" aria-label="Work notes">
 				<div class="d-flex align-items-baseline justify-content-between gap-3 border-top pt-3">
-					<h2 class="h5 fw-semibold mb-0">Work notes</h2>
+					<h2 class="h6 fw-semibold mb-0">Work notes</h2>
 					<span class="small text-body-secondary metric-number">
 						{detail.workNotes.length}
 					</span>

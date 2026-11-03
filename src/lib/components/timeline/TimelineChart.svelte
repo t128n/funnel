@@ -163,32 +163,36 @@
 		<div class="timeline-scroll" data-testid="timeline-chart">
 			<div class="timeline-grid">
 				<div class="timeline-labels" bind:this={labelColumn}>
-					<div class="timeline-label-head" data-timeline-head style="height: {headerHeight}px">
-						<span class="small fw-semibold text-body-secondary">Milestone</span>
+					<div
+						class="d-flex align-items-center px-3 border-bottom small text-body-secondary"
+						data-timeline-head
+						style="height: {headerHeight}px"
+					>
+						Milestone
 					</div>
 					{#each datedRows as row (rowKey(row))}
 						<a
-							class="timeline-row"
+							class="timeline-row d-flex flex-column justify-content-center gap-1 px-3 border-bottom text-reset text-decoration-none"
 							data-timeline-row
 							href={milestonePath(row.repo, row.number)}
 							title={titleOf(row)}
 						>
 							<span class="d-flex min-w-0 flex-wrap align-items-center column-gap-2 row-gap-1">
-								<span class="min-w-0 text-truncate small fw-semibold text-body">
+								<span class="min-w-0 text-truncate small text-body">
 									{titleOf(row)}
 								</span>
 								{#if isOverdue(row, now)}
-									<span class="timeline-flag text-danger">
+									<span class="d-inline-flex align-items-center gap-1 small text-nowrap text-danger">
 										<i class="bi bi-exclamation-triangle" aria-hidden="true"></i>
 										Overdue
 									</span>
 								{:else if isAfterDue(row)}
-									<span class="timeline-flag text-warning-emphasis">
+									<span class="d-inline-flex align-items-center gap-1 small text-nowrap text-warning-emphasis">
 										<i class="bi bi-exclamation-triangle" aria-hidden="true"></i>
 										After due
 									</span>
 								{:else if row.startOn === null}
-									<span class="timeline-flag text-body-tertiary">
+									<span class="d-inline-flex align-items-center gap-1 small text-nowrap text-body-tertiary">
 										<i class="bi bi-circle-dashed" aria-hidden="true"></i>
 										No start
 									</span>
@@ -197,16 +201,12 @@
 							<span
 								class="d-flex min-w-0 flex-wrap align-items-center column-gap-2 row-gap-1 small text-body-secondary"
 							>
-								<span class="timeline-meta-ref font-monospace min-w-0 text-truncate d-none d-md-inline">
+								<span class="font-monospace min-w-0 text-truncate d-none d-md-inline">
 									{timelineRef(row.repo, row.number, repoShortcodes)}
 								</span>
-								<span class="num text-nowrap">Due {formatDay(row.dueOn)}</span>
-								<span class="num text-nowrap">
-									{row.closedIssues}/{row.closedIssues + row.openIssues}{' '}<span
-										class="d-none d-md-inline"
-									>
-										closed
-									</span>
+								<span class="text-nowrap">Due {formatDay(row.dueOn)}</span>
+								<span class="text-nowrap">
+									{progressText(row)}
 								</span>
 							</span>
 						</a>
@@ -226,29 +226,32 @@
 			</div>
 		</div>
 
-		<div class="timeline-legend" aria-label="Chart legend">
-			<span class="timeline-legend-item">
+		<div
+			class="d-flex flex-wrap align-items-center column-gap-4 row-gap-2 border-top mt-3 pt-2 small text-body-secondary"
+			aria-label="Chart legend"
+		>
+			<span class="d-inline-flex align-items-center gap-2 text-nowrap">
 				<span class="timeline-legend-planned" aria-hidden="true"></span>
 				Planned window
 			</span>
-			<span class="timeline-legend-item">
+			<span class="d-inline-flex align-items-center gap-2 text-nowrap">
 				<span class="timeline-legend-closed" aria-hidden="true"></span>
 				Closed work
 			</span>
-			<span class="timeline-legend-item">
+			<span class="d-inline-flex align-items-center gap-2 text-nowrap">
 				<span class="timeline-legend-marker" aria-hidden="true"></span>
 				Open issues
 			</span>
-			<span class="timeline-legend-item">
+			<span class="d-inline-flex align-items-center gap-2 text-nowrap">
 				<span class="timeline-legend-nostart" aria-hidden="true"></span>
 				No start
 			</span>
-			<span class="timeline-legend-item">
+			<span class="d-inline-flex align-items-center gap-2 text-nowrap">
 				<span class="timeline-legend-today" aria-hidden="true"></span>
 				Today
 			</span>
 			{#if hasAfterDue}
-				<span class="timeline-legend-item">
+				<span class="d-inline-flex align-items-center gap-2 text-nowrap">
 					<span class="timeline-legend-after" aria-hidden="true"></span>
 					After due
 				</span>
@@ -257,9 +260,9 @@
 	{/if}
 
 	{#if undatedRows.length > 0}
-		<section class="mt-4 d-flex flex-column gap-2" data-testid="timeline-undated">
-			<div class="d-flex flex-wrap align-items-baseline justify-content-between column-gap-4 row-gap-1">
-				<h2 class="small fw-semibold text-body mb-0">No due date</h2>
+		<section class="mt-4" data-testid="timeline-undated">
+			<div class="d-flex flex-wrap align-items-baseline justify-content-between column-gap-4 row-gap-1 mb-2">
+				<h2 class="small text-body-secondary fw-normal mb-0">No due date</h2>
 				<p class="small text-body-secondary mb-0">
 					Not plotted until a milestone has a due date.
 				</p>
@@ -278,17 +281,20 @@
 					{#each undatedRows as row (rowKey(row))}
 						<tr>
 							<td class="min-w-0">
-								<a class="link-primary text-decoration-none d-block text-truncate" href={milestonePath(row.repo, row.number)}>
+								<a
+									class="link-primary link-underline-opacity-0 link-underline-opacity-100-hover d-block text-truncate"
+									href={milestonePath(row.repo, row.number)}
+								>
 									{titleOf(row)}
 								</a>
 							</td>
-							<td class="font-monospace text-nowrap text-body-secondary">
+							<td class="text-nowrap text-body-secondary">
 								{timelineRef(row.repo, row.number, repoShortcodes)}
 							</td>
-							<td class="num text-nowrap text-end">
+							<td class="text-end text-nowrap">
 								{progressText(row)}
 							</td>
-							<td class="num text-nowrap">
+							<td class="text-nowrap">
 								{row.startOn === null ? '—' : formatDay(row.startOn)}
 							</td>
 							<td class="text-nowrap text-body-secondary">No due date</td>
@@ -301,10 +307,6 @@
 {/if}
 
 <style>
-	.num {
-		font-variant-numeric: tabular-nums;
-	}
-
 	.timeline-scroll {
 		overflow-x: auto;
 	}
@@ -325,24 +327,9 @@
 		border-right: 1px solid var(--bs-border-color);
 	}
 
-	.timeline-label-head {
-		display: flex;
-		align-items: center;
-		padding: 0 0.75rem;
-		border-bottom: 1px solid var(--bs-border-color);
-	}
-
 	.timeline-row {
-		display: flex;
 		height: var(--funnel-timeline-row);
 		overflow: hidden;
-		flex-direction: column;
-		justify-content: center;
-		gap: 0.25rem;
-		padding: 0.25rem 0.75rem;
-		border-bottom: 1px solid var(--bs-border-color);
-		color: inherit;
-		text-decoration: none;
 	}
 
 	.timeline-row:focus-visible {
@@ -356,35 +343,9 @@
 		}
 	}
 
-	.timeline-flag {
-		display: inline-flex;
-		flex: none;
-		align-items: center;
-		gap: 0.25rem;
-		font-size: 0.75rem;
-		white-space: nowrap;
-	}
-
 	.timeline-plot {
 		min-width: var(--funnel-timeline-chart-min);
 		flex: 1 1 auto;
-	}
-
-	.timeline-legend {
-		display: flex;
-		flex-wrap: wrap;
-		align-items: center;
-		gap: 0.25rem 1.5rem;
-		padding-top: 0.75rem;
-		font-size: 0.75rem;
-		color: var(--bs-secondary-color);
-	}
-
-	.timeline-legend-item {
-		display: inline-flex;
-		align-items: center;
-		gap: 0.5rem;
-		white-space: nowrap;
 	}
 
 	.timeline-legend-planned {

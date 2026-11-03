@@ -58,11 +58,11 @@
 	</PageHeader>
 
 	<Toolbar>
-		<label class="d-flex flex-column gap-1">
-			<span class="small text-body-secondary">Repository</span>
+		<div class="d-flex align-items-center gap-2 small">
+			<label for="timeline-repo" class="text-body-secondary">Repository</label>
 			<select
+				id="timeline-repo"
 				class="form-select form-select-sm w-auto"
-				aria-label="Filter by repository"
 				value={selectedRepo}
 				onchange={onRepoChange}
 			>
@@ -71,7 +71,7 @@
 					<option value={repo}>{repo}</option>
 				{/each}
 			</select>
-		</label>
+		</div>
 	</Toolbar>
 
 	<div class="px-3 py-3">

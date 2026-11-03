@@ -260,7 +260,7 @@
 						>
 							<h2
 								id={`notifications-${group.key}`}
-								class="small fw-semibold text-body-secondary mb-0"
+								class="small text-body-secondary mb-0"
 							>
 								{group.label}
 							</h2>
@@ -272,9 +272,7 @@
 							{#each group.items as item (item.id)}
 								{@const meta = KIND_META[item.kind]}
 								{@const isUnread = item.readAt === null}
-								<li
-									class="notification-row d-flex align-items-start gap-3 border-bottom px-3 py-2"
-								>
+								<li class="d-flex align-items-start gap-3 border-bottom px-3 py-2">
 									<span
 										class="d-flex flex-shrink-0 justify-content-center pt-2"
 										style="width: 1rem"
@@ -292,9 +290,7 @@
 										<div class="d-flex min-w-0 align-items-baseline gap-2">
 											<a
 												href={item.url}
-												class="notification-title min-w-0 text-truncate text-body {isUnread
-													? 'fw-semibold'
-													: ''}"
+												class="min-w-0 text-truncate {isUnread ? 'fw-semibold' : ''}"
 												onclick={(event) => void openItem(item, event)}
 											>
 												{item.title || meta.label}
@@ -324,7 +320,7 @@
 											<span aria-hidden="true">·</span>
 											<a
 												href={item.url}
-												class="link-primary min-w-0 text-truncate"
+												class="min-w-0 text-truncate"
 												onclick={(event) => void openItem(item, event)}
 											>
 												{targetLabel(item.url)}
@@ -332,7 +328,7 @@
 										</div>
 
 										{#if item.body}
-											<p class="notification-snippet mt-1 small text-body-secondary mb-0">
+											<p class="mt-1 small text-body-secondary mb-0">
 												{item.body}
 											</p>
 										{/if}
@@ -367,29 +363,9 @@
 </div>
 
 <style>
-	.notification-row:hover {
-		background: var(--bs-tertiary-bg);
-	}
-
-	.notification-title {
-		text-decoration: none;
-	}
-
-	.notification-title:hover {
-		text-decoration: underline;
-	}
-
 	.unread-dot {
 		width: 0.5rem;
 		height: 0.5rem;
-	}
-
-	.notification-snippet {
-		display: -webkit-box;
-		overflow: hidden;
-		-webkit-box-orient: vertical;
-		-webkit-line-clamp: 2;
-		line-clamp: 2;
 	}
 
 	.tabular {

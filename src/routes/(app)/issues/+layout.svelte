@@ -143,56 +143,53 @@
 		<div class="d-flex min-h-0 flex-grow-1 flex-column overflow-y-auto bg-body">
 			<PageHeader
 				title={mine ? 'My Issues' : 'Issues'}
+				count={issueFeed.total}
 				description={scopeLine || undefined}
 				level={selected ? 2 : 1}
-			>
-				{#snippet actions()}
-					<Dropdown>
-						<DropdownToggle
-							color="secondary"
-							outline
-							size="sm"
-							aria-label={`State: ${stateLabel}. Change state`}
-						>
-							<span>{stateLabel}</span>
-							<i class="bi bi-chevron-down small ms-2" aria-hidden="true"></i>
-						</DropdownToggle>
-						<DropdownMenu end>
-							<li><h6 class="dropdown-header">State</h6></li>
-							{#each STATE_OPTIONS as option (option.value)}
-								<DropdownItem
-									active={stateView === option.value}
-									on:click={() => setState(option.value)}
-								>
-									<i
-										class="bi bi-check-lg me-2 {stateView === option.value
-											? ''
-											: 'invisible'}"
-										aria-hidden="true"
-									></i>
-									{option.label}
-								</DropdownItem>
-							{/each}
-						</DropdownMenu>
-					</Dropdown>
-					{#if filterCount > 0 && issueFeed.total > 0}
-						<Button color="link" size="sm" class="text-decoration-none" on:click={clearFilters}>
-							Clear Filters
-						</Button>
-					{/if}
-				{/snippet}
-			</PageHeader>
+			/>
 
 			<Toolbar>
-				<FeedSearch class="w-100" />
+				<FeedSearch />
+				<FilterPopover options={data.options} allowNoStatus={false} />
 				<ViewSegment />
+				<Dropdown>
+					<DropdownToggle
+						color="secondary"
+						outline
+						aria-label={`State: ${stateLabel}. Change state`}
+					>
+						<span>{stateLabel}</span>
+						<i class="bi bi-chevron-down small ms-2" aria-hidden="true"></i>
+					</DropdownToggle>
+					<DropdownMenu>
+						<li><h6 class="dropdown-header">State</h6></li>
+						{#each STATE_OPTIONS as option (option.value)}
+							<DropdownItem
+								active={stateView === option.value}
+								on:click={() => setState(option.value)}
+							>
+								<i
+									class="bi bi-check-lg me-2 {stateView === option.value
+										? ''
+										: 'invisible'}"
+									aria-hidden="true"
+								></i>
+								{option.label}
+							</DropdownItem>
+						{/each}
+					</DropdownMenu>
+				</Dropdown>
 				<div class="d-none d-sm-block">
 					<GroupByControl
 						projects={data.projects}
 						hasMilestones={data.options.milestones.length > 0}
 					/>
 				</div>
-				<FilterPopover options={data.options} allowNoStatus={false} />
+				{#if filterCount > 0 && issueFeed.total > 0}
+					<Button color="link" class="text-decoration-none" on:click={clearFilters}>
+						Clear filters
+					</Button>
+				{/if}
 			</Toolbar>
 
 			<div class="d-flex flex-grow-1 flex-column" style="min-height: 30svh">

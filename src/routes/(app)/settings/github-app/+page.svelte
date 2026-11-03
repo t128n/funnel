@@ -33,23 +33,14 @@
 			</div>
 		</Section>
 	{:else}
-		<Section
-			title="Application"
-			description="Credentials are stored encrypted in the database."
-		>
+		<Section title="Application" description="Credentials are stored encrypted in the database.">
 			<dl class="property-list">
 				<dt>Status</dt>
 				<dd>
 					{#if data.credentials.installationId}
-						<span class="d-inline-flex align-items-center gap-1 small text-success">
-							<i class="bi bi-check-circle" aria-hidden="true"></i>
-							Installed
-						</span>
+						<span class="text-success">Installed</span>
 					{:else}
-						<span class="d-inline-flex align-items-center gap-1 small text-danger">
-							<i class="bi bi-exclamation-circle" aria-hidden="true"></i>
-							Not Installed
-						</span>
+						<span class="text-danger">Not installed</span>
 					{/if}
 				</dd>
 				<dt>App name</dt>
@@ -67,15 +58,7 @@
 				{#if data.credentials.htmlUrl}
 					<dt>On GitHub</dt>
 					<dd>
-						<a
-							href={data.credentials.htmlUrl}
-							target="_blank"
-							rel="noreferrer"
-							class="d-inline-flex align-items-center gap-1"
-						>
-							Open App
-							<i class="bi bi-box-arrow-up-right" aria-hidden="true"></i>
-						</a>
+						<a href={data.credentials.htmlUrl} target="_blank" rel="noreferrer">Open App</a>
 					</dd>
 				{/if}
 			</dl>
@@ -89,7 +72,6 @@
 			{#if data.installUrl}
 				<div>
 					<Button href={data.installUrl} color="outline-secondary">
-						<i class="bi bi-box-arrow-up-right me-2" aria-hidden="true"></i>
 						{data.credentials.installationId ? 'Manage Installation' : 'Install on GitHub'}
 					</Button>
 				</div>
@@ -101,12 +83,7 @@
 			description="Forget the App credentials and return to onboarding. This cannot be undone; you will need to create and install the App again."
 			danger
 		>
-			<form
-				method="POST"
-				action="?/reset"
-				bind:this={resetForm}
-				onsubmit={onResetSubmit}
-			>
+			<form method="POST" action="?/reset" bind:this={resetForm} onsubmit={onResetSubmit}>
 				<Button type="submit" color="danger">Reset GitHub App</Button>
 			</form>
 		</Section>

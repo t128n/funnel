@@ -3,6 +3,7 @@
 	import { goto } from '$app/navigation';
 	import { untrack } from 'svelte';
 	import { createHotkeys, getAppHotkeys } from '@tanstack/svelte-hotkeys';
+	import { Button, ButtonGroup } from '@sveltestrap/sveltestrap';
 	import BlockActionDialog from '#lib/components/board/BlockActionDialog.svelte';
 	import BoardShortcuts from '#lib/components/board/BoardShortcuts.svelte';
 	import StatusBoard from '#lib/components/board/StatusBoard.svelte';
@@ -121,19 +122,20 @@
 			level={selected ? 2 : 1}
 		>
 			{#snippet actions()}
-				<!-- Board view tabs: real links with a 2px primary underline, no fill. -->
-				<nav class="d-flex align-items-center gap-4" aria-label="Board view">
+				<!-- Stock button group: Board and Backlog are two views of one list. -->
+				<ButtonGroup size="sm" role="group" aria-label="Board view">
 					{#each viewItems as item (item.label)}
-						<a
+						<Button
+							color="outline-secondary"
 							href={item.href}
-							class="board-view-tab d-inline-flex align-items-center pb-1 text-decoration-none"
+							active={item.active}
 							aria-current={item.active ? 'page' : undefined}
 							onclick={(event) => selectView(event, item)}
 						>
 							{item.label}
-						</a>
+						</Button>
 					{/each}
-				</nav>
+				</ButtonGroup>
 			{/snippet}
 		</PageHeader>
 
@@ -213,22 +215,6 @@
 />
 
 <style>
-	.board-view-tab {
-		border-bottom: 2px solid transparent;
-		color: var(--bs-secondary-color);
-		font-size: 0.875rem;
-	}
-
-	.board-view-tab:hover {
-		color: var(--bs-body-color);
-	}
-
-	.board-view-tab[aria-current='page'] {
-		border-bottom-color: var(--bs-primary);
-		color: var(--bs-body-color);
-		font-weight: 600;
-	}
-
 	.board-canvas {
 		min-height: 30svh;
 	}

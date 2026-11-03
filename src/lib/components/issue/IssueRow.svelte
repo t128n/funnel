@@ -15,6 +15,7 @@
 	import StatusText from '#lib/components/common/StatusText.svelte';
 	import { selectIssue } from '#lib/client/selection.svelte';
 	import { timeAgo } from '#lib/client/clock.svelte';
+	import { issuePath } from '#lib/issue-url';
 	import { issueRef } from '#lib/issue-ref';
 	import { canonicalLabel } from '#lib/labels';
 	import { isRetiredPriorityLabel } from '#lib/priority';
@@ -86,7 +87,7 @@
 </script>
 
 <div
-	class="issue-row border-bottom {closed ? 'text-body-tertiary' : 'text-body'} {selected
+	class="issue-row {closed ? 'text-body-tertiary' : 'text-body'} {selected
 		? 'is-selected-row'
 		: ''}"
 	role="button"
@@ -102,7 +103,13 @@
 	}}
 >
 	<span class="issue-ref" title={`${issue.repo}#${issue.number}`}>
-		<RefText value={ref} />
+		<a
+			href={issuePath('issues', issue.repo, issue.number)}
+			class="issue-ref-link link-primary text-decoration-none"
+			onclick={(event) => event.stopPropagation()}
+		>
+			<RefText value={ref} class="text-reset" />
+		</a>
 	</span>
 
 	<span class="issue-title">
@@ -181,10 +188,11 @@
 			'ref title'
 			'. meta';
 		align-items: baseline;
-		min-height: 3rem;
+		min-height: 2.5rem;
 		column-gap: 0.75rem;
-		row-gap: 0.25rem;
-		padding: 0.25rem 0.75rem;
+		row-gap: 0.125rem;
+		padding: 0.2rem 0.75rem;
+		border-bottom: 1px solid var(--bs-border-color-translucent);
 		cursor: pointer;
 		user-select: none;
 	}
@@ -195,7 +203,12 @@
 	}
 
 	.issue-row.is-selected-row {
+		background: var(--bs-tertiary-bg);
 		box-shadow: inset 2px 0 0 0 var(--bs-primary);
+	}
+
+	.issue-ref-link:hover {
+		text-decoration: underline !important;
 	}
 
 	.issue-row > .issue-ref {
@@ -221,6 +234,8 @@
 		-webkit-box-orient: vertical;
 		-webkit-line-clamp: 2;
 		line-clamp: 2;
+		font-size: 0.875rem;
+		line-height: 1.35;
 	}
 
 	.issue-title-text.is-untitled {

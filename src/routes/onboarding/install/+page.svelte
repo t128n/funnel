@@ -11,20 +11,20 @@
 <PageHead title="Install the GitHub App" description="Install the GitHub App to grant Funnel access." />
 
 <FocusedShell>
-	<div class="d-flex flex-column gap-2">
-		<h1 class="h4 fw-semibold mb-0">Install the GitHub App</h1>
+	<header>
+		<h1 class="h4 mb-1">Install the GitHub App</h1>
 		<p class="measure text-body-secondary mb-0">
-			<strong class="fw-semibold text-body">{data.appName}</strong> now exists on GitHub. Install it
-			to grant Funnel access — choose “All repositories” or pick specific ones.
+			<strong>{data.appName}</strong> now exists on GitHub. Install it to grant Funnel access —
+			choose “All repositories” or pick specific ones.
 		</p>
-	</div>
+	</header>
 
 	<OnboardingSteps active={2} />
 
 	<section class="min-w-0 w-100 border-top pt-4">
-		<h2 class="h5 fw-semibold mb-0">Application</h2>
+		<h2 class="h6 mb-3">Application</h2>
 
-		<dl class="property-list mt-4">
+		<dl class="property-list">
 			<dt>App</dt>
 			<dd class="text-truncate">{data.appName}</dd>
 			<dt>Owner</dt>
@@ -33,7 +33,7 @@
 			<dd><span class="font-monospace text-break">{data.appSlug}</span></dd>
 		</dl>
 
-		<div class="mt-4">
+		<div class="mt-3">
 			<Button color="primary" href={data.installUrl}>
 				<i class="bi bi-box-arrow-up-right me-1" aria-hidden="true"></i>
 				Install on GitHub

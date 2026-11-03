@@ -66,7 +66,7 @@
 
 {#if propertyState === 'child' && parent}
 	<div class="d-flex min-w-0 flex-wrap align-items-center gap-2 small">
-		<span class="d-inline-flex flex-shrink-0 align-items-center gap-1 fw-semibold text-body-secondary">
+		<span class="d-inline-flex flex-shrink-0 align-items-center gap-1 text-body-secondary">
 			<i class="bi bi-layers" aria-hidden="true"></i>
 			Epic
 		</span>
@@ -83,7 +83,7 @@
 	<div class="d-flex min-w-0 flex-wrap align-items-center gap-2 small">
 		<a
 			href={epicHref(repo, number)}
-			class="link-primary d-inline-flex flex-shrink-0 align-items-center gap-2 fw-semibold text-decoration-none"
+			class="link-primary d-inline-flex flex-shrink-0 align-items-center gap-2 text-decoration-none"
 		>
 			<i class="bi bi-layers" aria-hidden="true"></i>
 			Epic

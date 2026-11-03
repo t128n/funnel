@@ -142,7 +142,7 @@
 						>
 							<h2
 								id={`attention-${group.key}`}
-								class="small fw-semibold text-body-secondary mb-0"
+								class="small text-body-secondary mb-0"
 							>
 								{group.label}
 							</h2>

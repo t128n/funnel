@@ -186,7 +186,7 @@
 			</FormGroup>
 
 			{#if error}
-				<InlineStatus tone="error" message={error} class="mt-4" />
+				<InlineStatus tone="error" message={error} class="mt-3" />
 			{/if}
 		</ModalBody>
 

@@ -102,14 +102,12 @@
 		<EmptyState
 			title="No capacity lanes."
 			description="Add active maintainers in Planning settings to open capacity lanes."
-			class="border-top border-bottom py-5"
+			class="border-top border-bottom py-4"
 		/>
 	{:else}
 		{#each lanes as lane (lane.maintainer.externalId)}
-			<section class="d-flex flex-column border-top pt-3" data-lane={lane.maintainer.login}>
-				<header
-					class="d-flex flex-wrap align-items-baseline gap-2 border-bottom px-3 pb-2"
-				>
+			<section class="d-flex flex-column border-top pt-2" data-lane={lane.maintainer.login}>
+				<header class="d-flex flex-wrap align-items-baseline gap-2 px-3 pb-1">
 					<h2 class="min-w-0 text-truncate text-body fw-semibold small mb-0">
 						<a
 							class="link-body-emphasis text-decoration-none"
@@ -128,7 +126,7 @@
 					</span>
 				</header>
 
-				<div class="px-3 py-2">
+				<div class="px-3 py-1">
 					<CapacityBar
 						committedMinutes={lane.committedMinutes}
 						capMinutes={lane.capMinutes}
@@ -138,7 +136,7 @@
 				{#if lane.issues.length === 0}
 					<p class="px-3 pb-2 small text-body-secondary mb-0">No planned issues.</p>
 				{:else}
-					<ul class="d-flex flex-column list-unstyled mb-0">
+					<ul class="d-flex flex-column list-unstyled mb-0 border-top">
 						{#each lane.issues as issue (issueKey(issue))}
 							{@render issueRow(issue, true)}
 						{/each}
@@ -150,7 +148,7 @@
 
 	{#if unassigned.issues.length === 0}
 		<p
-			class="mt-3 d-flex flex-wrap align-items-baseline gap-2 border-top px-3 py-2 small mb-0"
+			class="d-flex flex-wrap align-items-baseline gap-2 border-top px-3 py-1 small mb-0"
 			data-testid="unassigned"
 		>
 			<span class="fw-semibold text-body">Unassigned</span>
@@ -158,20 +156,20 @@
 		</p>
 	{:else}
 		<section
-			class="mt-3 d-flex flex-column border-top pt-3"
+			class="d-flex flex-column border-top pt-2"
 			data-testid="unassigned"
 		>
-			<header class="d-flex flex-wrap align-items-baseline gap-2 border-bottom px-3 pb-2">
+			<header class="d-flex flex-wrap align-items-baseline gap-2 px-3 pb-1">
 				<h2 class="text-body fw-semibold small mb-0">Unassigned</h2>
 				<span class="ms-auto small text-body-secondary tnum">
 					Scheduled {formatMinutes(unassigned.committedMinutes)} · no cap
 				</span>
 			</header>
-			<p class="px-3 py-2 small text-body-secondary mb-0">
+			<p class="px-3 py-1 small text-body-secondary mb-0">
 				No active maintainer. Assign these issues to a configured maintainer to place them
 				in a lane.
 			</p>
-			<ul class="d-flex flex-column list-unstyled mb-0">
+			<ul class="d-flex flex-column border-top list-unstyled mb-0">
 				{#each unassigned.issues as issue (issueKey(issue))}
 					{@render issueRow(issue, true)}
 				{/each}
@@ -181,7 +179,7 @@
 
 	{#if unestimated.length === 0}
 		<p
-			class="mt-3 d-flex flex-wrap align-items-baseline gap-2 border-top px-3 py-2 small mb-0"
+			class="d-flex flex-wrap align-items-baseline gap-2 border-top px-3 py-1 small mb-0"
 			data-testid="unestimated"
 		>
 			<span class="fw-semibold text-body">Unestimated</span>
@@ -189,19 +187,19 @@
 		</p>
 	{:else}
 		<section
-			class="mt-3 d-flex flex-column border-top pt-3"
+			class="d-flex flex-column border-top pt-2"
 			data-testid="unestimated"
 		>
-			<header class="d-flex flex-wrap align-items-baseline gap-2 border-bottom px-3 pb-2">
+			<header class="d-flex flex-wrap align-items-baseline gap-2 px-3 pb-1">
 				<h2 class="text-body fw-semibold small mb-0">Unestimated</h2>
 				<span class="ms-auto small text-body-secondary tnum">
 					{unestimated.length} {unestimated.length === 1 ? 'issue' : 'issues'}
 				</span>
 			</header>
-			<p class="px-3 py-2 small text-body-secondary mb-0">
+			<p class="px-3 py-1 small text-body-secondary mb-0">
 				These open issues have no size label. Add a size to make them schedulable.
 			</p>
-			<ul class="d-flex flex-column list-unstyled mb-0">
+			<ul class="d-flex flex-column border-top list-unstyled mb-0">
 				{#each unestimated as issue (issueKey(issue))}
 					{@render issueRow(issue, false)}
 				{/each}
@@ -219,8 +217,8 @@
 			href={issuePath('issues', issue.repo, issue.number)}
 		>
 			<span class="d-flex min-w-0 align-items-center gap-2">
-				<span class="font-monospace flex-shrink-0 text-body-secondary">{issue.repo}#{issue.number}</span>
-				<span class="min-w-0 text-truncate text-body">{issue.title}</span>
+				<span class="font-monospace flex-shrink-0 text-body-secondary small">{issue.repo}#{issue.number}</span>
+				<span class="min-w-0 text-truncate text-body small">{issue.title}</span>
 			</span>
 			<span class="small text-body-secondary tnum d-sm-none">
 				{sizeLabel(issue.size)} · {estimateLabel(issue)}

@@ -47,7 +47,7 @@
 		{source}
 	</span>
 
-	<span class="min-w-0 flex-grow-1 text-truncate text-body" title={title}>{title}</span>
+	<span class="min-w-0 flex-grow-1 text-truncate small text-body" title={title}>{title}</span>
 
 	<time
 		class="submission-received flex-shrink-0 text-truncate text-end small text-body-secondary tabular"
@@ -73,7 +73,6 @@
 	.submission-row:hover {
 		background: var(--bs-tertiary-bg);
 	}
-
 	.submission-row:focus-visible {
 		outline: 2px solid var(--bs-primary);
 		outline-offset: -2px;

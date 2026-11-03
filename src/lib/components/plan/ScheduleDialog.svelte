@@ -195,8 +195,6 @@
 
 	.candidate-row {
 		min-height: var(--funnel-row-compact);
-		border-inline: 0;
-		background: transparent;
 	}
 
 	.candidate-row[aria-pressed='true'] {

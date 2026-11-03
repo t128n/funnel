@@ -20,8 +20,8 @@
 />
 
 <FocusedShell>
-	<div class="d-flex flex-column gap-2">
-		<h1 class="h4 fw-semibold mb-0">
+	<header>
+		<h1 class="h4 mb-1">
 			{data.locked ? 'Token Required' : 'Create the GitHub App'}
 		</h1>
 		<p class="measure text-body-secondary mb-0">
@@ -29,18 +29,18 @@
 				? 'This instance is protected. Unlock onboarding with the instance token to continue.'
 				: 'Funnel creates and installs a GitHub App for you — no manual copy-pasting of credentials, webhook URLs, or permissions.'}
 		</p>
-	</div>
+	</header>
 
 	<OnboardingSteps active={1} />
 
 	{#if data.locked}
 		<section class="min-w-0 w-100 border-top pt-4">
-			<h2 class="h5 fw-semibold mb-0">Instance token</h2>
-			<p class="mt-1 mb-0 text-body-secondary">
+			<h2 class="h6 mb-1">Instance token</h2>
+			<p class="mb-0 text-body-secondary">
 				Enter the token from FUNNEL_ONBOARDING_TOKEN.
 			</p>
-			<form method="GET" action="/onboarding" class="mt-4 d-flex flex-column gap-4">
-				<FormGroup spacing="mb-0">
+			<form method="GET" action="/onboarding" class="mt-3">
+				<FormGroup>
 					<Label for="token">Token</Label>
 					<Input
 						id="token"
@@ -52,7 +52,7 @@
 					/>
 				</FormGroup>
 				{#if data.error}
-					<InlineStatus tone="error" message={data.error} />
+					<InlineStatus tone="error" message={data.error} class="mb-3" />
 				{/if}
 				<div>
 					<Button type="submit" color="primary">Unlock</Button>
@@ -61,14 +61,14 @@
 		</section>
 	{:else}
 		<section class="min-w-0 w-100 border-top pt-4">
-			<h2 class="h5 fw-semibold mb-0">App details</h2>
-			<p class="mt-1 mb-0 text-body-secondary">
+			<h2 class="h6 mb-1">App details</h2>
+			<p class="mb-0 text-body-secondary">
 				GitHub opens a pre-filled registration page. Confirm it there and Funnel stores the
 				generated credentials automatically.
 			</p>
 
-			<form method="POST" action="/onboarding/manifest" class="mt-4 d-flex flex-column gap-4">
-				<FormGroup spacing="mb-0">
+			<form method="POST" action="/onboarding/manifest" class="mt-3">
+				<FormGroup>
 					<Label for="account">Account</Label>
 					<select
 						class="form-select"
@@ -82,7 +82,7 @@
 				</FormGroup>
 
 				{#if account === 'organization'}
-					<FormGroup spacing="mb-0">
+					<FormGroup>
 						<Label for="org">Organization</Label>
 						<Input
 							id="org"
@@ -97,7 +97,7 @@
 					</FormGroup>
 				{/if}
 
-				<FormGroup spacing="mb-0">
+				<FormGroup>
 					<Label for="name">App name</Label>
 					<Input
 						id="name"
@@ -111,7 +111,7 @@
 					<FormText>Must be unique across GitHub. Letters, numbers, and hyphens only.</FormText>
 				</FormGroup>
 
-				<dl class="property-list">
+				<dl class="property-list mb-3">
 					<dt>Instance URL</dt>
 					<dd><span class="font-monospace text-break">{data.publicOrigin}</span></dd>
 					<dt>GitHub host</dt>
@@ -121,7 +121,7 @@
 				</dl>
 
 				{#if data.error}
-					<InlineStatus tone="error" message={data.error} />
+					<InlineStatus tone="error" message={data.error} class="mb-3" />
 				{/if}
 
 				<div>

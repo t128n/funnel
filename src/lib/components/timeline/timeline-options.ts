@@ -427,8 +427,7 @@ export function buildTimelineOptions(input: TimelineOptionsInput): EChartsOption
         fontFamily: tokens.fontSans,
         fontSize: tokens.captionPx,
       },
-      extraCssText:
-        "box-shadow: var(--bs-box-shadow-sm); border-radius: var(--bs-border-radius);",
+      extraCssText: "border-radius: var(--bs-border-radius-sm);",
       formatter: (params: unknown) => tooltipOf(params, tokens, repoShortcodes),
     },
     grid: {

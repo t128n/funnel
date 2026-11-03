@@ -38,21 +38,15 @@
 		actions={backLink}
 	/>
 
-	<div
-		class="d-flex flex-wrap align-items-center column-gap-3 row-gap-1 px-3 pb-3 text-body-secondary"
-	>
-		<span class="font-monospace text-body-secondary">
-			{data.milestone.repo}#{data.milestone.number}
-		</span>
-		<span class="num">
-			{data.milestone.dueOn === null ? 'No due date' : `Due ${dueLabel(data.milestone.dueOn)}`}
-		</span>
+	<div class="d-flex flex-wrap align-items-baseline column-gap-3 row-gap-1 px-3 pb-2 small text-body-secondary">
+		<span>{data.milestone.repo}#{data.milestone.number}</span>
+		<span>{data.milestone.dueOn === null ? 'No due date' : `Due ${dueLabel(data.milestone.dueOn)}`}</span>
 		{#if data.milestone.state === 'closed'}
 			<StatusText state="closed" />
 		{:else}
 			<StatusText status="open" />
 		{/if}
-		<span class="d-flex align-items-center gap-2 num">
+		<span class="d-inline-flex align-items-center gap-2">
 			<span>{data.milestone.closedIssues} / {totalIssues} closed</span>
 			<ProgressBar value={barPercent(data.milestone.closedIssues, totalIssues)} />
 		</span>
@@ -65,9 +59,3 @@
 		groupable={false}
 	/>
 </div>
-
-<style>
-	.num {
-		font-variant-numeric: tabular-nums;
-	}
-</style>
