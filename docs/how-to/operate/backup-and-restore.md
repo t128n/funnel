@@ -29,7 +29,7 @@ cd C:\ProgramData\Funnel
 Get-Service Funnel
 ```
 
-For a native service, use Stop it with the service manager (`systemctl stop funnel`, `launchctl bootout`, or `funnel-service.exe stop`). For a bare-metal process, stop it with whatever supervises it.
+For a native service, stop it with the service manager (`systemctl stop funnel`, `launchctl bootout`, or `funnel-service.exe stop`). For a bare-metal process, stop it with whatever supervises it.
 
 Stopping matters because:
 
