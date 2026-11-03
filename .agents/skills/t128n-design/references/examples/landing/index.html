@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#FFFFFF">
+  <title>t128n design — A System for People Who Ship</title>
+  <meta name="description" content="A personal, utility-first visual language for tools and the sites that explain them.">
+  <script>
+    (function () {
+      var key = "t128n-theme";
+      var theme = null;
+      try {
+        var stored = window.localStorage.getItem(key);
+        if (stored === "light" || stored === "dark") {
+          theme = stored;
+        }
+      } catch (error) {}
+      if (!theme) {
+        theme = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+      }
+      var root = document.documentElement;
+      root.setAttribute("data-theme", theme);
+      root.style.colorScheme = theme;
+    })();
+  </script>
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/geist-sans@5.3.0/latin-400.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/geist-sans@5.3.0/latin-600.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/geist-mono@5.3.0/latin-400.css">
+  <link rel="stylesheet" href="../../tokens.css">
+  <link rel="stylesheet" href="styles.css">
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to main content</a>
+
+  <header class="site-header">
+    <div class="header-inner">
+      <a class="wordmark" href="index.html" translate="no">t128n <span class="wordmark-rest">design</span></a>
+
+      <div class="header-end">
+        <nav class="primary-nav" aria-label="Primary">
+          <ul>
+            <li><a class="nav-link" href="index.html" aria-current="page">Overview</a></li>
+            <li><a class="nav-link" href="../docs/index.html">Foundations</a></li>
+            <li><a class="nav-link" href="../dashboard/index.html">Examples</a></li>
+            <li><a class="nav-link" href="../../DESIGN.md">Spec</a></li>
+          </ul>
+        </nav>
+
+        <button class="nav-trigger" type="button" data-nav-toggle aria-expanded="false" aria-controls="mobile-nav" aria-label="Open navigation menu. Current page: Overview" title="Navigation menu">
+          <svg class="icon menu-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+            <path d="M4 6h16"></path>
+            <path d="M4 12h16"></path>
+            <path d="M4 18h16"></path>
+          </svg>
+          <span class="nav-trigger-label">Overview</span>
+        </button>
+
+        <button class="icon-button theme-toggle" type="button" data-theme-toggle aria-label="Switch theme" title="Switch theme">
+          <svg class="icon icon-moon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+            <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"></path>
+          </svg>
+          <svg class="icon icon-sun" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+            <circle cx="12" cy="12" r="4"></circle>
+            <path d="M12 2v2"></path>
+            <path d="M12 20v2"></path>
+            <path d="m4.93 4.93 1.41 1.41"></path>
+            <path d="m17.66 17.66 1.41 1.41"></path>
+            <path d="M2 12h2"></path>
+            <path d="M20 12h2"></path>
+            <path d="m6.34 17.66-1.41 1.41"></path>
+            <path d="m19.07 4.93-1.41 1.41"></path>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="mobile-nav" id="mobile-nav" hidden>
+      <nav aria-label="Primary">
+        <ul class="mobile-nav-list">
+          <li><a class="nav-link" href="index.html" aria-current="page">Overview</a></li>
+          <li><a class="nav-link" href="../docs/index.html">Foundations</a></li>
+          <li><a class="nav-link" href="../dashboard/index.html">Examples</a></li>
+          <li><a class="nav-link" href="../../DESIGN.md">Spec</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main" tabindex="-1">
+    <div class="page">
+      <section class="hero" aria-labelledby="hero-title">
+        <h1 id="hero-title" tabindex="-1">A Design System for People Who Ship.</h1>
+        <p class="hero-lead">t128n is a personal, utility-first visual language for tools and the sites that explain them. Calm surfaces, one accent, and rules that hold under pressure.</p>
+        <div class="hero-actions">
+          <a class="button button--primary" href="../dashboard/index.html">Open the Examples</a>
+          <a class="button button--secondary" href="../../DESIGN.md">Read the Spec</a>
+        </div>
+      </section>
+
+      <section class="section" aria-labelledby="principles-title">
+        <h2 id="principles-title">What Holds It Together.</h2>
+        <div class="principles">
+          <div class="principle">
+            <h3>Every Pixel Carries Information.</h3>
+            <p>Remove an element and comprehension should drop. If it does not, it was decoration.</p>
+          </div>
+          <div class="principle">
+            <h3>One Accent, Earned.</h3>
+            <p>Blue marks the wordmark, action, selection, focus, and current state. Nothing else competes for it.</p>
+          </div>
+          <div class="principle">
+            <h3>Structure from Borders.</h3>
+            <p>1px rules and alignment do the work that shadows usually fake.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" aria-labelledby="specimen-title">
+        <h2 id="specimen-title">The Parts, at Rest.</h2>
+        <p>Controls, fields, and tags from the same token block. Disable the shadows and the hierarchy survives.</p>
+
+        <div class="specimen-panel">
+          <div class="field">
+            <label class="field__label" for="specimen-search">Search</label>
+            <div class="input-wrap">
+              <svg class="icon input-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                <circle cx="11" cy="11" r="8"></circle>
+                <path d="m21 21-4.3-4.3"></path>
+              </svg>
+              <input class="input" id="specimen-search" type="search" placeholder="Search projects…" autocomplete="off">
+            </div>
+          </div>
+          <div class="specimen-actions">
+            <button class="button button--secondary" type="button">Invite</button>
+            <button class="button button--ghost" type="button">View Logs</button>
+          </div>
+          <span class="tag">Default density</span>
+        </div>
+
+        <div class="code-block">
+          <div class="code-header">
+            <span class="code-label">theme.css</span>
+            <div class="code-actions">
+              <span class="copy-feedback" data-copy-feedback aria-live="polite"></span>
+              <button class="copy-button" type="button" data-copy-target="token-snippet">
+                <svg class="icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                  <rect width="14" height="14" x="8" y="8" rx="2" ry="2"></rect>
+                  <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path>
+                </svg>
+                <span>Copy</span>
+              </button>
+            </div>
+          </div>
+          <pre tabindex="0" aria-label="Theme token CSS snippet"><code id="token-snippet" translate="no">:root {
+  --color-canvas: #FFFFFF;
+  --color-surface: #F2F4F8;
+  --color-primary: #0F62FE;
+  --color-text-primary: #161616;
+}</code></pre>
+        </div>
+      </section>
+
+      <section class="section" aria-labelledby="shells-title">
+        <h2 id="shells-title">Start with a Shell.</h2>
+        <p>Pick the surface before the page. Tokens travel; layout does not.</p>
+
+        <ul class="shell-list">
+          <li>
+            <a class="shell-link" href="../dashboard/index.html">
+              <span class="shell-name">App Shell</span>
+              <span class="shell-desc">48px bar, 240px sidebar, fluid table.</span>
+            </a>
+          </li>
+          <li>
+            <a class="shell-link" href="../settings/index.html">
+              <span class="shell-name">App Shell, Single Column</span>
+              <span class="shell-desc">Settings, validation, destructive confirmation.</span>
+            </a>
+          </li>
+          <li>
+            <a class="shell-link" href="../docs/index.html">
+              <span class="shell-name">Content Shell</span>
+              <span class="shell-desc">72ch measure, no sidebar, reading first.</span>
+            </a>
+          </li>
+          <li>
+            <a class="shell-link" href="../workspaces/index.html">
+              <span class="shell-name">Focused App Shell</span>
+              <span class="shell-desc">No navigation, one task, search first.</span>
+            </a>
+          </li>
+        </ul>
+      </section>
+
+      <section class="cta" aria-labelledby="cta-title">
+        <h2 id="cta-title">Read the Constraints.</h2>
+        <p>Tokens, component rules, accessibility criteria, and the decision log live in one document.</p>
+        <a class="text-link" href="../../DESIGN.md">Open DESIGN.md</a>
+      </section>
+
+      <footer class="site-footer">
+        <p>t128n design. Last updated <time datetime="2026-11-01">1 November 2026</time>.</p>
+      </footer>
+    </div>
+  </main>
+</body>
+</html>

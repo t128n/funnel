@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#FFFFFF">
+  <title>Torben Haack — t128n.dev</title>
+  <meta name="description" content="Technical Product Owner and Software Engineer in the automotive industry. Building and managing data and software systems, defining technical standards, studying Business Informatics at BHT Berlin.">
+  <script>
+    (function () {
+      var key = "t128n-theme";
+      var theme = null;
+      try {
+        var stored = window.localStorage.getItem(key);
+        if (stored === "light" || stored === "dark") {
+          theme = stored;
+        }
+      } catch (error) {}
+      if (!theme) {
+        theme = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+      }
+      var root = document.documentElement;
+      root.setAttribute("data-theme", theme);
+      root.style.colorScheme = theme;
+    })();
+  </script>
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/geist-sans@5.3.0/latin-400.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/geist-sans@5.3.0/latin-600.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/geist-mono@5.3.0/latin-400.css">
+  <link rel="stylesheet" href="../../tokens.css">
+  <link rel="stylesheet" href="styles.css">
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to main content</a>
+
+  <header class="site-header">
+    <div class="header-inner">
+      <a class="wordmark" href="index.html" translate="no">t128n<span class="wordmark-rest">.dev</span></a>
+
+      <button class="icon-button theme-toggle" type="button" data-theme-toggle aria-label="Switch theme" title="Switch theme">
+        <svg class="icon icon-moon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+          <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"></path>
+        </svg>
+        <svg class="icon icon-sun" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+          <circle cx="12" cy="12" r="4"></circle>
+          <path d="M12 2v2"></path>
+          <path d="M12 20v2"></path>
+          <path d="m4.93 4.93 1.41 1.41"></path>
+          <path d="m17.66 17.66 1.41 1.41"></path>
+          <path d="M2 12h2"></path>
+          <path d="M20 12h2"></path>
+          <path d="m6.34 17.66-1.41 1.41"></path>
+          <path d="m19.07 4.93-1.41 1.41"></path>
+        </svg>
+      </button>
+    </div>
+  </header>
+
+  <main id="main" tabindex="-1">
+    <div class="page">
+      <section class="intro" aria-labelledby="intro-title">
+        <h1 id="intro-title" tabindex="-1">Torben Haack</h1>
+        <p>Technical Product Owner and Software Engineer in the automotive industry. Building and managing data and software systems, defining technical standards, studying Business Informatics at BHT Berlin.</p>
+      </section>
+
+      <section class="section" aria-labelledby="connect-title">
+        <h2 id="connect-title">Connect</h2>
+        <ul class="link-list">
+          <li>
+            <a class="row-link" href="https://bsky.app/profile/t128n.dev">
+              <span class="row-body"><span class="row-title">Bluesky</span></span>
+              <span class="row-meta row-meta--mono">@t128n.dev</span>
+            </a>
+          </li>
+          <li>
+            <a class="row-link" href="https://github.com/t128n">
+              <span class="row-body"><span class="row-title">GitHub</span></span>
+              <span class="row-meta row-meta--mono">github.com/t128n</span>
+            </a>
+          </li>
+          <li>
+            <a class="row-link" href="mailto:t128n@ipv4.8shield.net">
+              <span class="row-body"><span class="row-title">Email</span></span>
+              <span class="row-meta row-meta--mono">t128n@ipv4.8shield.net</span>
+            </a>
+          </li>
+        </ul>
+      </section>
+
+      <section class="section" aria-labelledby="work-title">
+        <h2 id="work-title">Selected Work</h2>
+        <ul class="link-list">
+          <li>
+            <a class="row-link" href="https://github.com/t128n/design">
+              <span class="row-body">
+                <span class="row-title">t128n design</span>
+                <span class="row-desc">A personal, utility-first visual language for tools and the sites that explain them.</span>
+              </span>
+              <span class="row-meta">2026</span>
+            </a>
+          </li>
+          <li>
+            <a class="row-link" href="https://t128n.dev">
+              <span class="row-body">
+                <span class="row-title">t128n.dev</span>
+                <span class="row-desc">A personal site, built once and kept small.</span>
+              </span>
+              <span class="row-meta">2026</span>
+            </a>
+          </li>
+        </ul>
+      </section>
+
+      <section class="section colophon" aria-labelledby="colophon-title">
+        <h2 id="colophon-title">Colophon</h2>
+        <p>Set in Geist Sans and Geist Mono. Built with the t128n design system — read the <a href="../../DESIGN.md">spec</a> or open the <a href="../landing/index.html">examples</a>.</p>
+      </section>
+
+      <footer class="site-footer">
+        <p>© 2026 Torben Haack. Last updated <time datetime="2026-11-01">1 November 2026</time>.</p>
+      </footer>
+    </div>
+  </main>
+</body>
+</html>

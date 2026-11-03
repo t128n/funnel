@@ -24,6 +24,12 @@
       "sourceType": "github",
       "skillPath": "skills/shadcn-svelte/SKILL.md",
       "computedHash": "32bb4ca39c2a92df85266148aeb02cbaa3b8d6ca893ae8ba27540173cffe6240"
+    },
+    "t128n-design": {
+      "source": "t128n/design",
+      "sourceType": "github",
+      "skillPath": "skills/t128n-design/SKILL.md",
+      "computedHash": "13efedb97ad663a98287f2dd1e2d0357a73401518acfa890d8d2be86f7e2cc88"
     }
   }
 }

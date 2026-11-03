@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#FFFFFF">
+  <title>Color — t128n design</title>
+  <meta name="description" content="How the t128n design system uses Oxocarbon-derived color roles, contrast thresholds, selection, and theme tokens.">
+  <script>
+    (function () {
+      var key = "t128n-theme";
+      var theme = null;
+      try {
+        var stored = window.localStorage.getItem(key);
+        if (stored === "light" || stored === "dark") {
+          theme = stored;
+        }
+      } catch (error) {}
+      if (!theme) {
+        theme = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+      }
+      var root = document.documentElement;
+      root.setAttribute("data-theme", theme);
+      root.style.colorScheme = theme;
+    })();
+  </script>
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/geist-sans@5.3.0/latin-400.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/geist-sans@5.3.0/latin-600.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/geist-mono@5.3.0/latin-400.css">
+  <link rel="stylesheet" href="../../tokens.css">
+  <link rel="stylesheet" href="styles.css">
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to main content</a>
+
+  <header class="site-header">
+    <div class="header-inner">
+      <a class="wordmark" href="index.html" translate="no">t128n <span class="wordmark-rest">design</span></a>
+
+      <div class="header-end">
+        <nav class="primary-nav" aria-label="Primary">
+          <ul>
+            <li><a class="nav-link" href="../landing/index.html">Overview</a></li>
+            <li><a class="nav-link" href="index.html" aria-current="page">Foundations</a></li>
+            <li><a class="nav-link" href="../dashboard/index.html">Examples</a></li>
+            <li><a class="nav-link" href="../../DESIGN.md">Spec</a></li>
+          </ul>
+        </nav>
+
+        <button class="nav-trigger" type="button" data-nav-toggle aria-expanded="false" aria-controls="mobile-nav" aria-label="Open navigation menu. Current page: Foundations" title="Navigation menu">
+          <svg class="icon menu-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+            <path d="M4 6h16"></path>
+            <path d="M4 12h16"></path>
+            <path d="M4 18h16"></path>
+          </svg>
+          <span class="nav-trigger-label">Foundations</span>
+        </button>
+
+        <button class="icon-button theme-toggle" type="button" data-theme-toggle aria-label="Switch theme" title="Switch theme">
+          <svg class="icon icon-moon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+            <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"></path>
+          </svg>
+          <svg class="icon icon-sun" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+            <circle cx="12" cy="12" r="4"></circle>
+            <path d="M12 2v2"></path>
+            <path d="M12 20v2"></path>
+            <path d="m4.93 4.93 1.41 1.41"></path>
+            <path d="m17.66 17.66 1.41 1.41"></path>
+            <path d="M2 12h2"></path>
+            <path d="M20 12h2"></path>
+            <path d="m6.34 17.66-1.41 1.41"></path>
+            <path d="m19.07 4.93-1.41 1.41"></path>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="mobile-nav" id="mobile-nav" hidden>
+      <nav aria-label="Primary">
+        <ul class="mobile-nav-list">
+          <li><a class="nav-link" href="../landing/index.html">Overview</a></li>
+          <li><a class="nav-link" href="index.html" aria-current="page">Foundations</a></li>
+          <li><a class="nav-link" href="../dashboard/index.html">Examples</a></li>
+          <li><a class="nav-link" href="../../DESIGN.md">Spec</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main" tabindex="-1">
+    <div class="page">
+      <div class="layout">
+        <article class="article" aria-labelledby="color-title">
+          <h1 id="color-title" tabindex="-1">Color</h1>
+          <p class="article-lead">The t128n palette is derived from Oxocarbon (base16), with every value pinned in the design system. Applications consume role tokens such as <code>canvas</code>, <code>surface</code>, and <code>text-primary</code>; they never reference base16 slot numbers or raw hex values. This page documents the roles, the contrast floor they meet, and the colors defined outside the scheme.</p>
+
+          <section class="article-section" aria-labelledby="roles">
+            <h2 id="roles" tabindex="-1">Roles</h2>
+            <p>Role tokens name a job, not a position in the palette. <code>canvas</code> is the page, <code>surface</code> is a blocked region such as a sidebar or code block, and <code>surface-2</code> is the stronger fill used for table headers and hover. <code>surface-3</code> is the quieter selected-row fill used by vertical navigation. Borders carry structure, text roles carry hierarchy, and <code>primary</code> marks the wordmark, action, selection, focus, and current state.</p>
+            <p>Keep the assignment literal: a component asks for the named role, never for a raw hex value or a base16 slot. The values below are the source of truth for both themes.</p>
+
+            <p class="table-caption" id="role-table-caption">Representative roles with their light and dark values.</p>
+            <div class="table-scroll" role="region" aria-label="Color role table" tabindex="0">
+              <table class="role-table" aria-labelledby="role-table-caption">
+                <thead>
+                  <tr>
+                    <th scope="col">Role</th>
+                    <th scope="col">Light</th>
+                    <th scope="col">Dark</th>
+                    <th scope="col">Use</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <th scope="row">canvas</th>
+                    <td><code>#FFFFFF</code></td>
+                    <td><code>#161616</code></td>
+                    <td>Page background</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">surface</th>
+                    <td><code>#F2F4F8</code></td>
+                    <td><code>#262626</code></td>
+                    <td>Sidebar, stripes, blocked regions</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">surface-2</th>
+                    <td><code>#DDE1E6</code></td>
+                    <td><code>#393939</code></td>
+                    <td>Table headers, hover, active, disabled</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">surface-3</th>
+                    <td><code>#E8EBEE</code></td>
+                    <td><code>#303030</code></td>
+                    <td>Selected vertical-navigation rows</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">primary</th>
+                    <td><code>#0F62FE</code></td>
+                    <td><code>#33B1FF</code></td>
+                    <td>Wordmark, actions, selection, focus</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">on-primary</th>
+                    <td><code>#FFFFFF</code></td>
+                    <td><code>#161616</code></td>
+                    <td>Text on primary fills</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">error</th>
+                    <td><code>#DA1E28</code></td>
+                    <td><code>#FF8389</code></td>
+                    <td>Error text, borders, fills</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">success</th>
+                    <td><code>#0E6027</code></td>
+                    <td><code>#42BE65</code></td>
+                    <td>Success text and icons</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <p>Use <code>border-strong</code> for interactive boundaries and <code>border-subtle</code> for structural separation. <code>text-muted</code> is limited to placeholders and helper text on <code>canvas</code> and <code>surface</code>; <code>text-disabled</code> is reserved for disabled labels and never for information a user needs.</p>
+            <p>The raw palette is published in the <a href="https://github.com/nyoom-engineering/base16-oxocarbon">Oxocarbon base16 repository</a>. Treat it as the origin of the values, not as an interface API: <code>base08</code> is cyan in dark theme and pink in light theme, so a slot number cannot describe a stable role.</p>
+          </section>
+
+          <section class="article-section" aria-labelledby="contrast">
+            <h2 id="contrast" tabindex="-1">Contrast</h2>
+            <p>Contrast is measured against the canvas in both themes before a role is accepted. Three thresholds apply:</p>
+            <ol>
+              <li>Body text reaches at least 4.5:1 against its background.</li>
+              <li>Large text at 20px and 600 weight reaches at least 3:1.</li>
+              <li>Interactive boundaries and focus indicators reach at least 3:1.</li>
+            </ol>
+            <p>The verified ratio for <code>primary</code> is <code>5.00:1</code> in light theme and <code>7.65:1</code> in dark theme. <code>text-primary</code> measures <code>18.10:1</code> and <code>16.43:1</code>. Ratios are recorded against <code>canvas</code>; a color moved to another surface must be checked again.</p>
+
+            <blockquote>
+              <p>Primary text must not sit on <code>surface-2</code> or <code>surface-3</code>. The combinations measure 3.81:1 and 4.18:1 in light theme, below the 4.5:1 body threshold, so both stay fills and boundaries — never a text background for primary.</p>
+            </blockquote>
+
+            <p>Use <code>text-primary</code> or <code>text-secondary</code> on <code>surface-2</code> or <code>surface-3</code>, and reserve <code>primary</code> for text on <code>canvas</code> or <code>surface</code>.</p>
+          </section>
+
+          <section class="article-section" aria-labelledby="selection">
+            <h2 id="selection" tabindex="-1">Selection</h2>
+            <p>Selected text uses the <code>selection</code> overlay: <code>primary</code> at 12% opacity in light theme and 16% in dark theme. <code>text-primary</code> stays unchanged, and the overlay tints <code>canvas</code>, <code>surface</code>, <code>surface-2</code>, and <code>surface-3</code> without a separate token for each context.</p>
+            <p>Persistent selection uses the 2px <code>primary</code> indicator. Horizontal navigation spans the item with the underline and sits flush with the app-bar rule, with no fill. Vertical navigation rows use the <code>surface-3</code> selected fill, so the indicator, label, and row read as one object; the vertical indicator runs the full row height at the leading edge, and other selected rows stay unfilled. Never invert text or fill a row with solid primary, so selection never depends on color alone.</p>
+          </section>
+
+          <section class="article-section" aria-labelledby="missing-red">
+            <h2 id="missing-red" tabindex="-1">A Palette Without Red</h2>
+
+            <div class="callout" role="note">
+              <span class="callout-icon" aria-hidden="true">
+                <svg class="icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" focusable="false">
+                  <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"></path>
+                  <path d="M12 9v4"></path>
+                  <path d="M12 17h.01"></path>
+                </svg>
+              </span>
+              <div class="callout-body">
+                <p class="callout-title">Oxocarbon contains no red.</p>
+                <p>The base16 slot <code>base08</code> is cyan in dark theme and pink in light theme, so error, warning, and success are defined outside the scheme and contrast-tested on their own. Do not remap them back to slot names in either theme.</p>
+              </div>
+            </div>
+
+            <p>Status always pairs an icon with text. Status colors are text and icons; the only solid status fill is the danger button, <code>error</code> with <code>on-error</code>. Icon-only status is not acceptable.</p>
+          </section>
+
+          <section class="article-section" aria-labelledby="tokens">
+            <h2 id="tokens" tabindex="-1">Tokens in Practice</h2>
+            <p>Define each role once per theme, then let components read only the role name. The four roles below are enough for a neutral reading surface; copy the block into your theme layer and add the rest from the table.</p>
+
+            <div class="code-block">
+              <div class="code-header">
+                <span class="code-label">tokens.css</span>
+                <div class="code-actions">
+                  <span class="copy-feedback" data-copy-feedback aria-live="polite"></span>
+                  <button class="copy-button" type="button" data-copy-target="token-snippet">
+                    <svg class="icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                      <rect width="14" height="14" x="8" y="8" rx="2" ry="2"></rect>
+                      <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path>
+                    </svg>
+                    <span>Copy</span>
+                  </button>
+                </div>
+              </div>
+              <pre tabindex="0" aria-label="Theme token CSS snippet"><code id="token-snippet" translate="no">:root {
+  --color-canvas: #FFFFFF;
+  --color-text-primary: #161616;
+  --color-primary: #0F62FE;
+  --space-4: 1rem;
+  --size-control-md: 2.25rem;
+  --layout-sidebar: 15rem;
+}
+
+[data-theme="dark"] {
+  --color-canvas: #161616;
+  --color-text-primary: #F2F4F8;
+  --color-primary: #33B1FF;
+  --space-4: 1rem;
+  --size-control-md: 2.25rem;
+  --layout-sidebar: 15rem;
+}</code></pre>
+            </div>
+
+            <p>Keep the token names stable across themes. A component should never branch on the theme, read a base16 slot directly, or hardcode a size. If a new surface or dimension is needed, add a named token here first.</p>
+          </section>
+
+          <footer class="article-footer">
+            <p>Last updated <time datetime="2026-11-01">1 November 2026</time></p>
+          </footer>
+        </article>
+
+        <nav class="toc" aria-labelledby="toc-heading">
+          <p class="toc-heading" id="toc-heading">On This Page</p>
+          <ul class="toc-list">
+            <li><a class="toc-link" href="#roles" data-toc-link>Roles</a></li>
+            <li><a class="toc-link" href="#contrast" data-toc-link>Contrast</a></li>
+            <li><a class="toc-link" href="#selection" data-toc-link>Selection</a></li>
+            <li><a class="toc-link" href="#missing-red" data-toc-link>A Palette Without Red</a></li>
+            <li><a class="toc-link" href="#tokens" data-toc-link>Tokens in Practice</a></li>
+          </ul>
+        </nav>
+      </div>
+    </div>
+  </main>
+</body>
+</html>

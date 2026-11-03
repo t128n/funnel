@@ -1,0 +1,472 @@
+/* Tokens live in ../../tokens.css. Component styles consume only tokens. */
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+html {
+  scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--color-canvas);
+  color: var(--color-text-primary);
+  font-family: var(--font-sans);
+  font-size: var(--font-size-body-content);
+  font-weight: var(--font-weight-regular);
+  line-height: var(--font-leading-body-content);
+}
+
+::selection {
+  background: var(--color-selection);
+  color: var(--color-text-primary);
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.skip-link {
+  position: fixed;
+  top: var(--space-2);
+  left: var(--space-2);
+  z-index: var(--z-dialog);
+  display: inline-block;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--color-canvas);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-body);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--font-leading-body);
+  text-decoration: none;
+  transform: translateY(-200%);
+}
+
+.skip-link:focus {
+  transform: none;
+}
+
+/* Header. No navigation: this view is a single page, so the bar carries
+   identity and the theme toggle only. */
+
+.site-header {
+  border-bottom: 1px solid var(--color-border-subtle);
+  background: var(--color-canvas);
+}
+
+/* `ch` resolves against this element's font-size; keep it at the body size so
+   the header and the page compute the same shell width. */
+.header-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  max-width: calc(var(--layout-measure) + var(--layout-page-padding) + var(--layout-page-padding));
+  min-height: var(--layout-app-bar);
+  margin-inline: auto;
+  padding-inline: var(--layout-page-padding);
+  font-size: var(--font-size-body-content);
+}
+
+.wordmark {
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+  min-height: var(--size-control-md);
+  color: var(--color-primary);
+  font-size: var(--font-size-body);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--font-leading-body);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.wordmark-rest {
+  color: var(--color-text-secondary);
+  font-weight: var(--font-weight-regular);
+}
+
+.icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: var(--size-control-md);
+  height: var(--size-control-md);
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-text-primary);
+  cursor: pointer;
+  transition: background-color var(--motion-fast) var(--ease), border-color var(--motion-fast) var(--ease);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .icon-button:hover {
+    background: var(--color-surface-2);
+  }
+}
+
+.icon-button:active {
+  background: var(--color-surface-2);
+  border-color: var(--color-border-strong);
+}
+
+.theme-toggle .icon-sun {
+  display: none;
+}
+
+[data-theme="dark"] .theme-toggle .icon-sun {
+  display: block;
+}
+
+[data-theme="dark"] .theme-toggle .icon-moon {
+  display: none;
+}
+
+/* Page */
+
+.page {
+  max-width: calc(var(--layout-measure) + var(--layout-page-padding) + var(--layout-page-padding));
+  margin-inline: auto;
+  padding: var(--space-7) var(--layout-page-padding) var(--space-8);
+}
+
+.intro h1 {
+  margin: 0 0 var(--space-3);
+  font-size: var(--font-size-heading-lg);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--font-leading-heading-lg);
+  letter-spacing: var(--font-tracking-heading-lg);
+}
+
+.intro p {
+  max-width: 60ch;
+  margin: 0;
+  font-size: var(--font-size-body-content);
+  line-height: var(--font-leading-body-content);
+}
+
+/* Sections */
+
+.section {
+  margin-top: var(--space-7);
+}
+
+.section h2 {
+  margin: 0 0 var(--space-4);
+  font-size: var(--font-size-heading-sm);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--font-leading-heading-sm);
+}
+
+/* Ruled list. No container: a top rule under the heading and a 1px rule
+   between rows, as the list pattern requires. The row fill spans the rule
+   width and never hangs past it. */
+
+.link-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--color-border-subtle);
+}
+
+.link-list li + li {
+  border-top: 1px solid var(--color-border-subtle);
+}
+
+.row-link {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  align-content: center;
+  gap: var(--space-5);
+  min-height: var(--size-row-default);
+  padding: var(--space-2) 0;
+  color: inherit;
+  text-decoration: none;
+  transition: background-color var(--motion-fast) var(--ease);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .row-link:hover {
+    background: var(--color-surface);
+  }
+}
+
+.row-link:active {
+  background: var(--color-surface-2);
+}
+
+.row-body {
+  min-width: 0;
+}
+
+.row-title {
+  color: var(--color-primary);
+  font-size: var(--font-size-body-content);
+  line-height: var(--font-leading-body);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+}
+
+.row-link:active .row-title {
+  color: var(--color-primary-hover);
+}
+@media (hover: hover) and (pointer: fine) {
+  .row-link:hover .row-title {
+    color: var(--color-primary-hover);
+  }
+}
+
+.row-desc {
+  display: block;
+  margin-top: var(--space-1);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-body-content);
+  line-height: var(--font-leading-body-content);
+}
+
+.row-meta {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-caption);
+  line-height: var(--font-leading-body);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.row-meta--mono {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-mono);
+}
+
+/* Colophon */
+
+.colophon p {
+  max-width: 60ch;
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-body-content);
+  line-height: var(--font-leading-body-content);
+}
+
+.colophon a {
+  color: var(--color-primary);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+}
+
+.colophon a:active {
+  color: var(--color-primary-hover);
+}
+@media (hover: hover) and (pointer: fine) {
+  .colophon a:hover {
+    color: var(--color-primary-hover);
+  }
+}
+
+/* Footer */
+
+.site-footer {
+  margin-top: var(--space-8);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--color-border-subtle);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-caption);
+  line-height: var(--font-leading-body);
+  font-variant-numeric: tabular-nums;
+}
+
+.site-footer p {
+  margin: 0;
+}
+
+/* Responsive */
+
+@media (max-width: 767px) {
+  .icon-button {
+    width: var(--size-control-lg);
+    height: var(--size-control-lg);
+  }
+
+  .wordmark {
+    min-height: var(--size-control-lg);
+  }
+
+  .page {
+    padding-top: var(--space-6);
+    padding-bottom: var(--space-7);
+  }
+
+  .row-link {
+    display: block;
+  }
+
+  .row-meta {
+    display: block;
+    margin-top: var(--space-1);
+    text-align: left;
+    white-space: normal;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    transition-delay: 0s !important;
+  }
+}
+
+/* Control shape — controls take the small radius, containers keep the medium one. */
+.button,
+.icon-button,
+.nav__item,
+.nav__link,
+.menu__item,
+.sort-button,
+.copy-button,
+.nav-link,
+.nav-trigger,
+.account,
+.toc-link,
+.skip-link {
+  border-radius: var(--radius-sm);
+}
+
+/* Pointer and touch behaviour */
+a,
+button,
+input,
+select,
+textarea,
+[role="button"],
+[role="menuitem"] {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.dialog,
+.sidebar,
+.toc,
+.menu,
+.table-wrap,
+.table-scroll,
+.code-block pre {
+  overscroll-behavior: contain;
+}
+
+/* Type rendering */
+h1,
+h2,
+h3 {
+  text-wrap: balance;
+}
+
+p,
+li,
+dd {
+  text-wrap: pretty;
+}
+
+/* Icons inside controls and fields. Inline and menu icons stay at 1rem. */
+.button .icon,
+.nav-trigger .icon {
+  width: var(--icon-md);
+  height: var(--icon-md);
+}
+
+.button .spinner {
+  width: var(--icon-md);
+  height: var(--icon-md);
+}
+
+.input-icon,
+.select-icon,
+.select-wrap__icon,
+.search__icon {
+  width: var(--icon-md);
+  height: var(--icon-md);
+}
+
+/* Higher contrast: raise every separator and keep surfaces solid. */
+@media (prefers-contrast: more) {
+  .menu,
+  .dialog,
+  .code-block,
+  .callout,
+  .specimen-panel,
+  .table-scroll,
+  .table-wrap,
+  .mobile-nav,
+  .tag {
+    border-color: var(--color-border-strong);
+  }
+}
+
+/* Forced colors: structure must survive on system colors alone. */
+@media (forced-colors: active) {
+  *,
+  *::before,
+  *::after {
+    box-shadow: none !important;
+  }
+
+  .menu,
+  .dialog,
+  .code-block,
+  .callout,
+  .specimen-panel,
+  .table-scroll,
+  .table-wrap,
+  .mobile-nav,
+  .tag {
+    border: 1px solid CanvasText;
+  }
+
+  .nav__item[aria-current="page"],
+  .nav__link[aria-current="page"],
+  .toc-link[aria-current="location"] {
+    outline: 1px solid Highlight;
+  }
+
+  .nav__item[aria-current="page"]::before,
+  .nav__link[aria-current="page"]::before,
+  .toc-link[aria-current="location"]::before {
+    background: Highlight;
+  }
+}
+
+/* Focus states change instantly, even where hover is animated. */
+.menu__item:focus-visible,
+.nav__item:focus-visible,
+.nav__link:focus-visible,
+.toc-link:focus-visible,
+.project:focus-visible,
+.row-link:focus-visible,
+.account:focus-visible {
+  transition: none;
+}
+
+body {
+  font-optical-sizing: auto;
+}

@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#FFFFFF">
+  <title>Open a Project · t128n</title>
+  <meta name="description" content="Search and open a project in the Personal workspace.">
+  <script>
+    (function () {
+      var key = "t128n-theme";
+      var theme = null;
+      try {
+        var stored = window.localStorage.getItem(key);
+        if (stored === "light" || stored === "dark") {
+          theme = stored;
+        }
+      } catch (error) {}
+      if (!theme) {
+        theme = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+      }
+      var root = document.documentElement;
+      root.setAttribute("data-theme", theme);
+      root.style.colorScheme = theme;
+    })();
+  </script>
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/geist-sans@5.3.0/latin-400.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/geist-sans@5.3.0/latin-600.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/geist-mono@5.3.0/latin-400.css">
+  <link rel="stylesheet" href="../../tokens.css">
+  <link rel="stylesheet" href="styles.css">
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to main content</a>
+
+  <header class="app-bar">
+    <div class="app-bar__inner">
+      <a class="wordmark" href="../landing/index.html" translate="no">t128n</a>
+      <span class="app-bar__divider" aria-hidden="true"></span>
+      <span class="app-bar__context"><span class="visually-hidden">Workspace: </span>Personal</span>
+      <span class="app-bar__spacer"></span>
+
+      <button class="icon-button" id="theme-toggle" type="button" aria-label="Switch to dark theme" title="Switch to dark theme">
+        <svg class="theme-icon theme-icon--sun" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+          <circle cx="12" cy="12" r="4"/>
+          <path d="M12 2v2"/>
+          <path d="M12 20v2"/>
+          <path d="m4.93 4.93 1.41 1.41"/>
+          <path d="m17.66 17.66 1.41 1.41"/>
+          <path d="M2 12h2"/>
+          <path d="M20 12h2"/>
+          <path d="m6.34 17.66-1.41 1.41"/>
+          <path d="m19.07 4.93-1.41 1.41"/>
+        </svg>
+        <svg class="theme-icon theme-icon--moon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+          <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>
+        </svg>
+      </button>
+
+      <a class="account" href="../settings/index.html" aria-label="Account settings for Nora Lindqvist">
+        <span class="avatar" aria-hidden="true">NL</span>
+        <span class="account__name">Nora Lindqvist</span>
+      </a>
+    </div>
+  </header>
+
+  <main id="main" class="main" tabindex="-1">
+    <div class="page">
+      <header class="page-header">
+        <div class="page-header__copy">
+          <h1>Open a Project</h1>
+          <p>Search the Personal workspace, or start something new.</p>
+        </div>
+        <button class="button button--primary" id="new-project" type="button" aria-expanded="false" aria-controls="new-project-form">
+          <svg class="icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+            <path d="M5 12h14"/>
+            <path d="M12 5v14"/>
+          </svg>
+          Create Project
+        </button>
+      </header>
+
+      <form class="new-project" id="new-project-form" aria-labelledby="new-project-title" novalidate hidden>
+        <h2 class="new-project__title" id="new-project-title">New Project</h2>
+        <div class="field">
+          <label class="field__label" for="new-project-name">Project name</label>
+          <input class="input" id="new-project-name" name="name" type="text" autocomplete="off" placeholder="Customer portal" required aria-describedby="new-project-error">
+          <p class="field__error" id="new-project-error" hidden>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+              <circle cx="12" cy="12" r="10"/>
+              <path d="M12 8v4"/>
+              <path d="M12 16h.01"/>
+            </svg>
+            <span id="new-project-error-text"></span>
+          </p>
+        </div>
+        <div class="new-project__actions">
+          <button class="button button--secondary" id="cancel-new-project" type="button">Cancel</button>
+          <button class="button button--primary" type="submit">Create Project</button>
+        </div>
+      </form>
+
+      <form class="search" id="search-form" role="search">
+        <div class="search__group">
+          <label class="field__label" for="project-search">Search Projects</label>
+          <div class="search__field">
+            <svg class="icon search__icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+              <circle cx="11" cy="11" r="8"/>
+              <path d="m21 21-4.3-4.3"/>
+            </svg>
+            <input class="search__input" id="project-search" type="search" name="q" placeholder="Search projects…" autocomplete="off" spellcheck="false" aria-describedby="search-hint">
+            <kbd class="search__hint" aria-hidden="true">/</kbd>
+          </div>
+        </div>
+        <button class="button button--ghost" id="clear-search" type="button" hidden>Clear</button>
+      </form>
+      <p class="visually-hidden" id="search-hint">Press slash to focus search, arrow keys to move through results, and Enter to open the focused project.</p>
+
+      <p class="result-count" id="result-count" aria-live="polite" aria-atomic="true">8 projects</p>
+
+      <ul class="project-list" id="project-list" aria-label="Projects"></ul>
+
+      <div class="empty-state" id="empty-state" hidden>
+        <p>No projects match “<span id="empty-query"></span>”.</p>
+        <button class="button button--secondary" id="empty-clear" type="button">Clear Search</button>
+      </div>
+
+      <p class="inline-status" id="status" role="status" aria-live="polite" aria-atomic="true"></p>
+
+      <footer class="page-footer">
+        <p>Press <kbd>/</kbd> to search, <kbd>↑</kbd> <kbd>↓</kbd> to move, <kbd>Enter</kbd> to open.</p>
+      </footer>
+    </div>
+  </main>
+</body>
+</html>

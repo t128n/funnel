@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#FFFFFF">
+  <title>Projects · t128n</title>
+  <script>
+    (function () {
+      var root = document.documentElement;
+      var key = "t128n-theme";
+      var stored = null;
+      try { stored = window.localStorage.getItem(key); } catch (error) { stored = null; }
+      var prefersDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+      var theme = stored === "light" || stored === "dark" ? stored : (prefersDark ? "dark" : "light");
+      root.setAttribute("data-theme", theme);
+      root.style.colorScheme = theme;
+    })();
+  </script>
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/geist-sans@5.3.0/latin-400.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/geist-sans@5.3.0/latin-600.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/geist-mono@5.3.0/latin-400.css">
+  <link rel="stylesheet" href="../../tokens.css">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to main content</a>
+
+  <header class="app-bar">
+    <button class="icon-button app-bar__menu" id="nav-toggle" type="button" aria-label="Open navigation" aria-expanded="false" aria-controls="sidebar" title="Open navigation">
+      <svg class="icon menu-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+        <path d="M4 6h16"></path>
+        <path d="M4 12h16"></path>
+        <path d="M4 18h16"></path>
+      </svg>
+      <svg class="icon close-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+        <path d="M18 6 6 18"></path>
+        <path d="m6 6 12 12"></path>
+      </svg>
+    </button>
+    <span class="wordmark" translate="no">t128n</span>
+    <span class="app-bar__divider" aria-hidden="true"></span>
+    <span class="workspace-name">Personal</span>
+    <span class="app-bar__spacer"></span>
+    <button class="icon-button theme-toggle" id="theme-toggle" type="button" aria-label="Switch to dark theme" title="Switch to dark theme">
+      <svg class="icon theme-icon-moon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+        <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"></path>
+      </svg>
+      <svg class="icon theme-icon-sun" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+        <circle cx="12" cy="12" r="4"></circle>
+        <path d="M12 2v2"></path>
+        <path d="M12 20v2"></path>
+        <path d="m4.93 4.93 1.41 1.41"></path>
+        <path d="m17.66 17.66 1.41 1.41"></path>
+        <path d="M2 12h2"></path>
+        <path d="M20 12h2"></path>
+        <path d="m6.34 17.66-1.41 1.41"></path>
+        <path d="m19.07 4.93-1.41 1.41"></path>
+      </svg>
+    </button>
+  </header>
+
+  <div class="shell">
+    <aside class="sidebar" id="sidebar" aria-label="Sidebar">
+      <nav class="nav" aria-label="Primary">
+        <ul class="nav__list">
+          <li>
+            <a class="nav__item" href="#/overview">
+              <svg class="icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                <rect width="7" height="9" x="3" y="3" rx="1"></rect>
+                <rect width="7" height="5" x="14" y="3" rx="1"></rect>
+                <rect width="7" height="9" x="14" y="12" rx="1"></rect>
+                <rect width="7" height="5" x="3" y="16" rx="1"></rect>
+              </svg>
+              Overview
+            </a>
+          </li>
+          <li>
+            <a class="nav__item" href="#/projects" aria-current="page">
+              <svg class="icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                <path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"></path>
+              </svg>
+              Projects
+            </a>
+          </li>
+          <li>
+            <a class="nav__item" href="#/deployments">
+              <svg class="icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                <path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91 0z"></path>
+                <path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"></path>
+                <path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"></path>
+                <path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"></path>
+              </svg>
+              Deployments
+            </a>
+          </li>
+          <li>
+            <a class="nav__item" href="#/activity">
+              <svg class="icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
+              </svg>
+              Activity
+            </a>
+          </li>
+        </ul>
+      </nav>
+
+      <nav class="nav nav--secondary" aria-label="Support">
+        <ul class="nav__list">
+          <li>
+            <a class="nav__item" href="#/settings">
+              <svg class="icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path>
+                <circle cx="12" cy="12" r="3"></circle>
+              </svg>
+              Settings
+            </a>
+          </li>
+          <li>
+            <a class="nav__item" href="#/help">
+              <svg class="icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                <circle cx="12" cy="12" r="10"></circle>
+                <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+                <path d="M12 17h.01"></path>
+              </svg>
+              Help
+            </a>
+          </li>
+        </ul>
+      </nav>
+    </aside>
+
+    <div class="backdrop" id="backdrop" aria-hidden="true"></div>
+
+    <main class="main" id="main" tabindex="-1">
+      <header class="page-header">
+        <div class="page-header__row">
+          <h1 class="page-title">Projects</h1>
+          <button class="button button--primary" type="button">
+            <svg class="icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+              <path d="M5 12h14"></path>
+              <path d="M12 5v14"></path>
+            </svg>
+            Create Project
+          </button>
+        </div>
+        <p class="page-description">Deployments, environments, and recent activity across your workspace.</p>
+      </header>
+
+      <section class="metrics" aria-label="Workspace metrics">
+        <div class="metric">
+          <p class="metric__label">Active Projects</p>
+          <p class="metric__value">12</p>
+        </div>
+        <div class="metric">
+          <p class="metric__label">Deployments Today</p>
+          <p class="metric__value">34</p>
+        </div>
+        <div class="metric">
+          <p class="metric__label">Failed Builds</p>
+          <p class="metric__value">2</p>
+        </div>
+        <div class="metric">
+          <p class="metric__label">Median Build</p>
+          <p class="metric__value">1m 42s</p>
+        </div>
+      </section>
+
+      <form class="toolbar" id="filters" role="search" aria-label="Project filters">
+        <div class="toolbar__fields">
+          <div class="field field--search">
+            <label class="field__label" for="project-search">Search Projects</label>
+            <div class="input-wrap">
+              <svg class="icon input-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                <circle cx="11" cy="11" r="8"></circle>
+                <path d="m21 21-4.3-4.3"></path>
+              </svg>
+              <input class="input" id="project-search" type="search" name="search" placeholder="Search projects…" autocomplete="off">
+            </div>
+          </div>
+          <div class="field field--status">
+            <label class="field__label" for="status-filter">Status</label>
+            <div class="select-wrap">
+              <select class="select" id="status-filter" name="status">
+                <option value="all">All statuses</option>
+                <option value="ready">Ready</option>
+                <option value="building">Building</option>
+                <option value="failed">Failed</option>
+                <option value="paused">Paused</option>
+              </select>
+              <svg class="icon select-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                <path d="m6 9 6 6 6-6"></path>
+              </svg>
+            </div>
+          </div>
+        </div>
+        <div class="toolbar__meta">
+          <p class="result-count" id="result-count" aria-live="polite" aria-atomic="true">8 projects</p>
+          <button class="button button--ghost" id="clear-filters" type="button" hidden>Clear Filters</button>
+        </div>
+      </form>
+
+      <div class="table-wrap" id="table-region" role="region" aria-label="Projects table" tabindex="0">
+        <table class="table">
+          <caption class="visually-hidden">Projects and their deployment status</caption>
+          <thead>
+            <tr>
+              <th scope="col">Project</th>
+              <th scope="col">Status</th>
+              <th scope="col">Environment</th>
+              <th scope="col">Owner</th>
+              <th scope="col" class="cell-updated" id="updated-header" aria-sort="descending">
+                <button class="sort-button" id="sort-updated" type="button" data-direction="descending" title="Sort by updated date">
+                  Updated<span class="visually-hidden" id="sort-state">, sorted descending</span>
+                  <span class="sort-indicator" aria-hidden="true">
+                    <svg class="icon icon-sort-desc" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" focusable="false">
+                      <path d="M12 5v14"></path>
+                      <path d="m19 12-7 7-7-7"></path>
+                    </svg>
+                    <svg class="icon icon-sort-asc" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" focusable="false">
+                      <path d="m5 12 7-7 7 7"></path>
+                      <path d="M12 19V5"></path>
+                    </svg>
+                  </span>
+                </button>
+              </th>
+              <th scope="col" class="col-actions"><span class="visually-hidden">Actions</span></th>
+            </tr>
+          </thead>
+          <tbody id="projects-body"></tbody>
+        </table>
+      </div>
+
+      <div class="empty-state" id="empty-state" hidden>
+        <p>No projects match your filters.</p>
+        <button class="button button--secondary" id="empty-clear" type="button">Clear Filters</button>
+      </div>
+
+      <p class="inline-status" id="table-status" role="status" aria-live="polite" aria-atomic="true"></p>
+
+      <div class="table-footer">
+        <p class="pagination-summary" id="pagination-summary">1–8 of 8</p>
+        <div class="pagination-actions">
+          <button class="button button--secondary" type="button" disabled title="There is only one page of projects.">
+            <svg class="icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+              <path d="m15 18-6-6 6-6"></path>
+            </svg>
+            Previous
+          </button>
+          <button class="button button--secondary" type="button" disabled title="There is only one page of projects.">
+            Next
+            <svg class="icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+              <path d="m9 18 6-6-6-6"></path>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <div class="menu" id="project-menu" role="menu" aria-label="Project actions" hidden>
+    <button class="menu__item" type="button" role="menuitem" data-action="open">
+      <svg class="icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+        <path d="M7 7h10v10"></path>
+        <path d="M7 17 17 7"></path>
+      </svg>
+      Open
+    </button>
+    <button class="menu__item" type="button" role="menuitem" data-action="logs">
+      <svg class="icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+        <path d="M15 12h-5"></path>
+        <path d="M15 8h-5"></path>
+        <path d="M19 17V5a2 2 0 0 0-2-2H4"></path>
+        <path d="M8 21h12a2 2 0 0 0 2-2v-1a1 1 0 0 0-1-1H11a1 1 0 0 0-1 1v1a2 2 0 1 1-4 0V5a2 2 0 1 0-4 0v2a1 1 0 0 0 1 1h3"></path>
+      </svg>
+      View Logs
+    </button>
+    <button class="menu__item" type="button" role="menuitem" data-action="copy">
+      <svg class="icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+        <rect width="14" height="14" x="8" y="8" rx="2" ry="2"></rect>
+        <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path>
+      </svg>
+      Copy Project ID
+    </button>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
