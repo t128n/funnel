@@ -1,9 +1,5 @@
 <script lang="ts">
-	import CircleIcon from '@lucide/svelte/icons/circle';
-	import CircleDashedIcon from '@lucide/svelte/icons/circle-dashed';
-	import SignalHighIcon from '@lucide/svelte/icons/signal-high';
-	import SignalLowIcon from '@lucide/svelte/icons/signal-low';
-	import SignalMediumIcon from '@lucide/svelte/icons/signal-medium';
+	import { Table } from '@sveltestrap/sveltestrap';
 	import {
 		IMPACT_SCALE,
 		MATRIX_IMPACT_VALUES,
@@ -13,7 +9,6 @@
 		type MatrixCellTone
 	} from '#lib/priority';
 	import { issuePath } from '#lib/issue-url';
-	import { cn } from '#lib/utils';
 	import type { MatrixGridCell } from './matrix-grid';
 
 	/**
@@ -38,20 +33,20 @@
 	);
 
 	const TONE_CLASS: Record<MatrixCellTone, string> = {
-		p1: 'text-error',
-		p2: 'text-warning',
-		p3: 'text-fg-secondary',
-		partial: 'text-fg-secondary',
-		none: 'text-fg-muted'
+		p1: 'text-danger',
+		p2: 'text-warning-emphasis',
+		p3: 'text-body-secondary',
+		partial: 'text-body-secondary',
+		none: 'text-body-tertiary'
 	};
 
-	const TONE_ICON = {
-		p1: SignalHighIcon,
-		p2: SignalMediumIcon,
-		p3: SignalLowIcon,
-		partial: CircleDashedIcon,
-		none: CircleIcon
-	} as const;
+	const TONE_ICON: Record<MatrixCellTone, string> = {
+		p1: 'bi-reception-4',
+		p2: 'bi-reception-3',
+		p3: 'bi-reception-1',
+		partial: 'bi-dash-circle-dotted',
+		none: 'bi-circle'
+	};
 
 	/** `data-matrix-cell` identity, unambiguous across `null` axes. */
 	function dataKey(cell: MatrixGridCell): string {
@@ -65,10 +60,10 @@
 
 <div class="p-3" data-testid="matrix-grid">
 	<div class="overflow-x-auto">
-		<table class="table-fixed w-full min-w-[var(--layout-table-min)] border-collapse text-body">
-			<caption class="sr-only">Impact by urgency issue matrix</caption>
+		<Table bordered class="matrix-table align-middle">
+			<caption class="visually-hidden">Impact by urgency issue matrix</caption>
 			<colgroup>
-				<col class="w-44" />
+				<col class="matrix-impact-column" />
 				<col />
 				<col />
 				<col />
@@ -76,19 +71,16 @@
 			</colgroup>
 			<thead>
 				<tr>
-					<th
-						scope="col"
-						class="sticky start-0 z-10 border border-border-subtle bg-surface-2 p-2 text-left align-bottom font-semibold"
-					>
-						<div class="text-caption text-fg-secondary">Impact ↓</div>
-						<div class="text-caption text-fg-secondary">How much does it hurt?</div>
-						<div class="mt-2 text-caption text-fg-secondary">Urgency →</div>
-						<div class="text-caption text-fg-secondary">How soon must it be fixed?</div>
+					<th scope="col" class="matrix-sticky border bg-body-secondary p-2 text-start align-bottom fw-semibold">
+						<div class="small text-body-secondary">Impact ↓</div>
+						<div class="small text-body-secondary">How much does it hurt?</div>
+						<div class="mt-2 small text-body-secondary">Urgency →</div>
+						<div class="small text-body-secondary">How soon must it be fixed?</div>
 					</th>
 					{#each urgencyLabels as label (label)}
 						<th
 							scope="col"
-							class="border border-border-subtle bg-surface-2 p-2 text-left align-bottom font-semibold"
+							class="border bg-body-secondary p-2 text-start align-bottom fw-semibold"
 						>
 							{label}
 						</th>
@@ -100,53 +92,48 @@
 					<tr>
 						<th
 							scope="row"
-							class="sticky start-0 z-10 border border-border-subtle bg-surface p-2 text-left align-top font-semibold whitespace-nowrap"
+							class="matrix-sticky border bg-body p-2 text-start align-top fw-semibold text-nowrap"
 						>
 							{impactLabels[rowIndex]}
 						</th>
 						{#each row as cell (dataKey(cell))}
-							{@const Icon = TONE_ICON[cell.meta.tone]}
-							<td
-								data-matrix-cell={dataKey(cell)}
-								class="min-w-0 border border-border-subtle p-0 align-top"
-							>
+							<td data-matrix-cell={dataKey(cell)} class="min-w-0 border p-0 align-top">
 								<div
-									class="flex items-baseline justify-between gap-2 border-b border-border-subtle px-2 pt-1.5 pb-1"
+									class="d-flex align-items-baseline justify-content-between gap-2 border-bottom px-2 pt-1 pb-1"
 								>
 									<span
-										class={cn(
-											'flex min-w-0 items-center gap-1.5 text-body font-semibold',
-											TONE_CLASS[cell.meta.tone]
-										)}
+										class="d-flex min-w-0 align-items-center gap-2 text-body fw-semibold {TONE_CLASS[
+											cell.meta.tone
+										]}"
 									>
-										<Icon class="size-4 shrink-0" aria-hidden="true" />
-										<span class="truncate">{cell.meta.label}</span>
+										<i class="bi {TONE_ICON[cell.meta.tone]} flex-shrink-0" aria-hidden="true"></i>
+										<span class="text-truncate">{cell.meta.label}</span>
 									</span>
-									<span class="shrink-0 text-body text-fg-secondary tabular-nums">
+									<span class="flex-shrink-0 text-body tnum text-body-secondary">
 										{cell.total}
 									</span>
 								</div>
 
 								{#if cell.total === 0}
-									<p class="px-2 py-1.5 text-body text-fg-muted">—</p>
+									<p class="px-2 py-1 text-body text-body-tertiary mb-0">—</p>
 								{:else}
-									<ul class="my-1">
+									<ul class="my-1 ps-0 list-unstyled">
 										{#each cell.issues.slice(0, 4) as issue (`${issue.repoId}:${issue.number}`)}
 											<li>
 												<a
 													href={issuePath('matrix', issue.repo, issue.number)}
-													class="flex min-w-0 items-baseline gap-1.5 px-2 py-0.5 text-caption hover:bg-surface-2"
+													class="matrix-issue d-flex min-w-0 align-items-baseline gap-2 px-2 py-1 small text-decoration-none"
 													title={`${issue.repo}#${issue.number} ${title(issue)}`}
 												>
-													<span class="mono shrink-0 text-fg-secondary">
+													<span class="font-monospace flex-shrink-0 text-body-secondary">
 														{issue.repo}#{issue.number}
 													</span>
-													<span class="min-w-0 truncate text-fg">{title(issue)}</span>
+													<span class="min-w-0 text-truncate text-body">{title(issue)}</span>
 												</a>
 											</li>
 										{/each}
 										{#if cell.total > Math.min(4, cell.issues.length)}
-											<li class="px-2 py-0.5 text-caption text-fg-secondary tabular-nums">
+											<li class="px-2 py-1 small text-body-secondary tnum">
 												+ {cell.total - Math.min(4, cell.issues.length)} more
 											</li>
 										{/if}
@@ -157,6 +144,33 @@
 					</tr>
 				{/each}
 			</tbody>
-		</table>
+		</Table>
 	</div>
 </div>
+
+<style>
+	:global(.matrix-table) {
+		table-layout: fixed;
+		min-width: var(--funnel-table-min);
+		margin-bottom: 0;
+		font-size: 0.875rem;
+	}
+
+	.matrix-impact-column {
+		width: 11rem;
+	}
+
+	.matrix-sticky {
+		position: sticky;
+		inset-inline-start: 0;
+		z-index: 1;
+	}
+
+	.matrix-issue:hover {
+		background: var(--bs-tertiary-bg);
+	}
+
+	.tnum {
+		font-variant-numeric: tabular-nums;
+	}
+</style>

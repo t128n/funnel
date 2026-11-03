@@ -1,13 +1,17 @@
 <script lang="ts">
 	import { invalidateAll } from '$app/navigation';
+	import {
+		Button,
+		FormGroup,
+		Input,
+		Label,
+		Modal,
+		ModalBody,
+		ModalFooter,
+		ModalHeader
+	} from '@sveltestrap/sveltestrap';
 	import Spinner from '#lib/components/common/Spinner.svelte';
 	import InlineStatus from '#lib/components/common/InlineStatus.svelte';
-	import { Button } from '#lib/components/ui/button';
-	import * as Dialog from '#lib/components/ui/dialog';
-	import * as Field from '#lib/components/ui/field';
-	import { Input } from '#lib/components/ui/input';
-	import * as NativeSelect from '#lib/components/ui/native-select';
-	import { Textarea } from '#lib/components/ui/textarea';
 	import {
 		DELAY_REASONS,
 		type DelayReason
@@ -101,63 +105,65 @@
 	}
 </script>
 
-<Dialog.Root {open} onOpenChange={close}>
-	<Dialog.Content aria-describedby={undefined} class="sm:max-w-md">
-		<Dialog.Header>
-			<Dialog.Title class="text-heading-sm font-semibold">Record delay</Dialog.Title>
-			<Dialog.Description class="text-body text-fg-secondary">
-				Manual delays are local to Funnel. They may overlap a blocked delay; total delay time
-				is the union of the intervals.
-			</Dialog.Description>
-		</Dialog.Header>
+<Modal isOpen={open} toggle={() => close(false)} labelledBy="record-delay-title">
+	<ModalHeader toggle={() => close(false)} id="record-delay-title">Record delay</ModalHeader>
 
-		<div class="flex flex-col gap-4">
-			<Field.Field>
-				<Field.Label for="delay-reason">
-					Reason <span class="font-normal text-error">required</span>
-				</Field.Label>
-				<NativeSelect.Root id="delay-reason" bind:value={reason}>
-					<NativeSelect.Option value="">Select a reason</NativeSelect.Option>
+	<ModalBody>
+		<p class="text-body-secondary small">
+			Manual delays are local to Funnel. They may overlap a blocked delay; total delay time is
+			the union of the intervals.
+		</p>
+
+		<div class="d-flex flex-column gap-3">
+			<FormGroup class="mb-0">
+				<Label for="delay-reason">
+					Reason <span class="fw-normal text-danger">required</span>
+				</Label>
+				<select id="delay-reason" class="form-select" bind:value={reason}>
+					<option value="">Select a reason</option>
 					{#each DELAY_REASONS as value (value)}
-						<NativeSelect.Option {value}>{delayReasonLabel(value)}</NativeSelect.Option>
+						<option {value}>{delayReasonLabel(value)}</option>
 					{/each}
-				</NativeSelect.Root>
-			</Field.Field>
+				</select>
+			</FormGroup>
 
-			<Field.Field>
-				<Field.Label for="delay-start">
-					Started <span class="font-normal text-error">required</span>
-				</Field.Label>
+			<FormGroup class="mb-0">
+				<Label for="delay-start">
+					Started <span class="fw-normal text-danger">required</span>
+				</Label>
 				<Input id="delay-start" type="datetime-local" bind:value={started} />
-			</Field.Field>
+			</FormGroup>
 
-			<Field.Field>
-				<Field.Label for="delay-end">Ended</Field.Label>
+			<FormGroup class="mb-0">
+				<Label for="delay-end">Ended</Label>
 				<Input id="delay-end" type="datetime-local" bind:value={ended} />
-			</Field.Field>
+			</FormGroup>
 
-			<Field.Field>
-				<Field.Label for="delay-note">Note</Field.Label>
-				<Textarea id="delay-note" rows={2} bind:value={note}></Textarea>
-			</Field.Field>
+			<FormGroup class="mb-0">
+				<Label for="delay-note">Note</Label>
+				<textarea id="delay-note" class="form-control" rows="2" bind:value={note}></textarea>
+			</FormGroup>
 
 			{#if error}
 				<InlineStatus tone="error" message={error} />
 			{/if}
 		</div>
+	</ModalBody>
 
-		<Dialog.Footer>
-			<Dialog.Close type="button">
-				{#snippet child({ props })}
-					<Button variant="outline" {...props} type="button" disabled={busy}>Cancel</Button>
-				{/snippet}
-			</Dialog.Close>
-			<Button onclick={confirm} disabled={!canConfirm} class="min-w-28">
-				{#if busy}
-					<Spinner size={13} />
-				{/if}
-				{busy ? 'Recording…' : 'Record delay'}
-			</Button>
-		</Dialog.Footer>
-	</Dialog.Content>
-</Dialog.Root>
+	<ModalFooter>
+		<Button color="secondary" outline type="button" disabled={busy} onclick={() => close(false)}>
+			Cancel
+		</Button>
+		<Button
+			color="primary"
+			onclick={confirm}
+			disabled={!canConfirm}
+			style="min-width: 7rem"
+		>
+			{#if busy}
+				<Spinner size={13} class="me-1" />
+			{/if}
+			{busy ? 'Recording…' : 'Record delay'}
+		</Button>
+	</ModalFooter>
+</Modal>

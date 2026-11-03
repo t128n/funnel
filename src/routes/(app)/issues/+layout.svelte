@@ -2,6 +2,13 @@
 	import { untrack } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
+	import {
+		Button,
+		Dropdown,
+		DropdownItem,
+		DropdownMenu,
+		DropdownToggle
+	} from '@sveltestrap/sveltestrap';
 	import FeedSearch from '#lib/components/filter/FeedSearch.svelte';
 	import FilterPopover from '#lib/components/filter/FilterPopover.svelte';
 	import ViewSegment from '#lib/components/filter/ViewSegment.svelte';
@@ -11,9 +18,6 @@
 	import PageHeader from '#lib/components/shell/PageHeader.svelte';
 	import Toolbar from '#lib/components/shell/Toolbar.svelte';
 	import SplitView from '#lib/components/shell/SplitView.svelte';
-	import * as DropdownMenu from '#lib/components/ui/dropdown-menu/index.js';
-	import { Button, buttonVariants } from '#lib/components/ui/button';
-	import ChevronDownIcon from '@lucide/svelte/icons/chevron-down';
 	import { createFeed } from '#lib/client/feed.svelte';
 	import { projectIssues, reconcileIssues } from '#lib/client/optimistic.svelte';
 	import { FEED_ENDPOINTS } from '#lib/feeds';
@@ -136,51 +140,53 @@
 
 <SplitView detailOpen={selected !== null}>
 	{#snippet feed()}
-		<div class="flex min-h-0 flex-1 flex-col overflow-y-auto bg-canvas">
+		<div class="d-flex min-h-0 flex-grow-1 flex-column overflow-y-auto bg-body">
 			<PageHeader
 				title={mine ? 'My Issues' : 'Issues'}
 				description={scopeLine || undefined}
 				level={selected ? 2 : 1}
-				class="px-3"
 			>
 				{#snippet actions()}
-					<DropdownMenu.Root>
-						<DropdownMenu.Trigger
-							class={buttonVariants({ variant: 'outline', size: 'sm' })}
+					<Dropdown>
+						<DropdownToggle
+							color="secondary"
+							outline
+							size="sm"
 							aria-label={`State: ${stateLabel}. Change state`}
 						>
 							<span>{stateLabel}</span>
-							<ChevronDownIcon
-								class="size-3.5 shrink-0 text-fg-muted"
-								aria-hidden="true"
-							/>
-						</DropdownMenu.Trigger>
-						<DropdownMenu.Content align="end" class="w-40">
-							<DropdownMenu.Label>State</DropdownMenu.Label>
-							<DropdownMenu.RadioGroup
-								value={stateView}
-								onValueChange={(value) => setState(value as StateView)}
-							>
-								{#each STATE_OPTIONS as option (option.value)}
-									<DropdownMenu.RadioItem value={option.value} closeOnSelect>
-										{option.label}
-									</DropdownMenu.RadioItem>
-								{/each}
-							</DropdownMenu.RadioGroup>
-						</DropdownMenu.Content>
-					</DropdownMenu.Root>
+							<i class="bi bi-chevron-down small ms-2" aria-hidden="true"></i>
+						</DropdownToggle>
+						<DropdownMenu end>
+							<li><h6 class="dropdown-header">State</h6></li>
+							{#each STATE_OPTIONS as option (option.value)}
+								<DropdownItem
+									active={stateView === option.value}
+									on:click={() => setState(option.value)}
+								>
+									<i
+										class="bi bi-check-lg me-2 {stateView === option.value
+											? ''
+											: 'invisible'}"
+										aria-hidden="true"
+									></i>
+									{option.label}
+								</DropdownItem>
+							{/each}
+						</DropdownMenu>
+					</Dropdown>
 					{#if filterCount > 0 && issueFeed.total > 0}
-						<Button variant="ghost" size="sm" onclick={clearFilters}>
+						<Button color="link" size="sm" class="text-decoration-none" on:click={clearFilters}>
 							Clear Filters
 						</Button>
 					{/if}
 				{/snippet}
 			</PageHeader>
 
-			<Toolbar class="px-3">
-				<FeedSearch class="sm:w-full" />
+			<Toolbar>
+				<FeedSearch class="w-100" />
 				<ViewSegment />
-				<div class="max-sm:hidden">
+				<div class="d-none d-sm-block">
 					<GroupByControl
 						projects={data.projects}
 						hasMilestones={data.options.milestones.length > 0}
@@ -189,7 +195,7 @@
 				<FilterPopover options={data.options} allowNoStatus={false} />
 			</Toolbar>
 
-			<div class="flex min-h-[30svh] flex-1 flex-col">
+			<div class="d-flex flex-grow-1 flex-column" style="min-height: 30svh">
 				<IssueList
 					feed={issueFeed}
 					{selected}
@@ -202,7 +208,7 @@
 					resetKey={page.url.search}
 				>
 					{#snippet emptyAction()}
-						<Button href="/intake" size="sm">Submit an Issue</Button>
+						<Button href="/intake" color="primary" size="sm">Submit an Issue</Button>
 					{/snippet}
 				</IssueList>
 			</div>

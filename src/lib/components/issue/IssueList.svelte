@@ -1,12 +1,12 @@
 <script lang="ts">
 	import { untrack, type Snippet } from 'svelte';
+	import { Button } from '@sveltestrap/sveltestrap';
 	import { Virtualizer, type VirtualizerHandle } from 'virtua/svelte';
 	import IssueGroupHeader from './IssueGroupHeader.svelte';
 	import IssueRow from './IssueRow.svelte';
 	import type { ProjectOption } from './grouping';
 	import EmptyState from '#lib/components/common/EmptyState.svelte';
 	import InlineStatus from '#lib/components/common/InlineStatus.svelte';
-	import { Button } from '#lib/components/ui/button';
 	import type { Feed } from '#lib/client/feed.svelte';
 	import { getGroupBy, isGroupCollapsed, toggleGroup } from '#lib/client/list-prefs.svelte';
 	import { flattenIssueRows } from '#lib/feeds';
@@ -129,15 +129,15 @@
 </script>
 
 {#snippet retryInitial()}
-	<Button variant="outline" size="sm" onclick={() => void feed?.refreshLoaded()}>Retry</Button>
+	<Button color="secondary" outline size="sm" on:click={() => void feed?.refreshLoaded()}>Retry</Button>
 {/snippet}
 
 {#snippet retryMore()}
-	<Button variant="outline" size="sm" onclick={() => void feed?.loadMore()}>Retry</Button>
+	<Button color="secondary" outline size="sm" on:click={() => void feed?.loadMore()}>Retry</Button>
 {/snippet}
 
 {#snippet skeleton()}
-	<div class="flex min-h-0 flex-1 flex-col" role="status" aria-label="Loading issues…">
+	<div class="d-flex min-h-0 flex-grow-1 flex-column" role="status" aria-label="Loading issues…">
 		{#each SKELETON_ROWS as row (row)}
 			<div class="issue-skeleton-row" aria-hidden="true">
 				<span class="skeleton-ref"></span>
@@ -150,30 +150,23 @@
 
 {#snippet noResults()}
 	{#if filtered && onclear}
-		<EmptyState
-			title={empty}
-			class="flex-1 items-start justify-start text-left"
-		>
+		<EmptyState title={empty} class="flex-grow-1">
 			{#snippet action()}
-				<Button variant="outline" size="sm" onclick={onclear}>Clear Filters</Button>
+				<Button color="secondary" outline size="sm" on:click={onclear}>Clear Filters</Button>
 			{/snippet}
 		</EmptyState>
 	{:else if emptyAction}
-		<EmptyState
-			title={empty}
-			class="flex-1 items-start justify-start text-left"
-			action={emptyAction}
-		/>
+		<EmptyState title={empty} class="flex-grow-1" action={emptyAction} />
 	{:else}
-		<EmptyState title={empty} class="flex-1 items-start justify-start text-left" />
+		<EmptyState title={empty} class="flex-grow-1" />
 	{/if}
 {/snippet}
 
-<div class="issue-feed flex min-h-0 flex-1 flex-col">
+<div class="issue-feed d-flex min-h-0 flex-grow-1 flex-column">
 	{#if loading}
 		{@render skeleton()}
 	{:else if failed}
-		<div class="min-h-0 flex-1 px-3 py-4">
+		<div class="min-h-0 flex-grow-1 px-3 py-4">
 			<InlineStatus
 				tone="error"
 				message={feed?.error ?? 'Could not load issues.'}
@@ -183,7 +176,7 @@
 	{:else if projected.length === 0}
 		{@render noResults()}
 	{:else}
-		<div class="min-h-0 flex-1 overflow-y-auto" bind:this={scroller}>
+		<div class="min-h-0 flex-grow-1 overflow-y-auto" bind:this={scroller}>
 			<Virtualizer
 				data={rows}
 				getKey={(row) => row.key}
@@ -213,11 +206,11 @@
 		</div>
 
 		{#if feed && feed.error !== null}
-			<div class="shrink-0 border-t border-border-subtle px-3 py-2">
+			<div class="flex-shrink-0 border-top px-3 py-2">
 				<InlineStatus tone="error" message={feed.error} action={retryMore} />
 			</div>
 		{:else if feed && feed.loading}
-			<p class="shrink-0 border-t border-border-subtle px-3 py-2 text-caption text-fg-secondary" role="status">
+			<p class="flex-shrink-0 border-top px-3 py-2 small text-body-secondary mb-0" role="status">
 				Loading more…
 			</p>
 		{/if}
@@ -225,11 +218,11 @@
 
 	{#if !loading && !failed}
 		<footer
-			class="flex shrink-0 flex-wrap items-center gap-x-2 gap-y-1 border-t border-border-subtle px-3 py-1.5 text-caption text-fg-secondary"
+			class="d-flex flex-shrink-0 flex-wrap align-items-center column-gap-2 row-gap-1 border-top px-3 py-1 small text-body-secondary"
 		>
-			<span class="tabular-nums">{count.toLocaleString()} {count === 1 ? 'issue' : 'issues'}</span>
+			<span class="issue-count">{count.toLocaleString()} {count === 1 ? 'issue' : 'issues'}</span>
 			{#if feed && shown < count}
-				<span class="tabular-nums text-fg-muted">· {shown.toLocaleString()} shown</span>
+				<span class="issue-count text-body-tertiary">· {shown.toLocaleString()} shown</span>
 			{/if}
 		</footer>
 	{/if}
@@ -237,33 +230,33 @@
 
 <style>
 	.issue-skeleton-row {
-		--issue-ref-column: calc(var(--space-7) + var(--space-6) + var(--space-2));
+		--issue-ref-column: 5.5rem;
 		display: grid;
 		grid-template-columns: var(--issue-ref-column) minmax(0, 1fr);
 		grid-template-areas:
 			'ref title'
 			'. meta';
 		align-items: center;
-		min-height: var(--size-row-comfortable);
-		column-gap: var(--space-3);
-		row-gap: var(--space-1);
-		padding: var(--space-1) var(--space-3);
-		border-bottom: 1px solid var(--color-border-subtle);
+		min-height: 3rem;
+		column-gap: 0.75rem;
+		row-gap: 0.25rem;
+		padding: 0.25rem 0.75rem;
+		border-bottom: 1px solid var(--bs-border-color);
 	}
 
 	.skeleton-ref,
 	.skeleton-title,
 	.skeleton-meta {
 		display: block;
-		height: var(--space-3);
-		border-radius: var(--radius-sm);
-		background: var(--color-surface-2);
+		height: 0.75rem;
+		border-radius: var(--bs-border-radius-sm);
+		background: var(--bs-secondary-bg);
 	}
 
 	.skeleton-ref {
 		grid-area: ref;
-		width: calc(var(--issue-ref-column) - var(--space-2));
-		height: var(--space-2);
+		width: calc(var(--issue-ref-column) - 0.5rem);
+		height: 0.5rem;
 	}
 
 	.skeleton-title {
@@ -274,6 +267,10 @@
 	.skeleton-meta {
 		grid-area: meta;
 		width: 46%;
-		height: var(--space-2);
+		height: 0.5rem;
+	}
+
+	.issue-count {
+		font-variant-numeric: tabular-nums;
 	}
 </style>

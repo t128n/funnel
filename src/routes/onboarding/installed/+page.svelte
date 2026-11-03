@@ -1,9 +1,8 @@
 <script lang="ts">
-	import ExternalLinkIcon from '@lucide/svelte/icons/external-link';
+	import { Button } from '@sveltestrap/sveltestrap';
 	import InlineStatus from '#lib/components/common/InlineStatus.svelte';
 	import FocusedShell from '#lib/components/onboarding/focused-shell.svelte';
 	import PageHead from '#lib/components/common/PageHead.svelte';
-	import { Button } from '#lib/components/ui/button';
 	import OnboardingSteps from '#lib/components/onboarding/onboarding-steps.svelte';
 	import type { PageProps } from './$types';
 
@@ -22,24 +21,22 @@
 
 <PageHead
 	title={data.installed ? 'Funnel Is Ready' : 'Installation Required'}
-	description={
-		data.installed
-			? 'Pick the repositories Funnel should mirror.'
-			: 'Install the GitHub App first, then return here.'
-	}
+	description={data.installed
+		? 'Pick the repositories Funnel should mirror.'
+		: 'Install the GitHub App first, then return here.'}
 />
 
 <FocusedShell>
-	<div class="flex flex-col gap-2">
-		<h1 class="text-heading-md font-semibold leading-heading-md text-fg">
+	<div class="d-flex flex-column gap-2">
+		<h1 class="h4 fw-semibold mb-0">
 			{data.installed ? 'Funnel Is Ready' : 'Installation Required'}
 		</h1>
-		<p class="max-w-[var(--layout-measure)] text-body leading-body text-fg-secondary">
+		<p class="measure text-body-secondary mb-0">
 			{#if data.installed}
 				Choose the repositories Funnel should mirror. You can change this any time in Settings →
 				Repositories.
 			{:else}
-				Install <strong class="font-semibold text-fg">{data.appName}</strong> on GitHub first, then
+				Install <strong class="fw-semibold text-body">{data.appName}</strong> on GitHub first, then
 				return here.
 			{/if}
 		</p>
@@ -48,28 +45,28 @@
 	<OnboardingSteps active={3} />
 
 	{#if !data.installed}
-		<section class="min-w-0 w-full border-t border-border-subtle pt-4">
-			<h2 class="text-heading-sm font-semibold leading-heading-sm text-fg">Installation</h2>
-			<p class="mt-1 text-body leading-body text-fg-secondary">
+		<section class="min-w-0 w-100 border-top pt-4">
+			<h2 class="h5 fw-semibold mb-0">Installation</h2>
+			<p class="mt-1 mb-0 text-body-secondary">
 				Funnel cannot see the installation yet. Finish the GitHub install step, then come back to
 				this page.
 			</p>
 			<div class="mt-4">
-				<Button href={data.installUrl}>
-					<ExternalLinkIcon />
+				<Button color="primary" href={data.installUrl}>
+					<i class="bi bi-box-arrow-up-right me-1" aria-hidden="true"></i>
 					Install on GitHub
 				</Button>
 			</div>
 		</section>
 	{:else}
-		<form method="POST" action="?/save" class="flex flex-col gap-4">
-			<section class="min-w-0 w-full border-t border-border-subtle pt-4">
-				<h2 class="text-heading-sm font-semibold leading-heading-sm text-fg">Repositories</h2>
-				<div class="mt-1 flex flex-wrap items-baseline justify-between gap-2">
-					<p class="text-body leading-body text-fg-secondary">
-						Owner: <span class="mono">{data.ownerLogin}</span>
+		<form method="POST" action="?/save" class="d-flex flex-column gap-4">
+			<section class="min-w-0 w-100 border-top pt-4">
+				<h2 class="h5 fw-semibold mb-0">Repositories</h2>
+				<div class="mt-1 d-flex flex-wrap align-items-baseline justify-content-between gap-2">
+					<p class="mb-0 text-body-secondary">
+						Owner: <span class="font-monospace">{data.ownerLogin}</span>
 					</p>
-					<span class="text-caption text-fg-secondary">
+					<span class="small text-body-secondary">
 						{data.repos.length} available · {selected.length} selected
 					</span>
 				</div>
@@ -79,32 +76,35 @@
 				{/if}
 
 				{#if data.repos.length === 0}
-					<p class="mt-4 text-body text-fg-secondary">
+					<p class="mt-4 mb-0 text-body-secondary">
 						This installation has no repositories yet.
 					</p>
 				{:else}
-					<div class="mt-4 flex justify-end">
-						<Button type="button" variant="outline" onclick={toggleAll}>
+					<div class="mt-4 d-flex justify-content-end">
+						<Button type="button" color="outline-secondary" onclick={toggleAll}>
 							{allSelected ? 'Clear All' : 'Select All'}
 						</Button>
 					</div>
-					<ul class="mt-2 border-t border-border-subtle">
+					<ul class="list-unstyled mt-2 mb-0 border-top">
 						{#each data.repos as repo (repo.fullName)}
-							<li class="border-b border-border-subtle">
-								<label class="flex min-h-(--size-row-default) cursor-pointer items-center gap-3 py-2">
+							<li class="border-bottom">
+								<label
+									class="form-check d-flex align-items-center gap-2 py-2 mb-0 ps-0"
+									style="min-height: var(--funnel-row-compact)"
+								>
 									<input
 										type="checkbox"
 										name="repos"
 										value={repo.fullName}
 										bind:group={selected}
-										class="size-4 shrink-0 accent-primary"
+										class="form-check-input flex-shrink-0 m-0"
 									/>
-									<span class="mono min-w-0 flex-1 truncate">{repo.fullName}</span>
+									<span class="font-monospace min-w-0 flex-grow-1 text-truncate">{repo.fullName}</span>
 									{#if repo.private}
-										<span class="text-caption text-fg-secondary">Private</span>
+										<span class="small text-body-secondary">Private</span>
 									{/if}
 									{#if repo.archived}
-										<span class="text-caption text-fg-secondary">Archived</span>
+										<span class="small text-body-secondary">Archived</span>
 									{/if}
 								</label>
 							</li>
@@ -112,8 +112,10 @@
 					</ul>
 				{/if}
 
-				<footer class="mt-4 flex justify-end border-t border-border-subtle pt-4">
-					<Button type="submit" disabled={selected.length === 0}>Save and Continue</Button>
+				<footer class="mt-4 d-flex justify-content-end border-top pt-4">
+					<Button type="submit" color="primary" disabled={selected.length === 0}>
+						Save and Continue
+					</Button>
 				</footer>
 			</section>
 		</form>

@@ -2,6 +2,7 @@
 	import { untrack } from 'svelte';
 	import { Virtualizer, type VirtualizerHandle } from 'virtua/svelte';
 	import { page } from '$app/state';
+	import { Button } from '@sveltestrap/sveltestrap';
 	import FeedSearch from '#lib/components/filter/FeedSearch.svelte';
 	import FilterPopover from '#lib/components/filter/FilterPopover.svelte';
 	import IssueGroupHeader from '#lib/components/issue/IssueGroupHeader.svelte';
@@ -14,7 +15,6 @@
 	import Toolbar from '#lib/components/shell/Toolbar.svelte';
 	import SubmissionRow from '#lib/components/inbox/SubmissionRow.svelte';
 	import IssueRow from '#lib/components/issue/IssueRow.svelte';
-	import { Button } from '#lib/components/ui/button';
 	import { createFeed } from '#lib/client/feed.svelte';
 	import { isGroupCollapsed, toggleGroup } from '#lib/client/list-prefs.svelte';
 	import {
@@ -146,16 +146,15 @@
 
 <SplitView detailOpen={selectedIssue !== null || selectedSubmissionId !== null}>
 	{#snippet feed()}
-		<div class="flex min-h-0 flex-1 flex-col overflow-y-auto bg-canvas">
+		<div class="d-flex min-h-0 flex-grow-1 flex-column overflow-y-auto bg-body">
 			<PageHeader
 				title="Inbox"
 				count={summary}
 				level={selectedIssue !== null || selectedSubmissionId !== null ? 2 : 1}
-				class="px-3"
 			/>
 
-			<Toolbar class="px-3">
-				<div class="min-w-0 flex-1">
+			<Toolbar>
+				<div class="min-w-0 flex-grow-1">
 					<FeedSearch />
 				</div>
 				{#snippet actions()}
@@ -164,7 +163,7 @@
 			</Toolbar>
 
 			{#if formError}
-				<div class="border-b border-border-subtle px-3 py-2">
+				<div class="border-bottom px-3 py-2">
 					<InlineStatus tone="error" message={formError} />
 				</div>
 			{/if}
@@ -173,35 +172,37 @@
 				<EmptyState
 					title="Inbox zero"
 					description="Nothing staged or untriaged."
-					class="flex-1 px-3"
+					class="flex-grow-1 px-3"
 				>
 					{#snippet action()}
-						<Button variant="outline" size="sm" href="/issues">View all issues</Button>
+						<Button color="outline-secondary" size="sm" href="/issues">
+							View all issues
+						</Button>
 					{/snippet}
 				</EmptyState>
 			{:else}
-				<div class="min-h-[30svh] flex-1 overflow-y-auto" bind:this={scroller}>
+				<div class="inbox-scroll flex-grow-1 overflow-y-auto" bind:this={scroller}>
 					{#if submissions.length > 0}
 						<section aria-labelledby="inbox-submissions-heading">
-							<div class="flex items-center justify-between gap-2 px-3 pb-1 pt-3">
+							<div class="d-flex align-items-center justify-content-between gap-2 px-3 pb-1 pt-3">
 								<h2
 									id="inbox-submissions-heading"
-									class="text-caption font-semibold text-fg-secondary"
+									class="small fw-semibold text-body-secondary mb-0"
 								>
 									Submissions
 								</h2>
-								<span class="text-caption text-fg-muted tabular-nums">
+								<span class="small text-body-tertiary tabular">
 									{submissions.length}
 								</span>
 							</div>
 
 							<div
-								class="flex h-(--size-row-compact) items-center gap-3 border-y border-border-subtle bg-surface-2 px-3 text-caption font-semibold text-fg"
+								class="submissions-header d-flex align-items-center gap-3 border-top border-bottom bg-body-secondary px-3 small fw-semibold text-body"
 								aria-hidden="true"
 							>
-								<span class="w-24 shrink-0">Source</span>
-								<span class="min-w-0 flex-1">Title</span>
-								<span class="w-20 shrink-0 text-right">Received</span>
+								<span class="submission-source flex-shrink-0">Source</span>
+								<span class="min-w-0 flex-grow-1">Title</span>
+								<span class="submission-received flex-shrink-0 text-end">Received</span>
 							</div>
 
 							{#each submissions as entry (entry.submission.id)}
@@ -215,22 +216,22 @@
 
 					{#if issues.length > 0}
 						<section
-							class="[container-type:inline-size]"
+							style="container-type: inline-size"
 							aria-labelledby="inbox-issues-heading"
 						>
-							<div class="flex items-center justify-between gap-2 px-3 pb-1 pt-3">
+							<div class="d-flex align-items-center justify-content-between gap-2 px-3 pb-1 pt-3">
 								<h2
 									id="inbox-issues-heading"
-									class="text-caption font-semibold text-fg-secondary"
+									class="small fw-semibold text-body-secondary mb-0"
 								>
 									Untriaged Issues
 								</h2>
-								<span class="text-caption text-fg-muted tabular-nums">
+								<span class="small text-body-tertiary tabular">
 									{untriagedTotal}
 								</span>
 							</div>
 
-							<IssueListHeader class="sticky top-0 z-10" />
+							<IssueListHeader class="sticky-top" />
 
 							<Virtualizer
 								data={rows}
@@ -265,15 +266,15 @@
 					{/if}
 
 					{#if inboxFeed.loading}
-						<div class="border-t border-border-subtle px-3 py-2">
+						<div class="border-top px-3 py-2">
 							<InlineStatus tone="info" message="Loading more…" />
 						</div>
 					{:else if inboxFeed.error !== null}
-						<div class="border-t border-border-subtle px-3 py-2">
+						<div class="border-top px-3 py-2">
 							<InlineStatus tone="error" message={inboxFeed.error}>
 								{#snippet action()}
 									<Button
-										variant="link"
+										color="link"
 										size="sm"
 										onclick={() => void inboxFeed.loadMore()}
 									>
@@ -292,3 +293,25 @@
 		{@render children()}
 	{/snippet}
 </SplitView>
+
+<style>
+	.inbox-scroll {
+		min-height: 30svh;
+	}
+
+	.submissions-header {
+		min-height: var(--funnel-row-compact);
+	}
+
+	.submission-source {
+		width: 6rem;
+	}
+
+	.submission-received {
+		width: 5rem;
+	}
+
+	.tabular {
+		font-variant-numeric: tabular-nums;
+	}
+</style>

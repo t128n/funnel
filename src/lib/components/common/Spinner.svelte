@@ -1,6 +1,5 @@
 <script lang="ts">
-	import { Spinner as SpinnerIcon } from '#lib/components/ui/spinner';
-	import { cn } from '#lib/utils';
+	import { Spinner as BootstrapSpinner } from '@sveltestrap/sveltestrap';
 
 	interface Props {
 		size?: number;
@@ -8,10 +7,7 @@
 		class?: string;
 	}
 
-	let { size = 14, label = 'Loading', class: className }: Props = $props();
+	let { size = 14, label = 'Loading', class: className = '' }: Props = $props();
 </script>
 
-<SpinnerIcon
-	class={cn(size <= 14 ? 'size-3.5' : size <= 18 ? 'size-4' : 'size-5', className)}
-	aria-label={label}
-/>
+<BootstrapSpinner size={size <= 14 ? 'sm' : ''} class={className}>{label}</BootstrapSpinner>

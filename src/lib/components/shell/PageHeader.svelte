@@ -1,6 +1,5 @@
 <script lang="ts">
-	import type { Snippet } from "svelte";
-	import { cn } from "#lib/utils";
+	import type { Snippet } from 'svelte';
 
 	interface Props {
 		title: string;
@@ -15,38 +14,31 @@
 		class?: string;
 	}
 
-	let { title, description, count, level = 1, actions, class: className }: Props = $props();
+	let { title, description, count, level = 1, actions, class: className = '' }: Props = $props();
 </script>
 
 <header
-	class={cn(
-		"flex flex-wrap items-end justify-between gap-x-4 gap-y-3 px-[var(--layout-page-padding)] pb-4 pt-5",
-		className
-	)}
+	class="d-flex flex-wrap align-items-end justify-content-between gap-3 px-3 pt-3 pb-2 {className}"
 >
 	<div class="min-w-0">
-		<div class="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+		<div class="d-flex flex-wrap align-items-baseline gap-2">
 			<svelte:element
-				this={level === 1 ? "h1" : "h2"}
-				class={level === 1
-					? "min-w-0 text-heading-md font-semibold leading-heading-md tracking-[-0.01em] text-fg"
-					: "min-w-0 text-heading-sm font-semibold leading-heading-sm text-fg"}
+				this={level === 1 ? 'h1' : 'h2'}
+				class={level === 1 ? 'h4 mb-0' : 'h5 mb-0'}
 			>
 				{title}
 			</svelte:element>
-			{#if count !== undefined && count !== ""}
-				<span class="text-body text-fg-secondary tabular-nums">{count}</span>
+			{#if count !== undefined && count !== ''}
+				<span class="text-body-secondary">{count}</span>
 			{/if}
 		</div>
 		{#if description}
-			<p class="mt-1 max-w-[var(--layout-measure)] text-body leading-body text-fg-secondary">
-				{description}
-			</p>
+			<p class="mb-0 mt-1 text-body-secondary measure">{description}</p>
 		{/if}
 	</div>
 
 	{#if actions}
-		<div class="flex shrink-0 flex-wrap items-center gap-2">
+		<div class="d-flex flex-wrap align-items-center gap-2">
 			{@render actions()}
 		</div>
 	{/if}

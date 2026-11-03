@@ -2,7 +2,6 @@
 	import type { Snippet } from 'svelte';
 	import { codeBlocks } from '#lib/client/code-blocks';
 	import { mermaidDiagrams } from '#lib/client/mermaid';
-	import { cn } from '#lib/utils';
 
 	/**
 	 * Shared document shell for the master–detail canvases (the Issue inspector
@@ -39,7 +38,7 @@
 
 	let {
 		ariaLabel,
-		class: className,
+		class: className = '',
 		contentKey,
 		wide = false,
 		element = $bindable(null),
@@ -49,43 +48,28 @@
 		children
 	}: Props = $props();
 
-	const MEASURE = $derived(
-		wide ? 'mx-auto w-full max-w-[75rem]' : 'mx-auto w-full max-w-[var(--layout-inspector)]'
-	);
+	const measure = $derived(wide ? 'detail-measure detail-measure--wide' : 'detail-measure');
 </script>
 
-<aside
-	bind:this={element}
-	class={cn('flex h-full flex-col bg-canvas', className)}
-	aria-label={ariaLabel}
->
-	<header class="shrink-0 border-b border-border-subtle">
-		<div
-			class={cn(
-				'mx-auto flex w-full items-center justify-between gap-2 px-[var(--layout-page-padding)] py-3',
-				wide ? 'max-w-[75rem]' : 'max-w-[var(--layout-inspector)]'
-			)}
-		>
+<aside bind:this={element} class="d-flex h-100 flex-column bg-body {className}" aria-label={ariaLabel}>
+	<header class="flex-shrink-0 border-bottom">
+		<div class="{measure} d-flex align-items-center justify-content-between gap-2 px-3 py-2">
 			{@render header()}
 		</div>
 	</header>
 
-	<div class="min-h-0 flex-1 overflow-y-auto">
+	<div class="min-h-0 flex-grow-1 overflow-y-auto">
 		<div
-			class={cn(
-				MEASURE,
-				'px-[var(--layout-page-padding)] py-5',
-				aside ? '@container min-h-full' : 'flex min-h-full flex-col gap-[var(--space-6)]'
-			)}
+			class="{measure} detail-body px-3 py-4 {aside
+				? ''
+				: 'd-flex min-vh-100 flex-column gap-4'}"
 			use:codeBlocks={contentKey}
 			use:mermaidDiagrams={contentKey}
 		>
 			{#if aside}
-				<div
-					class="grid grid-cols-1 items-start gap-x-10 gap-y-[var(--space-6)] @min-[900px]:grid-cols-[minmax(0,1fr)_minmax(0,22rem)]"
-				>
-					<div class="flex min-w-0 flex-col gap-[var(--space-6)]">{@render children()}</div>
-					<div class="flex min-w-0 flex-col gap-[var(--space-6)]">{@render aside()}</div>
+				<div class="detail-with-aside">
+					<div class="d-flex min-w-0 flex-column gap-4">{@render children()}</div>
+					<div class="d-flex min-w-0 flex-column gap-4">{@render aside()}</div>
 				</div>
 			{:else}
 				{@render children()}
@@ -94,8 +78,8 @@
 	</div>
 
 	{#if footer}
-		<footer class="shrink-0 border-t border-border-subtle bg-canvas">
-			<div class={cn(MEASURE, 'px-[var(--layout-page-padding)] py-2')}>
+		<footer class="flex-shrink-0 border-top bg-body">
+			<div class="{measure} px-3 py-2">
 				{@render footer()}
 			</div>
 		</footer>

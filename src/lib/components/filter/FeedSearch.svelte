@@ -2,28 +2,20 @@
 	import { untrack } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
-	import * as InputGroup from '#lib/components/ui/input-group';
-	import { cn } from '#lib/utils';
+	import { Button } from '@sveltestrap/sveltestrap';
 	import { buildFilterUrl, parseFilterParams } from '#lib/url-filter';
-	import SearchIcon from '@lucide/svelte/icons/search';
-	import XIcon from '@lucide/svelte/icons/x';
 
 	/**
 	 * Full-text search for the feed column. Owns the same `q` parameter as the
 	 * classic Filter Bar and keeps the shared `#issue-search` id so the global
 	 * ⌘K shortcut can focus it.
-	 *
-	 * Geometry matches the standard field: 2.25rem high, 12px leading inset.
-	 * A leading icon identifies the field and a trailing clear control appears
-	 * only when there is a query, so the browser's own search affordance is
-	 * suppressed rather than doubled.
 	 */
 	interface Props {
 		/** Width override for the containing toolbar. */
 		class?: string;
 	}
 
-	let { class: className }: Props = $props();
+	let { class: className = '' }: Props = $props();
 
 	const filter = $derived(parseFilterParams(page.url.searchParams));
 
@@ -60,22 +52,19 @@
 	}
 </script>
 
-<div
-	class={cn(
-		'flex w-full min-w-0 flex-col gap-1 sm:w-[var(--layout-search-field)] sm:flex-none',
-		className
-	)}
->
-	<label for="issue-search" class="text-caption font-semibold text-fg-secondary">Search</label>
-	<InputGroup.Root>
-		<InputGroup.Addon align="inline-start" class="pl-3 text-fg-muted">
-			<SearchIcon class="size-4" aria-hidden="true" />
-		</InputGroup.Addon>
-		<InputGroup.Input
-			bind:ref={input}
+<div class="d-flex min-w-0 flex-column gap-1 {className}">
+	<label for="issue-search" class="form-label small fw-semibold text-body-secondary mb-0"
+		>Search</label
+	>
+	<div class="input-group input-group-sm">
+		<span class="input-group-text text-body-secondary">
+			<i class="bi bi-search" aria-hidden="true"></i>
+		</span>
+		<input
+			bind:this={input}
 			id="issue-search"
 			type="search"
-			class="px-2 [&::-webkit-search-cancel-button]:appearance-none"
+			class="form-control form-control-sm"
 			placeholder="Title, body, comments…"
 			value={search}
 			oninput={(event) => onInput(event.currentTarget.value)}
@@ -84,16 +73,9 @@
 			aria-label="Search issues"
 		/>
 		{#if search}
-			<InputGroup.Addon align="inline-end" class="pr-1">
-				<button
-					type="button"
-					class="inline-flex size-(--size-control-sm) items-center justify-center rounded-sm text-fg-muted hover:bg-surface hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-					aria-label="Clear search"
-					onclick={clear}
-				>
-					<XIcon class="size-4" aria-hidden="true" />
-				</button>
-			</InputGroup.Addon>
+			<Button color="outline-secondary" aria-label="Clear search" onclick={clear}>
+				<i class="bi bi-x-lg" aria-hidden="true"></i>
+			</Button>
 		{/if}
-	</InputGroup.Root>
+	</div>
 </div>

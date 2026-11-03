@@ -3,8 +3,9 @@
 	import { HotkeysProvider } from '@tanstack/svelte-hotkeys';
 	import { appHotkeys } from '#lib/client/hotkeys';
 	import { initTheme } from '#lib/client/theme';
-	import * as Tooltip from '#lib/components/ui/tooltip';
-	import '#lib/styles/global.css';
+	import 'bootstrap/dist/css/bootstrap.min.css';
+	import 'bootstrap-icons/font/bootstrap-icons.css';
+	import '#lib/styles/app.css';
 	import '#lib/styles/markdown.css';
 	import type { LayoutProps } from './$types';
 
@@ -15,7 +16,5 @@
 </script>
 
 <HotkeysProvider {appHotkeys}>
-	<Tooltip.Provider delayDuration={0}>
-		{@render children()}
-	</Tooltip.Provider>
+	{@render children()}
 </HotkeysProvider>

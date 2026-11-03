@@ -1,6 +1,5 @@
 <script lang="ts">
 	import type { IssueTime } from '#lib/server/actuals/time';
-	import { cn } from '#lib/utils';
 	import { timeCardRows } from './inspector-format';
 
 	/** Estimate, actual, delay and variance for one issue (SPEC §5). */
@@ -13,29 +12,35 @@
 	const rows = $derived(timeCardRows(time));
 
 	const toneClass = {
-		neutral: 'text-fg',
+		neutral: 'text-body',
 		positive: 'text-success',
-		negative: 'text-error'
+		negative: 'text-danger'
 	} as const;
 </script>
 
-<section class="flex flex-col gap-2" aria-label="Time">
-	<div class="flex items-baseline justify-between gap-3 border-t border-border-subtle pt-3">
-		<h2 class="text-heading-sm font-semibold text-fg">Time</h2>
+<section class="d-flex flex-column gap-2" aria-label="Time">
+	<div class="d-flex align-items-baseline justify-content-between gap-3 border-top pt-3">
+		<h2 class="h5 fw-semibold mb-0">Time</h2>
 		{#if time.delayCount > 0}
-			<span class="text-caption tabular-nums text-fg-secondary">
+			<span class="small text-body-secondary time-number">
 				{time.delayCount} {time.delayCount === 1 ? 'delay' : 'delays'}
 			</span>
 		{/if}
 	</div>
-	<dl class="grid grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-4">
+	<dl class="row row-cols-2 row-cols-sm-4 g-3 mb-0">
 		{#each rows as row (row.key)}
-			<div class="flex min-w-0 flex-col gap-0.5">
-				<dt class="text-caption text-fg-secondary">{row.label}</dt>
-				<dd class={cn('truncate text-body font-semibold tabular-nums', toneClass[row.tone])}>
+			<div class="col d-flex min-w-0 flex-column gap-1">
+				<dt class="small fw-normal text-body-secondary">{row.label}</dt>
+				<dd class="mb-0 text-truncate fw-semibold {toneClass[row.tone]} time-number">
 					{row.value}
 				</dd>
 			</div>
 		{/each}
 	</dl>
 </section>
+
+<style>
+	.time-number {
+		font-variant-numeric: tabular-nums;
+	}
+</style>

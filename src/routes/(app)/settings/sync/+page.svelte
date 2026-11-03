@@ -1,8 +1,6 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
-	import CircleCheckIcon from '@lucide/svelte/icons/circle-check';
-	import * as Field from '#lib/components/ui/field';
-	import { Input } from '#lib/components/ui/input';
+	import { FormGroup, Input, Label } from '@sveltestrap/sveltestrap';
 	import Section from '#lib/components/settings/section.svelte';
 	import SettingsForm from '#lib/components/settings/settings-form.svelte';
 	import type { SettingsFormResult } from '#lib/components/settings/sections';
@@ -34,11 +32,11 @@
 		title="Current configuration"
 		description="The active interval applies while someone has the cockpit open; the idle interval is the background cadence."
 	>
-		<dl class="label-value">
+		<dl class="property-list">
 			<dt>Status</dt>
 			<dd>
-				<span class="status status-success">
-					<CircleCheckIcon aria-hidden="true" />
+				<span class="d-inline-flex align-items-center gap-1 small text-success">
+					<i class="bi bi-check-circle" aria-hidden="true"></i>
 					Polling
 				</span>
 			</dd>
@@ -52,17 +50,17 @@
 	</Section>
 
 	<Section title="Polling intervals">
-		<Field.Field>
-			<Field.Label for="sync-history-days">History window (days)</Field.Label>
+		<FormGroup class="mb-0">
+			<Label for="sync-history-days">History window (days)</Label>
 			<Input id="sync-history-days" type="number" min="0" bind:value={historyDays} />
-		</Field.Field>
-		<Field.Field>
-			<Field.Label for="sync-active-seconds">Active poll (seconds)</Field.Label>
+		</FormGroup>
+		<FormGroup class="mb-0">
+			<Label for="sync-active-seconds">Active poll (seconds)</Label>
 			<Input id="sync-active-seconds" type="number" min="0" bind:value={activeSeconds} />
-		</Field.Field>
-		<Field.Field>
-			<Field.Label for="sync-idle-seconds">Idle poll (seconds)</Field.Label>
+		</FormGroup>
+		<FormGroup class="mb-0">
+			<Label for="sync-idle-seconds">Idle poll (seconds)</Label>
 			<Input id="sync-idle-seconds" type="number" min="0" bind:value={idleSeconds} />
-		</Field.Field>
+		</FormGroup>
 	</Section>
 </SettingsForm>

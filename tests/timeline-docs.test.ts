@@ -30,13 +30,12 @@ describe("milestone timeline documentation", () => {
     expect(explanation).toContain("Apache ECharts");
   });
 
-  test("records the t128n timeline rules", () => {
+  test("records the Bootstrap timeline rules", () => {
     const design = read("docs/DESIGN.md");
-    expect(design).toContain("Apache ECharts Gantt");
-    expect(design).toContain("chart-1");
-    expect(design).toContain("chart-2");
-    expect(design).toContain("chart-3");
-    expect(design).toContain("data-table");
+    expect(design).toContain("ECharts");
+    expect(design).toContain("--funnel-chart-*");
+    expect(design).toContain("Bootstrap");
+    expect(design).toContain("undated");
   });
 
   test("links the timeline from the indexes and README", () => {

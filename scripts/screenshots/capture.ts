@@ -91,8 +91,8 @@ export const VIEWS = [
     name: "priority-guidance",
     path: "/issues/acme/widgets/1",
     ready: '[aria-label="Issue inspector"] h2',
-    click: '[title="Change priority"]',
-    readyAfter: '[data-slot="popover-content"]',
+    click: '[data-picker="priority"] button',
+    readyAfter: '[data-picker="priority"] .dropdown-menu.show',
   },
   {
     name: "intake",

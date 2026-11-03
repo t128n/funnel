@@ -1,7 +1,11 @@
 <script lang="ts">
+	import {
+		Button,
+		Dropdown,
+		DropdownMenu,
+		DropdownToggle
+	} from '@sveltestrap/sveltestrap';
 	import PriorityText from '#lib/components/common/PriorityText.svelte';
-	import { selectTriggerClass } from '#lib/components/common/select-trigger';
-	import * as Popover from '#lib/components/ui/popover';
 	import {
 		IMPACT_SCALE,
 		URGENCY_SCALE,
@@ -9,18 +13,17 @@
 		priorityMeta,
 		scaleLevel
 	} from '#lib/priority';
-	import { cn } from '#lib/utils';
 
 	/**
-	 * One Priority affordance in the Inspector. A single pill shows the derived
-	 * value; the popover sets the two inputs behind it, impact and urgency, on a
-	 * 0–3 slider (0 = not assessed). The derived token updates live before the
-	 * write lands.
+	 * One Priority affordance in the Inspector. A single control shows the
+	 * derived value; the dropdown sets the two inputs behind it, impact and
+	 * urgency, on a 0–3 slider (0 = not assessed). The derived token updates
+	 * live before the write lands.
 	 */
 	interface Props {
 		impact: number | null;
 		urgency: number | null;
-		/** The committed derived value; drives the closed pill. */
+		/** The committed derived value; drives the closed control. */
 		priority: string | null;
 		disabled?: boolean;
 		/** Persists one axis; `null` clears it. Returns whether the write landed. */
@@ -51,7 +54,7 @@
 	}
 
 	// The slider is the only place the axes are edited, so the local draft is
-	// authoritative while the popover is open; a closed popover mirrors props.
+	// authoritative while the dropdown is open; a closed dropdown mirrors props.
 	$effect(() => {
 		if (!open) syncFromProps();
 	});
@@ -78,7 +81,7 @@
 		if (value === (axis === 'impact' ? impact : urgency)) return;
 		const ok = await oncommit(axis, value);
 		// A failed write rolls the authoritative value back; match it so the
-		// popover does not keep showing a change that never landed.
+		// dropdown does not keep showing a change that never landed.
 		if (ok === false) syncFromProps();
 	}
 
@@ -90,129 +93,141 @@
 	}
 </script>
 
-<Popover.Root bind:open>
-	<Popover.Trigger
+<Dropdown
+	isOpen={open}
+	toggle={() => (open = !open)}
+	autoClose="outside"
+>
+	<DropdownToggle
+		color="outline-secondary"
+		size="sm"
+		caret
 		{disabled}
-		class={selectTriggerClass('ghost', cn('h-(--size-control-md) gap-1.5', priority && 'text-fg'))}
+		class="d-inline-flex align-items-center gap-1 text-nowrap {disabled ? 'disabled' : ''}"
 		title="Priority"
+		aria-label="Priority"
+		aria-disabled={disabled}
 	>
 		{#if currentMeta}
 			<PriorityText priority={currentMeta.value} showName />
 		{:else}
-			<span class="text-fg-muted">No priority</span>
+			<span class="text-body-tertiary">No priority</span>
 		{/if}
-	</Popover.Trigger>
+	</DropdownToggle>
 
-	<Popover.Content align="start" sideOffset={6} preventScroll={false} class="w-80 max-h-[70vh] overflow-y-auto gap-3">
-		<Popover.Header>
-			<Popover.Title>Priority</Popover.Title>
-			<Popover.Description>
-				Derived from the impact and urgency labels on the issue.
-			</Popover.Description>
-		</Popover.Header>
+	<DropdownMenu class="p-0" style="min-width: 20rem; max-height: 70vh; overflow-y: auto">
+		<li class="p-3 d-flex flex-column gap-3">
+			<div class="d-flex flex-column gap-1">
+				<span class="fw-semibold">Priority</span>
+				<span class="small text-body-secondary">
+					Derived from the impact and urgency labels on the issue.
+				</span>
+			</div>
 
-		<div class="flex items-center justify-between gap-3 border-t border-border-subtle pt-2">
-			<span class="text-caption font-semibold text-fg-secondary">Result</span>
-			<span class="inline-flex min-w-0 items-center gap-1.5">
-				{#if previewMeta}
-					<PriorityText priority={previewMeta.value} showName />
+			<div class="d-flex align-items-center justify-content-between gap-3 border-top pt-2">
+				<span class="small fw-semibold text-body-secondary">Result</span>
+				<span class="d-inline-flex min-w-0 align-items-center gap-1">
+					{#if previewMeta}
+						<PriorityText priority={previewMeta.value} showName />
+					{:else}
+						<span class="small text-body-tertiary">No priority</span>
+					{/if}
+				</span>
+			</div>
+
+			<div class="d-flex flex-column gap-1">
+				<div class="d-flex align-items-baseline justify-content-between gap-2">
+					<span class="small fw-semibold text-body-secondary">Impact</span>
+					<span class="small text-body-tertiary">
+						{impactLevel ? `${impactLevel.value} · ${impactLevel.name}` : 'Not assessed'}
+					</span>
+				</div>
+				<input
+					type="range"
+					min="0"
+					max="3"
+					step="1"
+					value={localImpact ?? 0}
+					{disabled}
+					aria-label="Impact"
+					class="form-range"
+					oninput={(event) => onAxisInput('impact', event)}
+					onchange={() => void commit('impact')}
+				/>
+				{#if impactLevel}
+					<div class="d-flex flex-column gap-1">
+						<p class="small text-body-secondary mb-0">
+							{impactLevel.definition}
+						</p>
+						<ul class="list-unstyled small text-body-tertiary mb-0 d-flex flex-column gap-1">
+							{#each impactLevel.criteria as criterion (criterion.label)}
+								<li>
+									<span class="fw-semibold text-body-secondary">{criterion.label}</span>
+									<span aria-hidden="true"> — </span>
+									{criterion.anchor}
+								</li>
+							{/each}
+						</ul>
+					</div>
 				{:else}
-					<span class="text-caption text-fg-muted">No priority</span>
+					<p class="small text-body-tertiary mb-0" style="min-height: 2rem">
+						Reach, data loss, money, locations, workaround
+					</p>
 				{/if}
-			</span>
-		</div>
-
-		<div class="flex flex-col gap-1.5">
-			<div class="flex items-baseline justify-between gap-2">
-				<span class="text-caption font-semibold text-fg-secondary">Impact</span>
-				<span class="text-caption text-fg-muted">
-					{impactLevel ? `${impactLevel.value} · ${impactLevel.name}` : 'Not assessed'}
-				</span>
 			</div>
-			<input
-				type="range"
-				min="0"
-				max="3"
-				step="1"
-				value={localImpact ?? 0}
-				{disabled}
-				aria-label="Impact"
-				class="w-full accent-primary"
-				oninput={(event) => onAxisInput('impact', event)}
-				onchange={() => void commit('impact')}
-			/>
-			{#if impactLevel}
-				<div class="flex flex-col gap-1">
-					<p class="text-caption leading-caption text-fg-secondary">
-						{impactLevel.definition}
-					</p>
-					<ul class="text-caption flex flex-col gap-0.5 pl-3 leading-caption text-fg-muted">
-						{#each impactLevel.criteria as criterion (criterion.label)}
-							<li>
-								<span class="font-semibold text-fg-secondary">{criterion.label}</span>
-								<span aria-hidden="true"> — </span>
-								{criterion.anchor}
-							</li>
-						{/each}
-					</ul>
-				</div>
-			{:else}
-				<p class="min-h-8 text-caption leading-caption text-fg-muted">
-					Reach, data loss, money, locations, workaround
-				</p>
-			{/if}
-		</div>
 
-		<div class="flex flex-col gap-1.5">
-			<div class="flex items-baseline justify-between gap-2">
-				<span class="text-caption font-semibold text-fg-secondary">Urgency</span>
-				<span class="text-caption text-fg-muted">
-					{urgencyLevel ? `${urgencyLevel.value} · ${urgencyLevel.name}` : 'Not assessed'}
-				</span>
+			<div class="d-flex flex-column gap-1">
+				<div class="d-flex align-items-baseline justify-content-between gap-2">
+					<span class="small fw-semibold text-body-secondary">Urgency</span>
+					<span class="small text-body-tertiary">
+						{urgencyLevel ? `${urgencyLevel.value} · ${urgencyLevel.name}` : 'Not assessed'}
+					</span>
+				</div>
+				<input
+					type="range"
+					min="0"
+					max="3"
+					step="1"
+					value={localUrgency ?? 0}
+					{disabled}
+					aria-label="Urgency"
+					class="form-range"
+					oninput={(event) => onAxisInput('urgency', event)}
+					onchange={() => void commit('urgency')}
+				/>
+				{#if urgencyLevel}
+					<div class="d-flex flex-column gap-1">
+						<p class="small text-body-secondary mb-0">
+							{urgencyLevel.definition}
+						</p>
+						<ul class="list-unstyled small text-body-tertiary mb-0 d-flex flex-column gap-1">
+							{#each urgencyLevel.criteria as criterion (criterion.label)}
+								<li>
+									<span class="fw-semibold text-body-secondary">{criterion.label}</span>
+									<span aria-hidden="true"> — </span>
+									{criterion.anchor}
+								</li>
+							{/each}
+						</ul>
+					</div>
+				{:else}
+					<p class="small text-body-tertiary mb-0" style="min-height: 2rem">
+						Harm now, data or money at risk, spread, blocked people, deadline
+					</p>
+				{/if}
 			</div>
-			<input
-				type="range"
-				min="0"
-				max="3"
-				step="1"
-				value={localUrgency ?? 0}
-				{disabled}
-				aria-label="Urgency"
-				class="w-full accent-primary"
-				oninput={(event) => onAxisInput('urgency', event)}
-				onchange={() => void commit('urgency')}
-			/>
-			{#if urgencyLevel}
-				<div class="flex flex-col gap-1">
-					<p class="text-caption leading-caption text-fg-secondary">
-						{urgencyLevel.definition}
-					</p>
-					<ul class="text-caption flex flex-col gap-0.5 pl-3 leading-caption text-fg-muted">
-						{#each urgencyLevel.criteria as criterion (criterion.label)}
-							<li>
-								<span class="font-semibold text-fg-secondary">{criterion.label}</span>
-								<span aria-hidden="true"> — </span>
-								{criterion.anchor}
-							</li>
-						{/each}
-					</ul>
-				</div>
-			{:else}
-				<p class="min-h-8 text-caption leading-caption text-fg-muted">
-					Harm now, data or money at risk, spread, blocked people, deadline
-				</p>
-			{/if}
-		</div>
 
-		{#if localImpact !== null || localUrgency !== null}
-			<button
-				type="button"
-				class="self-start text-caption text-fg-muted hover:text-fg"
-				{disabled}
-				onclick={() => void clear()}
-			>
-				Clear priority
-			</button>
-		{/if}
-	</Popover.Content>
-</Popover.Root>
+			{#if localImpact !== null || localUrgency !== null}
+				<Button
+					color="link"
+					size="sm"
+					class="align-self-start text-decoration-none p-0 text-body-tertiary"
+					{disabled}
+					onclick={() => void clear()}
+				>
+					Clear priority
+				</Button>
+			{/if}
+		</li>
+	</DropdownMenu>
+</Dropdown>

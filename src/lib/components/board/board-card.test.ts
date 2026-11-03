@@ -37,12 +37,11 @@ describe('cardToken', () => {
 	});
 });
 
-describe('t128n board cards', () => {
+describe('board cards', () => {
 	test('cards are canvas articles with a subtle rule, medium radius, 12px inset', () => {
 		expect(source).toContain('<article');
-		expect(source).toContain('border-border-subtle');
-		expect(source).toContain('bg-canvas');
-		expect(source).toContain('rounded-md');
+		expect(source).toContain('border bg-body');
+		expect(source).toContain('rounded');
 		expect(source).toContain('px-3 py-3');
 		expect(source).not.toContain('shadow-');
 	});
@@ -61,13 +60,14 @@ describe('t128n board cards', () => {
 	test('card anatomy: ref + menu, two-line title, priority/size, trailing assignee', () => {
 		expect(source).toContain('RefText');
 		expect(source).toContain('Issue actions');
-		expect(source).toContain('line-clamp-2');
+		expect(source).toContain('board-card-title');
+		expect(source).toContain('-webkit-line-clamp: 2');
 		expect(source).toContain('title={issue.title}');
-		expect(source).toContain('text-body leading-[1.35] font-semibold');
+		expect(source).toContain('d-flex align-items-start gap-1 small fw-semibold');
 		expect(source).toContain('PriorityText');
 		expect(source).toContain('StatusText blocked');
-		expect(source).toContain('text-caption text-fg-secondary');
-		expect(source).toContain('ml-auto');
+		expect(source).toContain('small text-body-secondary');
+		expect(source).toContain('ms-auto');
 	});
 
 	test('cards drop labels, extra metadata and completed strikethrough', () => {
@@ -78,9 +78,10 @@ describe('t128n board cards', () => {
 	});
 
 	test('interaction states: border-strong hover, leading bar, dimmed drag', () => {
-		expect(source).toContain('hover:border-border-strong');
+		expect(source).toContain('.board-card:hover');
+		expect(source).toContain('border-color: var(--bs-secondary-color)');
 		expect(source).toContain('is-selected-row');
-		expect(source).toContain("dragging && 'opacity-50'");
+		expect(source).toContain('class:opacity-50={dragging}');
 	});
 
 	test('the drag source keeps the same payload and hooks', () => {
@@ -89,13 +90,14 @@ describe('t128n board cards', () => {
 	});
 });
 
-describe('t128n board lanes', () => {
+describe('board lanes', () => {
 	const column = readFileSync(new URL('./BoardColumn.svelte', import.meta.url), 'utf8');
 	const board = readFileSync(new URL('./StatusBoard.svelte', import.meta.url), 'utf8');
 
 	test('lanes are ruled columns, not bordered containers', () => {
-		expect(column).toContain('w-[var(--layout-board-lane)]');
-		expect(column).toContain('snap-start');
+		expect(column).toContain('board-lane');
+		expect(column).toContain('--funnel-board-lane-width');
+		expect(column).toContain('scroll-snap-align: start');
 		expect(column).not.toContain('rounded-md');
 		expect(column).not.toContain('border border-border-subtle');
 		expect(column).not.toContain('bg-canvas');
@@ -104,24 +106,27 @@ describe('t128n board lanes', () => {
 
 	test('lane header is quiet: no fill, bottom rule, stage, count and WIP', () => {
 		const header = column.split('<header')[1]?.split('</header>')[0] ?? '';
-		expect(header).toContain('border-b border-border-subtle');
-		expect(header).not.toContain('bg-surface-2');
-		expect(column).toContain('text-body font-semibold');
+		expect(header).toContain('border-bottom');
+		expect(header).not.toContain('bg-body-secondary');
+		expect(column).toContain('text-body fw-semibold');
 		expect(column).not.toContain('uppercase');
 		expect(column).toContain('{total} / {limit}');
 		expect(column).toContain('Over WIP');
 	});
 
-	test('empty lane offers "No issues" and a ghost New Issue', () => {
+	test('empty lane offers "No issues" and a link-style New Issue', () => {
 		expect(column).toContain('No issues');
 		expect(column).toContain('New Issue');
-		expect(column).toContain('variant="ghost"');
+		expect(column).toContain('color="link"');
 	});
 
-	test('drop indicator is a 2px primary line and the target takes surface-2', () => {
+	test('drop indicator is a 2px primary line and the target takes the secondary background', () => {
 		expect(column).toContain('data-board-drop-indicator');
-		expect(column).toContain('h-0.5 bg-primary');
-		expect(column).toContain('bg-surface-2');
+		expect(column).toContain('board-drop-indicator');
+		expect(column).toContain('height: 2px');
+		expect(column).toContain('background: var(--bs-primary)');
+		expect(column).toContain('board-lane__body--target');
+		expect(column).toContain('background: var(--bs-secondary-bg)');
 	});
 
 	test('drop-target wiring and data attributes are unchanged', () => {
@@ -132,8 +137,9 @@ describe('t128n board lanes', () => {
 
 	test('lanes scroll independently and snap horizontally on mobile', () => {
 		expect(column).toContain('overflow-y-auto');
-		expect(board).toContain('snap-x snap-mandatory');
-		expect(board).toContain('md:snap-none');
-		expect(board).toContain('gap-4');
+		expect(board).toContain('.status-board');
+		expect(board).toContain('scroll-snap-type: x mandatory');
+		expect(board).toContain('scroll-snap-type: none');
+		expect(board).toContain('gap-3');
 	});
 });

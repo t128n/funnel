@@ -15,10 +15,10 @@
 	}: Props = $props();
 </script>
 
-<div class="flex h-full items-start px-[var(--layout-page-padding)] py-6">
-	<p class="max-w-[var(--layout-measure)] text-body leading-body text-fg-secondary">
+<div class="d-flex align-items-start px-3 py-4">
+	<p class="measure text-body-secondary mb-0">
 		{#if title}
-			<span class="font-semibold text-fg">{title}.</span>
+			<strong class="text-body">{title}.</strong>
 		{/if}
 		{description}
 	</p>

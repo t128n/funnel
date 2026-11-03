@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { invalidateAll } from '$app/navigation';
-	import ChevronLeftIcon from '@lucide/svelte/icons/chevron-left';
-	import ChevronRightIcon from '@lucide/svelte/icons/chevron-right';
+	import { Button, Table } from '@sveltestrap/sveltestrap';
 	import EmptyState from '#lib/components/common/EmptyState.svelte';
 	import InlineStatus from '#lib/components/common/InlineStatus.svelte';
 	import PageHead from '#lib/components/common/PageHead.svelte';
@@ -12,7 +11,6 @@
 	import ScheduleDialog from '#lib/components/plan/ScheduleDialog.svelte';
 	import { cycleHeadline, dayHeadline, weekHeadline } from '#lib/components/plan/format';
 	import { scheduleWeekFor, unscheduleRequest } from '#lib/components/plan/schedule';
-	import { Button } from '#lib/components/ui/button';
 	import type { MilestonePlan } from '#lib/server/planning/milestones';
 	import type { PlanningIssue } from '#lib/server/planning/queries';
 	import type { CyclePlan, WeekPlan } from '#lib/server/planning/plans';
@@ -142,14 +140,6 @@
 	]);
 	const horizonName = $derived(horizons.find((item) => item.key === horizon)?.label ?? 'period');
 
-	function tabClass(key: 'week' | 'cycle' | 'milestone' | 'day'): string {
-		const base =
-			'-mb-px inline-flex h-(--size-row-compact) items-center border-b-2 px-2 text-body';
-		return horizon === key
-			? `${base} border-primary font-semibold text-fg`
-			: `${base} border-transparent text-fg-secondary hover:text-fg`;
-	}
-
 	function laneTotals(lanes: WeekPlan['lanes']): { committed: number; cap: number } {
 		return lanes.reduce(
 			(total, lane) => ({
@@ -189,11 +179,16 @@
 
 <PageHead title={`${horizonTitle} · Plan`} description="Week, cycle, milestone and day capacity planning." />
 
-<div class="flex min-h-0 flex-1 flex-col overflow-y-auto">
+<div class="d-flex min-h-0 flex-grow-1 flex-column overflow-y-auto">
 	<PageHeader title={horizonTitle}>
 		{#snippet actions()}
 			{#if mayWrite && horizon !== 'milestone' && horizon !== 'day'}
-				<Button size="sm" disabled={scheduleWeek.length === 0} onclick={() => (dialogOpen = true)}>
+				<Button
+					color="primary"
+					size="sm"
+					disabled={scheduleWeek.length === 0}
+					onclick={() => (dialogOpen = true)}
+				>
 					Schedule Issue
 				</Button>
 			{/if}
@@ -201,15 +196,15 @@
 	</PageHeader>
 
 	<nav
-		class="flex shrink-0 flex-wrap items-center gap-x-4 gap-y-1 border-b border-border-subtle px-[var(--layout-page-padding)]"
+		class="d-flex flex-shrink-0 flex-wrap align-items-center gap-2 border-bottom px-3"
 		aria-label="Planning horizon"
 	>
-		<div class="flex items-stretch gap-1">
+		<div class="d-flex align-items-stretch gap-1">
 			{#each horizons as item (item.key)}
 				<a
 					href={item.href}
 					aria-current={horizon === item.key ? 'page' : undefined}
-					class={tabClass(item.key)}
+					class="plan-tab d-inline-flex align-items-center px-2 text-decoration-none"
 				>
 					{item.label}
 				</a>
@@ -217,63 +212,67 @@
 		</div>
 
 		{#if horizon !== 'milestone'}
-			<div class="ms-auto flex items-center gap-1">
+			<div class="ms-auto d-flex align-items-center gap-1">
 				{#if previousHref}
 					<Button
-						variant="ghost"
-						size="icon-sm"
+						color="link"
+						size="sm"
 						href={previousHref}
+						class="text-body-secondary text-decoration-none px-1"
 						aria-label={`Previous ${horizonName.toLowerCase()}`}
 						title={`Previous ${horizonName.toLowerCase()}`}
 					>
-						<ChevronLeftIcon class="size-4" aria-hidden="true" />
+						<i class="bi bi-chevron-left" aria-hidden="true"></i>
 					</Button>
 				{:else}
 					<Button
-						variant="ghost"
-						size="icon-sm"
+						color="link"
+						size="sm"
 						disabled
+						class="text-body-secondary text-decoration-none px-1"
 						aria-label={`Previous ${horizonName.toLowerCase()}`}
 					>
-						<ChevronLeftIcon class="size-4" aria-hidden="true" />
+						<i class="bi bi-chevron-left" aria-hidden="true"></i>
 					</Button>
 				{/if}
 
 				{#if !isCurrent}
-					<a class="link px-2 text-body" href={todayHref}>Today</a>
+					<a class="link-primary px-2" href={todayHref}>Today</a>
 				{/if}
 
 				{#if nextHref}
 					<Button
-						variant="ghost"
-						size="icon-sm"
+						color="link"
+						size="sm"
 						href={nextHref}
+						class="text-body-secondary text-decoration-none px-1"
 						aria-label={`Next ${horizonName.toLowerCase()}`}
 						title={`Next ${horizonName.toLowerCase()}`}
 					>
-						<ChevronRightIcon class="size-4" aria-hidden="true" />
+						<i class="bi bi-chevron-right" aria-hidden="true"></i>
 					</Button>
 				{:else}
 					<Button
-						variant="ghost"
-						size="icon-sm"
+						color="link"
+						size="sm"
 						disabled
+						class="text-body-secondary text-decoration-none px-1"
 						aria-label={`Next ${horizonName.toLowerCase()}`}
 					>
-						<ChevronRightIcon class="size-4" aria-hidden="true" />
+						<i class="bi bi-chevron-right" aria-hidden="true"></i>
 					</Button>
 				{/if}
 			</div>
 		{/if}
 	</nav>
 
-	<div class="flex w-full flex-col gap-6 px-[var(--layout-page-padding)] py-5">
+	<div class="d-flex w-100 flex-column gap-4 px-3 py-3">
 		{#if removeError}
 			<InlineStatus tone="error" message={removeError}>
 				{#snippet action()}
 					<Button
-						variant="ghost"
-						size="xs"
+						color="link"
+						size="sm"
 						disabled={removing !== null || failedRemove === null}
 						onclick={() => failedRemove && void remove(failedRemove)}
 					>
@@ -300,15 +299,15 @@
 				<EmptyState
 					title="No week loaded."
 					description="Choose a week from the horizon navigation."
-					class="border-y border-border-subtle py-10"
+					class="border-top border-bottom py-5"
 				/>
 			{/if}
 		{:else if horizon === 'cycle'}
 			{#if data.cyclePlan}
-				<section class="flex flex-col gap-2" aria-label="Per-week summaries" data-testid="week-summaries">
-					<h2 class="text-heading-sm font-semibold text-fg">Weeks in this cycle</h2>
+				<section class="d-flex flex-column gap-2" aria-label="Per-week summaries" data-testid="week-summaries">
+					<h2 class="fs-6 fw-semibold text-body mb-0">Weeks in this cycle</h2>
 					<div class="overflow-x-auto">
-						<table class="data-table min-w-0">
+						<Table class="funnel-table table-sm align-middle mb-0">
 							<thead>
 								<tr>
 									<th scope="col">Week</th>
@@ -321,18 +320,18 @@
 								{#each data.cyclePlan.weeks as item (item.weekStart)}
 									{@const totals = laneTotals(item.lanes)}
 									<tr>
-										<th scope="row" class="font-normal">
-											<a class="link" href={horizonHref('week', item.weekStart)}>{item.label}</a>
+										<th scope="row" class="fw-normal">
+											<a class="link-primary text-decoration-none" href={horizonHref('week', item.weekStart)}>{item.label}</a>
 										</th>
-										<td class="text-end tabular-nums">{formatMinutes(totals.committed)}</td>
-										<td class="text-end tabular-nums">{formatMinutes(totals.cap)}</td>
-										<td class="text-end tabular-nums">
+										<td class="text-end tnum">{formatMinutes(totals.committed)}</td>
+										<td class="text-end tnum">{formatMinutes(totals.cap)}</td>
+										<td class="text-end tnum">
 											{formatMinutes(item.unassigned.committedMinutes)}
 										</td>
 									</tr>
 								{/each}
 							</tbody>
-						</table>
+						</Table>
 					</div>
 				</section>
 
@@ -353,7 +352,7 @@
 				<EmptyState
 					title="No cycle loaded."
 					description="Choose a cycle from the horizon navigation."
-					class="border-y border-border-subtle py-10"
+					class="border-top border-bottom py-5"
 				/>
 			{/if}
 		{:else if horizon === 'day'}
@@ -363,7 +362,7 @@
 				<EmptyState
 					title="No day loaded."
 					description="Choose a day from the horizon navigation."
-					class="border-y border-border-subtle py-10"
+					class="border-top border-bottom py-5"
 				/>
 			{/if}
 		{:else}
@@ -380,3 +379,27 @@
 		onopenchange={(open) => (dialogOpen = open)}
 	/>
 {/if}
+
+<style>
+	.plan-tab {
+		min-height: var(--funnel-row-compact);
+		margin-bottom: -1px;
+		border-bottom: 2px solid transparent;
+		color: var(--bs-secondary-color);
+		font-size: 0.875rem;
+	}
+
+	.plan-tab:hover {
+		color: var(--bs-body-color);
+	}
+
+	.plan-tab[aria-current='page'] {
+		border-bottom-color: var(--bs-primary);
+		color: var(--bs-body-color);
+		font-weight: 600;
+	}
+
+	.tnum {
+		font-variant-numeric: tabular-nums;
+	}
+</style>

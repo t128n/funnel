@@ -66,7 +66,6 @@ function getLanguage(language: string) {
 export type HighlightedToken = {
 	content: string;
 	style?: string;
-	class?: string;
 };
 
 // A line of plain text, or the highlighted tokens of a line.
@@ -78,7 +77,6 @@ function toHighlightedLine(tokens: ThemedToken[]): HighlightedToken[] {
 		style: Object.entries(token.htmlStyle ?? {})
 			.map(([property, value]) => `${property}:${value}`)
 			.join(";"),
-		class: "text-(--shiki-light) dark:text-(--shiki-dark)",
 	}));
 }
 

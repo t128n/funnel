@@ -1,7 +1,7 @@
 <script lang="ts">
 	import EmptyState from '#lib/components/common/EmptyState.svelte';
 	import PageHead from '#lib/components/common/PageHead.svelte';
-	import { Button } from '#lib/components/ui/button';
+	import { Button } from '@sveltestrap/sveltestrap';
 	import SubmissionDetail from '#lib/components/inbox/SubmissionDetail.svelte';
 	import type { RenderedSubmission } from '#lib/server/issues/types';
 	import type { PageProps } from './$types';
@@ -31,10 +31,10 @@
 	<EmptyState
 		title="Submission unavailable"
 		description="This submission is no longer staged."
-		class="h-full"
+		class="h-100"
 	>
 		{#snippet action()}
-			<Button variant="outline" size="sm" href="/inbox">Back to Inbox</Button>
+			<Button color="outline-secondary" size="sm" href="/inbox">Back to Inbox</Button>
 		{/snippet}
 	</EmptyState>
 {/if}

@@ -1,7 +1,4 @@
 <script lang="ts">
-	import CheckIcon from '@lucide/svelte/icons/check';
-	import { cn } from '#lib/utils.js';
-
 	interface Props {
 		/** 1-based index of the current step. */
 		active: number;
@@ -13,24 +10,27 @@
 </script>
 
 <nav aria-label="Setup progress">
-	<ol class="flex flex-wrap items-center gap-x-3 gap-y-2 text-caption text-fg-secondary">
+	<ol class="list-unstyled d-flex flex-wrap align-items-center gap-2 small text-body-secondary mb-0">
 		{#each steps as label, index (label)}
 			{@const step = index + 1}
 			{@const done = step < active}
 			{@const current = step === active}
-			<li class="flex items-center gap-1.5" aria-current={current ? 'step' : undefined}>
+			<li
+				class="d-flex align-items-center gap-1"
+				class:fw-semibold={current}
+				class:text-body={current || done}
+				aria-current={current ? 'step' : undefined}
+			>
 				{#if done}
-					<CheckIcon class="size-3.5 shrink-0 text-success" aria-hidden="true" />
+					<i class="bi bi-check-lg flex-shrink-0 text-success" aria-hidden="true"></i>
 				{:else}
-					<span class="mono" aria-hidden="true">{step}</span>
+					<span class="font-monospace" aria-hidden="true">{step}</span>
 				{/if}
-				<span class={cn(current && 'font-semibold text-fg', done && 'text-fg')}>
-					{label}
-				</span>
+				<span>{label}</span>
 			</li>
 			{#if step < steps.length}
-				<li class="list-none" aria-hidden="true">
-					<span class="block h-px w-4 bg-border-subtle"></span>
+				<li aria-hidden="true">
+					<span class="d-block border-top" style="width: 1rem"></span>
 				</li>
 			{/if}
 		{/each}

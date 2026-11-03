@@ -1,11 +1,11 @@
-# Design pivot captures
+# Historical design-pivot captures (pre-Bootstrap)
 
-These images are the before/after evidence for the Bugzilla design language. Each
+These images are historical evidence from the Bugzilla design language, before the Bootstrap migration. The current design is documented in [DESIGN.md](../../DESIGN.md). Each
 view was captured from the same seeded demo instance, at the same viewport, in
 both themes, so the pair shows the design change rather than a data change.
 
 - `before/` — the unmodified tree, captured before the token layer landed.
-- `after/` — the current tree.
+- `after/` — the tree at that time (now historical).
 
 Files are named `<view>-<light|dark>.png`; all forty exist, twenty per directory.
 

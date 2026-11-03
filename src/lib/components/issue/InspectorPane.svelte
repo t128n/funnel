@@ -1,12 +1,14 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { onDestroy, tick, untrack } from 'svelte';
+	import { Button, Input } from '@sveltestrap/sveltestrap';
 	import MultiSelect from '#lib/components/common/MultiSelect.svelte';
 	import SingleSelect from '#lib/components/common/SingleSelect.svelte';
 	import Spinner from '#lib/components/common/Spinner.svelte';
 	import InlineStatus from '#lib/components/common/InlineStatus.svelte';
 	import PriorityText from '#lib/components/common/PriorityText.svelte';
 	import RefText from '#lib/components/common/RefText.svelte';
+	import StatusIcon from '#lib/components/common/StatusIcon.svelte';
 	import StatusText from '#lib/components/common/StatusText.svelte';
 	import BlockActionDialog from '#lib/components/board/BlockActionDialog.svelte';
 	import Composer from '#lib/components/detail/Composer.svelte';
@@ -22,9 +24,6 @@
 	import RecordDelayDialog from '#lib/components/issue/RecordDelayDialog.svelte';
 	import { delayReasonLabel } from '#lib/components/issue/inspector-format';
 	import PriorityPicker from '#lib/components/issue/PriorityPicker.svelte';
-	import { Button } from '#lib/components/ui/button';
-	import { Input } from '#lib/components/ui/input';
-	import { Textarea } from '#lib/components/ui/textarea';
 	import {
 		addIssueComment,
 		addIssueLabels,
@@ -85,15 +84,6 @@
 		RepoMilestoneRef,
 		UserRef
 	} from '#lib/server/issues/types';
-	import { cn } from '#lib/utils';
-	import CheckIcon from '@lucide/svelte/icons/check';
-	import ChevronRightIcon from '@lucide/svelte/icons/chevron-right';
-	import CopyIcon from '@lucide/svelte/icons/copy';
-	import ExternalLinkIcon from '@lucide/svelte/icons/external-link';
-	import MilestoneIcon from '@lucide/svelte/icons/milestone';
-	import RulerIcon from '@lucide/svelte/icons/ruler';
-	import UserIcon from '@lucide/svelte/icons/user';
-	import XIcon from '@lucide/svelte/icons/x';
 
 	interface Props {
 		repo: string;
@@ -226,7 +216,7 @@
 	const closed = $derived(issue?.state === 'closed');
 	const statusOptions = [
 		...STATUS_OPTIONS,
-		{ value: 'done', label: 'Done', color: 'var(--syntax-constant)' }
+		{ value: 'done', label: 'Done', color: 'var(--bs-success)' }
 	];
 	const statusValue = $derived(closed ? 'done' : (issue?.status ?? null));
 	const priorityValue = $derived(issue?.priority ?? null);
@@ -262,12 +252,6 @@
 	const githubLink = $derived(`${githubUrl}/${repo}/issues/${number}`);
 	/** Only show the composer once the issue has loaded. */
 	const canEdit = $derived(issue !== null && detail !== null);
-
-	/** Shared geometry for the values in the header triage strip. */
-	const triageControlClass =
-		'inline-flex h-(--size-control-md) max-w-full min-w-0 items-center gap-1.5 rounded-sm px-3 text-left text-body text-fg hover:bg-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:pointer-events-none disabled:text-fg-disabled';
-	const triageValueClass =
-		'inline-flex min-h-(--size-control-md) max-w-full min-w-0 items-center gap-1.5 px-3 text-body text-fg';
 
 	/** Label for the mobile back link; the Issues route says “← Issues”. */
 	const backLabel = $derived.by(() => {
@@ -539,34 +523,6 @@
 		return window.getSelection()?.isCollapsed ?? true;
 	}
 
-	/** A metadata field whose picker is mounted invisibly behind its value. */
-	type MetaPicker = 'status' | 'priority' | 'size' | 'milestone' | 'assignee' | 'labels';
-
-	/**
-	 * Open the picker anchored to a metadata value. The pickers stay mounted so
-	 * their popovers and mutations are unchanged; the plain-text value is just
-	 * the visible trigger.
-	 */
-	function openPicker(field: MetaPicker) {
-		const trigger = paneEl?.querySelector<HTMLElement>(
-			`[data-picker="${field}"] [data-slot="popover-trigger"], [data-picker="${field}"] [data-slot="select-trigger"]`
-		);
-		if (!trigger) return;
-		if (trigger.dataset.slot === 'select-trigger') {
-			// bits-ui's Select opens on pointerdown rather than click.
-			trigger.dispatchEvent(
-				new PointerEvent('pointerdown', {
-					bubbles: true,
-					cancelable: true,
-					button: 0,
-					pointerType: 'mouse'
-				})
-			);
-			return;
-		}
-		trigger.click();
-	}
-
 	function startTitleEdit() {
 		if (!mayWrite || !issue) return;
 		title = issue.title;
@@ -651,9 +607,7 @@
 		const field =
 			byId instanceof HTMLTextAreaElement
 				? byId
-				: paneEl?.querySelector<HTMLTextAreaElement>(
-						'[data-slot="input-group-control"]'
-					) ?? null;
+				: paneEl?.querySelector<HTMLTextAreaElement>('textarea.composer-input') ?? null;
 		if (!field) return;
 		field.focus();
 		const end = field.value.length;
@@ -1000,11 +954,27 @@
 </script>
 
 {#snippet undoAction()}
-	<Button variant="ghost" size="xs" onclick={() => writeStatus?.undo?.()}>Undo</Button>
+	<Button color="link" size="sm" class="text-decoration-none px-1 py-0" onclick={() => writeStatus?.undo?.()}>
+		Undo
+	</Button>
 {/snippet}
 
 {#snippet retryLoad()}
-	<Button variant="ghost" size="xs" onclick={() => void load()}>Retry</Button>
+	<Button color="link" size="sm" class="text-decoration-none px-1 py-0" onclick={() => void load()}>
+		Retry
+	</Button>
+{/snippet}
+
+{#snippet statusIcon()}
+	<StatusIcon status={issue?.status ?? null} />
+{/snippet}
+
+{#snippet assigneeIcon()}
+	<i class="bi bi-person"></i>
+{/snippet}
+
+{#snippet labelIcon()}
+	<i class="bi bi-tags"></i>
 {/snippet}
 
 {#snippet composer()}
@@ -1022,49 +992,50 @@
 <DetailShell
 	bind:element={paneEl}
 	ariaLabel="Issue inspector"
-	class={cn('min-w-0 flex-1', !fill && 'border-l border-border-subtle')}
+	class="min-w-0 flex-grow-1 {fill ? '' : 'border-start'}"
 	contentKey={`${repo}#${number}:${detail?.bodyHtml ?? ''}:${detail?.comments.length ?? 0}:${detail?.workNotes.length ?? 0}`}
 	footer={canEdit && mayWrite ? composer : undefined}
 >
 	{#snippet header()}
-		<div class="flex min-w-0 flex-1 flex-col gap-1.5">
-			<div class="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-caption text-fg-secondary">
-				<a href={backHref} class="link lg:hidden">{backLabel}</a>
+		<div class="d-flex min-w-0 flex-grow-1 flex-column gap-1">
+			<div class="d-flex min-w-0 flex-wrap align-items-center gap-2 small text-body-secondary">
+				<a href={backHref} class="link-primary text-decoration-none d-lg-none">{backLabel}</a>
 				<RefText value={`${repo}#${number}`} />
 				<Button
-					variant="ghost"
-					size="xs"
+					color="link"
+					size="sm"
 					href={githubLink}
 					target="_blank"
 					rel="noreferrer"
-					class="text-fg-secondary hover:text-fg"
+					class="d-inline-flex align-items-center gap-1 text-decoration-none px-1 py-0 text-body-secondary"
 					title="Open on GitHub"
 				>
-					<ExternalLinkIcon class="size-3.5" aria-hidden="true" />
+					<i class="bi bi-box-arrow-up-right" aria-hidden="true"></i>
 					GitHub
 				</Button>
 				<Button
-					variant="ghost"
-					size="xs"
-					class="text-fg-secondary hover:text-fg"
+					color="link"
+					size="sm"
+					class="d-inline-flex align-items-center gap-1 text-decoration-none px-1 py-0 text-body-secondary"
 					title={copied ? 'Copied' : 'Copy issue as Markdown'}
 					onclick={() => void copyThread()}
 				>
 					{#if copied}
-						<CheckIcon class="size-3.5" aria-hidden="true" />
+						<i class="bi bi-check-lg" aria-hidden="true"></i>
 						Copied
 					{:else}
-						<CopyIcon class="size-3.5" aria-hidden="true" />
+						<i class="bi bi-clipboard" aria-hidden="true"></i>
 						Copy
 					{/if}
 				</Button>
 			</div>
 
 			{#if issue}
-				<div class="flex min-w-0 items-center gap-2">
+				<div class="d-flex min-w-0 align-items-center gap-2">
 					{#if editingTitle}
 						<Input
-							class="h-auto min-w-0 flex-1 border-0 bg-transparent px-0 text-heading-md font-semibold leading-heading-md tracking-[-0.01em] shadow-none"
+							bsSize="lg"
+							class="min-w-0 flex-grow-1 border-0 bg-transparent px-0 fw-semibold shadow-none"
 							value={title}
 							oninput={(e) => (title = e.currentTarget.value)}
 							onblur={saveTitle}
@@ -1083,7 +1054,7 @@
 						{#if busy === 'title'}
 							<Spinner size={14} />
 						{:else if titleDirty}
-							<Button variant="secondary" size="sm" onclick={saveTitle}>Save</Button>
+							<Button color="primary" size="sm" onclick={saveTitle}>Save</Button>
 						{/if}
 					{:else}
 						<!--
@@ -1093,10 +1064,9 @@
 						<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 						<h1
 							bind:this={titleEl}
-							class={cn(
-								'min-w-0 flex-1 break-words text-heading-md font-semibold leading-heading-md tracking-[-0.01em] text-fg',
-								mayWrite && '-ml-1 cursor-text rounded-sm px-1 hover:bg-surface-2'
-							)}
+							class="inspector-title min-w-0 flex-grow-1 fs-4 fw-semibold text-body text-break mb-0 {mayWrite
+								? 'inspector-title--editable px-1'
+								: ''}"
 							tabindex={mayWrite ? 0 : undefined}
 							role={mayWrite ? 'button' : undefined}
 							aria-label={mayWrite ? 'Issue title; activate to edit' : 'Issue title'}
@@ -1113,196 +1083,122 @@
 					{/if}
 				</div>
 
-				<!-- Triage: the four values a reader or triager changes most often. -->
+				<!-- Triage: the values a reader or triager changes most often. -->
 				<section
-					class="flex min-w-0 flex-wrap items-center gap-x-1 gap-y-1"
+					class="d-flex min-w-0 flex-wrap align-items-center gap-2"
 					aria-label="Issue triage"
 				>
-					<div class="relative min-w-0">
+					<div class="triage-field triage-field--status" data-picker="status">
 						{#if mayWrite}
-							<button
-								type="button"
-								class={triageControlClass}
+							<SingleSelect
+								label="No status"
+								options={statusOptions}
+								value={statusValue}
+								onselect={setStatus}
 								disabled={busy === 'status'}
-								title="Change status"
-								onclick={() => openPicker('status')}
-							>
-								<StatusText status={issue.status} state={issue.state} />
-							</button>
-							<div
-								class="pointer-events-none invisible absolute top-0 left-0"
-								data-picker="status"
-							>
-								<SingleSelect
-									label="No status"
-									options={statusOptions}
-									value={statusValue}
-									onselect={setStatus}
-									disabled={busy === 'status'}
-								/>
-							</div>
+								icon={statusIcon}
+							/>
 						{:else}
-							<span class={triageValueClass}>
+							<span class="d-inline-flex min-w-0 align-items-center gap-1 text-nowrap">
 								<StatusText status={issue.status} state={issue.state} />
 							</span>
 						{/if}
 					</div>
 
-					<div class="relative min-w-0">
+					<div class="triage-field triage-field--auto" data-picker="priority">
 						{#if mayWrite}
-							<button
-								type="button"
-								class={triageControlClass}
+							<PriorityPicker
+								impact={impactValue}
+								urgency={urgencyValue}
+								priority={priorityValue}
 								disabled={busy === 'priority'}
-								title="Change priority"
-								onclick={() => openPicker('priority')}
-							>
-								{#if priorityValue}
-									<PriorityText priority={priorityValue} showName />
-								{:else}
-									<span class="text-fg-secondary">No priority</span>
-								{/if}
-							</button>
-							<div
-								class="pointer-events-none invisible absolute top-0 left-0"
-								data-picker="priority"
-							>
-								<PriorityPicker
-									impact={impactValue}
-									urgency={urgencyValue}
-									priority={priorityValue}
-									disabled={busy === 'priority'}
-									oncommit={commitPriorityAxis}
-									onclear={clearPriority}
-								/>
-							</div>
+								oncommit={commitPriorityAxis}
+								onclear={clearPriority}
+							/>
 						{:else}
-							<span class={triageValueClass}>
+							<span class="d-inline-flex min-w-0 align-items-center gap-1 text-nowrap">
 								{#if priorityValue}
 									<PriorityText priority={priorityValue} showName />
 								{:else}
-									<span class="text-fg-secondary">No priority</span>
+									<span class="text-body-secondary">No priority</span>
 								{/if}
 							</span>
 						{/if}
 					</div>
 
-					<div class="relative min-w-0">
+					<div class="triage-field triage-field--size" data-picker="size">
 						{#if mayWrite}
-							<button
-								type="button"
-								class={triageControlClass}
-								disabled={busy === 'size'}
-								title="Change estimate size"
-								onclick={() => openPicker('size')}
-							>
-								<RulerIcon class="size-4 shrink-0 text-fg-muted" aria-hidden="true" />
-								<span class="sr-only">Estimate </span>
-								<span class="truncate">
-									{#if sizeValue}
-										{sizeDisplay}
-									{:else}
-										<span class="text-fg-secondary">Not estimated</span>
-									{/if}
+							<div class="input-group input-group-sm">
+								<span class="input-group-text px-2" aria-hidden="true">
+									<i class="bi bi-rulers"></i>
 								</span>
-							</button>
-							<div
-								class="pointer-events-none invisible absolute top-0 left-0"
-								data-picker="size"
-							>
-								<SingleSelect
-									label="No size"
-									options={SIZE_OPTIONS}
-									value={sizeValue}
-									onselect={setSize}
-									allowClear
+								<select
+									class="form-select"
+									aria-label="Estimate size"
 									disabled={busy === 'size'}
-								/>
+									value={sizeValue ?? ''}
+									onchange={(event) => void setSize(event.currentTarget.value || null)}
+								>
+									<option value="">Not estimated</option>
+									{#each SIZE_OPTIONS as option (option.value)}
+										<option value={option.value}>{option.label}</option>
+									{/each}
+								</select>
 							</div>
 						{:else}
-							<span class={triageValueClass}>
-								<RulerIcon class="size-4 shrink-0 text-fg-muted" aria-hidden="true" />
-								<span class="sr-only">Estimate </span>
-								<span class="truncate">
+							<span class="d-inline-flex min-w-0 align-items-center gap-1 text-nowrap">
+								<i class="bi bi-rulers text-body-tertiary" aria-hidden="true"></i>
+								<span class="text-truncate">
 									{#if sizeValue}
 										{sizeDisplay}
 									{:else}
-										<span class="text-fg-secondary">Not estimated</span>
+										<span class="text-body-secondary">Not estimated</span>
 									{/if}
 								</span>
 							</span>
 						{/if}
 					</div>
 
-					<div class="relative min-w-0">
+					<div class="triage-field triage-field--auto" data-picker="assignee">
 						{#if mayWrite}
-							<button
-								type="button"
-								class={triageControlClass}
+							<MultiSelect
+								hideCount
+								label="Assignee"
+								placeholder="Unassigned"
+								display="selection"
+								options={assigneeOptions.map((u) => ({ value: u.login, label: u.login }))}
+								selected={assigneeLogins}
+								onselect={setAssignees}
 								disabled={busy === 'assignees'}
-								title="Change assignee"
-								onclick={() => openPicker('assignee')}
-							>
-								<UserIcon class="size-4 shrink-0 text-fg-muted" aria-hidden="true" />
-								<span class="truncate">{assigneeDisplay || 'Unassigned'}</span>
-							</button>
-							<div
-								class="pointer-events-none invisible absolute top-0 left-0"
-								data-picker="assignee"
-							>
-								<MultiSelect
-									hideCount
-									label="Assignee"
-									placeholder="Unassigned"
-									display="selection"
-									options={assigneeOptions.map((u) => ({ value: u.login, label: u.login }))}
-									selected={assigneeLogins}
-									onselect={setAssignees}
-									disabled={busy === 'assignees'}
-								/>
-							</div>
+								icon={assigneeIcon}
+							/>
 						{:else}
-							<span class={triageValueClass}>
-								<UserIcon class="size-4 shrink-0 text-fg-muted" aria-hidden="true" />
-								<span class="truncate">{assigneeDisplay || 'Unassigned'}</span>
+							<span class="d-inline-flex min-w-0 align-items-center gap-1 text-nowrap">
+								<i class="bi bi-person text-body-tertiary" aria-hidden="true"></i>
+								<span class="text-truncate">{assigneeDisplay || 'Unassigned'}</span>
 							</span>
 						{/if}
 					</div>
 
-					<div class="relative min-w-0">
+					<div class="triage-field triage-field--milestone" data-picker="milestone">
 						{#if mayWrite}
-							<button
-								type="button"
-								class={triageControlClass}
+							<MilestonePicker
+								{repo}
+								value={milestoneValue}
+								options={milestoneOptions}
 								disabled={busy === 'milestone'}
-								title="Change milestone"
-								onclick={() => openPicker('milestone')}
-							>
-								<MilestoneIcon class="size-4 shrink-0 text-fg-muted" aria-hidden="true" />
-								<span class="truncate">{milestoneValue?.title ?? 'No milestone'}</span>
-							</button>
-							<div
-								class="pointer-events-none invisible absolute top-0 left-0"
-								data-picker="milestone"
-							>
-								<MilestonePicker
-									{repo}
-									value={milestoneValue}
-									options={milestoneOptions}
-									disabled={busy === 'milestone'}
-									onselect={(milestone) => void setMilestone(milestone)}
-								/>
-							</div>
+								onselect={(milestone) => void setMilestone(milestone)}
+							/>
 						{:else}
-							<span class={triageValueClass}>
-								<MilestoneIcon class="size-4 shrink-0 text-fg-muted" aria-hidden="true" />
-								<span class="truncate">{milestoneValue?.title ?? 'No milestone'}</span>
+							<span class="d-inline-flex min-w-0 align-items-center gap-1 text-nowrap">
+								<i class="bi bi-signpost-split text-body-tertiary" aria-hidden="true"></i>
+								<span class="text-truncate">{milestoneValue?.title ?? 'No milestone'}</span>
 							</span>
 						{/if}
 					</div>
 
 					<span
-						class="ml-auto shrink-0 px-2 text-caption text-fg-secondary"
+						class="ms-auto flex-shrink-0 px-2 small text-body-secondary"
 						title={absoluteTime(issue.updatedAt)}
 					>
 						Updated {timeAgo(issue.updatedAt)}
@@ -1334,20 +1230,27 @@
 				{/if}
 			{/if}
 		</div>
-		<div class="flex shrink-0 items-center gap-1 self-start">
-			<Button variant="ghost" size="icon-sm" title="Close inspector" onclick={onclose}>
-				<XIcon />
+		<div class="d-flex flex-shrink-0 align-items-center gap-1 align-self-start">
+			<Button
+				color="link"
+				size="sm"
+				class="text-decoration-none px-1 py-0 text-body-secondary"
+				aria-label="Close inspector"
+				title="Close inspector"
+				onclick={onclose}
+			>
+				<i class="bi bi-x-lg" aria-hidden="true"></i>
 			</Button>
 		</div>
 	{/snippet}
 
 	{#if loading && !detail}
-		<div class="flex flex-1 items-center justify-center p-6 text-fg-secondary">
+		<div class="d-flex flex-grow-1 align-items-center justify-content-center p-4 text-body-secondary">
 			<Spinner size={16} label="Loading issue" />
 		</div>
 	{:else if error}
-		<div class="flex flex-1 items-start justify-center p-6">
-			<InlineStatus tone="error" message={error} action={retryLoad} class="max-w-md" />
+		<div class="d-flex flex-grow-1 align-items-start justify-content-center p-4">
+			<InlineStatus tone="error" message={error} action={retryLoad} class="measure" />
 		</div>
 	{:else if issue && detail}
 		{#if issue.labelConflict}
@@ -1358,21 +1261,19 @@
 		{/if}
 
 		{#if blockerActive}
-			<section class="flex flex-col gap-2" aria-label="Blocker">
-				<div
-					class="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-border-subtle pt-3"
-				>
+			<section class="d-flex flex-column gap-2" aria-label="Blocker">
+				<div class="d-flex flex-wrap align-items-center gap-3 border-top pt-3">
 					<StatusText blocked />
 					{#if blockedState.info?.recheck}
-						<span class="text-caption text-fg-secondary">
+						<span class="small text-body-secondary">
 							Re-check {blockedState.info.recheck}
 						</span>
 					{/if}
 					{#if mayWrite}
 						<Button
-							variant="ghost"
-							size="xs"
-							class="ml-auto"
+							color="link"
+							size="sm"
+							class="ms-auto text-decoration-none px-1 py-0"
 							disabled={busy === 'blocked' || !canEdit}
 							onclick={() => openBlockDialog('unblock')}
 						>
@@ -1381,40 +1282,44 @@
 					{/if}
 				</div>
 				{#if blockedState.info}
-					<dl class="label-value">
+					<dl class="property-list mb-0">
 						<dt>Reason</dt>
 						<dd>{delayReasonLabel(blockedState.info.reason)}</dd>
 						<dt>Blocker</dt>
-						<dd class="break-words">{blockedState.info.blocker}</dd>
+						<dd class="text-break">{blockedState.info.blocker}</dd>
 						{#if blockedState.info.needs}
 							<dt>Needs to unblock</dt>
-							<dd class="break-words">{blockedState.info.needs}</dd>
+							<dd class="text-break">{blockedState.info.needs}</dd>
 						{/if}
 						{#if blockedState.info.trying}
 							<dt>Currently trying</dt>
-							<dd class="break-words">{blockedState.info.trying}</dd>
+							<dd class="text-break">{blockedState.info.trying}</dd>
 						{/if}
 					</dl>
 				{/if}
 			</section>
 		{/if}
 
-		<section class="flex max-w-[var(--layout-measure)] flex-col" aria-label="Description">
+		<section class="d-flex measure flex-column" aria-label="Description">
 			{#if editingBody}
-				<Textarea
-					class="min-h-32 text-body-content leading-body-content"
+				<textarea
+					class="form-control"
+					style="min-height: 8rem"
 					value={body}
 					oninput={(e) => (body = e.currentTarget.value)}
 					onkeydown={onBodyKeydown}
 					placeholder="Describe the issue…"
-					rows={6}
-				></Textarea>
-				<div class="mt-2 flex items-center justify-end gap-1">
+					rows="6"
+					aria-label="Issue description"
+				></textarea>
+				<div class="mt-2 d-flex align-items-center justify-content-end gap-1">
 					{#if busy === 'body'}
 						<Spinner size={13} />
 					{:else}
-						<Button variant="ghost" size="xs" onclick={cancelBody}>Cancel</Button>
-						<Button variant="secondary" size="xs" onclick={saveBody} disabled={!bodyDirty}>
+						<Button color="link" size="sm" class="text-decoration-none" onclick={cancelBody}>
+							Cancel
+						</Button>
+						<Button color="primary" size="sm" onclick={saveBody} disabled={!bodyDirty}>
 							Save
 						</Button>
 					{/if}
@@ -1422,12 +1327,9 @@
 			{:else}
 				<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 				<div
-					class={cn(
-						'min-h-12 py-1 text-body-content leading-body-content text-fg',
-						mayWrite && 'cursor-text rounded-sm hover:bg-surface-2',
-						bodyHtml !== null && 'markdown',
-						bodyHtml === null && 'plain-text'
-					)}
+					class="inspector-description {mayWrite
+						? 'inspector-description--editable'
+						: ''} {bodyHtml !== null ? 'markdown' : 'plain-text'}"
 					role={mayWrite ? 'button' : undefined}
 					tabindex={mayWrite ? 0 : undefined}
 					aria-label={mayWrite ? 'Issue description; activate to edit' : 'Issue description'}
@@ -1440,7 +1342,7 @@
 					}}
 				>
 					{#if body.trim().length === 0}
-						<span class="text-fg-muted">Add a description…</span>
+						<span class="text-body-tertiary">Add a description…</span>
 					{:else if bodyHtml !== null}
 						{@html bodyHtml}
 					{:else}
@@ -1452,18 +1354,19 @@
 
 		<section
 			bind:this={activityEl}
-			class="flex max-w-[var(--layout-measure)] flex-col gap-2"
+			class="d-flex measure flex-column gap-2"
 			aria-label="Activity"
 		>
-			<div class="flex items-baseline justify-between gap-3 border-t border-border-subtle pt-3">
-				<h2 class="text-heading-sm font-semibold text-fg">Activity</h2>
-				<span class="text-caption tabular-nums text-fg-secondary">{detail.commentTotal}</span>
+			<div class="d-flex align-items-baseline justify-content-between gap-3 border-top pt-3">
+				<h2 class="h5 fw-semibold mb-0">Activity</h2>
+				<span class="small text-body-secondary metric-number">{detail.commentTotal}</span>
 			</div>
 			{#if detail.hasMoreComments && commentLimit < MAX_COMMENT_LIMIT}
-				<div class="flex justify-center">
+				<div class="d-flex justify-content-center">
 					<Button
-						variant="ghost"
-						size="xs"
+						color="link"
+						size="sm"
+						class="text-decoration-none"
 						disabled={loading}
 						onclick={() => void loadEarlierComments()}
 					>
@@ -1472,7 +1375,7 @@
 				</div>
 			{/if}
 			{#if detail.comments.length === 0}
-				<p class="text-body text-fg-secondary">No comments yet.</p>
+				<p class="text-body-secondary mb-0">No comments yet.</p>
 			{:else}
 				<ActivityTimeline
 					comments={detail.comments}
@@ -1490,18 +1393,15 @@
 		</section>
 
 		{#if workNotesEnabled}
-			<section
-				class="flex max-w-[var(--layout-measure)] flex-col gap-2"
-				aria-label="Work notes"
-			>
-				<div class="flex items-baseline justify-between gap-3 border-t border-border-subtle pt-3">
-					<h2 class="text-heading-sm font-semibold text-fg">Work notes</h2>
-					<span class="text-caption tabular-nums text-fg-secondary">
+			<section class="d-flex measure flex-column gap-2" aria-label="Work notes">
+				<div class="d-flex align-items-baseline justify-content-between gap-3 border-top pt-3">
+					<h2 class="h5 fw-semibold mb-0">Work notes</h2>
+					<span class="small text-body-secondary metric-number">
 						{detail.workNotes.length}
 					</span>
 				</div>
 				{#if detail.workNotes.length === 0}
-					<p class="text-body text-fg-secondary">
+					<p class="text-body-secondary mb-0">
 						No work notes yet. Internal notes stay in Funnel unless you publish them.
 					</p>
 				{:else}
@@ -1533,81 +1433,61 @@
 			/>
 		{/if}
 
-		<details class="group border-t border-border-subtle">
+		<details class="inspector-details border-top">
 			<summary
-				class="flex min-h-(--size-control-md) cursor-pointer list-none items-center gap-2 py-2 text-body font-semibold text-fg marker:content-none [&::-webkit-details-marker]:hidden"
+				class="d-flex align-items-center gap-2 py-2 fw-semibold"
+				style="min-height: 2.25rem"
 			>
-				<ChevronRightIcon
-					class="size-4 shrink-0 text-fg-muted transition-transform group-open:rotate-90"
-					aria-hidden="true"
-				/>
+				<i class="bi bi-chevron-right flex-shrink-0 text-body-tertiary" aria-hidden="true"></i>
 				Details
-				<span class="text-caption font-normal text-fg-secondary">
+				<span class="small fw-normal text-body-secondary">
 					Severity, labels, people, time
 				</span>
 			</summary>
 
-			<div class="flex flex-col gap-4 pb-1">
-				<dl class="label-value">
+			<div class="d-flex flex-column gap-3 pb-1">
+				<dl class="property-list mb-0">
 					<dt>Severity</dt>
 					<dd>{severityDisplay}</dd>
 
 					<dt>Reporter</dt>
-					<dd class="break-words">{issue.author?.login ?? '—'}</dd>
+					<dd class="text-break">{issue.author?.login ?? '—'}</dd>
 
 					<dt>Labels</dt>
 					<dd>
-						<div class="relative min-w-0 flex-1">
-							{#if mayWrite}
-								<button
-									type="button"
-									class="text-left text-body hover:text-primary disabled:pointer-events-none disabled:text-fg-disabled"
-									disabled={busy === 'labels'}
-									title="Change labels"
-									onclick={() => openPicker('labels')}
-								>
-									{#if selectedLabels.length === 0}
-										<span class="text-fg-secondary">—</span>
-									{:else}
-										<span class="break-words text-fg">{selectedLabels.join(', ')}</span>
-									{/if}
-								</button>
-								<div
-									class="pointer-events-none invisible absolute top-0 left-0"
-									data-picker="labels"
-								>
-									<MultiSelect
-										hideCount
-										label="Labels"
-										placeholder="No labels"
-										display="selection"
-										options={labelOptions}
-										selected={selectedLabels}
-										onselect={setLabels}
-										disabled={busy === 'labels'}
-									/>
-								</div>
-							{:else}
-								<span class="break-words text-fg-secondary">
-									{selectedLabels.length === 0 ? '—' : selectedLabels.join(', ')}
-								</span>
-							{/if}
-						</div>
+						{#if mayWrite}
+							<MultiSelect
+								hideCount
+								label="Labels"
+								placeholder="No labels"
+								display="selection"
+								options={labelOptions}
+								selected={selectedLabels}
+								onselect={setLabels}
+								disabled={busy === 'labels'}
+								icon={labelIcon}
+							/>
+						{:else}
+							<span class="text-break text-body-secondary">
+								{selectedLabels.length === 0 ? '—' : selectedLabels.join(', ')}
+							</span>
+						{/if}
 					</dd>
 
 					{#if !blockerActive}
 						<dt>Blocked</dt>
 						<dd>
 							{#if mayWrite}
-								<button
-									type="button"
-									class="text-left text-body text-fg hover:text-primary disabled:pointer-events-none disabled:text-fg-disabled"
+								<Button
+									color="link"
+									size="sm"
+									class="text-decoration-none px-0 py-0"
 									disabled={busy === 'blocked' || !canEdit}
 									title="Block issue"
 									onclick={() => openBlockDialog('block')}
 								>
 									Block issue
-								</button>
+								</Button>
 							{:else}
 								<span>Not blocked</span>
 							{/if}
@@ -1617,9 +1497,10 @@
 					<dt>Watching</dt>
 					<dd>
 						{#if mayWrite}
-							<button
-								type="button"
-								class="inline-flex items-center gap-1.5 text-left text-body text-fg hover:text-primary disabled:pointer-events-none disabled:text-fg-disabled"
+							<Button
+								color="link"
+								size="sm"
+								class="d-inline-flex align-items-center gap-1 text-decoration-none px-0 py-0"
 								disabled={watchBusy || !canEdit}
 								aria-pressed={watching}
 								onclick={() => void toggleWatch()}
@@ -1629,7 +1510,7 @@
 								{:else}
 									{watching ? 'Watching' : 'Not watching'}
 								{/if}
-							</button>
+							</Button>
 						{:else}
 							<span>{watching ? 'Watching' : 'Not watching'}</span>
 						{/if}
@@ -1665,7 +1546,7 @@
 
 <svelte:window onkeydown={onWindowKeydown} />
 <!-- Announced to screen readers; kept outside the pane so a Mod+A transcript never picks it up. -->
-<span aria-live="polite" class="sr-only">{copied ? 'Issue copied' : ''}</span>
+<span aria-live="polite" class="visually-hidden">{copied ? 'Issue copied' : ''}</span>
 
 <IssueActionDialog
 	open={dialogMode !== null}
@@ -1704,3 +1585,76 @@
 	}}
 	onconfirm={(payload) => void confirmBlocked(payload)}
 />
+
+<style>
+	.triage-field {
+		min-width: 0;
+		max-width: 100%;
+	}
+
+	.triage-field--status {
+		width: 11rem;
+	}
+
+	.triage-field--size {
+		width: 10rem;
+	}
+
+	.triage-field--milestone {
+		width: 13rem;
+	}
+
+	.triage-field--auto {
+		width: auto;
+	}
+
+	.inspector-title--editable {
+		cursor: text;
+		border-radius: var(--bs-border-radius-sm);
+	}
+
+	.inspector-title--editable:hover {
+		background: var(--bs-tertiary-bg);
+	}
+
+	.inspector-title:focus-visible,
+	.inspector-description:focus-visible {
+		outline: 2px solid var(--bs-primary);
+		outline-offset: 2px;
+	}
+
+	.inspector-description {
+		min-height: 3rem;
+		padding: 0.25rem 0;
+	}
+
+	.inspector-description--editable {
+		cursor: text;
+		border-radius: var(--bs-border-radius-sm);
+	}
+
+	.inspector-description--editable:hover {
+		background: var(--bs-tertiary-bg);
+	}
+
+	.inspector-details > summary {
+		cursor: pointer;
+		list-style: none;
+	}
+
+	.inspector-details > summary::-webkit-details-marker {
+		display: none;
+	}
+
+	.inspector-details > summary .bi {
+		transition: transform 0.15s ease;
+	}
+
+	.inspector-details[open] > summary .bi {
+		transform: rotate(90deg);
+	}
+
+	.metric-number {
+		font-variant-numeric: tabular-nums;
+	}
+</style>

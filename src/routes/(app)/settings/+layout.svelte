@@ -1,19 +1,20 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
+	import { Nav, NavItem, NavLink } from '@sveltestrap/sveltestrap';
 	import PageHead from '#lib/components/common/PageHead.svelte';
 	import PageHeader from '#lib/components/shell/PageHeader.svelte';
-	import * as NativeSelect from '#lib/components/ui/native-select';
 	import { settingsGroups } from '#lib/components/settings/sections';
 	import { hasRole } from '#lib/roles';
 	import type { LayoutProps } from './$types';
 
 	/**
 	 * Settings shell: a two-pane surface inside the app shell. The desktop nav
-	 * is a 12.5 rem `surface` column grouped Personal / Workspace / System; below
-	 * 1024 px it becomes one labelled NativeSelect. h1 comes from the active
-	 * section. The server layout still enforces admin-only sections for direct
-	 * URLs, and the nav filters anything the viewer cannot open.
+	 * is a light Bootstrap `nav-pills` column grouped Personal / Workspace /
+	 * System; below 992 px it becomes one labelled `form-select` switcher. h1
+	 * comes from the active section. The server layout still enforces
+	 * admin-only sections for direct URLs, and the nav filters anything the
+	 * viewer cannot open.
 	 */
 	let { data, children }: LayoutProps = $props();
 
@@ -47,67 +48,67 @@
 <!-- The nav starts directly under the app bar; the title lives in the content
      column so the surface column and canvas meet at one edge instead of a
      full-width header band. The nav's top inset aligns “Personal” with the h1. -->
-<div class="flex min-h-0 min-w-0 flex-1 overflow-hidden">
+<div class="d-flex flex-grow-1 min-h-0 min-w-0 overflow-hidden">
 	<nav
-		class="hidden w-[var(--layout-settings-nav)] shrink-0 overflow-y-auto border-r border-border-subtle bg-surface pt-6 pb-4 lg:block"
+		class="settings-nav d-none d-lg-block flex-shrink-0 overflow-y-auto border-end bg-body-tertiary pt-3 pb-3"
 		aria-label="Settings"
 	>
 		{#each groups as group (group.id)}
 			<div class="mb-2">
-				<p class="px-2 pb-1 text-caption font-semibold text-fg-secondary">{group.label}</p>
-				<ul>
+				<p class="px-2 pb-1 mb-0 small fw-semibold text-body-secondary">{group.label}</p>
+				<Nav vertical pills class="app-nav flex-column gap-1">
 					{#each group.sections as section (section.id)}
-						{@const Icon = section.icon}
-						<li>
-							<a
+						<NavItem>
+							<NavLink
 								href={section.href}
+								active={active.id === section.id}
 								aria-current={active.id === section.id ? 'page' : undefined}
-								class="flex min-h-(--size-control-md) items-center gap-2 rounded-sm px-2 text-body text-fg-secondary {active.id ===
-								section.id
-									? 'is-selected-nav'
-									: 'hover:bg-surface-2'}"
+								class="d-flex align-items-center gap-2"
 							>
-								<span class="flex size-4 shrink-0 items-center justify-center {active.id === section.id ? 'text-primary' : 'text-fg-muted'}">
-									<Icon class="size-4" aria-hidden="true" />
-								</span>
-								<span class="truncate">{section.label}</span>
-							</a>
-						</li>
+								<i class="bi {section.icon}" aria-hidden="true"></i>
+								<span class="text-truncate">{section.label}</span>
+							</NavLink>
+						</NavItem>
 					{/each}
-				</ul>
+				</Nav>
 			</div>
 		{/each}
 	</nav>
 
-	<div class="min-h-0 min-w-0 flex-1 overflow-y-auto">
+	<div class="min-h-0 min-w-0 flex-grow-1 overflow-y-auto">
 		<PageHeader title={active.label} description={active.description} />
 
-		<div class="px-[var(--layout-page-padding)] pb-6">
-			<div class="mb-6 flex max-w-[var(--layout-form-max)] flex-col gap-1 lg:hidden">
-				<label class="text-caption font-semibold text-fg-secondary" for="settings-section">
+		<div class="px-3 pb-4">
+			<div class="d-lg-none mb-4 settings-measure">
+				<label class="form-label small fw-semibold text-body-secondary" for="settings-section">
 					Settings section
 				</label>
-				<NativeSelect.Root
+				<select
 					id="settings-section"
+					class="form-select"
 					value={active.href}
 					onchange={navigateTo}
-					class="w-full"
 				>
 					{#each groups as group (group.id)}
-						<NativeSelect.OptGroup label={group.label}>
+						<optgroup label={group.label}>
 							{#each group.sections as section (section.id)}
-								<NativeSelect.Option value={section.href}>
-									{section.label}
-								</NativeSelect.Option>
+								<option value={section.href}>{section.label}</option>
 							{/each}
-						</NativeSelect.OptGroup>
+						</optgroup>
 					{/each}
-				</NativeSelect.Root>
+				</select>
 			</div>
 
-			<div class="w-full max-w-[var(--layout-settings-max)]">
+			<div class="w-100 settings-measure">
 				{@render children()}
 			</div>
 		</div>
 	</div>
 </div>
+
+<style>
+	.settings-nav {
+		width: var(--funnel-settings-nav-width);
+		flex: 0 0 var(--funnel-settings-nav-width);
+	}
+</style>

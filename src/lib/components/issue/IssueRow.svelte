@@ -10,7 +10,6 @@
 </script>
 
 <script lang="ts">
-	import * as Tooltip from '#lib/components/ui/tooltip/index.js';
 	import PriorityText from '#lib/components/common/PriorityText.svelte';
 	import RefText from '#lib/components/common/RefText.svelte';
 	import StatusText from '#lib/components/common/StatusText.svelte';
@@ -20,8 +19,6 @@
 	import { canonicalLabel } from '#lib/labels';
 	import { isRetiredPriorityLabel } from '#lib/priority';
 	import type { IssueListItem } from '#lib/server/issues/types';
-	import { cn } from '#lib/utils';
-	import TriangleAlertIcon from '@lucide/svelte/icons/triangle-alert';
 	import type { GroupKey } from './grouping';
 
 	/**
@@ -89,12 +86,9 @@
 </script>
 
 <div
-	class={cn(
-		'issue-row group/row cursor-pointer select-none border-b border-border-subtle',
-		'focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ring',
-		closed ? 'text-fg-muted' : 'text-fg',
-		selected && 'is-selected-row'
-	)}
+	class="issue-row border-bottom {closed ? 'text-body-tertiary' : 'text-body'} {selected
+		? 'is-selected-row'
+		: ''}"
 	role="button"
 	tabindex={0}
 	aria-current={selected ? 'true' : undefined}
@@ -107,34 +101,26 @@
 		}
 	}}
 >
-	<Tooltip.Root>
-		<Tooltip.Trigger>
-			{#snippet child({ props })}
-				<span {...props} class="issue-ref">
-					<RefText value={ref} class="text-caption" />
-				</span>
-			{/snippet}
-		</Tooltip.Trigger>
-		<Tooltip.Content>{issue.repo}#{issue.number}</Tooltip.Content>
-	</Tooltip.Root>
+	<span class="issue-ref" title={`${issue.repo}#${issue.number}`}>
+		<RefText value={ref} />
+	</span>
 
 	<span class="issue-title">
 		<span
-			class={cn(
-				'line-clamp-2 min-w-0 break-words text-body',
-				closed || untitled ? 'text-fg-muted' : 'text-fg',
-				untitled && 'italic',
-				closed && 'line-through'
-			)}
+			class="issue-title-text min-w-0 text-break {closed || untitled
+				? 'text-body-tertiary'
+				: 'text-body'} {untitled ? 'is-untitled' : ''} {closed ? 'is-closed' : ''}"
 			title={title}
 		>
 			{title}
 		</span>
 		{#if issue.labelConflict}
-			<TriangleAlertIcon
-				class="size-3.5 shrink-0 text-warning"
+			<i
+				class="bi bi-exclamation-triangle flex-shrink-0 text-warning"
 				title="Conflicting reserved label or retired priority label on GitHub"
-			/>
+				role="img"
+				aria-label="Conflicting reserved label or retired priority label on GitHub"
+			></i>
 		{/if}
 	</span>
 
@@ -145,7 +131,7 @@
 					status={issue.status}
 					state={issue.state}
 					blocked={issue.blocked}
-					class={closed ? 'text-fg-muted' : undefined}
+					class={closed ? 'text-body-tertiary' : undefined}
 				/>
 			</span>
 		{/if}
@@ -154,7 +140,7 @@
 			<span class="issue-priority">
 				<PriorityText
 					priority={issue.priority}
-					class={closed ? 'text-fg-muted' : undefined}
+					class={closed ? 'text-body-tertiary' : undefined}
 				/>
 			</span>
 		{/if}
@@ -174,7 +160,7 @@
 			{#if assigneeText}
 				{assigneeText}
 			{:else}
-				<span class="text-fg-muted">Unassigned</span>
+				<span class="text-body-tertiary">Unassigned</span>
 			{/if}
 		</span>
 
@@ -188,23 +174,35 @@
 	.issue-row {
 		/* 5.5rem: a stable column wide enough for `FIT-1234` without letting a
 		   long reference shift every title. */
-		--issue-ref-column: calc(var(--space-7) + var(--space-6) + var(--space-2));
+		--issue-ref-column: 5.5rem;
 		display: grid;
 		grid-template-columns: var(--issue-ref-column) minmax(0, 1fr);
 		grid-template-areas:
 			'ref title'
 			'. meta';
 		align-items: baseline;
-		min-height: var(--size-row-comfortable);
-		column-gap: var(--space-3);
-		row-gap: var(--space-1);
-		padding: var(--space-1) var(--space-3);
+		min-height: 3rem;
+		column-gap: 0.75rem;
+		row-gap: 0.25rem;
+		padding: 0.25rem 0.75rem;
+		cursor: pointer;
+		user-select: none;
+	}
+
+	.issue-row:focus-visible {
+		outline: 2px solid var(--bs-primary);
+		outline-offset: -2px;
+	}
+
+	.issue-row.is-selected-row {
+		box-shadow: inset 2px 0 0 0 var(--bs-primary);
 	}
 
 	.issue-row > .issue-ref {
 		grid-area: ref;
 		min-width: 0;
 		overflow: hidden;
+		font-size: 0.75rem;
 		text-overflow: ellipsis;
 		white-space: nowrap;
 	}
@@ -214,7 +212,23 @@
 		display: flex;
 		min-width: 0;
 		align-items: center;
-		gap: var(--space-1);
+		gap: 0.25rem;
+	}
+
+	.issue-title-text {
+		display: -webkit-box;
+		overflow: hidden;
+		-webkit-box-orient: vertical;
+		-webkit-line-clamp: 2;
+		line-clamp: 2;
+	}
+
+	.issue-title-text.is-untitled {
+		font-style: italic;
+	}
+
+	.issue-title-text.is-closed {
+		text-decoration: line-through;
 	}
 
 	.issue-meta {
@@ -222,11 +236,11 @@
 		display: flex;
 		flex-wrap: wrap;
 		align-items: center;
-		gap: var(--space-1) var(--space-3);
+		gap: 0.25rem 0.75rem;
 		min-width: 0;
-		font-size: var(--font-size-caption);
-		line-height: var(--font-leading-caption);
-		color: var(--color-text-secondary);
+		font-size: 0.75rem;
+		line-height: 1.5;
+		color: var(--bs-secondary-color);
 	}
 
 	.issue-meta > * {
@@ -239,7 +253,7 @@
 	}
 
 	.issue-assignee {
-		max-width: var(--layout-field-sm);
+		max-width: 10rem;
 		overflow: hidden;
 		text-overflow: ellipsis;
 		white-space: nowrap;
@@ -254,7 +268,7 @@
 
 	@media (hover: hover) and (pointer: fine) {
 		.issue-row:not(.is-selected-row):hover {
-			background: var(--color-surface);
+			background: var(--bs-tertiary-bg);
 		}
 	}
 </style>

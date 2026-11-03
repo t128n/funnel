@@ -1,12 +1,9 @@
 <script lang="ts">
-	import * as Command from '#lib/components/ui/command';
-	import * as Popover from '#lib/components/ui/popover';
 	import {
-		selectTriggerChevron,
-		selectTriggerClass
-	} from '#lib/components/common/select-trigger';
-	import { cn } from '#lib/utils';
-	import ChevronDownIcon from '@lucide/svelte/icons/chevron-down';
+		Dropdown,
+		DropdownMenu,
+		DropdownToggle
+	} from '@sveltestrap/sveltestrap';
 	import type { Snippet } from 'svelte';
 
 	export interface MultiSelectOption {
@@ -56,7 +53,7 @@
 		icon
 	}: Props = $props();
 
-	let open = $state(false);
+	let query = $state('');
 
 	const triggerText = $derived.by(() => {
 		if (display !== 'selection') return label;
@@ -73,10 +70,21 @@
 		return [...head, ...tail];
 	});
 
-	function cssColor(color: string | null | undefined): string | undefined {
-		if (!color) return undefined;
-		return /^[0-9a-f]{6}$/i.test(color) ? `#${color}` : color;
-	}
+	const filtered = $derived(
+		query.trim() === ''
+			? ordered
+			: ordered.filter((option) =>
+					option.label.toLowerCase().includes(query.trim().toLowerCase())
+				)
+	);
+
+	const toggleClass = $derived(
+		variant === 'ghost'
+			? 'btn-link text-decoration-none text-body-secondary'
+			: variant === 'pill'
+				? 'rounded-pill'
+				: ''
+	);
 
 	function toggle(value: string) {
 		onselect(
@@ -85,88 +93,65 @@
 				: [...selected, value]
 		);
 	}
-
-	/**
-	 * Keep the popover open while a click lands inside a nested menu it triggered
-	 * (e.g. a second filter toolbar). Mirrors bits-ui's own floating-layer guard.
-	 */
-	function onInteractOutside(event: PointerEvent) {
-		const target = event.target;
-		if (
-			target instanceof Element &&
-			target.closest(
-				'[data-slot="dropdown-menu-content"], [data-slot="dropdown-menu-trigger"], [data-slot="command"]'
-			)
-		) {
-			event.preventDefault();
-		}
-	}
 </script>
 
-<Popover.Root bind:open>
-	<Popover.Trigger
-		{disabled}
-		class={selectTriggerClass(
-			variant,
-			cn(
-				'w-auto',
-				variant === 'default' && selected.length > 0 && 'bg-surface-2 text-fg',
-				variant === 'pill' && selected.length > 0 && 'text-fg'
-			)
-		)}
+<Dropdown autoClose="outside">
+	<DropdownToggle
+		color={variant === 'ghost' ? 'link' : 'secondary'}
+		outline={variant !== 'ghost'}
+		size="sm"
+		disabled={disabled}
+		class="d-flex align-items-center gap-1 {toggleClass}"
 	>
 		{#if icon}
-			<span class="inline-flex size-4 shrink-0 items-center justify-center" aria-hidden="true">
-				{@render icon()}
-			</span>
+			<span class="d-inline-flex align-items-center" aria-hidden="true">{@render icon()}</span>
 		{/if}
-		<span class={cn('truncate text-left', variant === 'ghost' ? 'max-w-55' : 'max-w-45')}>
-			{triggerText}
-		</span>
+		<span class="text-truncate" style="max-width: 14rem">{triggerText}</span>
 		{#if !hideCount && selected.length > 0}
-			<span class="text-caption tabular-nums text-fg-secondary" aria-label={`${selected.length} selected`}>
+			<span class="badge text-bg-secondary rounded-pill" aria-label={`${selected.length} selected`}>
 				{selected.length}
 			</span>
 		{/if}
-		<ChevronDownIcon class={selectTriggerChevron} />
-	</Popover.Trigger>
+		<i class="bi bi-chevron-down small" aria-hidden="true"></i>
+	</DropdownToggle>
 
-	<Popover.Content
-		{align}
-		sideOffset={6}
-		preventScroll={false}
-		class="w-auto min-w-50 gap-0 p-0"
-		{onInteractOutside}
-	>
-		<Command.Root class="border-0! bg-transparent!">
-			<Command.Input placeholder="Search…" />
-			<Command.List class="max-h-80 overflow-x-hidden overflow-y-auto">
-				<Command.Empty>No options</Command.Empty>
-				<Command.Group>
-					{#each ordered as option (option.value)}
-						<Command.Item
-							value={option.value}
-							data-checked={selected.includes(option.value)}
-							onSelect={() => toggle(option.value)}
-							class="gap-2"
-						>
-							<span
-								class="size-2 shrink-0 rounded-full"
-								class:invisible={!option.color}
-								style={cssColor(option.color) ? `background:${cssColor(option.color)}` : undefined}
-							></span>
-							<span class="flex-1 truncate">{option.label}</span>
-						</Command.Item>
-					{/each}
-				</Command.Group>
+	<DropdownMenu end={align === 'end'} class="p-0" style="min-width: 16rem">
+		<li class="p-2">
+			<input
+				type="search"
+				class="form-control form-control-sm mb-2"
+				placeholder="Search…"
+				aria-label={`Search ${label}`}
+				bind:value={query}
+			/>
 
-				{#if selected.length > 0}
-					<Command.Separator />
-					<Command.Item value="__clear__" onSelect={() => onselect([])}>
-						<span class="text-muted-foreground">Clear</span>
-					</Command.Item>
+			<div class="overflow-auto" style="max-height: 18rem">
+				{#each filtered as option (option.value)}
+					<label class="dropdown-item d-flex align-items-center gap-2">
+						<input
+							type="checkbox"
+							class="form-check-input mt-0 flex-shrink-0"
+							checked={selected.includes(option.value)}
+							onchange={() => toggle(option.value)}
+						/>
+						<span class="text-truncate">{option.label}</span>
+					</label>
+				{/each}
+				{#if filtered.length === 0}
+					<span class="dropdown-item-text text-body-secondary">No options</span>
 				{/if}
-			</Command.List>
-		</Command.Root>
-	</Popover.Content>
-</Popover.Root>
+			</div>
+
+			{#if selected.length > 0}
+				<hr class="dropdown-divider" />
+				<button
+					type="button"
+					class="dropdown-item text-body-secondary"
+					onclick={() => onselect([])}
+				>
+					Clear
+				</button>
+			{/if}
+		</li>
+	</DropdownMenu>
+</Dropdown>

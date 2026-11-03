@@ -3,7 +3,6 @@
 	import { timeAgo } from '#lib/client/clock.svelte';
 	import type { StagedSubmission } from '#lib/server/intake/staging';
 	import { absoluteTime } from '#lib/time';
-	import { cn } from '#lib/utils';
 
 	/**
 	 * One staged intake submission in the Inbox's own Submissions section.
@@ -26,11 +25,9 @@
 </script>
 
 <div
-	class={cn(
-		'group/row flex min-h-(--size-row-compact) cursor-pointer select-none items-center gap-3 border-b border-border-subtle px-3 text-body last:border-b-0',
-		'hover:bg-surface-2 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ring',
-		selected && 'is-selected-row'
-	)}
+	class="submission-row d-flex align-items-center gap-3 px-3 text-body {selected
+		? 'is-selected-row'
+		: ''}"
 	role="button"
 	tabindex={0}
 	aria-current={selected ? 'true' : undefined}
@@ -44,19 +41,57 @@
 	}}
 >
 	<span
-		class="mono w-24 min-w-0 shrink-0 truncate text-caption text-fg-secondary"
+		class="submission-source min-w-0 flex-shrink-0 text-truncate font-monospace small text-body-secondary"
 		title={source}
 	>
 		{source}
 	</span>
 
-	<span class="min-w-0 flex-1 truncate text-body text-fg" title={title}>{title}</span>
+	<span class="min-w-0 flex-grow-1 text-truncate text-body" title={title}>{title}</span>
 
 	<time
-		class="w-20 shrink-0 truncate text-right text-caption text-fg-secondary tabular-nums"
+		class="submission-received flex-shrink-0 text-truncate text-end small text-body-secondary tabular"
 		datetime={new Date(submission.createdAt).toISOString()}
 		title={absoluteTime(submission.createdAt)}
 	>
 		{timeAgo(submission.createdAt)}
 	</time>
 </div>
+
+<style>
+	.submission-row {
+		min-height: var(--funnel-row-compact);
+		border-bottom: 1px solid var(--bs-border-color);
+		cursor: pointer;
+		user-select: none;
+	}
+
+	.submission-row:last-child {
+		border-bottom: 0;
+	}
+
+	.submission-row:hover {
+		background: var(--bs-tertiary-bg);
+	}
+
+	.submission-row:focus-visible {
+		outline: 2px solid var(--bs-primary);
+		outline-offset: -2px;
+	}
+
+	.submission-row.is-selected-row {
+		box-shadow: inset 2px 0 0 0 var(--bs-primary);
+	}
+
+	.submission-source {
+		width: 6rem;
+	}
+
+	.submission-received {
+		width: 5rem;
+	}
+
+	.tabular {
+		font-variant-numeric: tabular-nums;
+	}
+</style>

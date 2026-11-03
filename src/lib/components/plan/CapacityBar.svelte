@@ -1,7 +1,6 @@
 <script lang="ts">
-	import TriangleAlertIcon from '@lucide/svelte/icons/triangle-alert';
+	import { Progress } from '@sveltestrap/sveltestrap';
 	import { barPercent, formatMinutes } from '#lib/planning';
-	import { cn } from '#lib/utils';
 	import { capacityTone } from './format';
 
 	/**
@@ -39,41 +38,56 @@
 
 {#if capMinutes === null}
 	<span
-		class={cn('status status-muted tabular-nums', className)}
+		class="d-inline-flex align-items-center gap-1 small text-body-secondary tnum {className}"
 		data-cap="none"
 		title="No due date, so this milestone has no cap"
 	>
 		<span>Scheduled {formatMinutes(committedMinutes)}</span>
-		<span class="text-fg-muted">· no cap</span>
+		<span class="text-body-tertiary">· no cap</span>
 	</span>
 {:else}
-	<span class={cn('flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1', className)}>
-		<span
-			class="relative h-(--size-capacity-bar) min-w-16 flex-1 overflow-hidden rounded-full bg-surface-2"
-			role="progressbar"
-			aria-label="Scheduled hours against the capacity cap"
-			aria-valuemin={0}
-			aria-valuemax={100}
-			aria-valuenow={Math.min(100, percent)}
-			aria-valuetext={valueText}
-			title={valueText}
-		>
-			<span
-				class={cn(
-					'absolute inset-y-0 start-0 rounded-full',
-					tone === 'over' ? 'bg-error' : 'bg-primary'
-				)}
-				style={`width: ${Math.min(100, percent)}%`}
-			></span>
+	<span class="d-flex min-w-0 flex-grow-1 flex-wrap align-items-center gap-2 {className}">
+		<span class="capacity-track">
+			<Progress
+				bar={true}
+				value={Math.min(100, Math.round(percent))}
+				max={100}
+				color={tone === 'over' ? 'danger' : 'primary'}
+				class="capacity-fill"
+				aria-label="Scheduled hours against the capacity cap"
+				aria-valuetext={valueText}
+				title={valueText}
+			/>
 		</span>
-		<span class="shrink-0 text-caption text-fg-secondary tabular-nums">
+		<span class="flex-shrink-0 small text-body-secondary tnum">
 			Scheduled {formatMinutes(committedMinutes)} of {formatMinutes(capMinutes)} cap
 		</span>
 		{#if tone === 'over' && overBy > 0}
-			<span class="status status-error shrink-0 tabular-nums">
-				<TriangleAlertIcon aria-hidden="true" />
+			<span class="d-inline-flex align-items-center gap-1 small text-danger tnum flex-shrink-0">
+				<i class="bi bi-exclamation-triangle" aria-hidden="true"></i>
 				<span>Over by {formatMinutes(overBy)}</span>
 			</span>
 		{/if}
 	</span>
 {/if}
+
+<style>
+	.capacity-track {
+		display: block;
+		min-width: 4rem;
+		height: 0.5rem;
+		flex: 1 1 auto;
+		overflow: hidden;
+		border-radius: var(--bs-border-radius-pill);
+		background: var(--bs-secondary-bg);
+	}
+
+	:global(.capacity-fill) {
+		height: 100%;
+		border-radius: inherit;
+	}
+
+	.tnum {
+		font-variant-numeric: tabular-nums;
+	}
+</style>

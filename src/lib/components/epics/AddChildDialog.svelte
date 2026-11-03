@@ -1,14 +1,18 @@
 <script lang="ts">
 	import { invalidateAll } from '$app/navigation';
-	import CheckIcon from '@lucide/svelte/icons/check';
+	import {
+		Button,
+		FormGroup,
+		Input,
+		Label,
+		Modal,
+		ModalBody,
+		ModalFooter,
+		ModalHeader
+	} from '@sveltestrap/sveltestrap';
 	import EmptyState from '#lib/components/common/EmptyState.svelte';
 	import InlineStatus from '#lib/components/common/InlineStatus.svelte';
 	import Spinner from '#lib/components/common/Spinner.svelte';
-	import { Button } from '#lib/components/ui/button';
-	import * as Dialog from '#lib/components/ui/dialog';
-	import * as Field from '#lib/components/ui/field';
-	import { Input } from '#lib/components/ui/input';
-	import { cn } from '#lib/utils';
 	import {
 		addChildRequest,
 		epicChildErrorMessage,
@@ -91,19 +95,17 @@
 	}
 </script>
 
-<Dialog.Root {open} onOpenChange={close}>
-	<Dialog.Content class="sm:max-w-(--layout-form-max)" aria-describedby={undefined}>
-		<Dialog.Header>
-			<Dialog.Title>Add child</Dialog.Title>
-			<Dialog.Description>
-				Open issues that are not already in another epic. The full child list is written to the
-				epic issue body.
-			</Dialog.Description>
-		</Dialog.Header>
+<Modal isOpen={open} toggle={() => close(false)} size="lg">
+	<ModalHeader toggle={() => close(false)}>Add child</ModalHeader>
+	<ModalBody>
+		<p class="small text-body-secondary">
+			Open issues that are not already in another epic. The full child list is written to the epic
+			issue body.
+		</p>
 
-		<div class="flex flex-col gap-3">
-			<Field.Field>
-				<Field.Label for="epic-candidate-search">Find an issue</Field.Label>
+		<div class="d-flex flex-column gap-3">
+			<FormGroup>
+				<Label for="epic-candidate-search">Find an issue</Label>
 				<Input
 					id="epic-candidate-search"
 					type="search"
@@ -111,47 +113,45 @@
 					bind:value={query}
 					autocomplete="off"
 				/>
-			</Field.Field>
+			</FormGroup>
 
 			{#if candidates.length === 0}
 				<EmptyState
 					description="No open issues are available. Create an issue or remove it from another epic first."
-					class="border-y border-border-subtle py-8"
+					class="border-top border-bottom"
 				/>
 			{:else if filtered.length === 0}
-				<p class="py-3 text-body text-fg-secondary">No issue matches “{query}”.</p>
+				<p class="py-2 text-body-secondary">No issue matches “{query}”.</p>
 			{:else}
-				<ul
-					class="max-h-64 overflow-y-auto border-y border-border-subtle"
+				<div
+					class="list-group list-group-flush overflow-auto border-top border-bottom"
+					style="max-height: 16rem"
+					role="group"
 					aria-label="Epic candidates"
 				>
 					{#each filtered as candidate (candidate.ref)}
-						<li>
-							<button
-								type="button"
-								class={cn(
-									'candidate flex min-h-(--size-row-compact) w-full min-w-0 items-center gap-2 border-b border-border-subtle px-3 py-1 text-start text-body last:border-b-0',
-									selectedRef === candidate.ref && 'bg-surface-2'
-								)}
-								aria-pressed={selectedRef === candidate.ref}
-								onclick={() => {
-									selectedRef = candidate.ref;
-									error = null;
-								}}
-							>
-								<span class="w-(--icon-sm) shrink-0 text-primary">
-									{#if selectedRef === candidate.ref}
-										<CheckIcon class="size-(--icon-sm)" aria-hidden="true" />
-									{/if}
-								</span>
-								<span class="mono shrink-0 text-fg-secondary">
-									{candidate.repo}#{candidate.number}
-								</span>
-								<span class="min-w-0 flex-1 truncate">{candidate.title}</span>
-							</button>
-						</li>
+						<button
+							type="button"
+							class="list-group-item list-group-item-action d-flex align-items-center gap-2 px-3 py-1 text-start text-body"
+							class:bg-body-secondary={selectedRef === candidate.ref}
+							aria-pressed={selectedRef === candidate.ref}
+							onclick={() => {
+								selectedRef = candidate.ref;
+								error = null;
+							}}
+						>
+							<span class="flex-shrink-0 text-primary" style="width: 1rem">
+								{#if selectedRef === candidate.ref}
+									<i class="bi bi-check-lg" aria-hidden="true"></i>
+								{/if}
+							</span>
+							<span class="font-monospace flex-shrink-0 text-body-secondary">
+								{candidate.repo}#{candidate.number}
+							</span>
+							<span class="min-w-0 flex-grow-1 text-truncate">{candidate.title}</span>
+						</button>
 					{/each}
-				</ul>
+				</div>
 			{/if}
 
 			{#if error}
@@ -160,23 +160,15 @@
 				</div>
 			{/if}
 		</div>
+	</ModalBody>
 
-		<Dialog.Footer>
-			<Button variant="outline" disabled={busy} onclick={() => close(false)}>Cancel</Button>
-			<Button disabled={busy || selected === null} onclick={() => void submit()}>
-				{#if busy}
-					<Spinner label="Adding child" />
-				{/if}
-				{busy ? 'Adding…' : 'Add child'}
-			</Button>
-		</Dialog.Footer>
-	</Dialog.Content>
-</Dialog.Root>
-
-<style>
-	@media (hover: hover) and (pointer: fine) {
-		.candidate:not([aria-pressed='true']):hover {
-			background: var(--color-surface);
-		}
-	}
-</style>
+	<ModalFooter>
+		<Button color="outline-secondary" disabled={busy} onclick={() => close(false)}>Cancel</Button>
+		<Button disabled={busy || selected === null} onclick={() => void submit()}>
+			{#if busy}
+				<Spinner label="Adding child" />
+			{/if}
+			{busy ? 'Adding…' : 'Add child'}
+		</Button>
+	</ModalFooter>
+</Modal>

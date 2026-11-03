@@ -1,12 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { Button, ButtonGroup } from '@sveltestrap/sveltestrap';
 	import Spinner from '#lib/components/common/Spinner.svelte';
-	import { Button } from '#lib/components/ui/button';
-	import * as InputGroup from '#lib/components/ui/input-group';
-	import * as Kbd from '#lib/components/ui/kbd';
-	import { cn } from '#lib/utils';
-	import MessageSquareIcon from '@lucide/svelte/icons/message-square';
-	import PaperclipIcon from '@lucide/svelte/icons/paperclip';
 
 	/**
 	 * The embedded action composer: a one-line prompt at rest that expands in
@@ -118,111 +113,147 @@
 	}
 </script>
 
-<div bind:this={root} class="relative">
-	<InputGroup.Root class="border-border-strong bg-canvas">
+<div bind:this={root} class="position-relative">
+	<div class="composer">
 		{#if !expanded}
-			<MessageSquareIcon
-				class="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-fg-muted"
-				aria-hidden="true"
-			/>
+			<i class="bi bi-chat-left-text composer-prompt-icon" aria-hidden="true"></i>
 		{/if}
-		<InputGroup.Textarea
-			class={cn(
-				'text-body leading-body',
-				expanded
-					? 'min-h-24 resize-y px-3 py-3'
-					: 'h-(--size-control-comfortable) min-h-(--size-control-comfortable) resize-none py-2.5 pr-3 pl-9'
-			)}
+		<textarea
+			id="issue-composer"
+			class="form-control composer-input {expanded
+				? 'composer-input--expanded'
+				: 'composer-input--collapsed'}"
 			placeholder={effectivePlaceholder}
-			value={value}
+			{value}
 			oninput={onInput}
 			onfocus={onFocus}
 			onblur={onBlur}
 			onkeydown={onKeydown}
 			rows={expanded ? 3 : 1}
 			aria-label={effectiveLabel}
-		></InputGroup.Textarea>
+		></textarea>
 
-		<InputGroup.Addon
-			align="block-end"
-			class={cn('cursor-default justify-between gap-3 px-3 pt-1 pb-3', !expanded && 'hidden')}
+		<div
+			class="composer-actions d-flex min-w-0 flex-wrap align-items-center justify-content-between gap-2 px-2 pt-1 pb-2 {expanded
+				? ''
+				: 'd-none'}"
 		>
-			<div class="flex min-w-0 items-center gap-2">
-				<button
-					type="button"
-					class="inline-flex h-(--size-control-sm) items-center gap-1.5 rounded-sm px-2 text-caption text-fg-secondary hover:bg-surface hover:text-fg disabled:pointer-events-none disabled:text-fg-disabled"
+			<div class="d-flex min-w-0 align-items-center gap-2">
+				<Button
+					color="link"
+					size="sm"
+					class="d-inline-flex align-items-center gap-1 text-decoration-none px-1 py-0 text-body-secondary"
 					disabled={!onattach}
 					title={onattach ? 'Attach files' : 'Attachments are unavailable'}
 					tabindex={onattach ? undefined : -1}
 					onclick={() => fileInput?.click()}
 				>
-					<PaperclipIcon class="size-4 shrink-0" aria-hidden="true" />
+					<i class="bi bi-paperclip flex-shrink-0" aria-hidden="true"></i>
 					Attach
-				</button>
+				</Button>
 				{#if onattach}
 					<input
 						bind:this={fileInput}
 						type="file"
 						multiple
-						class="hidden"
+						class="d-none"
 						onchange={onFiles}
 						aria-hidden="true"
 						tabindex={-1}
 					/>
 				{/if}
 			</div>
-			<div class="flex min-w-0 flex-wrap items-center justify-end gap-2">
+			<div class="d-flex min-w-0 flex-wrap align-items-center justify-content-end gap-2">
 				{#if showModeToggle}
-					<div
-						class="inline-flex overflow-hidden rounded-sm border border-border-strong"
-						role="group"
-						aria-label="Submission channel"
-					>
-						<button
-							type="button"
-							class={cn(
-								'inline-flex h-(--size-control-sm) items-center px-2 text-caption',
-								mode === 'comment'
-									? 'bg-surface-2 font-semibold text-fg'
-									: 'text-fg-secondary hover:bg-surface hover:text-fg'
-							)}
+					<ButtonGroup size="sm" role="group" aria-label="Submission channel">
+						<Button
+							color="outline-secondary"
+							active={mode === 'comment'}
 							aria-pressed={mode === 'comment'}
 							onclick={() => (mode = 'comment')}
 						>
 							Comment
-						</button>
-						<button
-							type="button"
-							class={cn(
-								'inline-flex h-(--size-control-sm) items-center border-l border-border-subtle px-2 text-caption',
-								mode === 'note'
-									? 'bg-surface-2 font-semibold text-fg'
-									: 'text-fg-secondary hover:bg-surface hover:text-fg'
-							)}
+						</Button>
+						<Button
+							color="outline-secondary"
+							active={mode === 'note'}
 							aria-pressed={mode === 'note'}
 							onclick={() => (mode = 'note')}
 						>
 							Internal note
-						</button>
-					</div>
+						</Button>
+					</ButtonGroup>
 				{/if}
-				<Kbd.Root class="hidden sm:inline-flex" aria-hidden="true">
+				<kbd class="border px-1 d-none d-sm-inline-flex" aria-hidden="true">
 					{isMac ? '⌘' : 'Ctrl'}&nbsp;Enter
-				</Kbd.Root>
+				</kbd>
 				<Button
+					color="primary"
 					size="sm"
-					class="min-w-20"
+					style="min-width: 5rem"
 					onclick={submit}
 					disabled={!canSubmit}
 					title={effectiveLabel}
 					aria-label={effectiveLabel}
 				>
 					{#if busy}
-						<Spinner size={13} />
+						<Spinner size={13} class="me-1" />
 					{/if}
 					{busy ? (mode === 'note' ? 'Saving…' : 'Posting…') : mode === 'note' ? 'Add note' : 'Comment'}
 				</Button>
 			</div>
-		</InputGroup.Addon>
-	</InputGroup.Root>
+		</div>
+	</div>
 </div>
+
+<style>
+	.composer {
+		position: relative;
+		overflow: hidden;
+		border: 1px solid var(--bs-border-color);
+		border-radius: var(--bs-border-radius);
+		background: var(--bs-body-bg);
+		transition:
+			border-color 0.15s ease,
+			box-shadow 0.15s ease;
+	}
+
+	.composer:focus-within {
+		border-color: var(--bs-primary);
+		box-shadow: 0 0 0 0.2rem rgba(var(--bs-primary-rgb), 0.2);
+	}
+
+	.composer-prompt-icon {
+		position: absolute;
+		top: 50%;
+		left: 0.75rem;
+		color: var(--bs-secondary-color);
+		pointer-events: none;
+		transform: translateY(-50%);
+	}
+
+	.composer-input {
+		border: 0;
+		background: transparent;
+		font-size: 0.875rem;
+		line-height: 1.5;
+	}
+
+	.composer-input:focus {
+		background: transparent;
+		box-shadow: none;
+	}
+
+	.composer-input--collapsed {
+		height: 2.5rem;
+		min-height: 2.5rem;
+		padding: 0.5rem 0.75rem 0.5rem 2.25rem;
+		resize: none;
+	}
+
+	.composer-input--expanded {
+		min-height: 6rem;
+		padding: 0.75rem;
+		resize: vertical;
+	}
+</style>

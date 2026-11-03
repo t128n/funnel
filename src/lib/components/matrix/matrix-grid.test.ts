@@ -22,7 +22,7 @@ describe("matrixGrid", () => {
       fileURLToPath(new URL("./MatrixGrid.svelte", import.meta.url)),
       "utf8",
     );
-    expect(source).toContain("table-fixed");
+    expect(source).toContain("table-layout: fixed");
     expect(source).toContain("<colgroup>");
     expect((source.match(/<col\b/g) ?? []).length).toBe(5);
   });

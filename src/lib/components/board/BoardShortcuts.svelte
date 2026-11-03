@@ -1,9 +1,7 @@
 <script lang="ts">
 	import { formatForDisplay } from '@tanstack/svelte-hotkeys';
-	import * as Popover from '#lib/components/ui/popover';
-	import { Kbd, KbdGroup } from '#lib/components/ui/kbd';
+	import { Dropdown, DropdownMenu, DropdownToggle } from '@sveltestrap/sveltestrap';
 	import { appHotkeys } from '#lib/client/hotkeys';
-	import KeyboardIcon from '@lucide/svelte/icons/keyboard';
 
 	/**
 	 * Compact legend for the board's keyboard workflow. Reads the same hotkey
@@ -30,26 +28,34 @@
 	}
 </script>
 
-<Popover.Root>
-	<Popover.Trigger
-		class="inline-flex size-(--size-control-sm) items-center justify-center rounded-sm text-fg-secondary hover:bg-surface hover:text-fg"
+<Dropdown>
+	<DropdownToggle
+		color="link"
+		size="sm"
+		caret={false}
+		class="text-body-secondary text-decoration-none px-1"
 		aria-label="Keyboard shortcuts"
+		title="Keyboard shortcuts"
 	>
-		<KeyboardIcon class="size-4" />
-	</Popover.Trigger>
-	<Popover.Content align="end" class="w-72">
-		<span class="text-caption font-semibold text-fg-secondary">Keyboard shortcuts</span>
-		<ul class="flex flex-col gap-1.5">
-			{#each rows as row (row.label)}
-				<li class="flex items-center justify-between gap-3">
-					<span class="text-body">{row.label}</span>
-					<KbdGroup class="gap-1">
-						{#each row.keys as key (key)}
-							<Kbd>{displayKey(key)}</Kbd>
-						{/each}
-					</KbdGroup>
-				</li>
-			{/each}
-		</ul>
-	</Popover.Content>
-</Popover.Root>
+		<i class="bi bi-keyboard" aria-hidden="true"></i>
+	</DropdownToggle>
+	<DropdownMenu end class="board-shortcuts-menu p-2">
+		<li class="px-2 pb-1 small fw-semibold text-body-secondary">Keyboard shortcuts</li>
+		{#each rows as row (row.label)}
+			<li class="d-flex align-items-center justify-content-between gap-3 px-2 py-1">
+				<span class="small text-body">{row.label}</span>
+				<span class="d-inline-flex align-items-center gap-1">
+					{#each row.keys as key (key)}
+						<kbd class="border px-1">{displayKey(key)}</kbd>
+					{/each}
+				</span>
+			</li>
+		{/each}
+	</DropdownMenu>
+</Dropdown>
+
+<style>
+	:global(.board-shortcuts-menu) {
+		min-width: 18rem;
+	}
+</style>

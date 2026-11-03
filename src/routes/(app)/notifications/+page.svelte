@@ -1,28 +1,17 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import type { Component } from 'svelte';
 	import { goto, invalidateAll } from '$app/navigation';
+	import { Button } from '@sveltestrap/sveltestrap';
 	import EmptyState from '#lib/components/common/EmptyState.svelte';
 	import InlineStatus from '#lib/components/common/InlineStatus.svelte';
 	import PageHead from '#lib/components/common/PageHead.svelte';
 	import Spinner from '#lib/components/common/Spinner.svelte';
 	import PageHeader from '#lib/components/shell/PageHeader.svelte';
-	import { Button } from '#lib/components/ui/button';
 	import { timeAgo } from '#lib/client/clock.svelte';
 	import { markNotificationsRead } from '#lib/client/mutations';
 	import { enableNativeNotifications, NATIVE_NOTIFICATIONS_KEY } from '#lib/client/native-notifications';
 	import type { NotificationItem, NotificationKind } from '#lib/server/notifications/types';
 	import { absoluteTime } from '#lib/time';
-	import { cn } from '#lib/utils';
-	import AtSignIcon from '@lucide/svelte/icons/at-sign';
-	import BellRingIcon from '@lucide/svelte/icons/bell-ring';
-	import CheckCheckIcon from '@lucide/svelte/icons/check-check';
-	import CircleDotIcon from '@lucide/svelte/icons/circle-dot';
-	import FlagIcon from '@lucide/svelte/icons/flag';
-	import InboxIcon from '@lucide/svelte/icons/inbox';
-	import MessageSquareIcon from '@lucide/svelte/icons/message-square';
-	import RefreshCwIcon from '@lucide/svelte/icons/refresh-cw';
-	import UserRoundPlusIcon from '@lucide/svelte/icons/user-round-plus';
 	import type { PageProps } from './$types';
 
 	/**
@@ -35,14 +24,14 @@
 	 */
 	let { data }: PageProps = $props();
 
-	const KIND_META: Record<NotificationKind, { label: string; icon: Component }> = {
-		assigned: { label: 'Assigned', icon: UserRoundPlusIcon },
-		mentioned: { label: 'Mentioned', icon: AtSignIcon },
-		comment: { label: 'Comment', icon: MessageSquareIcon },
-		status: { label: 'Status', icon: CircleDotIcon },
-		priority: { label: 'Priority', icon: FlagIcon },
-		state: { label: 'State', icon: RefreshCwIcon },
-		new_intake: { label: 'New intake', icon: InboxIcon }
+	const KIND_META: Record<NotificationKind, { label: string; icon: string }> = {
+		assigned: { label: 'Assigned', icon: 'bi-person-plus' },
+		mentioned: { label: 'Mentioned', icon: 'bi-at' },
+		comment: { label: 'Comment', icon: 'bi-chat-left-text' },
+		status: { label: 'Status', icon: 'bi-record-circle' },
+		priority: { label: 'Priority', icon: 'bi-flag' },
+		state: { label: 'State', icon: 'bi-arrow-clockwise' },
+		new_intake: { label: 'New intake', icon: 'bi-inbox' }
 	};
 
 	const unread = $derived(data.items.filter((item) => item.readAt === null));
@@ -191,22 +180,24 @@
 	description="Assignments, mentions, watched-issue changes, and new intake submissions."
 />
 
-<div class="flex min-h-0 min-w-0 flex-1 flex-col bg-canvas">
+<div class="d-flex min-h-0 min-w-0 flex-grow-1 flex-column bg-body">
 	<PageHeader
 		title="Notifications"
 		count={unreadCount > 0 ? `${unreadCount} unread` : undefined}
 	>
 		{#snippet actions()}
 			<Button
-				variant="outline"
+				color="outline-secondary"
 				size="sm"
 				disabled={unreadCount === 0 || busy !== null}
 				onclick={() => void markAllRead()}
 			>
 				{#if busy === 'all'}
-					<Spinner size={13} label="Marking all read" />
+					<span class="d-inline-flex align-items-center me-1">
+						<Spinner size={13} label="Marking all read" />
+					</span>
 				{:else}
-					<CheckCheckIcon class="size-4" aria-hidden="true" />
+					<i class="bi bi-check2-all me-1" aria-hidden="true"></i>
 				{/if}
 				Mark all read
 			</Button>
@@ -215,12 +206,12 @@
 
 	{#if data.nativeNotifications}
 		<div
-			class="flex shrink-0 flex-wrap items-center gap-3 border-b border-border-subtle bg-surface px-(--layout-page-padding) py-2"
+			class="d-flex flex-shrink-0 flex-wrap align-items-center gap-3 border-bottom bg-body-tertiary px-3 py-2"
 		>
-			<BellRingIcon class="size-4 shrink-0 text-fg-secondary" aria-hidden="true" />
-			<p class="min-w-0 flex-1 text-body text-fg-secondary">{nativeCopy}</p>
+			<i class="bi bi-bell fs-6 flex-shrink-0 text-body-secondary" aria-hidden="true"></i>
+			<p class="min-w-0 flex-grow-1 text-body-secondary mb-0">{nativeCopy}</p>
 			{#if nativeState === 'unknown'}
-				<Button variant="outline" size="sm" onclick={() => void requestNative()}>
+				<Button color="outline-secondary" size="sm" onclick={() => void requestNative()}>
 					Enable browser notifications
 				</Button>
 			{:else if nativeState === 'requesting'}
@@ -229,20 +220,20 @@
 		</div>
 	{:else}
 		<div
-			class="flex shrink-0 items-center gap-3 border-b border-border-subtle bg-surface px-(--layout-page-padding) py-2"
+			class="d-flex flex-shrink-0 align-items-center gap-3 border-bottom bg-body-tertiary px-3 py-2"
 		>
-			<BellRingIcon class="size-4 shrink-0 text-fg-secondary" aria-hidden="true" />
-			<p class="text-body text-fg-secondary">
+			<i class="bi bi-bell fs-6 flex-shrink-0 text-body-secondary" aria-hidden="true"></i>
+			<p class="text-body-secondary mb-0">
 				Browser notifications are off. In-app notifications still appear here.
 			</p>
 		</div>
 	{/if}
 
 	{#if error}
-		<div class="border-b border-border-subtle px-(--layout-page-padding) py-2">
+		<div class="border-bottom px-3 py-2">
 			<InlineStatus tone="error" message={error}>
 				{#snippet action()}
-					<Button variant="link" size="sm" onclick={retry} disabled={busy !== null}>
+					<Button color="link" size="sm" onclick={retry} disabled={busy !== null}>
 						Retry
 					</Button>
 				{/snippet}
@@ -250,14 +241,14 @@
 		</div>
 	{/if}
 
-	<div class="min-h-0 flex-1 overflow-y-auto">
+	<div class="min-h-0 flex-grow-1 overflow-y-auto">
 		{#if data.items.length === 0}
 			<EmptyState
 				title="You're all caught up."
 				description="Assignments, mentions, status changes, and new intake submissions appear here."
 			>
 				{#snippet action()}
-					<Button variant="outline" size="sm" href="/issues">View issues</Button>
+					<Button color="outline-secondary" size="sm" href="/issues">View issues</Button>
 				{/snippet}
 			</EmptyState>
 		{:else}
@@ -265,47 +256,51 @@
 				{#if group.items.length > 0}
 					<section aria-labelledby={`notifications-${group.key}`}>
 						<div
-							class="sticky top-0 z-10 flex h-8 items-center gap-2 border-b border-border-subtle bg-canvas px-(--layout-page-padding)"
+							class="sticky-top d-flex align-items-center gap-2 border-bottom bg-body px-3 py-1"
 						>
 							<h2
 								id={`notifications-${group.key}`}
-								class="text-caption font-semibold text-fg-secondary"
+								class="small fw-semibold text-body-secondary mb-0"
 							>
 								{group.label}
 							</h2>
-							<span class="text-caption text-fg-muted tabular-nums">
+							<span class="small text-body-tertiary tabular">
 								{group.items.length}
 							</span>
 						</div>
-						<ul>
+						<ul class="list-unstyled mb-0">
 							{#each group.items as item (item.id)}
 								{@const meta = KIND_META[item.kind]}
-								{@const KindIcon = meta.icon}
 								{@const isUnread = item.readAt === null}
 								<li
-									class="group/row flex items-start gap-3 border-b border-border-subtle px-3 py-2 hover:bg-surface-2"
+									class="notification-row d-flex align-items-start gap-3 border-bottom px-3 py-2"
 								>
-									<span class="flex w-4 shrink-0 justify-center pt-1.5">
+									<span
+										class="d-flex flex-shrink-0 justify-content-center pt-2"
+										style="width: 1rem"
+									>
 										{#if isUnread}
-											<span class="size-2 rounded-full bg-primary" aria-hidden="true"></span>
-											<span class="sr-only">Unread</span>
+											<span
+												class="unread-dot d-inline-block flex-shrink-0 rounded-circle bg-primary"
+												aria-hidden="true"
+											></span>
+											<span class="visually-hidden">Unread</span>
 										{/if}
 									</span>
 
-									<div class="min-w-0 flex-1">
-										<div class="flex min-w-0 items-baseline gap-2">
+									<div class="min-w-0 flex-grow-1">
+										<div class="d-flex min-w-0 align-items-baseline gap-2">
 											<a
 												href={item.url}
-												class={cn(
-													'min-w-0 truncate text-body text-fg hover:underline',
-													isUnread && 'font-semibold'
-												)}
+												class="notification-title min-w-0 text-truncate text-body {isUnread
+													? 'fw-semibold'
+													: ''}"
 												onclick={(event) => void openItem(item, event)}
 											>
 												{item.title || meta.label}
 											</a>
 											<time
-												class="ml-auto shrink-0 text-caption text-fg-secondary tabular-nums"
+												class="ms-auto flex-shrink-0 small text-body-secondary tabular"
 												datetime={new Date(item.createdAt).toISOString()}
 												title={absoluteTime(item.createdAt)}
 											>
@@ -314,20 +309,22 @@
 										</div>
 
 										<div
-											class="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5 text-caption text-fg-secondary"
+											class="mt-1 d-flex min-w-0 flex-wrap align-items-center gap-1 small text-body-secondary"
 										>
-											<span class="inline-flex shrink-0 items-center gap-1">
-												<KindIcon class="size-3.5" aria-hidden="true" />
+											<span class="d-inline-flex flex-shrink-0 align-items-center gap-1">
+												<i class="bi {meta.icon}" aria-hidden="true"></i>
 												{meta.label}
 											</span>
 											{#if item.actorLogin}
 												<span aria-hidden="true">·</span>
-												<span class="truncate" title={item.actorLogin}>{item.actorLogin}</span>
+												<span class="text-truncate" title={item.actorLogin}>
+													{item.actorLogin}
+												</span>
 											{/if}
 											<span aria-hidden="true">·</span>
 											<a
 												href={item.url}
-												class="link min-w-0 truncate"
+												class="link-primary min-w-0 text-truncate"
 												onclick={(event) => void openItem(item, event)}
 											>
 												{targetLabel(item.url)}
@@ -335,7 +332,7 @@
 										</div>
 
 										{#if item.body}
-											<p class="mt-1 line-clamp-2 text-caption text-fg-secondary">
+											<p class="notification-snippet mt-1 small text-body-secondary mb-0">
 												{item.body}
 											</p>
 										{/if}
@@ -343,15 +340,17 @@
 
 									{#if isUnread}
 										<Button
-											variant="ghost"
+											color="link"
 											size="sm"
-											class="shrink-0"
+											class="flex-shrink-0 text-decoration-none"
 											disabled={busy !== null}
 											aria-label={`Mark ${item.title || meta.label} read`}
 											onclick={() => void markRead(item.id)}
 										>
 											{#if busy === item.id}
-												<Spinner size={12} label="Marking read" />
+												<span class="d-inline-flex align-items-center me-1">
+													<Spinner size={12} label="Marking read" />
+												</span>
 											{:else}
 												Mark read
 											{/if}
@@ -366,3 +365,34 @@
 		{/if}
 	</div>
 </div>
+
+<style>
+	.notification-row:hover {
+		background: var(--bs-tertiary-bg);
+	}
+
+	.notification-title {
+		text-decoration: none;
+	}
+
+	.notification-title:hover {
+		text-decoration: underline;
+	}
+
+	.unread-dot {
+		width: 0.5rem;
+		height: 0.5rem;
+	}
+
+	.notification-snippet {
+		display: -webkit-box;
+		overflow: hidden;
+		-webkit-box-orient: vertical;
+		-webkit-line-clamp: 2;
+		line-clamp: 2;
+	}
+
+	.tabular {
+		font-variant-numeric: tabular-nums;
+	}
+</style>

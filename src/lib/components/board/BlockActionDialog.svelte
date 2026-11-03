@@ -1,12 +1,16 @@
 <script lang="ts">
+	import {
+		Button,
+		FormGroup,
+		Input,
+		Label,
+		Modal,
+		ModalBody,
+		ModalFooter,
+		ModalHeader
+	} from '@sveltestrap/sveltestrap';
 	import Spinner from '#lib/components/common/Spinner.svelte';
 	import InlineStatus from '#lib/components/common/InlineStatus.svelte';
-	import { Button } from '#lib/components/ui/button';
-	import * as Dialog from '#lib/components/ui/dialog';
-	import * as Field from '#lib/components/ui/field';
-	import { Input } from '#lib/components/ui/input';
-	import * as NativeSelect from '#lib/components/ui/native-select';
-	import { Textarea } from '#lib/components/ui/textarea';
 	import { quickRecheckDates, toISODate } from '#lib/attention';
 	import { clockTick } from '#lib/client/clock.svelte';
 	import type { BlockPayload } from '#lib/client/issue-actions.svelte';
@@ -15,7 +19,6 @@
 		type BlockInfo,
 		type DelayReason
 	} from '#lib/funnel-metadata';
-	import { cn } from '#lib/utils';
 	import {
 		blockInfoPayload,
 		canSubmitBlock,
@@ -82,6 +85,10 @@
 	});
 	const quickDates = $derived(quickRecheckDates(today));
 
+	function close() {
+		if (!busy) onopenchange(false);
+	}
+
 	function confirm() {
 		if (!canConfirm) return;
 		if (isBlock) {
@@ -94,93 +101,90 @@
 	}
 </script>
 
-<Dialog.Root
-	{open}
-	onOpenChange={(next) => {
-		if (!busy) onopenchange(next);
-	}}
->
-	<Dialog.Content aria-describedby={undefined} class="sm:max-w-[var(--layout-form-max)]">
-		<Dialog.Header>
-			<Dialog.Title>
-				{isBlock ? (revising ? 'Update block' : 'Block issue') : 'Unblock issue'}
-			</Dialog.Title>
-			<Dialog.Description class="text-caption text-fg-secondary">
-				{#if revising}
-					Revising why the issue is still blocked and when to re-check it. The summary is posted
-					as a comment and replaces the issue's stored blocker metadata.
-				{:else if isBlock}
-					Recording what is blocking the issue and what needs to happen next. The summary is
-					posted as a comment and stored in the issue's metadata.
-				{:else}
-					Record what unblocked the issue. The note is posted as a comment and clears the
-					structured blocker metadata.
-				{/if}
-			</Dialog.Description>
-		</Dialog.Header>
+<Modal isOpen={open} toggle={close} size="lg">
+	<ModalHeader toggle={close}>
+		{isBlock ? (revising ? 'Update block' : 'Block issue') : 'Unblock issue'}
+	</ModalHeader>
+
+	<ModalBody>
+		<p class="small text-body-secondary">
+			{#if revising}
+				Revising why the issue is still blocked and when to re-check it. The summary is posted
+				as a comment and replaces the issue's stored blocker metadata.
+			{:else if isBlock}
+				Recording what is blocking the issue and what needs to happen next. The summary is
+				posted as a comment and stored in the issue's metadata.
+			{:else}
+				Record what unblocked the issue. The note is posted as a comment and clears the
+				structured blocker metadata.
+			{/if}
+		</p>
 
 		{#if isBlock}
-			<div class="flex flex-col gap-6">
-				<Field.Field>
-					<Field.Label for="blocker">
-						Blocker <span class="font-normal text-error">required</span>
-					</Field.Label>
-					<Textarea
+			<div class="d-flex flex-column gap-3">
+				<FormGroup class="mb-0">
+					<Label for="blocker">
+						Blocker <span class="fw-normal text-danger">required</span>
+					</Label>
+					<textarea
 						id="blocker"
-						rows={2}
+						class="form-control"
+						rows="2"
 						placeholder="What is blocking this issue?"
 						value={blocker}
-						oninput={(e) => (blocker = e.currentTarget.value)}
-					></Textarea>
-				</Field.Field>
+						oninput={(event) => (blocker = event.currentTarget.value)}
+					></textarea>
+				</FormGroup>
 
-				<Field.Field>
-					<Field.Label for="block-reason">
-						Reason <span class="font-normal text-error">required</span>
-					</Field.Label>
-					<NativeSelect.Root id="block-reason" bind:value={reason}>
-						<NativeSelect.Option value="">Select a reason</NativeSelect.Option>
+				<FormGroup class="mb-0">
+					<Label for="block-reason">
+						Reason <span class="fw-normal text-danger">required</span>
+					</Label>
+					<select id="block-reason" class="form-select" bind:value={reason}>
+						<option value="">Select a reason</option>
 						{#each DELAY_REASONS as value (value)}
-							<NativeSelect.Option {value}>{delayReasonLabel(value)}</NativeSelect.Option>
+							<option {value}>{delayReasonLabel(value)}</option>
 						{/each}
-					</NativeSelect.Root>
-				</Field.Field>
+					</select>
+				</FormGroup>
 
-				<Field.Field>
-					<Field.Label for="needs">
-						Needs to unblock <span class="font-normal text-error">required</span>
-					</Field.Label>
-					<Textarea
+				<FormGroup class="mb-0">
+					<Label for="needs">
+						Needs to unblock <span class="fw-normal text-danger">required</span>
+					</Label>
+					<textarea
 						id="needs"
-						rows={2}
+						class="form-control"
+						rows="2"
 						placeholder="The concrete step that must happen to unblock it"
 						value={needs}
-						oninput={(e) => (needs = e.currentTarget.value)}
-					></Textarea>
-				</Field.Field>
+						oninput={(event) => (needs = event.currentTarget.value)}
+					></textarea>
+				</FormGroup>
 
-				<Field.Field>
-					<Field.Label for="trying">Currently trying</Field.Label>
-					<Textarea
+				<FormGroup class="mb-0">
+					<Label for="trying">Currently trying</Label>
+					<textarea
 						id="trying"
-						rows={2}
+						class="form-control"
+						rows="2"
 						placeholder="Optional: what is being attempted in the meantime"
 						value={trying}
-						oninput={(e) => (trying = e.currentTarget.value)}
-					></Textarea>
-				</Field.Field>
+						oninput={(event) => (trying = event.currentTarget.value)}
+					></textarea>
+				</FormGroup>
 
-				<Field.Field>
-					<Field.Label for="recheck">Re-check date</Field.Label>
-					<div class="flex flex-col gap-2">
-						<Input id="recheck" type="date" bind:value={recheck} class="w-40" />
-						<div class="flex flex-wrap items-center gap-1">
+				<FormGroup class="mb-0">
+					<Label for="recheck">Re-check date</Label>
+					<div class="d-flex flex-column gap-2">
+						<Input id="recheck" type="date" bind:value={recheck} class="block-recheck" />
+						<div class="d-flex flex-wrap align-items-center gap-1">
 							{#each quickDates as option (option.label)}
 								<Button
 									type="button"
-									variant="ghost"
+									color="outline-secondary"
 									size="sm"
-									class={cn(recheck === option.value && 'bg-surface-2 text-fg')}
+									active={recheck === option.value}
 									title={option.value}
 									aria-pressed={recheck === option.value}
 									onclick={() => (recheck = option.value)}
@@ -190,41 +194,46 @@
 							{/each}
 						</div>
 					</div>
-				</Field.Field>
+				</FormGroup>
 			</div>
 		{:else}
-			<Field.Field>
-				<Field.Label for="unblock-note">
-					What unblocked it <span class="font-normal text-error">required</span>
-				</Field.Label>
-				<Textarea
+			<FormGroup class="mb-0">
+				<Label for="unblock-note">
+					What unblocked it <span class="fw-normal text-danger">required</span>
+				</Label>
+				<textarea
 					id="unblock-note"
-					rows={4}
+					class="form-control"
+					rows="4"
 					placeholder="What changed to unblock this issue?"
 					value={note}
-					oninput={(e) => (note = e.currentTarget.value)}
-				></Textarea>
-			</Field.Field>
+					oninput={(event) => (note = event.currentTarget.value)}
+				></textarea>
+			</FormGroup>
 		{/if}
 
 		{#if error}
-			<InlineStatus tone="error" message={error} />
+			<div class="mt-3">
+				<InlineStatus tone="error" message={error} />
+			</div>
 		{/if}
+	</ModalBody>
 
-		<Dialog.Footer>
-			<Dialog.Close type="button">
-				{#snippet child({ props })}
-					<Button variant="outline" {...props} type="button" disabled={busy}>Cancel</Button>
-				{/snippet}
-			</Dialog.Close>
-			<Button onclick={confirm} disabled={!canConfirm}>
-				{#if busy}
-					<span data-icon="inline-start" class="inline-flex items-center">
-						<Spinner size={13} />
-					</span>
-				{/if}
-				{isBlock ? (revising ? 'Update block' : 'Block issue') : 'Unblock issue'}
-			</Button>
-		</Dialog.Footer>
-	</Dialog.Content>
-</Dialog.Root>
+	<ModalFooter>
+		<Button color="secondary" outline type="button" disabled={busy} onclick={close}>Cancel</Button>
+		<Button color="primary" onclick={confirm} disabled={!canConfirm}>
+			{#if busy}
+				<span class="d-inline-flex align-items-center me-2">
+					<Spinner size={13} />
+				</span>
+			{/if}
+			{isBlock ? (revising ? 'Update block' : 'Block issue') : 'Unblock issue'}
+		</Button>
+	</ModalFooter>
+</Modal>
+
+<style>
+	:global(.block-recheck) {
+		width: 10rem;
+	}
+</style>

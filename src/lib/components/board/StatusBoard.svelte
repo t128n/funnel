@@ -267,7 +267,7 @@
 <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 <div
 	bind:this={grid}
-	class="flex min-h-0 flex-1 snap-x snap-mandatory gap-4 overflow-x-auto overflow-y-hidden scroll-pl-[var(--layout-page-padding)] px-[var(--layout-page-padding)] py-4 md:snap-none"
+	class="status-board d-flex min-h-0 flex-grow-1 gap-3 overflow-x-auto overflow-y-hidden px-3 py-3"
 	role="region"
 	aria-label="Status board"
 	data-keyboard-move={keyboard.active}
@@ -297,5 +297,18 @@
 		/>
 	{/each}
 
-	<p class="sr-only" role="status" aria-live="polite">{keyboard.message}</p>
+	<p class="visually-hidden mb-0" role="status" aria-live="polite">{keyboard.message}</p>
 </div>
+
+<style>
+	.status-board {
+		scroll-snap-type: x mandatory;
+		scroll-padding-inline-start: 0.75rem;
+	}
+
+	@media (min-width: 768px) {
+		.status-board {
+			scroll-snap-type: none;
+		}
+	}
+</style>

@@ -17,6 +17,10 @@ describe("issue detail", () => {
 		for (const label of ["Status", "Priority", "Size", "Assignee", "Milestone"]) {
 			expect(inspector).not.toContain(`<dt>${label}</dt>`);
 		}
+		// The strip uses visible Bootstrap controls, not a hidden picker opened
+		// programmatically behind the value.
+		expect(inspector).toContain('class="triage-field');
+		expect(inspector).not.toContain("pointer-events-none invisible");
 	});
 
 	test("test_size_is_editable_from_the_triage_strip", () => {
@@ -26,6 +30,7 @@ describe("issue detail", () => {
 		expect(triage).toBeGreaterThan(-1);
 		expect(sizePicker).toBeGreaterThan(triage);
 		expect(sizePicker).toBeLessThan(activity);
+		expect(inspector).toContain('aria-label="Estimate size"');
 		expect(inspector).toContain("Not estimated");
 	});
 
@@ -47,9 +52,11 @@ describe("issue detail", () => {
 
 	test("test_composer_is_a_compact_prompt_that_expands_in_place", () => {
 		expect(composer).toContain("const expanded = $derived(!collapsed && (open || hasDraft));");
-		expect(composer).toContain("h-(--size-control-comfortable)");
-		expect(composer).toContain("pl-9");
-		expect(composer).toContain("message-square");
+		expect(composer).toContain("composer-input--collapsed");
+		expect(composer).toContain("composer-input--expanded");
+		expect(composer).toContain("composer-prompt-icon");
+		expect(composer).toContain("bi-chat-left-text");
+		expect(composer).toContain('id="issue-composer"');
 		expect(composer).toContain("event.metaKey || event.ctrlKey");
 		expect(composer).toContain("event.key === 'Escape'");
 	});

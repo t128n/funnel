@@ -1,12 +1,10 @@
 <script lang="ts">
 	import { invalidateAll } from '$app/navigation';
+	import { Badge, Button } from '@sveltestrap/sveltestrap';
 	import Spinner from '#lib/components/common/Spinner.svelte';
 	import InlineStatus from '#lib/components/common/InlineStatus.svelte';
-	import { Button } from '#lib/components/ui/button';
 	import type { DelayItem } from '#lib/server/actuals/store';
 	import { absoluteTime } from '#lib/time';
-	import BanIcon from '@lucide/svelte/icons/ban';
-	import ClockIcon from '@lucide/svelte/icons/clock';
 	import {
 		canCloseDelay,
 		canDeleteDelay,
@@ -80,43 +78,43 @@
 	}
 </script>
 
-<section class="flex flex-col gap-2" aria-label="Delays">
-	<div class="flex items-center justify-between gap-3 border-t border-border-subtle pt-3">
-		<div class="flex items-baseline gap-2">
-			<h2 class="text-heading-sm font-semibold text-fg">Delays</h2>
-			<span class="text-caption tabular-nums text-fg-secondary">{delays.length}</span>
+<section class="d-flex flex-column gap-2" aria-label="Delays">
+	<div class="d-flex align-items-center justify-content-between gap-3 border-top pt-3">
+		<div class="d-flex align-items-baseline gap-2">
+			<h2 class="h5 fw-semibold mb-0">Delays</h2>
+			<span class="small text-body-secondary delay-number">{delays.length}</span>
 		</div>
 		{#if mayWrite}
-			<Button variant="ghost" size="xs" onclick={onrecord}>Record delay</Button>
+			<Button color="link" size="sm" class="text-decoration-none px-0 py-0" onclick={onrecord}>
+				Record delay
+			</Button>
 		{/if}
 	</div>
 
 	{#if delays.length === 0}
-		<p class="text-body text-fg-secondary">No delays recorded.</p>
+		<p class="text-body-secondary mb-0">No delays recorded.</p>
 	{:else}
-		<ul class="flex flex-col">
+		<ul class="list-unstyled mb-0">
 			{#each delays as row (row.id)}
-				<li class="flex flex-col gap-1 border-t border-border-subtle py-2 text-body first:border-t-0">
-					<div class="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
-						<span class="font-semibold text-fg">{delayReasonLabel(row.reason)}</span>
-						<span
-							class={row.source === 'blocked'
-								? 'status status-error'
-								: 'status status-muted'}
-						>
-							{#if row.source === 'blocked'}
-								<BanIcon aria-hidden="true" />
+				<li class="delay-row d-flex flex-column gap-1 border-top py-2">
+					<div class="d-flex min-w-0 flex-wrap align-items-center gap-2">
+						<span class="fw-semibold">{delayReasonLabel(row.reason)}</span>
+						{#if row.source === 'blocked'}
+							<Badge color="danger" class="d-inline-flex align-items-center gap-1">
+								<i class="bi bi-slash-circle" aria-hidden="true"></i>
 								Blocked
-							{:else}
-								<ClockIcon aria-hidden="true" />
+							</Badge>
+						{:else}
+							<Badge color="secondary" class="d-inline-flex align-items-center gap-1">
+								<i class="bi bi-clock" aria-hidden="true"></i>
 								Manual
-							{/if}
-						</span>
-						<span class="ml-auto text-caption tabular-nums text-fg-secondary">
+							</Badge>
+						{/if}
+						<span class="ms-auto small text-body-secondary delay-number">
 							{delayDuration(row)}
 						</span>
 					</div>
-					<div class="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-caption text-fg-secondary">
+					<div class="d-flex min-w-0 flex-wrap align-items-center gap-2 small text-body-secondary">
 						<span title={absoluteTime(row.startedAt)}>
 							{absoluteTime(row.startedAt)}
 						</span>
@@ -126,14 +124,15 @@
 						</span>
 					</div>
 					{#if row.note.trim().length > 0}
-						<p class="text-body text-fg">{row.note}</p>
+						<p class="mb-0">{row.note}</p>
 					{/if}
 					{#if canCloseDelay(row, mayWrite) || canDeleteDelay(row, mayWrite)}
-						<div class="flex items-center gap-1">
+						<div class="d-flex align-items-center gap-1">
 							{#if canCloseDelay(row, mayWrite)}
 								<Button
-									variant="ghost"
-									size="xs"
+									color="link"
+									size="sm"
+									class="text-decoration-none px-1 py-0"
 									disabled={busyId === row.id}
 									onclick={() => close(row)}
 								>
@@ -142,8 +141,9 @@
 							{/if}
 							{#if canDeleteDelay(row, mayWrite)}
 								<Button
-									variant="ghost"
-									size="xs"
+									color="link"
+									size="sm"
+									class="text-decoration-none px-1 py-0 text-body-secondary"
 									disabled={busyId === row.id}
 									onclick={() => remove(row)}
 								>
@@ -161,7 +161,7 @@
 	{/if}
 
 	{#if grouped.automatic.length > 0 && mayWrite}
-		<p class="text-caption text-fg-muted">
+		<p class="small text-body-tertiary mb-0">
 			Blocked delays follow the blocked flag and are read-only.
 		</p>
 	{/if}
@@ -169,3 +169,13 @@
 		<InlineStatus tone="error" message={error} />
 	{/if}
 </section>
+
+<style>
+	.delay-row:first-child {
+		border-top: 0 !important;
+	}
+
+	.delay-number {
+		font-variant-numeric: tabular-nums;
+	}
+</style>

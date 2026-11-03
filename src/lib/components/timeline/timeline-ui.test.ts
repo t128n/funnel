@@ -4,7 +4,7 @@
  * Bun cannot mount a canvas-backed Svelte component without the Vite plugin,
  * so these checks read the source for the wiring that would be invisible in a
  * snapshot: the ECharts registration, the real HTML label links, the single
- * undated rendering path, and the t128n token consumption.
+ * undated rendering path, and the Bootstrap/Funnel token consumption.
  */
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
@@ -35,7 +35,7 @@ describe("timeline chart", () => {
 		expect(chart).toContain('role="img"');
 		expect(chart).toContain("aria-label={`Gantt chart of");
 		expect(chart).toContain("position: sticky");
-		expect(chart).toContain("var(--layout-timeline-label)");
+		expect(chart).toContain("var(--funnel-timeline-label)");
 		expect(chart).toContain("overflow-x: auto");
 	});
 
@@ -56,7 +56,7 @@ describe("timeline chart", () => {
 
 	test("keeps absent dates in one data table", () => {
 		expect(chart).toContain('data-testid="timeline-undated"');
-		expect(chart).toContain('class="data-table"');
+		expect(chart).toContain("funnel-table");
 		expect(chart).toContain("No due date");
 		expect(chart).toContain("Not plotted until a milestone has a due date.");
 		expect(chart).toContain("No start");
@@ -64,12 +64,12 @@ describe("timeline chart", () => {
 		expect(chart).toContain("Overdue");
 	});
 
-	test("consumes t128n tokens and writes no literal colours", () => {
-		expect(chart).toContain("--color-chart-1");
-		expect(chart).toContain("--color-chart-2");
-		expect(chart).toContain("--color-chart-3");
-		expect(chart).toContain("--color-border-subtle");
-		expect(chart).toContain("--color-text-secondary");
+	test("consumes Bootstrap and Funnel tokens and writes no literal colours", () => {
+		expect(chart).toContain("--funnel-chart-1");
+		expect(chart).toContain("--funnel-chart-2");
+		expect(chart).toContain("--funnel-chart-3");
+		expect(chart).toContain("--bs-border-color");
+		expect(chart).toContain("--bs-secondary-color");
 		expect(chart).not.toMatch(/#[0-9a-f]{3,8}\b/i);
 	});
 

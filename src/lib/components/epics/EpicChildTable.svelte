@@ -1,11 +1,15 @@
 <script lang="ts">
-	import EllipsisIcon from '@lucide/svelte/icons/ellipsis';
-	import XIcon from '@lucide/svelte/icons/x';
+	import {
+		Button,
+		Dropdown,
+		DropdownItem,
+		DropdownMenu,
+		DropdownToggle,
+		Table
+	} from '@sveltestrap/sveltestrap';
 	import EmptyState from '#lib/components/common/EmptyState.svelte';
 	import Spinner from '#lib/components/common/Spinner.svelte';
 	import StatusText from '#lib/components/common/StatusText.svelte';
-	import { Button } from '#lib/components/ui/button';
-	import * as DropdownMenu from '#lib/components/ui/dropdown-menu';
 	import { issuePath } from '#lib/issue-url';
 	import { formatMinutes } from '#lib/planning';
 	import type { EpicChild } from '#lib/server/epics/queries';
@@ -15,8 +19,8 @@
 	 * placeholders so a written ref never silently disappears from the epic.
 	 * Writers get a remove control; readers see the same rows without one.
 	 *
-	 * A ruled `.data-table` replaces the old bordered grid. Removal lives in the
-	 * row menu and on a hover/focus action beside it.
+	 * A dense Bootstrap table replaces the old bordered grid. Removal lives in
+	 * the row menu and on a hover/focus action beside it.
 	 */
 	interface Props {
 		children: EpicChild[];
@@ -28,24 +32,24 @@
 	let { children, mayWrite = false, onremove, removing = null }: Props = $props();
 </script>
 
-<div class="overflow-x-auto" data-testid="epic-children">
+<div data-testid="epic-children">
 	{#if children.length === 0}
 		<EmptyState
 			title="No children yet."
 			description="Add open issues from this page."
-			class="border-t border-border-subtle py-10"
+			class="border-top"
 		/>
 	{:else}
-		<table class="data-table">
+		<Table hover responsive size="sm" class="align-middle funnel-table">
 			<thead>
 				<tr>
-					<th>Issue</th>
-					<th>Status</th>
-					<th class="text-end">Estimate</th>
-					<th class="text-end">Actual</th>
-					<th class="text-end">Delay</th>
-					<th class="data-table-actions">
-						<span class="sr-only">Actions</span>
+					<th scope="col">Issue</th>
+					<th scope="col">Status</th>
+					<th scope="col" class="text-end">Estimate</th>
+					<th scope="col" class="text-end">Actual</th>
+					<th scope="col" class="text-end">Delay</th>
+					<th scope="col" class="text-end">
+						<span class="visually-hidden">Actions</span>
 					</th>
 				</tr>
 			</thead>
@@ -54,27 +58,21 @@
 					<tr>
 						<td class="min-w-0">
 							{#if item.available}
-								<a
-									href={issuePath('issues', item.repo, item.number)}
-									class="flex min-w-0 items-center gap-2"
-								>
-									<span class="mono shrink-0 text-fg-secondary">
+								<a href={issuePath('issues', item.repo, item.number)} class="d-flex min-w-0 align-items-center gap-2">
+									<span class="font-monospace flex-shrink-0 text-body-secondary">
 										{item.repo}#{item.number}
 									</span>
 									<span
-										class="min-w-0 truncate text-body"
-										class:line-through={item.state === 'closed'}
+										class="min-w-0 text-truncate text-body"
+										class:text-decoration-line-through={item.state === 'closed'}
 									>
 										{item.title || 'Untitled issue'}
 									</span>
 								</a>
 							{:else}
-								<span
-									class="flex min-w-0 items-center gap-2 text-fg-muted"
-									title="Not mirrored"
-								>
-									<span class="mono shrink-0">{item.ref}</span>
-									<span class="truncate text-body italic">Unavailable</span>
+								<span class="d-flex min-w-0 align-items-center gap-2 text-body-tertiary" title="Not mirrored">
+									<span class="font-monospace flex-shrink-0">{item.ref}</span>
+									<span class="text-truncate text-body fst-italic">Unavailable</span>
 								</span>
 							{/if}
 						</td>
@@ -82,26 +80,26 @@
 							{#if item.available}
 								<StatusText status={item.status} state={item.state} />
 							{:else}
-								<span class="text-caption text-fg-muted">Unavailable</span>
+								<span class="small text-body-tertiary">Unavailable</span>
 							{/if}
 						</td>
-						<td class="mono text-end whitespace-nowrap">
+						<td class="font-monospace text-end text-nowrap">
 							{item.available ? formatMinutes(item.estimateMinutes) : '—'}
 						</td>
-						<td class="mono text-end whitespace-nowrap">
+						<td class="font-monospace text-end text-nowrap">
 							{item.available ? formatMinutes(item.actualMinutes) : '—'}
 						</td>
-						<td class="mono text-end whitespace-nowrap">
+						<td class="font-monospace text-end text-nowrap">
 							{item.available ? formatMinutes(item.delayMinutes) : '—'}
 						</td>
 						<td>
 							{#if mayWrite && onremove}
-								<div class="flex items-center justify-end gap-1">
-									<span class="remove-action flex">
+								<div class="d-flex align-items-center justify-content-end gap-1">
+									<span class="remove-action d-flex">
 										<Button
-											variant="ghost"
-											size="icon-sm"
-											class="text-fg-secondary"
+											color="link"
+											size="sm"
+											class="text-body-secondary text-decoration-none px-1 py-0"
 											disabled={removing === item.ref}
 											title="Remove from epic"
 											aria-label={`Remove ${item.ref} from the epic`}
@@ -110,45 +108,40 @@
 											{#if removing === item.ref}
 												<Spinner label="Removing" />
 											{:else}
-												<XIcon />
+												<i class="bi bi-x-lg" aria-hidden="true"></i>
 											{/if}
 										</Button>
 									</span>
 
-									<DropdownMenu.Root>
-										<DropdownMenu.Trigger>
-											{#snippet child({ props })}
-												<Button
-													{...props}
-													variant="ghost"
-													size="icon-sm"
-													class="text-fg-secondary"
-													disabled={removing === item.ref}
-													aria-label={`Actions for ${item.ref}`}
-												>
-													<EllipsisIcon />
-												</Button>
-											{/snippet}
-										</DropdownMenu.Trigger>
-										<DropdownMenu.Content align="end" class="w-(--layout-menu-min)">
-											<DropdownMenu.Label>{item.ref}</DropdownMenu.Label>
-											<DropdownMenu.Separator />
-											<DropdownMenu.Item
-												variant="destructive"
+									<Dropdown>
+										<DropdownToggle
+											color="link"
+											size="sm"
+											class="text-body-secondary text-decoration-none px-1 py-0"
+											disabled={removing === item.ref}
+											aria-label={`Actions for ${item.ref}`}
+										>
+											<i class="bi bi-three-dots" aria-hidden="true"></i>
+										</DropdownToggle>
+										<DropdownMenu end>
+											<DropdownItem header>{item.ref}</DropdownItem>
+											<DropdownItem divider />
+											<DropdownItem
+												class="text-danger"
 												disabled={removing === item.ref}
-												onSelect={() => onremove?.(item.ref)}
+												on:click={() => onremove?.(item.ref)}
 											>
 												Remove from epic
-											</DropdownMenu.Item>
-										</DropdownMenu.Content>
-									</DropdownMenu.Root>
+											</DropdownItem>
+										</DropdownMenu>
+									</Dropdown>
 								</div>
 							{/if}
 						</td>
 					</tr>
 				{/each}
 			</tbody>
-		</table>
+		</Table>
 	{/if}
 </div>
 

@@ -1,8 +1,7 @@
 <script lang="ts">
-	import ExternalLinkIcon from '@lucide/svelte/icons/external-link';
+	import { Button } from '@sveltestrap/sveltestrap';
 	import FocusedShell from '#lib/components/onboarding/focused-shell.svelte';
 	import PageHead from '#lib/components/common/PageHead.svelte';
-	import { Button } from '#lib/components/ui/button';
 	import OnboardingSteps from '#lib/components/onboarding/onboarding-steps.svelte';
 	import type { PageProps } from './$types';
 
@@ -12,37 +11,35 @@
 <PageHead title="Install the GitHub App" description="Install the GitHub App to grant Funnel access." />
 
 <FocusedShell>
-	<div class="flex flex-col gap-2">
-		<h1 class="text-heading-md font-semibold leading-heading-md text-fg">
-			Install the GitHub App
-		</h1>
-		<p class="max-w-[var(--layout-measure)] text-body leading-body text-fg-secondary">
-			<strong class="font-semibold text-fg">{data.appName}</strong> now exists on GitHub. Install it
+	<div class="d-flex flex-column gap-2">
+		<h1 class="h4 fw-semibold mb-0">Install the GitHub App</h1>
+		<p class="measure text-body-secondary mb-0">
+			<strong class="fw-semibold text-body">{data.appName}</strong> now exists on GitHub. Install it
 			to grant Funnel access — choose “All repositories” or pick specific ones.
 		</p>
 	</div>
 
 	<OnboardingSteps active={2} />
 
-	<section class="min-w-0 w-full border-t border-border-subtle pt-4">
-		<h2 class="text-heading-sm font-semibold leading-heading-sm text-fg">Application</h2>
+	<section class="min-w-0 w-100 border-top pt-4">
+		<h2 class="h5 fw-semibold mb-0">Application</h2>
 
-		<dl class="label-value mt-4">
+		<dl class="property-list mt-4">
 			<dt>App</dt>
-			<dd class="truncate">{data.appName}</dd>
+			<dd class="text-truncate">{data.appName}</dd>
 			<dt>Owner</dt>
-			<dd class="truncate">{data.ownerLogin}</dd>
+			<dd class="text-truncate">{data.ownerLogin}</dd>
 			<dt>Slug</dt>
-			<dd><span class="mono break-all">{data.appSlug}</span></dd>
+			<dd><span class="font-monospace text-break">{data.appSlug}</span></dd>
 		</dl>
 
 		<div class="mt-4">
-			<Button href={data.installUrl}>
-				<ExternalLinkIcon />
+			<Button color="primary" href={data.installUrl}>
+				<i class="bi bi-box-arrow-up-right me-1" aria-hidden="true"></i>
 				Install on GitHub
 			</Button>
 		</div>
-		<p class="mt-2 text-body leading-body text-fg-secondary">
+		<p class="mt-2 mb-0 text-body-secondary">
 			GitHub returns you here automatically once the installation completes.
 		</p>
 	</section>

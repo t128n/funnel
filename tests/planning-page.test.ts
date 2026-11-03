@@ -253,12 +253,14 @@ describe("plan load", () => {
 
 describe("planning navigation and copy", () => {
   test("test_sidebar_has_plan", () => {
-    expect(source("src/lib/components/shell/SidebarNav.svelte")).toContain('href: "/plan"');
+    expect(source("src/lib/components/shell/SidebarNav.svelte")).toMatch(
+      /href:\s*['"]\/plan['"]/,
+    );
   });
 
   test("test_sidebar_plan_active_state", () => {
     const sidebar = source("src/lib/components/shell/SidebarNav.svelte");
-    expect(sidebar).toContain('active: path.startsWith("/plan")');
+    expect(sidebar).toMatch(/active:\s*path\.startsWith\(['"]\/plan['"]\)/);
   });
 
   test("test_settings_nav_has_planning", () => {

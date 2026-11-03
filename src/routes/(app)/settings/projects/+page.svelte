@@ -1,11 +1,14 @@
 <script lang="ts">
-	import PlusIcon from '@lucide/svelte/icons/plus';
-	import EllipsisIcon from '@lucide/svelte/icons/ellipsis';
-	import Trash2Icon from '@lucide/svelte/icons/trash-2';
 	import { untrack } from 'svelte';
-	import { Button } from '#lib/components/ui/button';
-	import * as DropdownMenu from '#lib/components/ui/dropdown-menu';
-	import { Input } from '#lib/components/ui/input';
+	import {
+		Button,
+		Dropdown,
+		DropdownItem,
+		DropdownMenu,
+		DropdownToggle,
+		Input,
+		Table
+	} from '@sveltestrap/sveltestrap';
 	import ConfirmDialog from '#lib/components/settings/confirm-dialog.svelte';
 	import Section from '#lib/components/settings/section.svelte';
 	import SettingsForm from '#lib/components/settings/settings-form.svelte';
@@ -61,81 +64,75 @@
 		title="Projects"
 		description="GitHub labels that mark an issue as belonging to a project; enables the Project group-by option in the issue feeds. The name defaults to the label."
 	>
-		<div class="overflow-x-auto">
-			<table class="w-full table-fixed border-collapse text-body">
-				<thead>
+		<Table responsive hover class="align-middle">
+			<colgroup>
+				<col />
+				<col />
+				<col style="width:5rem" />
+			</colgroup>
+			<thead>
+				<tr>
+					<th scope="col">Label</th>
+					<th scope="col">Name</th>
+					<th scope="col">
+						<span class="visually-hidden">Actions</span>
+					</th>
+				</tr>
+			</thead>
+			<tbody>
+				{#if projects.length === 0}
 					<tr>
-						<th
-							class="h-9 border-b border-border-subtle bg-surface-2 px-3 text-left font-semibold"
-						>
-							Label
-						</th>
-						<th
-							class="h-9 border-b border-border-subtle bg-surface-2 px-3 text-left font-semibold"
-						>
-							Name
-						</th>
-						<th class="h-9 w-10 border-b border-border-subtle bg-surface-2 px-1">
-							<span class="sr-only">Actions</span>
-						</th>
+						<td class="text-body-secondary" colspan="3">No projects yet.</td>
 					</tr>
-				</thead>
-				<tbody>
-					{#if projects.length === 0}
+				{:else}
+					{#each projects as _, index (index)}
 						<tr>
-							<td class="py-3 text-body text-fg-secondary" colspan="3">No projects yet.</td>
+							<td>
+								<Input
+									bind:value={projects[index].label}
+									aria-label={`Project label ${index + 1}`}
+									placeholder="project1"
+									autocomplete="off"
+									spellcheck="false"
+									bsSize="sm"
+								/>
+							</td>
+							<td>
+								<Input
+									bind:value={projects[index].name}
+									aria-label={`Project name ${index + 1}`}
+									placeholder="Project One"
+									autocomplete="off"
+									bsSize="sm"
+								/>
+							</td>
+							<td class="text-end">
+								<Dropdown>
+									<DropdownToggle
+										color="link"
+										size="sm"
+										class="px-1 py-0 text-secondary"
+										aria-label={`Actions for project ${index + 1}`}
+									>
+										<i class="bi bi-three-dots" aria-hidden="true"></i>
+									</DropdownToggle>
+									<DropdownMenu end>
+										<DropdownItem on:click={() => requestRemove(index)}>
+											<i class="bi bi-trash me-2" aria-hidden="true"></i>
+											Remove project
+										</DropdownItem>
+									</DropdownMenu>
+								</Dropdown>
+							</td>
 						</tr>
-					{:else}
-						{#each projects as _, index (index)}
-							<tr class="border-b border-border-subtle">
-								<td class="py-1 pr-2">
-									<Input
-										bind:value={projects[index].label}
-										aria-label={`Project label ${index + 1}`}
-										placeholder="project1"
-										autocomplete="off"
-										spellcheck="false"
-										class="h-7"
-									/>
-								</td>
-								<td class="py-1 pr-2">
-									<Input
-										bind:value={projects[index].name}
-										aria-label={`Project name ${index + 1}`}
-										placeholder="Project One"
-										autocomplete="off"
-										class="h-7"
-									/>
-								</td>
-								<td class="py-1 text-right">
-									<DropdownMenu.Root>
-										<DropdownMenu.Trigger
-											class="inline-flex size-(--size-control-sm) items-center justify-center rounded-sm text-fg-secondary hover:bg-surface-2"
-											aria-label={`Actions for project ${index + 1}`}
-										>
-											<EllipsisIcon class="size-4" aria-hidden="true" />
-										</DropdownMenu.Trigger>
-										<DropdownMenu.Content align="end" class="w-56">
-											<DropdownMenu.Item
-												variant="destructive"
-												onSelect={() => requestRemove(index)}
-											>
-												<Trash2Icon />
-												Remove project
-											</DropdownMenu.Item>
-										</DropdownMenu.Content>
-									</DropdownMenu.Root>
-								</td>
-							</tr>
-						{/each}
-					{/if}
-				</tbody>
-			</table>
-		</div>
+					{/each}
+				{/if}
+			</tbody>
+		</Table>
 
 		<div>
-			<Button type="button" variant="outline" onclick={addProject}>
-				<PlusIcon />
+			<Button type="button" color="outline-secondary" onclick={addProject}>
+				<i class="bi bi-plus-lg me-2" aria-hidden="true"></i>
 				Add Project
 			</Button>
 		</div>

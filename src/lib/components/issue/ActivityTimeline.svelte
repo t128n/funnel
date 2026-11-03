@@ -8,13 +8,10 @@
 </script>
 
 <script lang="ts">
-	import { Button } from '#lib/components/ui/button';
-	import { Textarea } from '#lib/components/ui/textarea';
+	import { Badge, Button } from '@sveltestrap/sveltestrap';
 	import { timeAgo } from '#lib/client/clock.svelte';
 	import { absoluteTime } from '#lib/time';
 	import type { RenderedComment, RenderedWorkNote } from '#lib/server/issues/types';
-	import { cn } from '#lib/utils';
-	import LockIcon from '@lucide/svelte/icons/lock';
 
 	/**
 	 * The issue activity timeline: GitHub comments and internal work notes,
@@ -100,74 +97,76 @@
 	}
 </script>
 
-<div class="flex flex-col">
+<div class="d-flex flex-column">
 	{#each entries as entry, index (entry.kind === 'comment' ? `c${entry.comment.externalId}` : entry.note.id)}
 		{@const author = entry.kind === 'comment' ? entry.comment.author : entry.note.author}
 		{@const at = entry.kind === 'comment' ? entry.comment.createdAt : entry.note.createdAt}
 		{@const tone =
 			entry.kind === 'note' ? 'note' : undefined}
 		<article
-			class="activity-entry flex max-w-[var(--layout-measure)] flex-col gap-1.5 border-t border-border-subtle py-3 first:border-t-0"
+			class="activity-entry d-flex measure flex-column gap-2 border-top py-3"
 			data-index={index}
 			data-tone={tone}
 		>
-			<header class="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-caption text-fg-secondary">
+			<header class="d-flex min-w-0 flex-wrap align-items-center gap-2 small text-body-secondary">
 				{#if entry.kind === 'comment'}
 					<a
 						id={`c${index + 1}`}
 						href={`#c${index + 1}`}
-						class="mono link font-semibold"
+						class="font-monospace link-primary fw-semibold text-decoration-none"
 						aria-label={`Comment ${commentNumber(index)}`}>{commentNumber(index)}</a
 					>
 				{/if}
-				<strong class="font-semibold text-fg">{author?.login ?? 'ghost'}</strong>
+				<strong class="fw-semibold text-body">{author?.login ?? 'ghost'}</strong>
 				{#if entry.kind === 'note'}
-					<span
-						class="inline-flex items-center gap-1 rounded-sm bg-surface px-1.5 py-0.5 font-semibold text-fg-secondary"
-					>
-						<LockIcon class="size-3 shrink-0" aria-hidden="true" />
+					<Badge color="secondary" class="d-inline-flex align-items-center gap-1">
+						<i class="bi bi-lock flex-shrink-0" aria-hidden="true"></i>
 						Internal
-					</span>
+					</Badge>
 				{/if}
 				<span title={absoluteTime(at)}>{timeAgo(at)}</span>
 				{#if onreply}
-					<button
-						type="button"
-						class="link inline-flex h-(--size-control-sm) items-center"
+					<Button
+						color="link"
+						size="sm"
+						class="d-inline-flex align-items-center text-decoration-none px-1 py-0"
 						onclick={() => onreply(entryId(entry))}
 					>
 						Reply
-					</button>
+					</Button>
 				{/if}
 				{#if entry.kind === 'note' && !readonly && viewerLogin && entry.note.author?.login === viewerLogin}
-					<span class="ml-auto flex items-center gap-2">
-						<button
-							type="button"
-							class="link inline-flex h-(--size-control-sm) items-center disabled:pointer-events-none disabled:opacity-50"
+					<span class="ms-auto d-flex align-items-center gap-2">
+						<Button
+							color="link"
+							size="sm"
+							class="d-inline-flex align-items-center text-decoration-none px-1 py-0"
 							disabled={busyId === `note:${entry.note.id}`}
 							title="Edit note"
 							onclick={() => startEdit(entry.note)}
 						>
 							Edit
-						</button>
-						<button
-							type="button"
-							class="link inline-flex h-(--size-control-sm) items-center disabled:pointer-events-none disabled:opacity-50"
+						</Button>
+						<Button
+							color="link"
+							size="sm"
+							class="d-inline-flex align-items-center text-decoration-none px-1 py-0"
 							title="Publish to GitHub as a comment (removes the note)"
 							disabled={busyId === `note:${entry.note.id}`}
 							onclick={() => onpublish(entry.note.id)}
 						>
 							Publish
-						</button>
-						<button
-							type="button"
-							class="link inline-flex h-(--size-control-sm) items-center disabled:pointer-events-none disabled:opacity-50"
+						</Button>
+						<Button
+							color="link"
+							size="sm"
+							class="d-inline-flex align-items-center text-decoration-none px-1 py-0 text-body-secondary"
 							title="Delete note"
 							disabled={busyId === `note:${entry.note.id}`}
 							onclick={() => ondelete(entry.note.id)}
 						>
 							Delete
-						</button>
+						</Button>
 					</span>
 				{/if}
 			</header>
@@ -182,19 +181,21 @@
 
 {#snippet noteBody(note: RenderedWorkNote)}
 	{#if editingId === note.id}
-		<div class="flex flex-col gap-2">
-			<Textarea
-				rows={3}
-				value={draft}
-				oninput={(e) => (draft = e.currentTarget.value)}
+		<div class="d-flex flex-column gap-2">
+			<textarea
+				class="form-control"
+				rows="3"
+				bind:value={draft}
 				placeholder="Update the work note…"
 				aria-label="Edit work note"
-			></Textarea>
-			<div class="flex justify-end gap-1">
-				<Button variant="ghost" size="xs" onclick={cancelEdit}>Cancel</Button>
+			></textarea>
+			<div class="d-flex justify-content-end gap-1">
+				<Button color="link" size="sm" class="text-decoration-none" onclick={cancelEdit}>
+					Cancel
+				</Button>
 				<Button
-					variant="secondary"
-					size="xs"
+					color="primary"
+					size="sm"
 					onclick={() => saveEdit(note.id)}
 					disabled={draft.trim().length === 0}
 				>
@@ -203,8 +204,14 @@
 			</div>
 		</div>
 	{:else}
-		<div class={cn('markdown', 'text-body-content leading-body-content')}>
+		<div class="markdown fs-6 lh-base">
 			{@html note.bodyHtml}
 		</div>
 	{/if}
 {/snippet}
+
+<style>
+	.activity-entry:first-child {
+		border-top: 0 !important;
+	}
+</style>

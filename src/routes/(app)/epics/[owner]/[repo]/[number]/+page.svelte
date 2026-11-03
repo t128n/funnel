@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { invalidateAll } from '$app/navigation';
-	import PlusIcon from '@lucide/svelte/icons/plus';
+	import { Button } from '@sveltestrap/sveltestrap';
 	import InlineStatus from '#lib/components/common/InlineStatus.svelte';
 	import PageHead from '#lib/components/common/PageHead.svelte';
 	import AddChildDialog from '#lib/components/epics/AddChildDialog.svelte';
@@ -13,7 +13,6 @@
 	} from '#lib/components/epics/epic-actions';
 	import PageHeader from '#lib/components/shell/PageHeader.svelte';
 	import StatusText from '#lib/components/common/StatusText.svelte';
-	import { Button } from '#lib/components/ui/button';
 	import { issuePath } from '#lib/issue-url';
 	import { canWrite } from '#lib/roles';
 	import type { EpicDetail } from '#lib/server/epics/queries';
@@ -75,32 +74,34 @@
 {#snippet epicActions()}
 	{#if mayWrite}
 		<Button onclick={() => (dialogOpen = true)}>
-			<PlusIcon />
+			<i class="bi bi-plus-lg me-1" aria-hidden="true"></i>
 			Add child
 		</Button>
 	{/if}
 {/snippet}
 
 {#snippet retryAction()}
-	<Button variant="ghost" size="sm" onclick={() => void retry()}>Retry</Button>
+	<Button color="link" size="sm" class="text-decoration-none" onclick={() => void retry()}>
+		Retry
+	</Button>
 {/snippet}
 
 {#if epic}
 	<PageHead title={epic.title || 'Epic'} />
 
-	<div class="flex min-h-0 flex-1 flex-col overflow-y-auto">
+	<div class="d-flex min-h-0 flex-grow-1 flex-column overflow-y-auto">
 		<PageHeader title={epic.title || 'Untitled epic'} actions={epicActions} />
 
-		<div class="flex flex-col gap-6 px-[var(--layout-page-padding)] pb-8">
-			<div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-body text-fg-secondary">
+		<div class="d-flex flex-column gap-4 px-3 pb-4">
+			<div class="d-flex flex-wrap align-items-center column-gap-3 row-gap-1 text-body-secondary">
 				<a
 					href={issuePath('issues', epic.repo, epic.number)}
-					class="mono text-fg-secondary hover:text-primary hover:underline"
+					class="font-monospace text-body-secondary link-primary link-underline-opacity-0 link-underline-opacity-100-hover"
 				>
 					{epic.ref}
 				</a>
 				{#if epic.milestone}
-					<span class="tabular-nums">
+					<span class="num">
 						{epic.milestone.title}
 						{#if epic.milestone.dueOn !== null}
 							· due {dueLabel(epic.milestone.dueOn)}
@@ -118,12 +119,10 @@
 				</div>
 			{/if}
 
-			<section class="flex flex-col gap-2" aria-labelledby="epic-children-heading">
-				<div class="flex items-baseline gap-2">
-					<h2 id="epic-children-heading" class="text-heading-sm font-semibold leading-heading-sm">
-						Children
-					</h2>
-					<span class="text-caption text-fg-secondary tabular-nums">
+			<section class="d-flex flex-column gap-2" aria-labelledby="epic-children-heading">
+				<div class="d-flex align-items-baseline gap-2">
+					<h2 id="epic-children-heading" class="h5 fw-semibold mb-0">Children</h2>
+					<span class="small text-body-secondary num">
 						{epic.childCount}
 					</span>
 				</div>

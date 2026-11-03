@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { invalidateAll } from '$app/navigation';
 	import { page } from '$app/state';
+	import { Button } from '@sveltestrap/sveltestrap';
 	import AttentionRow from '#lib/components/attention/AttentionRow.svelte';
 	import PageHead from '#lib/components/common/PageHead.svelte';
 	import EmptyState from '#lib/components/common/EmptyState.svelte';
@@ -9,7 +10,6 @@
 	import IssueActionDialog from '#lib/components/issue/IssueActionDialog.svelte';
 	import PageHeader from '#lib/components/shell/PageHeader.svelte';
 	import Toolbar from '#lib/components/shell/Toolbar.svelte';
-	import { Button } from '#lib/components/ui/button';
 	import { classifyAttention, toISODate, type AttentionBuckets } from '#lib/attention';
 	import { clockTick } from '#lib/client/clock.svelte';
 	import type { CloseReason } from '#lib/client/mutations';
@@ -113,23 +113,23 @@
 	description="Blocked issues grouped by re-check date, including those without one."
 />
 
-<div class="flex min-h-0 min-w-0 flex-1 flex-col bg-canvas">
+<div class="d-flex min-h-0 min-w-0 flex-grow-1 flex-column bg-body">
 	<PageHeader title="Attention" count={countLabel} />
 
 	<Toolbar>
 		<ViewSegment />
 	</Toolbar>
 
-	<div class="min-h-0 flex-1 overflow-y-auto">
+	<div class="min-h-0 flex-grow-1 overflow-y-auto">
 		{#if total === 0}
 			<EmptyState
 				title={mine ? 'No blocked issues assigned to you.' : 'No blocked issues need attention.'}
 			>
 				{#snippet action()}
 					{#if mine}
-						<Button variant="outline" size="sm" href="/attention">Show all</Button>
+						<Button color="outline-secondary" size="sm" href="/attention">Show all</Button>
 					{:else}
-						<Button variant="outline" size="sm" href="/issues">View all issues</Button>
+						<Button color="outline-secondary" size="sm" href="/issues">View all issues</Button>
 					{/if}
 				{/snippet}
 			</EmptyState>
@@ -138,17 +138,17 @@
 				{#if group.items.length > 0}
 					<section aria-labelledby={`attention-${group.key}`}>
 						<div
-							class="sticky top-0 z-10 flex h-8 items-center gap-2 border-b border-border-subtle bg-canvas px-(--layout-page-padding)"
+							class="sticky-top d-flex align-items-center gap-2 border-bottom bg-body px-3 py-1"
 						>
 							<h2
 								id={`attention-${group.key}`}
-								class="text-caption font-semibold text-fg-secondary"
+								class="small fw-semibold text-body-secondary mb-0"
 							>
 								{group.label}
 							</h2>
-							<span class="text-caption text-fg-muted tabular-nums">{group.items.length}</span>
+							<span class="small text-body-tertiary tabular">{group.items.length}</span>
 						</div>
-						<div class="divide-y divide-border-subtle" role="list">
+						<div role="list">
 							{#each group.items as item (`${item.issue.repoId}:${item.issue.number}`)}
 								<AttentionRow
 									{item}
@@ -187,3 +187,9 @@
 	}}
 	onconfirm={(payload) => void handleBlockConfirm(payload)}
 />
+
+<style>
+	.tabular {
+		font-variant-numeric: tabular-nums;
+	}
+</style>

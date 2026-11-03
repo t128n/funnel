@@ -1,6 +1,5 @@
 <script lang="ts">
-	import type { Snippet } from "svelte";
-	import { cn } from "#lib/utils";
+	import type { Snippet } from 'svelte';
 
 	interface Props {
 		children: Snippet;
@@ -10,20 +9,15 @@
 		class?: string;
 	}
 
-	let { children, actions, class: className }: Props = $props();
+	let { children, actions, class: className = '' }: Props = $props();
 </script>
 
-<div
-	class={cn(
-		"flex flex-wrap items-end gap-4 border-b border-border-subtle px-[var(--layout-page-padding)] py-3",
-		className
-	)}
->
-	<div class="flex min-w-0 flex-1 flex-wrap items-end gap-4">
+<div class="d-flex flex-wrap align-items-end gap-3 border-bottom px-3 py-2 {className}">
+	<div class="d-flex min-w-0 flex-grow-1 flex-wrap align-items-end gap-3">
 		{@render children()}
 	</div>
 	{#if actions}
-		<div class="flex shrink-0 flex-wrap items-center gap-2">
+		<div class="d-flex flex-shrink-0 flex-wrap align-items-center gap-2">
 			{@render actions()}
 		</div>
 	{/if}

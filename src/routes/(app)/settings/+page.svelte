@@ -1,8 +1,7 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import ExternalLinkIcon from '@lucide/svelte/icons/external-link';
-	import LogOutIcon from '@lucide/svelte/icons/log-out';
-	import { Button } from '#lib/components/ui/button';
+	import { Button } from '@sveltestrap/sveltestrap';
+	import Section from '#lib/components/settings/section.svelte';
 	import { signOut } from '#lib/client/auth';
 	import { ROLES } from '#lib/roles';
 	import type { PageProps } from './$types';
@@ -33,17 +32,15 @@
 	}
 </script>
 
-<div class="flex w-full max-w-[var(--layout-form-max)] flex-col gap-6">
-	<section class="border-t border-border-subtle pt-4">
-		<h2 class="text-heading-sm font-semibold leading-heading-sm text-fg">Profile</h2>
-
-		<dl class="label-value mt-4">
+<div class="d-flex w-100 flex-column gap-4">
+	<Section title="Profile">
+		<dl class="property-list">
 			<dt>Name</dt>
-			<dd class="truncate">{data.user.name}</dd>
+			<dd class="text-truncate">{data.user.name}</dd>
 
 			<dt>Email</dt>
 			<dd class="min-w-0">
-				<a class="link truncate" href={`mailto:${data.user.email}`}>{data.user.email}</a>
+				<a class="text-truncate" href={`mailto:${data.user.email}`}>{data.user.email}</a>
 			</dd>
 
 			<dt>Role</dt>
@@ -56,28 +53,27 @@
 						href={githubProfile}
 						target="_blank"
 						rel="noreferrer"
-						class="link inline-flex min-w-0 items-center gap-1.5"
+						class="d-inline-flex min-w-0 align-items-center gap-1"
 					>
-						<span class="truncate">@{data.viewerGithub.login}</span>
-						<ExternalLinkIcon class="size-3.5 shrink-0" aria-hidden="true" />
+						<span class="text-truncate">@{data.viewerGithub.login}</span>
+						<i class="bi bi-box-arrow-up-right flex-shrink-0" aria-hidden="true"></i>
 					</a>
 				</dd>
 			{/if}
 		</dl>
-	</section>
+	</Section>
 
-	<section class="border-t border-border-subtle pt-4">
-		<h2 class="text-heading-sm font-semibold leading-heading-sm text-fg">Session</h2>
-		<p class="mt-1 text-body leading-body text-fg-secondary">
-			Signing out ends this browser session. You can sign back in with GitHub.
-		</p>
-		<div class="mt-4">
-			<Button variant="outline" onclick={() => void handleSignOut()}>
-				<LogOutIcon />
+	<Section
+		title="Session"
+		description="Signing out ends this browser session. You can sign back in with GitHub."
+	>
+		<div>
+			<Button color="outline-secondary" onclick={() => void handleSignOut()}>
+				<i class="bi bi-box-arrow-right me-2" aria-hidden="true"></i>
 				Sign Out
 			</Button>
 		</div>
-	</section>
+	</Section>
 
-	<a class="link w-fit text-body" href="/issues">Back to Issues</a>
+	<a class="align-self-start" href="/issues">Back to Issues</a>
 </div>

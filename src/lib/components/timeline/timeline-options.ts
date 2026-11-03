@@ -5,8 +5,8 @@
  * derived window (`startOn` → `dueOn`), the inner bar is the closed fraction,
  * the ticks are open child issues, and the neutral markers are due dates with
  * no start signal. The builder is pure and takes its colours, type and row
- * metrics from the active t128n tokens so the canvas and the HTML label column
- * stay in one design system.
+ * metrics from the active Bootstrap and Funnel tokens so the canvas and the
+ * HTML label column stay in one design system.
  */
 import type {
   CustomSeriesOption,
@@ -25,7 +25,7 @@ import {
   timelineRef,
 } from "./timeline-format";
 
-/** Colours, fonts and sizes read from the active t128n tokens. */
+/** Colours, fonts and sizes read from the active Bootstrap/Funnel tokens. */
 export interface TimelineChartTokens {
   fontSans: string;
   fontMono: string;
@@ -428,7 +428,7 @@ export function buildTimelineOptions(input: TimelineOptionsInput): EChartsOption
         fontSize: tokens.captionPx,
       },
       extraCssText:
-        "box-shadow: var(--shadow-raised); border-radius: var(--radius-md);",
+        "box-shadow: var(--bs-box-shadow-sm); border-radius: var(--bs-border-radius);",
       formatter: (params: unknown) => tooltipOf(params, tokens, repoShortcodes),
     },
     grid: {

@@ -27,7 +27,6 @@
 	import { projectIssues, reconcileIssues } from '#lib/client/optimistic.svelte';
 	import { canWrite } from '#lib/roles';
 	import { parseIssueParams, type IssueParams } from '#lib/issue-url';
-	import { cn } from '#lib/utils';
 	import type { LayoutProps } from './$types';
 
 	let { data, children }: LayoutProps = $props();
@@ -110,25 +109,24 @@
 
 <PageHead title="Board" description="Issues arranged by workflow status." />
 
-<div class="relative flex min-h-0 min-w-0 flex-1">
-	<div class={cn("flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto", selected && "max-lg:hidden")}>
+<div class="position-relative d-flex min-h-0 min-w-0 flex-grow-1">
+	<div
+		class="min-h-0 min-w-0 flex-grow-1 flex-column overflow-y-auto {selected
+			? 'd-none d-lg-flex'
+			: 'd-flex'}"
+	>
 		<PageHeader
-			title={backlogView ? "Backlog" : "Board"}
+			title={backlogView ? 'Backlog' : 'Board'}
 			count={backlogView ? boardFeed.columns.backlog.total : total}
 			level={selected ? 2 : 1}
 		>
 			{#snippet actions()}
 				<!-- Board view tabs: real links with a 2px primary underline, no fill. -->
-				<nav class="flex items-center gap-5" aria-label="Board view">
+				<nav class="d-flex align-items-center gap-4" aria-label="Board view">
 					{#each viewItems as item (item.label)}
 						<a
 							href={item.href}
-							class={cn(
-								'inline-flex items-center border-b-2 pb-1 text-body',
-								item.active
-									? 'border-primary font-semibold text-fg'
-									: 'border-transparent text-fg-secondary hover:text-fg'
-							)}
+							class="board-view-tab d-inline-flex align-items-center pb-1 text-decoration-none"
 							aria-current={item.active ? 'page' : undefined}
 							onclick={(event) => selectView(event, item)}
 						>
@@ -140,7 +138,7 @@
 		</PageHeader>
 
 		<Toolbar>
-			<div class="min-w-0 flex-1 basis-[var(--layout-search-field)]">
+			<div class="min-w-0 flex-grow-1">
 				<FeedSearch />
 			</div>
 			<ViewSegment />
@@ -153,7 +151,7 @@
 		</Toolbar>
 
 		{#if backlogView}
-			<div class="flex min-h-[30svh] flex-1 flex-col">
+			<div class="board-canvas d-flex flex-column flex-grow-1">
 				<IssueList
 					feed={boardFeed.columns.backlog}
 					project={(issues) =>
@@ -170,7 +168,7 @@
 			<!-- Each projected lane carries its own `total`, `nextCursor`,
 			     `loading`, and `loadMore`, so `StatusBoard` can wire infinite
 			     scroll without touching the feed stores. -->
-			<div class="flex min-h-[30svh] flex-1 flex-col">
+			<div class="board-canvas d-flex flex-column flex-grow-1">
 				<StatusBoard
 					{board}
 					{selected}
@@ -184,9 +182,9 @@
 		{/if}
 	</div>
 
-	<!-- The child detail route docks the Inspector beside the grid above 1024px
+	<!-- The child detail route docks the Inspector beside the grid above 992px
 	     and takes the full width below it. -->
-	<div class={selected ? "flex min-h-0 min-w-0 flex-1" : "hidden lg:flex"}>
+	<div class={selected ? 'd-flex min-h-0 min-w-0 flex-grow-1' : 'd-none d-lg-flex'}>
 		{@render children()}
 	</div>
 </div>
@@ -213,3 +211,25 @@
 	}}
 	onconfirm={(payload) => void confirmBlock(payload)}
 />
+
+<style>
+	.board-view-tab {
+		border-bottom: 2px solid transparent;
+		color: var(--bs-secondary-color);
+		font-size: 0.875rem;
+	}
+
+	.board-view-tab:hover {
+		color: var(--bs-body-color);
+	}
+
+	.board-view-tab[aria-current='page'] {
+		border-bottom-color: var(--bs-primary);
+		color: var(--bs-body-color);
+		font-weight: 600;
+	}
+
+	.board-canvas {
+		min-height: 30svh;
+	}
+</style>

@@ -1,0 +1,330 @@
+/**
+ * Funnel application styles.
+ *
+ * Bootstrap 5 supplies the visual foundation: typography, colour, spacing,
+ * forms, tables, navigation, and every component Sveltestrap renders. This
+ * file contains only the application-specific layout that Bootstrap cannot
+ * express: the cockpit frame, the master–detail split, and the dimensions of
+ * the planning workspaces.
+ *
+ * Colours and theme values are Bootstrap CSS variables (`--bs-*`) so light and
+ * dark mode come from `data-bs-theme` without a second token system.
+ */
+
+:root {
+  --funnel-appbar-height: 3rem;
+  --funnel-sidebar-width: 15rem;
+  --funnel-feed-width: 26rem;
+  --funnel-inspector-width: 48rem;
+  --funnel-settings-nav-width: 12.5rem;
+  --funnel-settings-max: 50rem;
+  --funnel-form-max: 40rem;
+  --funnel-measure: 72ch;
+  --funnel-board-lane-width: 18rem;
+  --funnel-table-min: 44.75rem;
+  --funnel-row-compact: 2.25rem;
+  --funnel-control-sm: 1.75rem;
+  --funnel-timeline-hour: 3.5rem;
+  --funnel-timeline-label: 18rem;
+  --funnel-timeline-chart-min: 36rem;
+  --funnel-timeline-row: 2.75rem;
+
+  /* ECharts needs concrete values at render time; these follow Bootstrap. */
+  --funnel-chart-1: #0d6efd;
+  --funnel-chart-2: #198754;
+  --funnel-chart-3: #d63384;
+  --funnel-chart-4: #6f42c1;
+  --funnel-chart-5: #495057;
+  --funnel-chart-6: #fd7e14;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+/* The cockpit frame: a fixed app bar, a light sidebar, and a fluid canvas. */
+.app-bar {
+  --bs-navbar-padding-y: 0;
+  min-height: var(--funnel-appbar-height);
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+.app-bar .navbar-brand {
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.app-shell {
+  display: flex;
+  height: 100svh;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bs-body-bg);
+}
+
+.app-shell__body {
+  display: flex;
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+}
+
+.app-sidebar {
+  width: var(--funnel-sidebar-width);
+  flex: 0 0 var(--funnel-sidebar-width);
+  overflow-y: auto;
+  border-right: 1px solid var(--bs-border-color);
+  background: var(--bs-tertiary-bg);
+}
+
+.app-main {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bs-body-bg);
+}
+
+.app-main:focus {
+  outline: none;
+}
+
+/* Bootstrap has no zero min-size utilities; flex/grid children need them. */
+.min-w-0 {
+  min-width: 0 !important;
+}
+
+.min-h-0 {
+  min-height: 0 !important;
+}
+
+.app-scroll {
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow-y: auto;
+}
+
+/* Sidebar navigation: Bootstrap pills with compact vertical rhythm. */
+.app-nav .nav-link {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 2.25rem;
+  padding: 0.25rem 0.5rem;
+  color: var(--bs-secondary-color);
+  font-size: 0.875rem;
+}
+
+.app-nav .nav-link:hover {
+  color: var(--bs-body-color);
+  background: var(--bs-tertiary-bg);
+}
+
+.app-nav .nav-link.active {
+  font-weight: 600;
+}
+
+.app-nav .nav-link .bi {
+  width: 1rem;
+  flex: none;
+  text-align: center;
+}
+
+/* Master–detail split: feed column above 992px, one surface below. */
+.split-view {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+}
+
+.split-view__feed {
+  display: flex;
+  min-height: 0;
+  min-width: 0;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bs-body-bg);
+}
+
+.split-view__detail {
+  display: flex;
+  min-height: 0;
+  min-width: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bs-body-bg);
+}
+
+@media (min-width: 992px) {
+  .split-view__feed {
+    width: var(--funnel-feed-width);
+    flex: 0 0 var(--funnel-feed-width);
+    border-right: 1px solid var(--bs-border-color);
+  }
+
+  .split-view--detail-open .split-view__feed,
+  .split-view__detail {
+    display: flex;
+  }
+}
+
+@media (max-width: 991.98px) {
+  .split-view--detail-open .split-view__feed {
+    display: none;
+  }
+
+  .split-view:not(.split-view--detail-open) .split-view__detail {
+    display: none;
+  }
+}
+
+/* Reading measure for issue bodies, comments, and focused flows. */
+.measure {
+  width: 100%;
+  max-width: var(--funnel-measure);
+}
+
+.detail-measure {
+  width: 100%;
+  max-width: var(--funnel-inspector-width);
+  margin-inline: auto;
+}
+
+.detail-measure--wide {
+  max-width: 75rem;
+}
+
+.detail-body {
+  container-type: inline-size;
+}
+
+.detail-with-aside {
+  display: grid;
+  gap: 1.5rem;
+}
+
+@container (min-width: 900px) {
+  .detail-with-aside {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 22rem);
+    align-items: start;
+  }
+}
+
+.form-measure {
+  width: 100%;
+  max-width: var(--funnel-form-max);
+}
+
+.settings-measure {
+  width: 100%;
+  max-width: var(--funnel-settings-max);
+}
+
+/* Compact metadata rows used by the inspector and detail panes. */
+.property-list {
+  display: grid;
+  grid-template-columns: minmax(6.5rem, max-content) minmax(0, 1fr);
+  margin: 0;
+  border-top: 1px solid var(--bs-border-color);
+}
+
+.property-list > dt,
+.property-list > dd {
+  display: flex;
+  align-items: center;
+  min-height: var(--funnel-row-compact);
+  margin: 0;
+  padding: 0.125rem 0;
+  border-bottom: 1px solid var(--bs-border-color);
+}
+
+.property-list > dt {
+  padding-inline-end: 0.75rem;
+  color: var(--bs-secondary-color);
+  font-weight: 400;
+}
+
+.property-list > dd {
+  min-width: 0;
+}
+
+/* Dense tables keep Bootstrap's table styling and lose the outer margins. */
+.funnel-table {
+  min-width: var(--funnel-table-min);
+  margin-bottom: 0;
+  font-size: 0.875rem;
+}
+
+.funnel-table > :not(caption) > * > * {
+  padding: 0.25rem 0.75rem;
+}
+
+/* Avatar: a Bootstrap circle with an image or an initial. */
+.funnel-avatar {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-radius: 50%;
+  background: var(--bs-secondary-bg);
+  color: var(--bs-body-color);
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.funnel-avatar > img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Compact icon button used in toolbars and card actions. */
+.icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  padding: 0;
+  border: 0;
+  border-radius: var(--bs-border-radius-sm);
+  background: transparent;
+  color: var(--bs-secondary-color);
+}
+
+.icon-button:hover {
+  background: var(--bs-tertiary-bg);
+  color: var(--bs-body-color);
+}
+
+/* Bootstrap's focus ring is enough for controls; restore it for custom rows. */
+.app-nav .nav-link:focus-visible,
+.icon-button:focus-visible {
+  outline: 2px solid var(--bs-primary);
+  outline-offset: 1px;
+}
+
+@media (max-width: 767.98px) {
+  :root {
+    --funnel-inspector-width: 100%;
+    --funnel-timeline-label: 11rem;
+    --funnel-timeline-chart-min: 20rem;
+    --funnel-timeline-row: 4.5rem;
+  }
+}

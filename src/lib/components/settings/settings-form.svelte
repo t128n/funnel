@@ -1,8 +1,7 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import type { Snippet } from 'svelte';
-	import CircleCheckIcon from '@lucide/svelte/icons/circle-check';
-	import { Button } from '#lib/components/ui/button';
+	import { Button } from '@sveltestrap/sveltestrap';
 	import type { SettingsFormResult } from './sections';
 
 	/**
@@ -31,13 +30,13 @@
 	}
 </script>
 
-<div class="flex w-full max-w-[var(--layout-form-max)] flex-col gap-6">
+<div class="form-measure d-flex flex-column gap-4">
 	{#if form?.message}
-		<div class="border-t border-error pt-3 text-body text-error" role="alert">
-			<p class="font-semibold">Settings could not be saved</p>
-			<p class="mt-1">{form.message}</p>
+		<div class="alert alert-danger mb-0" role="alert">
+			<p class="fw-semibold mb-1">Settings could not be saved</p>
+			<p class="mb-1">{form.message}</p>
 			{#if form.issues?.length}
-				<ul class="mt-1 list-disc ps-4">
+				<ul class="mb-0 ps-4">
 					{#each form.issues as issue, index (index)}
 						<li>{issue}</li>
 					{/each}
@@ -69,18 +68,18 @@
 	>
 		<input type="hidden" name="payload" value={payload} />
 
-		<div class="flex flex-col gap-6">
+		<div class="d-flex flex-column gap-4">
 			{@render children()}
 		</div>
 
-		<footer class="mt-6 flex flex-wrap items-center gap-3 border-t border-border-subtle pt-4">
-			<Button type="submit" disabled={saving} class="min-w-24">
+		<footer class="mt-4 d-flex flex-wrap align-items-center gap-3 border-top pt-3">
+			<Button type="submit" color="primary" disabled={saving} style="min-width: 6rem">
 				{saving ? 'Saving…' : saveLabel}
 			</Button>
-			<span class="min-h-4" aria-live="polite">
+			<span style="min-height: 1.5rem" aria-live="polite">
 				{#if saved}
-					<span class="status status-success">
-						<CircleCheckIcon aria-hidden="true" />
+					<span class="d-inline-flex align-items-center gap-1 text-success">
+						<i class="bi bi-check-circle" aria-hidden="true"></i>
 						Saved.
 					</span>
 				{/if}

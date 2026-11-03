@@ -1,8 +1,6 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
-	import CircleCheckIcon from '@lucide/svelte/icons/circle-check';
-	import * as Field from '#lib/components/ui/field';
-	import { Input } from '#lib/components/ui/input';
+	import { FormGroup, Input, Label } from '@sveltestrap/sveltestrap';
 	import Section from '#lib/components/settings/section.svelte';
 	import SettingsForm from '#lib/components/settings/settings-form.svelte';
 	import type { SettingsFormResult } from '#lib/components/settings/sections';
@@ -24,11 +22,11 @@
 		title="Session lifetime"
 		description="Applied to sessions created after a restart."
 	>
-		<dl class="label-value">
+		<dl class="property-list">
 			<dt>Status</dt>
 			<dd>
-				<span class="status status-success">
-					<CircleCheckIcon aria-hidden="true" />
+				<span class="d-inline-flex align-items-center gap-1 small text-success">
+					<i class="bi bi-check-circle" aria-hidden="true"></i>
 					Sign-in required
 				</span>
 			</dd>
@@ -36,9 +34,9 @@
 			<dd>{idleDays ?? '—'} days</dd>
 		</dl>
 
-		<Field.Field>
-			<Field.Label for="session-idle-days">Idle lifetime (days)</Field.Label>
+		<FormGroup class="mb-0">
+			<Label for="session-idle-days">Idle lifetime (days)</Label>
 			<Input id="session-idle-days" type="number" min="0" bind:value={idleDays} />
-		</Field.Field>
+		</FormGroup>
 	</Section>
 </SettingsForm>

@@ -1,7 +1,4 @@
 <script lang="ts">
-	import * as Select from '#lib/components/ui/select';
-	import { selectTriggerClass } from '#lib/components/common/select-trigger';
-	import { cn } from '#lib/utils';
 	import type { Snippet } from 'svelte';
 
 	export interface SingleSelectOption {
@@ -21,7 +18,7 @@
 		/** Trigger styling: `default` (form control), `ghost` (borderless), or
 		 *  `pill` (contained toolbar pill). */
 		variant?: 'default' | 'ghost' | 'pill';
-		/** Optional leading glyph rendered inside the trigger. */
+		/** Optional leading glyph rendered inside the control. */
 		icon?: Snippet;
 	}
 
@@ -37,72 +34,53 @@
 		icon
 	}: Props = $props();
 
-	/** bits-ui needs a concrete value; a sentinel is clearer than an empty one. */
-	const CLEAR = '__clear__';
+	const selectClass = $derived(
+		variant === 'ghost'
+			? 'form-select form-select-sm border-0 bg-transparent'
+			: variant === 'pill'
+				? 'form-select form-select-sm rounded-pill border-0 bg-body-secondary'
+				: 'form-select form-select-sm'
+	);
 
-	const items = $derived(options.map((option) => ({ value: option.value, label: option.label })));
-	const current = $derived(options.find((o) => o.value === value) ?? null);
-
-	function cssColor(color: string | null | undefined): string | undefined {
-		if (!color) return undefined;
-		return /^[0-9a-f]{6}$/i.test(color) ? `#${color}` : color;
-	}
-
-	function onChange(next: string) {
-		onselect(next === CLEAR ? null : next);
+	function onChange(event: Event) {
+		const next = (event.currentTarget as HTMLSelectElement).value;
+		onselect(next === '' ? null : next);
 	}
 </script>
 
-<Select.Root
-	type="single"
-	{items}
-	value={value ?? ''}
-	onValueChange={onChange}
-	{disabled}
->
-	<Select.Trigger
-		size="sm"
-		class={selectTriggerClass(
-			variant,
-			cn(
-				variant === 'default' ? 'w-full' : 'w-auto',
-				variant !== 'ghost' && value !== null && 'text-foreground'
-			)
-		)}
-	>
-		{#if icon}
-			<span class="inline-flex size-4 shrink-0 items-center justify-center" aria-hidden="true">
-				{@render icon()}
-			</span>
-		{:else}
-			<span
-				class="size-2 shrink-0 rounded-full"
-				class:invisible={!current?.color}
-				style={cssColor(current?.color) ? `background:${cssColor(current?.color)}` : undefined}
-			></span>
-		{/if}
-		<Select.Value placeholder={label} />
-	</Select.Trigger>
-
-	<Select.Content>
-		<Select.Group>
+{#if icon}
+	<div class="input-group input-group-sm">
+		<span class="input-group-text px-2" aria-hidden="true">{@render icon()}</span>
+		<select
+			class={selectClass}
+			aria-label={label}
+			{disabled}
+			value={value ?? ''}
+			onchange={onChange}
+		>
+			<option value="" disabled>{label}</option>
 			{#each options as option (option.value)}
-				<Select.Item value={option.value} label={option.label}>
-					<span
-						class="size-2 shrink-0 rounded-full"
-						class:invisible={!option.color}
-						style={cssColor(option.color) ? `background:${cssColor(option.color)}` : undefined}
-					></span>
-					<span class="flex-1 truncate">{option.label}</span>
-				</Select.Item>
+				<option value={option.value}>{option.label}</option>
 			{/each}
-		</Select.Group>
-
+			{#if allowClear && value !== null}
+				<option value="">{clearLabel}</option>
+			{/if}
+		</select>
+	</div>
+{:else}
+	<select
+		class={selectClass}
+		aria-label={label}
+		{disabled}
+		value={value ?? ''}
+		onchange={onChange}
+	>
+		<option value="" disabled>{label}</option>
+		{#each options as option (option.value)}
+			<option value={option.value}>{option.label}</option>
+		{/each}
 		{#if allowClear && value !== null}
-			<Select.Separator />
-			<Select.Item value={CLEAR} label={clearLabel}>
-				<span class="text-muted-foreground">{clearLabel}</span>
-			</Select.Item>
+			<option value="">{clearLabel}</option>
 		{/if}
-	</Select.Content>
-</Select.Root>
+	</select>
+{/if}

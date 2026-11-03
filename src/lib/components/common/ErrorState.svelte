@@ -1,8 +1,7 @@
 <script lang="ts">
-	import { Button } from '#lib/components/ui/button';
+	import { Button } from '@sveltestrap/sveltestrap';
 	import { describeError, safeErrorMessage } from '#lib/errors';
 	import { pageTitle } from '#lib/seo';
-	import RotateCwIcon from '@lucide/svelte/icons/rotate-cw';
 
 	/**
 	 * Full-page error surface, shared by the root `+error.svelte`. Full-page is
@@ -32,34 +31,30 @@
 </svelte:head>
 
 <main
-	class="flex min-h-svh flex-col items-center justify-center bg-canvas px-[var(--layout-page-padding)] py-12"
+	class="d-flex min-vh-100 flex-column align-items-center justify-content-center px-3 py-5"
 	aria-labelledby="error-heading"
 >
-	<div class="flex w-full max-w-[var(--layout-form-max)] flex-col gap-6">
-		<a href="/" class="text-body font-semibold text-fg" translate="no">funnel</a>
+	<div class="form-measure d-flex flex-column gap-4">
+		<a href="/" class="fw-semibold text-body text-decoration-none" translate="no">funnel</a>
 
-		<div class="flex flex-col gap-2">
-			<span class="mono text-caption text-fg-muted">{status}</span>
-			<h1 id="error-heading" class="text-heading-md font-semibold leading-heading-md text-fg">
-				{copy.title}
-			</h1>
-			<p class="max-w-[var(--layout-measure)] text-body leading-body text-fg-secondary">
-				{detail}
-			</p>
+		<div class="d-flex flex-column gap-2">
+			<span class="font-monospace small text-body-secondary">{status}</span>
+			<h1 id="error-heading" class="h4 mb-0">{copy.title}</h1>
+			<p class="measure text-body-secondary mb-0">{detail}</p>
 		</div>
 
-		<div class="flex flex-wrap items-center gap-2">
-			<Button onclick={reload}>
-				<RotateCwIcon />
+		<div class="d-flex flex-wrap align-items-center gap-2">
+			<Button color="primary" onclick={reload}>
+				<i class="bi bi-arrow-clockwise me-1" aria-hidden="true"></i>
 				Try Again
 			</Button>
-			<Button variant="outline" href={signIn ? '/login' : '/issues'}>
+			<Button color="outline-secondary" href={signIn ? '/login' : '/issues'}>
 				{signIn ? 'Sign In' : 'Back to Issues'}
 			</Button>
 		</div>
 
 		{#if requestId}
-			<p class="mono text-caption text-fg-muted">Reference: {requestId}</p>
+			<p class="font-monospace small text-body-secondary mb-0">Reference: {requestId}</p>
 		{/if}
 	</div>
 </main>

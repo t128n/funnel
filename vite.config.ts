@@ -1,7 +1,5 @@
 import { readFileSync } from 'node:fs';
 
-import tailwindcss from '@tailwindcss/vite';
-
 // adapter-node produces a long-lived Node server (run with `bun ./build/index.js`),
 // so in-process background timers and SSE streams are not killed the way a
 // serverless target would kill them.
@@ -20,7 +18,6 @@ export default defineConfig({
 		__APP_VERSION__: JSON.stringify(version)
 	},
 	plugins: [
-		tailwindcss(),
 		sveltekit({
 			compilerOptions: {
 				// Force runes mode for the project, except for libraries. Can be removed in svelte 6.

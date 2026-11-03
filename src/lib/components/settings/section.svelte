@@ -1,6 +1,5 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
-	import { cn } from '#lib/utils';
 
 	/**
 	 * A ruled settings section: 1.25 rem heading, 1 px top rule, no container.
@@ -15,34 +14,20 @@
 		children: Snippet;
 	}
 
-	let { title, description, danger = false, class: className, children }: Props = $props();
+	let { title, description, danger = false, class: className = '', children }: Props = $props();
 
 	const headingId = $props.id();
 </script>
 
 <fieldset
 	aria-labelledby={headingId}
-	class={cn(
-		'min-w-0 w-full border-t border-border-subtle pt-4',
-		danger && 'border-error',
-		className
-	)}
+	class="min-w-0 w-100 border-top pt-3 {danger ? 'border-danger' : ''} {className}"
 >
-	<h2
-		id={headingId}
-		class={cn(
-			'text-heading-sm font-semibold leading-heading-sm',
-			danger ? 'text-error' : 'text-fg'
-		)}
-	>
-		{title}
-	</h2>
+	<h2 id={headingId} class="h5 {danger ? 'text-danger' : ''}">{title}</h2>
 	{#if description}
-		<p class="mt-1 max-w-[var(--layout-form-max)] text-body leading-body text-fg-secondary">
-			{description}
-		</p>
+		<p class="mt-1 mb-0 form-measure text-body-secondary">{description}</p>
 	{/if}
-	<div class="mt-4 flex min-w-0 flex-col gap-6">
+	<div class="mt-3 d-flex min-w-0 flex-column gap-4">
 		{@render children()}
 	</div>
 </fieldset>

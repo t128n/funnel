@@ -1,23 +1,25 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
 	import { enhance } from '$app/forms';
+	import {
+		Button,
+		FormGroup,
+		Label,
+		Modal,
+		ModalBody,
+		ModalFooter,
+		ModalHeader
+	} from '@sveltestrap/sveltestrap';
 	import Spinner from '#lib/components/common/Spinner.svelte';
 	import SingleSelect from '#lib/components/common/SingleSelect.svelte';
 	import DetailShell from '#lib/components/detail/DetailShell.svelte';
 	import DuplicateDialog from '#lib/components/inbox/DuplicateDialog.svelte';
-	import { Button } from '#lib/components/ui/button';
-	import * as Dialog from '#lib/components/ui/dialog';
-	import * as Field from '#lib/components/ui/field';
 	import { SIZE_OPTIONS, labelTint } from '#lib/labels';
 	import { removeSubmission, restoreSubmission } from '#lib/client/optimistic.svelte';
 	import { clearSelection } from '#lib/client/selection.svelte';
 	import { timeAgo } from '#lib/client/clock.svelte';
 	import { absoluteTime } from '#lib/time';
 	import type { RenderedSubmission } from '#lib/server/issues/types';
-	import GitBranchIcon from '@lucide/svelte/icons/git-branch';
-	import InboxIcon from '@lucide/svelte/icons/inbox';
-	import RulerIcon from '@lucide/svelte/icons/ruler';
-	import XIcon from '@lucide/svelte/icons/x';
 
 	/**
 	 * Document pane for a staged intake submission (SPEC §6.2). A compact
@@ -74,36 +76,47 @@
 		confirmingDismiss = false;
 		dismissForm?.requestSubmit();
 	}
+
+	function closeDismiss() {
+		if (pending === null) confirmingDismiss = false;
+	}
+
+	function toggleDismiss() {
+		if (pending === null) confirmingDismiss = !confirmingDismiss;
+	}
 </script>
 
 <DetailShell
 	ariaLabel="Intake submission"
-	class="min-w-0 flex-1"
+	class="min-w-0 flex-grow-1"
 	contentKey={submission.bodyHtml}
 >
 	{#snippet header()}
-		<div class="flex min-w-0 flex-1 flex-col gap-1 py-0.5">
-			<div class="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5">
-				<span class="status status-muted">
-					<InboxIcon aria-hidden="true" />
+		<div class="d-flex min-w-0 flex-grow-1 flex-column gap-1 py-1">
+			<div class="d-flex min-w-0 flex-wrap align-items-center gap-2">
+				<span class="d-inline-flex align-items-center gap-1 small text-body-secondary">
+					<i class="bi bi-inbox" aria-hidden="true"></i>
 					<span>Staged submission</span>
 				</span>
 				{#if submission.source}
-					<span class="mono min-w-0 truncate text-caption text-fg-secondary" title={submission.source}>
+					<span
+						class="font-monospace min-w-0 text-truncate small text-body-secondary"
+						title={submission.source}
+					>
 						{submission.source}
 					</span>
 				{/if}
 			</div>
 			<h1
-				class="min-w-0 truncate text-heading-sm font-semibold leading-heading-sm tracking-[-0.01em] text-fg"
+				class="h5 min-w-0 text-truncate fw-semibold text-body mb-0"
 				title={submission.title}
 			>
 				{submission.title.trim() || 'Untitled submission'}
 			</h1>
-			<div class="flex min-w-0 items-center gap-1.5 text-caption text-fg-secondary">
-				<span class="shrink-0">Received</span>
+			<div class="d-flex min-w-0 align-items-center gap-2 small text-body-secondary">
+				<span class="flex-shrink-0">Received</span>
 				<time
-					class="shrink-0 tabular-nums"
+					class="flex-shrink-0 tabular"
 					datetime={new Date(submission.createdAt).toISOString()}
 					title={absoluteTime(submission.createdAt)}
 				>
@@ -112,64 +125,68 @@
 			</div>
 		</div>
 		<Button
-			variant="ghost"
-			size="icon-sm"
+			color="link"
+			class="flex-shrink-0 p-1 text-body-secondary text-decoration-none"
 			title="Close"
 			aria-label="Close detail"
 			onclick={clearSelection}
 		>
-			<XIcon />
+			<i class="bi bi-x-lg" aria-hidden="true"></i>
 		</Button>
 	{/snippet}
 
-	<section class="flex flex-col" aria-label="Description">
+	<section class="d-flex flex-column" aria-label="Description">
 		{#if submission.body.trim().length > 0}
 			<div class="markdown">{@html submission.bodyHtml}</div>
 		{:else}
-			<p class="text-body text-fg-secondary">No description provided.</p>
+			<p class="text-body-secondary mb-0">No description provided.</p>
 		{/if}
 	</section>
 
-	<section class="flex flex-col gap-3 border-t border-border-subtle pt-4" aria-label="Triage">
-		<div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+	<section class="d-flex flex-column gap-3 border-top pt-4" aria-label="Triage">
+		<div class="row g-3">
 			{#if repoOptions.length > 0}
-				<Field.Field>
-					<Field.Label>Repository</Field.Label>
+				<div class="col-12 col-sm-6">
+					<FormGroup class="mb-0">
+						<Label>Repository</Label>
+						<SingleSelect
+							label="Repository"
+							options={repoOptions}
+							value={acceptRepo}
+							onselect={(value) => (acceptRepo = value ?? '')}
+							disabled={pending !== null}
+						>
+							{#snippet icon()}
+								<i class="bi bi-git fs-6" aria-hidden="true"></i>
+							{/snippet}
+						</SingleSelect>
+					</FormGroup>
+				</div>
+			{/if}
+
+			<div class="col-12 col-sm-6">
+				<FormGroup class="mb-0">
+					<Label>Size</Label>
 					<SingleSelect
-						label="Repository"
-						options={repoOptions}
-						value={acceptRepo}
-						onselect={(value) => (acceptRepo = value ?? '')}
+						label="No size"
+						options={SIZE_OPTIONS}
+						value={size || null}
+						onselect={(value) => (size = value ?? '')}
+						allowClear
 						disabled={pending !== null}
 					>
 						{#snippet icon()}
-							<GitBranchIcon class="size-4" />
+							<i class="bi bi-rulers fs-6" style={labelTint(size)} aria-hidden="true"></i>
 						{/snippet}
 					</SingleSelect>
-				</Field.Field>
-			{/if}
-
-			<Field.Field>
-				<Field.Label>Size</Field.Label>
-				<SingleSelect
-					label="No size"
-					options={SIZE_OPTIONS}
-					value={size || null}
-					onselect={(value) => (size = value ?? '')}
-					allowClear
-					disabled={pending !== null}
-				>
-					{#snippet icon()}
-						<RulerIcon class="size-4" style={labelTint(size)} />
-					{/snippet}
-				</SingleSelect>
-			</Field.Field>
+				</FormGroup>
+			</div>
 		</div>
 	</section>
 
 	{#snippet footer()}
-		<div class="flex flex-wrap items-center justify-between gap-2">
-			<div class="flex flex-wrap items-center gap-2">
+		<div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
+			<div class="d-flex flex-wrap align-items-center gap-2">
 				<form
 					method="POST"
 					action="?/dismiss"
@@ -184,7 +201,7 @@
 				>
 					<input type="hidden" name="id" value={submission.id} />
 					<Button
-						variant="destructive"
+						color="danger"
 						size="sm"
 						type="submit"
 						disabled={pending !== null}
@@ -195,7 +212,7 @@
 						}}
 					>
 						{#if pending === 'dismiss'}
-							<span data-icon="inline-start" class="inline-flex items-center">
+							<span class="d-inline-flex align-items-center me-1">
 								<Spinner size={12} />
 							</span>
 						{/if}
@@ -204,7 +221,7 @@
 				</form>
 
 				<Button
-					variant="outline"
+					color="outline-secondary"
 					size="sm"
 					onclick={() => (duplicating = true)}
 					disabled={pending !== null}
@@ -227,9 +244,9 @@
 				<input type="hidden" name="id" value={submission.id} />
 				<input type="hidden" name="repo" value={acceptRepo} />
 				<input type="hidden" name="size" value={size} />
-				<Button type="submit" size="sm" disabled={pending !== null}>
+				<Button type="submit" color="primary" size="sm" disabled={pending !== null}>
 					{#if pending === 'accept'}
-						<span data-icon="inline-start" class="inline-flex items-center">
+						<span class="d-inline-flex align-items-center me-1">
 							<Spinner size={12} />
 						</span>
 					{/if}
@@ -253,31 +270,26 @@
 	}}
 />
 
-<Dialog.Root
-	open={confirmingDismiss}
-	onOpenChange={(open) => {
-		if (pending === null) confirmingDismiss = open;
-	}}
->
-	<Dialog.Content aria-describedby={undefined} class="sm:max-w-md">
-		<Dialog.Header>
-			<Dialog.Title>Dismiss submission?</Dialog.Title>
-			<Dialog.Description>
-				This removes “{submission.title.trim() || 'Untitled submission'}” from the intake queue.
-				The submission cannot be recovered.
-			</Dialog.Description>
-		</Dialog.Header>
-		<Dialog.Footer>
-			<Dialog.Close type="button">
-				{#snippet child({ props })}
-					<Button variant="outline" {...props} type="button" disabled={pending !== null}>
-						Keep submission
-					</Button>
-				{/snippet}
-			</Dialog.Close>
-			<Button variant="destructive" onclick={confirmDismiss} disabled={pending !== null}>
-				Dismiss submission
-			</Button>
-		</Dialog.Footer>
-	</Dialog.Content>
-</Dialog.Root>
+<Modal isOpen={confirmingDismiss} toggle={toggleDismiss}>
+	<ModalHeader toggle={closeDismiss}>Dismiss submission?</ModalHeader>
+	<ModalBody>
+		<p class="mb-0">
+			This removes “{submission.title.trim() || 'Untitled submission'}” from the intake queue.
+			The submission cannot be recovered.
+		</p>
+	</ModalBody>
+	<ModalFooter>
+		<Button color="outline-secondary" onclick={closeDismiss} disabled={pending !== null}>
+			Keep submission
+		</Button>
+		<Button color="danger" onclick={confirmDismiss} disabled={pending !== null}>
+			Dismiss submission
+		</Button>
+	</ModalFooter>
+</Modal>
+
+<style>
+	.tabular {
+		font-variant-numeric: tabular-nums;
+	}
+</style>

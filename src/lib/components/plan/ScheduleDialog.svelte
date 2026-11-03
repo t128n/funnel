@@ -1,14 +1,19 @@
 <script lang="ts">
 	import { invalidateAll } from '$app/navigation';
+	import {
+		Button,
+		FormGroup,
+		Input,
+		Label,
+		Modal,
+		ModalBody,
+		ModalFooter,
+		ModalHeader
+	} from '@sveltestrap/sveltestrap';
 	import EmptyState from '#lib/components/common/EmptyState.svelte';
 	import InlineStatus from '#lib/components/common/InlineStatus.svelte';
 	import Spinner from '#lib/components/common/Spinner.svelte';
-	import { Button } from '#lib/components/ui/button';
-	import * as Dialog from '#lib/components/ui/dialog';
-	import * as Field from '#lib/components/ui/field';
-	import { Input } from '#lib/components/ui/input';
 	import type { PlanningIssue } from '#lib/server/planning/queries';
-	import { cn } from '#lib/utils';
 	import { scheduleErrorMessage, scheduleRequest } from './schedule';
 
 	/**
@@ -97,19 +102,18 @@
 	}
 </script>
 
-<Dialog.Root {open} onOpenChange={close}>
-	<Dialog.Content class="sm:max-w-[min(var(--layout-dialog-width-wide),calc(100%-2rem))]">
-		<Dialog.Header>
-			<Dialog.Title>Schedule Issue</Dialog.Title>
-			<Dialog.Description>
-				Add an open, sized issue to the week of {week}. GitHub sizes and assignees stay the
-				source of truth.
-			</Dialog.Description>
-		</Dialog.Header>
+<Modal isOpen={open} toggle={() => close(false)} size="lg" scrollable>
+	<ModalHeader toggle={() => close(false)}>Schedule Issue</ModalHeader>
 
-		<div class="flex min-w-0 flex-col gap-3">
-			<Field.Field>
-				<Field.Label for="plan-candidate-search">Find an issue</Field.Label>
+	<ModalBody>
+		<p class="text-body-secondary">
+			Add an open, sized issue to the week of {week}. GitHub sizes and assignees stay the
+			source of truth.
+		</p>
+
+		<div class="d-flex min-w-0 flex-column gap-3">
+			<FormGroup class="mb-0">
+				<Label for="plan-candidate-search">Find an issue</Label>
 				<Input
 					id="plan-candidate-search"
 					type="search"
@@ -117,45 +121,40 @@
 					bind:value={query}
 					autocomplete="off"
 				/>
-				<Field.Description>
-					Showing open, sized issues that are not already planned.
-				</Field.Description>
-			</Field.Field>
+				<div class="form-text">Showing open, sized issues that are not already planned.</div>
+			</FormGroup>
 
 			{#if candidates.length === 0}
 				<EmptyState
 					title="No candidates."
 					description="No open, sized issues are available. Estimate and triage an issue first."
-					class="border-y border-border-subtle py-6"
+					class="border-top border-bottom py-3"
 				/>
 			{:else if filtered.length === 0}
-				<p class="border-y border-border-subtle py-3 text-body text-fg-secondary">
+				<p class="border-top border-bottom py-2 text-body text-body-secondary mb-0">
 					No issue matches “{query}”.
 				</p>
 			{:else}
 				<ul
-					class="max-h-64 overflow-y-auto border-y border-border-subtle"
+					class="candidate-list list-group list-group-flush overflow-y-auto border-top border-bottom"
 					aria-label="Schedule candidates"
 				>
 					{#each filtered as issue (issueKey(issue))}
 						<li>
 							<button
 								type="button"
-								class={cn(
-									'flex min-h-(--size-row-compact) w-full min-w-0 items-center gap-2 border-b border-border-subtle px-2 text-start last:border-b-0',
-									selectedKey === issueKey(issue) ? 'bg-surface-2' : 'hover:bg-surface'
-								)}
+								class="candidate-row list-group-item list-group-item-action d-flex w-100 min-w-0 align-items-center gap-2 px-2 text-start"
 								aria-pressed={selectedKey === issueKey(issue)}
 								onclick={() => {
 									selectedKey = issueKey(issue);
 									error = null;
 								}}
 							>
-								<span class="mono shrink-0 text-caption text-fg-secondary tabular-nums">
+								<span class="font-monospace flex-shrink-0 small text-body-secondary tnum">
 									{issue.repo}#{issue.number}
 								</span>
-								<span class="min-w-0 flex-1 truncate text-body text-fg">{issue.title}</span>
-								<span class="shrink-0 text-caption text-fg-secondary">
+								<span class="min-w-0 flex-grow-1 text-truncate text-body">{issue.title}</span>
+								<span class="flex-shrink-0 small text-body-secondary">
 									{issue.size?.toUpperCase() ?? '—'}
 								</span>
 							</button>
@@ -170,19 +169,41 @@
 				</div>
 			{/if}
 		</div>
+	</ModalBody>
 
-		<Dialog.Footer>
-			<Button variant="outline" size="sm" disabled={busy} onclick={() => close(false)}>
-				Cancel
-			</Button>
-			<Button size="sm" disabled={busy || selected === null} onclick={() => void submit()}>
-				{#if busy}
+	<ModalFooter>
+		<Button color="secondary" outline size="sm" disabled={busy} onclick={() => close(false)}>
+			Cancel
+		</Button>
+		<Button color="primary" size="sm" disabled={busy || selected === null} onclick={() => void submit()}>
+			{#if busy}
+				<span class="d-inline-flex align-items-center me-2">
 					<Spinner />
-					<span>Scheduling…</span>
-				{:else}
-					<span>Schedule Issue</span>
-				{/if}
-			</Button>
-		</Dialog.Footer>
-	</Dialog.Content>
-</Dialog.Root>
+				</span>
+				<span>Scheduling…</span>
+			{:else}
+				<span>Schedule Issue</span>
+			{/if}
+		</Button>
+	</ModalFooter>
+</Modal>
+
+<style>
+	.candidate-list {
+		max-height: 16rem;
+	}
+
+	.candidate-row {
+		min-height: var(--funnel-row-compact);
+		border-inline: 0;
+		background: transparent;
+	}
+
+	.candidate-row[aria-pressed='true'] {
+		background: var(--bs-secondary-bg);
+	}
+
+	.tnum {
+		font-variant-numeric: tabular-nums;
+	}
+</style>

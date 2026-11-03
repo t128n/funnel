@@ -142,14 +142,11 @@ describe("timeline page and navigation", () => {
   test("test_sidebar_and_milestones_link_timeline", () => {
     const sidebar = source("src/lib/components/shell/SidebarNav.svelte");
     expect(sidebar).toContain(
-      'import ChartGanttIcon from "@lucide/svelte/icons/chart-gantt";',
-    );
-    expect(sidebar).toContain(
-      '{ href: "/timeline", label: "Timeline", active: path.startsWith("/timeline"), icon: ChartGanttIcon }',
+      "{ href: '/timeline', label: 'Timeline', active: path.startsWith('/timeline'), icon: 'bi-bar-chart-steps' }",
     );
 
     const milestones = source("src/routes/(app)/milestones/+page.svelte");
     expect(milestones).toContain('href="/timeline"');
-    expect(milestones).toContain("ChartGanttIcon");
+    expect(milestones).toContain("bi-bar-chart-steps");
   });
 });

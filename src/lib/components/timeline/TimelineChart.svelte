@@ -1,16 +1,13 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
-	import ChartGanttIcon from '@lucide/svelte/icons/chart-gantt';
-	import CircleDashedIcon from '@lucide/svelte/icons/circle-dashed';
-	import TriangleAlertIcon from '@lucide/svelte/icons/triangle-alert';
+	import { Button, Table } from '@sveltestrap/sveltestrap';
 	import { Chart, type ECMouseEvent } from 'svelte-echarts';
 	import { CustomChart, ScatterChart } from 'echarts/charts';
 	import { AriaComponent, GridComponent, TooltipComponent } from 'echarts/components';
 	import { init, use } from 'echarts/core';
 	import { CanvasRenderer } from 'echarts/renderers';
 	import EmptyState from '#lib/components/common/EmptyState.svelte';
-	import { Button } from '#lib/components/ui/button';
 	import { resolvedTheme } from '#lib/client/theme';
 	import { milestonePath, type TimelineRow, type TimelineWindow } from '#lib/timeline';
 	import {
@@ -90,27 +87,27 @@
 		return row.title.trim() || 'Untitled milestone';
 	}
 
-	/** Read the active t128n tokens; the canvas must use the same values as CSS. */
+	/** Read the active Bootstrap tokens; the canvas must use the same values as CSS. */
 	function readTokens(): TimelineChartTokens {
 		const style = getComputedStyle(document.documentElement);
 		const rootPx = Number.parseFloat(style.fontSize) || 16;
 		const token = (name: string): string => style.getPropertyValue(name).trim();
 		return {
-			fontSans: token('--font-sans') || 'sans-serif',
-			fontMono: token('--font-mono') || 'monospace',
+			fontSans: token('--bs-body-font-family') || 'sans-serif',
+			fontMono: token('--bs-font-monospace') || 'monospace',
 			captionPx: rootPx * 0.75,
 			bodyPx: rootPx * 0.875,
 			monoPx: rootPx * 0.8125,
-			chart1: token('--color-chart-1'),
-			chart2: token('--color-chart-2'),
-			chart3: token('--color-chart-3'),
-			borderSubtle: token('--color-border-subtle'),
-			borderStrong: token('--color-border-strong'),
-			textPrimary: token('--color-text-primary'),
-			textSecondary: token('--color-text-secondary'),
-			textMuted: token('--color-text-muted'),
-			surface: token('--color-surface'),
-			warning: token('--color-warning'),
+			chart1: token('--funnel-chart-1'),
+			chart2: token('--funnel-chart-2'),
+			chart3: token('--funnel-chart-3'),
+			borderSubtle: token('--bs-border-color'),
+			borderStrong: token('--bs-secondary-color'),
+			textPrimary: token('--bs-body-color'),
+			textSecondary: token('--bs-secondary-color'),
+			textMuted: token('--bs-tertiary-color'),
+			surface: token('--bs-body-bg'),
+			warning: token('--bs-warning'),
 		};
 	}
 
@@ -155,8 +152,8 @@
 {#if empty}
 	<EmptyState title={emptyTitle} description={emptyDescription}>
 		{#snippet action()}
-			<Button variant="outline" href="/milestones">
-				<ChartGanttIcon aria-hidden="true" />
+			<Button color="outline-secondary" href="/milestones">
+				<i class="bi bi-bar-chart-steps me-1" aria-hidden="true"></i>
 				View Milestones
 			</Button>
 		{/snippet}
@@ -167,7 +164,7 @@
 			<div class="timeline-grid">
 				<div class="timeline-labels" bind:this={labelColumn}>
 					<div class="timeline-label-head" data-timeline-head style="height: {headerHeight}px">
-						<span class="text-caption font-semibold text-fg-secondary">Milestone</span>
+						<span class="small fw-semibold text-body-secondary">Milestone</span>
 					</div>
 					{#each datedRows as row (rowKey(row))}
 						<a
@@ -176,35 +173,37 @@
 							href={milestonePath(row.repo, row.number)}
 							title={titleOf(row)}
 						>
-							<span class="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5">
-								<span class="min-w-0 truncate text-body font-semibold text-fg">
+							<span class="d-flex min-w-0 flex-wrap align-items-center column-gap-2 row-gap-1">
+								<span class="min-w-0 text-truncate small fw-semibold text-body">
 									{titleOf(row)}
 								</span>
 								{#if isOverdue(row, now)}
-									<span class="timeline-flag text-error">
-										<TriangleAlertIcon class="size-3" aria-hidden="true" />
+									<span class="timeline-flag text-danger">
+										<i class="bi bi-exclamation-triangle" aria-hidden="true"></i>
 										Overdue
 									</span>
 								{:else if isAfterDue(row)}
-									<span class="timeline-flag text-warning">
-										<TriangleAlertIcon class="size-3" aria-hidden="true" />
+									<span class="timeline-flag text-warning-emphasis">
+										<i class="bi bi-exclamation-triangle" aria-hidden="true"></i>
 										After due
 									</span>
 								{:else if row.startOn === null}
-									<span class="timeline-flag text-fg-muted">
-										<CircleDashedIcon class="size-3" aria-hidden="true" />
+									<span class="timeline-flag text-body-tertiary">
+										<i class="bi bi-circle-dashed" aria-hidden="true"></i>
 										No start
 									</span>
 								{/if}
 							</span>
-							<span class="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5 text-caption text-fg-secondary">
-								<span class="timeline-meta-ref mono min-w-0 truncate max-md:hidden">
+							<span
+								class="d-flex min-w-0 flex-wrap align-items-center column-gap-2 row-gap-1 small text-body-secondary"
+							>
+								<span class="timeline-meta-ref font-monospace min-w-0 text-truncate d-none d-md-inline">
 									{timelineRef(row.repo, row.number, repoShortcodes)}
 								</span>
-								<span class="tabular-nums whitespace-nowrap">Due {formatDay(row.dueOn)}</span>
-								<span class="tabular-nums whitespace-nowrap">
+								<span class="num text-nowrap">Due {formatDay(row.dueOn)}</span>
+								<span class="num text-nowrap">
 									{row.closedIssues}/{row.closedIssues + row.openIssues}{' '}<span
-										class="max-md:hidden"
+										class="d-none d-md-inline"
 									>
 										closed
 									</span>
@@ -258,100 +257,102 @@
 	{/if}
 
 	{#if undatedRows.length > 0}
-		<section class="mt-6 flex flex-col gap-2" data-testid="timeline-undated">
-			<div class="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-				<h2 class="text-body font-semibold text-fg">No due date</h2>
-				<p class="text-caption text-fg-secondary">
+		<section class="mt-4 d-flex flex-column gap-2" data-testid="timeline-undated">
+			<div class="d-flex flex-wrap align-items-baseline justify-content-between column-gap-4 row-gap-1">
+				<h2 class="small fw-semibold text-body mb-0">No due date</h2>
+				<p class="small text-body-secondary mb-0">
 					Not plotted until a milestone has a due date.
 				</p>
 			</div>
-			<div class="overflow-x-auto">
-				<table class="data-table">
-					<thead>
+			<Table hover responsive size="sm" class="align-middle funnel-table">
+				<thead>
+					<tr>
+						<th scope="col">Milestone</th>
+						<th scope="col">Repository</th>
+						<th scope="col" class="text-end">Progress</th>
+						<th scope="col">Start</th>
+						<th scope="col">Due</th>
+					</tr>
+				</thead>
+				<tbody>
+					{#each undatedRows as row (rowKey(row))}
 						<tr>
-							<th>Milestone</th>
-							<th>Repository</th>
-							<th class="text-end">Progress</th>
-							<th>Start</th>
-							<th>Due</th>
+							<td class="min-w-0">
+								<a class="link-primary text-decoration-none d-block text-truncate" href={milestonePath(row.repo, row.number)}>
+									{titleOf(row)}
+								</a>
+							</td>
+							<td class="font-monospace text-nowrap text-body-secondary">
+								{timelineRef(row.repo, row.number, repoShortcodes)}
+							</td>
+							<td class="num text-nowrap text-end">
+								{progressText(row)}
+							</td>
+							<td class="num text-nowrap">
+								{row.startOn === null ? '—' : formatDay(row.startOn)}
+							</td>
+							<td class="text-nowrap text-body-secondary">No due date</td>
 						</tr>
-					</thead>
-					<tbody>
-						{#each undatedRows as row (rowKey(row))}
-							<tr>
-								<td class="min-w-0">
-									<a class="link block truncate" href={milestonePath(row.repo, row.number)}>
-										{titleOf(row)}
-									</a>
-								</td>
-								<td class="mono whitespace-nowrap text-fg-secondary">
-									{timelineRef(row.repo, row.number, repoShortcodes)}
-								</td>
-								<td class="tabular-nums whitespace-nowrap text-end">
-									{progressText(row)}
-								</td>
-								<td class="tabular-nums whitespace-nowrap">
-									{row.startOn === null ? '—' : formatDay(row.startOn)}
-								</td>
-								<td class="whitespace-nowrap text-fg-secondary">No due date</td>
-							</tr>
-						{/each}
-					</tbody>
-				</table>
-			</div>
+					{/each}
+				</tbody>
+			</Table>
 		</section>
 	{/if}
 {/if}
 
 <style>
+	.num {
+		font-variant-numeric: tabular-nums;
+	}
+
 	.timeline-scroll {
 		overflow-x: auto;
 	}
 
 	.timeline-grid {
 		display: flex;
-		min-width: var(--layout-timeline-min);
+		min-width: calc(var(--funnel-timeline-label) + var(--funnel-timeline-chart-min));
 		align-items: stretch;
 	}
 
 	.timeline-labels {
 		position: sticky;
 		left: 0;
-		z-index: var(--z-sticky);
-		width: var(--layout-timeline-label);
+		z-index: 2;
+		width: var(--funnel-timeline-label);
 		flex: none;
-		background: var(--color-canvas);
-		border-right: 1px solid var(--color-border-subtle);
+		background: var(--bs-body-bg);
+		border-right: 1px solid var(--bs-border-color);
 	}
 
 	.timeline-label-head {
 		display: flex;
 		align-items: center;
-		padding: 0 var(--space-3);
-		border-bottom: 1px solid var(--color-border-subtle);
+		padding: 0 0.75rem;
+		border-bottom: 1px solid var(--bs-border-color);
 	}
 
 	.timeline-row {
 		display: flex;
-		height: var(--layout-timeline-row);
+		height: var(--funnel-timeline-row);
 		overflow: hidden;
 		flex-direction: column;
 		justify-content: center;
-		gap: var(--space-1);
-		padding: var(--space-1) var(--space-3);
-		border-bottom: 1px solid var(--color-border-subtle);
+		gap: 0.25rem;
+		padding: 0.25rem 0.75rem;
+		border-bottom: 1px solid var(--bs-border-color);
 		color: inherit;
 		text-decoration: none;
 	}
 
 	.timeline-row:focus-visible {
-		outline: 2px solid var(--color-primary);
+		outline: 2px solid var(--bs-primary);
 		outline-offset: -2px;
 	}
 
 	@media (hover: hover) and (pointer: fine) {
 		.timeline-row:hover {
-			background: var(--color-surface);
+			background: var(--bs-tertiary-bg);
 		}
 	}
 
@@ -359,13 +360,13 @@
 		display: inline-flex;
 		flex: none;
 		align-items: center;
-		gap: var(--space-1);
-		font-size: var(--font-size-caption);
+		gap: 0.25rem;
+		font-size: 0.75rem;
 		white-space: nowrap;
 	}
 
 	.timeline-plot {
-		min-width: var(--layout-timeline-chart-min);
+		min-width: var(--funnel-timeline-chart-min);
 		flex: 1 1 auto;
 	}
 
@@ -373,54 +374,53 @@
 		display: flex;
 		flex-wrap: wrap;
 		align-items: center;
-		gap: var(--space-1) var(--space-4);
-		padding-top: var(--space-3);
-		font-size: var(--font-size-caption);
-		color: var(--color-text-secondary);
+		gap: 0.25rem 1.5rem;
+		padding-top: 0.75rem;
+		font-size: 0.75rem;
+		color: var(--bs-secondary-color);
 	}
 
 	.timeline-legend-item {
 		display: inline-flex;
 		align-items: center;
-		gap: var(--space-2);
+		gap: 0.5rem;
 		white-space: nowrap;
 	}
 
 	.timeline-legend-planned {
-		width: var(--size-divider);
-		height: var(--size-timeline-bar);
-		border: 1px solid var(--color-chart-1);
-		background: color-mix(in srgb, var(--color-chart-1) 18%, transparent);
+		width: 2px;
+		height: 0.75rem;
+		border: 1px solid var(--funnel-chart-1);
+		background: color-mix(in srgb, var(--funnel-chart-1) 18%, transparent);
 	}
 
 	.timeline-legend-closed {
-		width: var(--size-divider);
-		height: var(--size-timeline-bar);
-		background: var(--color-chart-2);
+		width: 2px;
+		height: 0.75rem;
+		background: var(--funnel-chart-2);
 	}
 
 	.timeline-legend-marker {
 		width: 1px;
-		height: var(--size-timeline-marker);
-		background: var(--color-chart-3);
+		height: 1rem;
+		background: var(--funnel-chart-3);
 	}
 
 	.timeline-legend-nostart {
-		width: var(--size-timeline-tick);
-		height: var(--size-timeline-marker);
-		background: var(--color-text-muted);
+		width: 0.5rem;
+		height: 1rem;
+		background: var(--bs-tertiary-color);
 	}
 
 	.timeline-legend-today {
 		width: 1px;
-		height: var(--size-timeline-marker);
-		background: var(--color-border-strong);
+		height: 1rem;
+		background: var(--bs-secondary-color);
 	}
 
 	.timeline-legend-after {
-		width: var(--size-timeline-tick);
-		height: var(--size-timeline-marker);
-		background: var(--color-warning);
+		width: 0.5rem;
+		height: 1rem;
+		background: var(--bs-warning);
 	}
-
 </style>

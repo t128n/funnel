@@ -1,8 +1,12 @@
 <script lang="ts">
-	import EllipsisIcon from '@lucide/svelte/icons/ellipsis';
+	import {
+		Button,
+		Dropdown,
+		DropdownItem,
+		DropdownMenu,
+		DropdownToggle
+	} from '@sveltestrap/sveltestrap';
 	import EmptyState from '#lib/components/common/EmptyState.svelte';
-	import { Button } from '#lib/components/ui/button';
-	import * as DropdownMenu from '#lib/components/ui/dropdown-menu';
 	import { issuePath } from '#lib/issue-url';
 	import { formatMinutes } from '#lib/planning';
 	import type { PlanningIssue } from '#lib/server/planning/queries';
@@ -79,16 +83,16 @@
 	}
 </script>
 
-<div class="flex flex-col" data-testid="plan-lanes">
+<div class="d-flex flex-column" data-testid="plan-lanes">
 	{#if lanes.length > 0 && plannedCount === 0}
 		<EmptyState
 			title={emptyLabel}
 			description="Schedule an issue to commit work to a maintainer."
-			class="border-y border-border-subtle py-6"
+			class="border-top border-bottom py-3"
 		>
 			{#snippet action()}
 				{#if mayWrite && onschedule}
-					<Button size="sm" onclick={onschedule}>Schedule Issue</Button>
+					<Button color="primary" size="sm" onclick={onschedule}>Schedule Issue</Button>
 				{/if}
 			{/snippet}
 		</EmptyState>
@@ -98,17 +102,17 @@
 		<EmptyState
 			title="No capacity lanes."
 			description="Add active maintainers in Planning settings to open capacity lanes."
-			class="border-y border-border-subtle py-10"
+			class="border-top border-bottom py-5"
 		/>
 	{:else}
 		{#each lanes as lane (lane.maintainer.externalId)}
-			<section class="flex flex-col border-t border-border-subtle pt-3" data-lane={lane.maintainer.login}>
+			<section class="d-flex flex-column border-top pt-3" data-lane={lane.maintainer.login}>
 				<header
-					class="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 border-b border-border-subtle px-3 pb-2"
+					class="d-flex flex-wrap align-items-baseline gap-2 border-bottom px-3 pb-2"
 				>
-					<h2 class="min-w-0 truncate text-body font-semibold text-fg">
+					<h2 class="min-w-0 text-truncate text-body fw-semibold small mb-0">
 						<a
-							class="hover:underline"
+							class="link-body-emphasis text-decoration-none"
 							href={`https://github.com/${lane.maintainer.login}`}
 							target="_blank"
 							rel="noreferrer"
@@ -116,10 +120,10 @@
 							@{lane.maintainer.login}
 						</a>
 					</h2>
-					<span class="text-caption text-fg-secondary tabular-nums">
+					<span class="small text-body-secondary tnum">
 						Net {formatMinutes(lane.maintainer.weeklyMinutes)}/week
 					</span>
-					<span class="ms-auto text-caption text-fg-secondary tabular-nums">
+					<span class="ms-auto small text-body-secondary tnum">
 						{capLabel(lane)}
 					</span>
 				</header>
@@ -132,9 +136,9 @@
 				</div>
 
 				{#if lane.issues.length === 0}
-					<p class="px-3 pb-2 text-caption text-fg-secondary">No planned issues.</p>
+					<p class="px-3 pb-2 small text-body-secondary mb-0">No planned issues.</p>
 				{:else}
-					<ul class="flex flex-col">
+					<ul class="d-flex flex-column list-unstyled mb-0">
 						{#each lane.issues as issue (issueKey(issue))}
 							{@render issueRow(issue, true)}
 						{/each}
@@ -146,30 +150,28 @@
 
 	{#if unassigned.issues.length === 0}
 		<p
-			class="mt-4 flex flex-wrap items-baseline gap-x-2 border-t border-border-subtle px-3 py-2 text-caption"
+			class="mt-3 d-flex flex-wrap align-items-baseline gap-2 border-top px-3 py-2 small mb-0"
 			data-testid="unassigned"
 		>
-			<span class="font-semibold text-fg">Unassigned</span>
-			<span class="text-fg-secondary">None — every sized issue has an active assignee.</span>
+			<span class="fw-semibold text-body">Unassigned</span>
+			<span class="text-body-secondary">None — every sized issue has an active assignee.</span>
 		</p>
 	{:else}
 		<section
-			class="mt-4 flex flex-col border-t border-border-subtle pt-3"
+			class="mt-3 d-flex flex-column border-top pt-3"
 			data-testid="unassigned"
 		>
-			<header
-				class="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 border-b border-border-subtle px-3 pb-2"
-			>
-				<h2 class="text-body font-semibold text-fg">Unassigned</h2>
-				<span class="ms-auto text-caption text-fg-secondary tabular-nums">
+			<header class="d-flex flex-wrap align-items-baseline gap-2 border-bottom px-3 pb-2">
+				<h2 class="text-body fw-semibold small mb-0">Unassigned</h2>
+				<span class="ms-auto small text-body-secondary tnum">
 					Scheduled {formatMinutes(unassigned.committedMinutes)} · no cap
 				</span>
 			</header>
-			<p class="px-3 py-2 text-caption text-fg-secondary">
+			<p class="px-3 py-2 small text-body-secondary mb-0">
 				No active maintainer. Assign these issues to a configured maintainer to place them
 				in a lane.
 			</p>
-			<ul class="flex flex-col">
+			<ul class="d-flex flex-column list-unstyled mb-0">
 				{#each unassigned.issues as issue (issueKey(issue))}
 					{@render issueRow(issue, true)}
 				{/each}
@@ -179,29 +181,27 @@
 
 	{#if unestimated.length === 0}
 		<p
-			class="mt-4 flex flex-wrap items-baseline gap-x-2 border-t border-border-subtle px-3 py-2 text-caption"
+			class="mt-3 d-flex flex-wrap align-items-baseline gap-2 border-top px-3 py-2 small mb-0"
 			data-testid="unestimated"
 		>
-			<span class="font-semibold text-fg">Unestimated</span>
-			<span class="text-fg-secondary">None — every open issue has a size.</span>
+			<span class="fw-semibold text-body">Unestimated</span>
+			<span class="text-body-secondary">None — every open issue has a size.</span>
 		</p>
 	{:else}
 		<section
-			class="mt-4 flex flex-col border-t border-border-subtle pt-3"
+			class="mt-3 d-flex flex-column border-top pt-3"
 			data-testid="unestimated"
 		>
-			<header
-				class="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 border-b border-border-subtle px-3 pb-2"
-			>
-				<h2 class="text-body font-semibold text-fg">Unestimated</h2>
-				<span class="ms-auto text-caption text-fg-secondary tabular-nums">
+			<header class="d-flex flex-wrap align-items-baseline gap-2 border-bottom px-3 pb-2">
+				<h2 class="text-body fw-semibold small mb-0">Unestimated</h2>
+				<span class="ms-auto small text-body-secondary tnum">
 					{unestimated.length} {unestimated.length === 1 ? 'issue' : 'issues'}
 				</span>
 			</header>
-			<p class="px-3 py-2 text-caption text-fg-secondary">
+			<p class="px-3 py-2 small text-body-secondary mb-0">
 				These open issues have no size label. Add a size to make them schedulable.
 			</p>
-			<ul class="flex flex-col">
+			<ul class="d-flex flex-column list-unstyled mb-0">
 				{#each unestimated as issue (issueKey(issue))}
 					{@render issueRow(issue, false)}
 				{/each}
@@ -212,62 +212,73 @@
 
 {#snippet issueRow(issue: PlanningIssue, removable: boolean)}
 	<li
-		class="group/issue flex min-h-(--size-row-compact) min-w-0 items-center gap-2 border-b border-border-subtle px-3 last:border-b-0"
+		class="plan-issue-row d-flex min-w-0 align-items-center gap-2 border-bottom px-3"
 	>
 		<a
-			class="flex min-w-0 flex-1 flex-col gap-0.5 hover:underline sm:flex-row sm:items-center sm:gap-2"
+			class="d-flex min-w-0 flex-grow-1 flex-column gap-1 text-decoration-none text-body"
 			href={issuePath('issues', issue.repo, issue.number)}
 		>
-			<span class="flex min-w-0 items-center gap-2">
-				<span class="mono shrink-0 text-fg-secondary">{issue.repo}#{issue.number}</span>
-				<span class="line-clamp-2 min-w-0 break-words text-body text-fg sm:line-clamp-1 sm:truncate">{issue.title}</span>
+			<span class="d-flex min-w-0 align-items-center gap-2">
+				<span class="font-monospace flex-shrink-0 text-body-secondary">{issue.repo}#{issue.number}</span>
+				<span class="min-w-0 text-truncate text-body">{issue.title}</span>
 			</span>
-			<span class="text-caption text-fg-secondary tabular-nums sm:hidden">
+			<span class="small text-body-secondary tnum d-sm-none">
 				{sizeLabel(issue.size)} · {estimateLabel(issue)}
 			</span>
 		</a>
-		<span class="hidden w-6 shrink-0 text-end text-caption text-fg-secondary sm:block" title="Size">
-			<span class="sr-only">Size </span>{sizeLabel(issue.size)}
+		<span
+			class="d-none d-sm-block flex-shrink-0 text-end small text-body-secondary"
+			style="width: 1.5rem"
+			title="Size"
+		>
+			<span class="visually-hidden">Size </span>{sizeLabel(issue.size)}
 		</span>
 		<span
-			class="hidden w-12 shrink-0 text-end text-caption text-fg-secondary tabular-nums sm:block"
+			class="d-none d-sm-block flex-shrink-0 text-end small text-body-secondary tnum"
+			style="width: 3rem"
 			title="Estimated hours"
 		>
-			<span class="sr-only">Estimate </span>{estimateLabel(issue)}
+			<span class="visually-hidden">Estimate </span>{estimateLabel(issue)}
 		</span>
-		<div class="flex w-auto shrink-0 items-center justify-end gap-0.5 sm:w-20">
+		<div class="d-flex flex-shrink-0 align-items-center justify-content-end gap-1 row-actions">
 			{#if mayWrite && onremove && removable}
-				<button
-					type="button"
-					class="hidden h-(--size-control-sm) shrink-0 items-center rounded-sm px-0.5 text-caption text-fg-secondary opacity-0 hover:text-error focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring group-hover/issue:opacity-100 group-focus-within/issue:opacity-100 sm:inline-flex"
+				<Button
+					color="link"
+					size="sm"
+					class="lane-remove d-none d-sm-inline-flex text-decoration-none text-body-secondary p-0 small"
 					disabled={removing === issueKey(issue)}
 					aria-label={`Remove ${issue.repo}#${issue.number} from the plan`}
 					onclick={() => onremove?.(issue)}
 				>
 					Remove
-				</button>
-				<DropdownMenu.Root>
-					<DropdownMenu.Trigger
-						class="inline-flex size-(--size-control-sm) shrink-0 items-center justify-center rounded-sm text-fg-secondary hover:bg-surface hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+				</Button>
+				<Dropdown>
+					<DropdownToggle
+						color="link"
+						size="sm"
+						caret={false}
+						class="text-body-secondary text-decoration-none px-1"
+						aria-label={`Actions for ${issue.repo}#${issue.number}`}
+						title={`Actions for ${issue.repo}#${issue.number}`}
 					>
-						<EllipsisIcon class="size-4" aria-hidden="true" />
-						<span class="sr-only">Actions for {issue.repo}#{issue.number}</span>
-					</DropdownMenu.Trigger>
-					<DropdownMenu.Content align="end" class="w-52">
-						<DropdownMenu.Item
-							variant="destructive"
+						<i class="bi bi-three-dots" aria-hidden="true"></i>
+					</DropdownToggle>
+					<DropdownMenu end class="plan-issue-menu">
+						<DropdownItem
+							class="text-danger"
 							disabled={removing === issueKey(issue)}
-							onSelect={() => onremove?.(issue)}
+							on:click={() => onremove?.(issue)}
 						>
 							Remove from plan
-						</DropdownMenu.Item>
-					</DropdownMenu.Content>
-				</DropdownMenu.Root>
+						</DropdownItem>
+					</DropdownMenu>
+				</Dropdown>
 			{:else if mayWrite && onremove && !removable}
 				<Button
-					variant="ghost"
-					size="xs"
+					color="link"
+					size="sm"
 					href={issuePath('issues', issue.repo, issue.number)}
+					class="text-decoration-none"
 					aria-label={`Estimate ${issue.repo}#${issue.number}`}
 				>
 					Estimate
@@ -276,3 +287,39 @@
 		</div>
 	</li>
 {/snippet}
+
+<style>
+	.plan-issue-row {
+		min-height: var(--funnel-row-compact);
+	}
+
+	.plan-issue-row:last-child {
+		border-bottom: 0 !important;
+	}
+
+	.plan-issue-row:hover :global(.lane-remove) {
+		opacity: 1;
+	}
+
+	:global(.lane-remove) {
+		opacity: 0;
+	}
+
+	:global(.lane-remove:focus-visible) {
+		opacity: 1;
+	}
+
+	.row-actions {
+		width: 5rem;
+	}
+
+	:global(.plan-issue-menu) {
+		min-width: 11rem;
+	}
+
+	@media (max-width: 575.98px) {
+		.row-actions {
+			width: auto;
+		}
+	}
+</style>
