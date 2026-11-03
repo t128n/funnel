@@ -14,9 +14,19 @@ const composer = readFileSync(new URL("../detail/Composer.svelte", import.meta.u
 describe("issue detail", () => {
 	test("test_triage_values_live_once_in_the_header_strip", () => {
 		expect(inspector).toContain('aria-label="Issue triage"');
-		for (const label of ["Status", "Priority", "Assignee", "Milestone"]) {
+		for (const label of ["Status", "Priority", "Size", "Assignee", "Milestone"]) {
 			expect(inspector).not.toContain(`<dt>${label}</dt>`);
 		}
+	});
+
+	test("test_size_is_editable_from_the_triage_strip", () => {
+		const triage = inspector.indexOf('aria-label="Issue triage"');
+		const sizePicker = inspector.indexOf('data-picker="size"');
+		const activity = inspector.indexOf('aria-label="Activity"');
+		expect(triage).toBeGreaterThan(-1);
+		expect(sizePicker).toBeGreaterThan(triage);
+		expect(sizePicker).toBeLessThan(activity);
+		expect(inspector).toContain("Not estimated");
 	});
 
 	test("test_secondary_properties_use_native_details_below_activity", () => {

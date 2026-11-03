@@ -91,6 +91,7 @@
 	import CopyIcon from '@lucide/svelte/icons/copy';
 	import ExternalLinkIcon from '@lucide/svelte/icons/external-link';
 	import MilestoneIcon from '@lucide/svelte/icons/milestone';
+	import RulerIcon from '@lucide/svelte/icons/ruler';
 	import UserIcon from '@lucide/svelte/icons/user';
 	import XIcon from '@lucide/svelte/icons/x';
 
@@ -1191,6 +1192,53 @@
 							<button
 								type="button"
 								class={triageControlClass}
+								disabled={busy === 'size'}
+								title="Change estimate size"
+								onclick={() => openPicker('size')}
+							>
+								<RulerIcon class="size-4 shrink-0 text-fg-muted" aria-hidden="true" />
+								<span class="sr-only">Estimate </span>
+								<span class="truncate">
+									{#if sizeValue}
+										{sizeDisplay}
+									{:else}
+										<span class="text-fg-secondary">Not estimated</span>
+									{/if}
+								</span>
+							</button>
+							<div
+								class="pointer-events-none invisible absolute top-0 left-0"
+								data-picker="size"
+							>
+								<SingleSelect
+									label="No size"
+									options={SIZE_OPTIONS}
+									value={sizeValue}
+									onselect={setSize}
+									allowClear
+									disabled={busy === 'size'}
+								/>
+							</div>
+						{:else}
+							<span class={triageValueClass}>
+								<RulerIcon class="size-4 shrink-0 text-fg-muted" aria-hidden="true" />
+								<span class="sr-only">Estimate </span>
+								<span class="truncate">
+									{#if sizeValue}
+										{sizeDisplay}
+									{:else}
+										<span class="text-fg-secondary">Not estimated</span>
+									{/if}
+								</span>
+							</span>
+						{/if}
+					</div>
+
+					<div class="relative min-w-0">
+						{#if mayWrite}
+							<button
+								type="button"
+								class={triageControlClass}
 								disabled={busy === 'assignees'}
 								title="Change assignee"
 								onclick={() => openPicker('assignee')}
@@ -1503,38 +1551,6 @@
 				<dl class="label-value">
 					<dt>Severity</dt>
 					<dd>{severityDisplay}</dd>
-
-					<dt>Size</dt>
-					<dd>
-						<div class="relative min-w-0 flex-1">
-							{#if mayWrite}
-								<button
-									type="button"
-									class="text-left text-body text-fg hover:text-primary disabled:pointer-events-none disabled:text-fg-disabled"
-									disabled={busy === 'size'}
-									title="Change size"
-									onclick={() => openPicker('size')}
-								>
-									{sizeDisplay}
-								</button>
-								<div
-									class="pointer-events-none invisible absolute top-0 left-0"
-									data-picker="size"
-								>
-									<SingleSelect
-										label="No size"
-										options={SIZE_OPTIONS}
-										value={sizeValue}
-										onselect={setSize}
-										allowClear
-										disabled={busy === 'size'}
-									/>
-								</div>
-							{:else}
-								<span>{sizeDisplay}</span>
-							{/if}
-						</div>
-					</dd>
 
 					<dt>Reporter</dt>
 					<dd class="break-words">{issue.author?.login ?? '—'}</dd>
