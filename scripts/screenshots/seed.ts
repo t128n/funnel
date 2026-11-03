@@ -151,6 +151,10 @@ const LABELS = [
   { name: "md", color: "2aacb8", description: "Size: Medium" },
   { name: "lg", color: "e28d78", description: "Size: Large" },
   { name: "epic", color: "b389f5", description: "Type: Epic" },
+  { name: "accessibility", color: "0d6efd", description: "Accessibility" },
+  { name: "bug", color: "d73a4a", description: "Something is not working" },
+  { name: "enhancement", color: "a2eeef", description: "New feature or request" },
+  { name: "regression", color: "e99695", description: "Regression" },
 ] as const;
 
 /** One demo issue. */
@@ -211,7 +215,7 @@ const ISSUES: DemoIssue[] = [
     author: 1,
     assignee: 2,
     milestone: 1,
-    labels: ["in-progress", "mod", "high", "md"],
+    labels: ["in-progress", "mod", "high", "md", "accessibility"],
     updatedOffsetMinutes: 15,
   },
   {
@@ -243,7 +247,7 @@ const ISSUES: DemoIssue[] = [
     author: 3,
     assignee: 1,
     milestone: null,
-    labels: ["todo", "blocked", "sev", "high", "sm"],
+    labels: ["todo", "blocked", "sev", "high", "sm", "bug"],
     updatedOffsetMinutes: 90,
   },
   {
@@ -267,7 +271,7 @@ const ISSUES: DemoIssue[] = [
     author: 2,
     assignee: 3,
     milestone: 1,
-    labels: ["in-review", "mod", "mid", "md"],
+    labels: ["in-review", "mod", "mid", "md", "regression"],
     updatedOffsetMinutes: 240,
   },
   {
@@ -387,7 +391,7 @@ const ISSUES: DemoIssue[] = [
     author: 2,
     assignee: 3,
     milestone: null,
-    labels: ["todo", "high", "lg"],
+    labels: ["todo", "high", "lg", "enhancement"],
     updatedOffsetMinutes: 120,
   },
   {
@@ -458,7 +462,7 @@ const ISSUES: DemoIssue[] = [
     author: 1,
     assignee: 3,
     milestone: 1,
-    labels: ["backlog", "min", "high", "lg"],
+    labels: ["backlog", "min", "high", "lg", "bug"],
     updatedOffsetMinutes: 480,
   },
 ];

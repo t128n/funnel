@@ -193,7 +193,7 @@
 									</span>
 								{:else if row.startOn === null}
 									<span class="d-inline-flex align-items-center gap-1 small text-nowrap text-body-tertiary">
-										<i class="bi bi-circle-dashed" aria-hidden="true"></i>
+										<i class="bi bi-circle" aria-hidden="true"></i>
 										No start
 									</span>
 								{/if}
@@ -268,13 +268,13 @@
 				</p>
 			</div>
 			<Table hover responsive size="sm" class="align-middle funnel-table">
-				<thead>
+				<thead class="table-light small text-body-secondary">
 					<tr>
-						<th scope="col">Milestone</th>
-						<th scope="col">Repository</th>
-						<th scope="col" class="text-end">Progress</th>
-						<th scope="col">Start</th>
-						<th scope="col">Due</th>
+						<th scope="col" class="text-body-secondary">Milestone</th>
+						<th scope="col" class="text-body-secondary">Repository</th>
+						<th scope="col" class="text-body-secondary text-end">Progress</th>
+						<th scope="col" class="text-body-secondary">Start</th>
+						<th scope="col" class="text-body-secondary">Due</th>
 					</tr>
 				</thead>
 				<tbody>

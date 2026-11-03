@@ -1182,11 +1182,11 @@
 
 				<section
 					bind:this={activityEl}
-					class="d-flex flex-column gap-2 border-top pt-3 mt-4"
+					class="d-flex flex-column gap-2 border-top pt-4 mt-4"
 					aria-label="Activity"
 				>
 					<div class="d-flex align-items-baseline justify-content-between gap-3">
-						<h2 class="h6 fw-semibold mb-0">Activity</h2>
+						<h2 class="h6 mb-0">Activity</h2>
 						<span class="small text-body-secondary metric-number">
 							{detail.commentTotal}
 							{detail.commentTotal === 1 ? 'comment' : 'comments'}
@@ -1235,7 +1235,7 @@
 				{#if workNotesEnabled}
 					<section class="mt-4" aria-label="Work notes">
 						<div class="d-flex align-items-baseline justify-content-between gap-3 border-top pt-3">
-							<h2 class="h6 fw-semibold mb-0">Work notes</h2>
+							<h2 class="h6 mb-0">Work notes</h2>
 							<span class="small text-body-secondary metric-number">
 								{detail.workNotes.length}
 							</span>

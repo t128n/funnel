@@ -188,14 +188,14 @@
 {#if loading}
 	<div class="table-responsive border rounded" role="status" aria-label="Loading issues…">
 		<Table hover class="align-middle mb-0">
-			<thead>
+			<thead class="table-light">
 				<tr>
-					<th scope="col" class="bg-body-tertiary small text-body-secondary d-none d-md-table-cell" style="width: 7rem;">Issue</th>
-					<th scope="col" class="bg-body-tertiary small text-body-secondary">Title</th>
-					<th scope="col" class="bg-body-tertiary small text-body-secondary d-none d-md-table-cell" style="width: 8rem;">Status</th>
-					<th scope="col" class="bg-body-tertiary small text-body-secondary d-none d-md-table-cell" style="width: 7rem;">Priority</th>
-					<th scope="col" class="bg-body-tertiary small text-body-secondary d-none d-md-table-cell" style="width: 10rem;">Assignee</th>
-					<th scope="col" class="bg-body-tertiary small text-body-secondary text-end d-none d-lg-table-cell" style="width: 8rem;">Updated</th>
+					<th scope="col" class="small text-body-secondary d-none d-md-table-cell" style="width: 7rem;">Issue</th>
+					<th scope="col" class="small text-body-secondary">Title</th>
+					<th scope="col" class="small text-body-secondary d-none d-md-table-cell" style="width: 8rem;">Status</th>
+					<th scope="col" class="small text-body-secondary d-none d-md-table-cell" style="width: 7rem;">Priority</th>
+					<th scope="col" class="small text-body-secondary d-none d-md-table-cell" style="width: 10rem;">Assignee</th>
+					<th scope="col" class="small text-body-secondary text-end d-none d-lg-table-cell" style="width: 8rem;">Updated</th>
 				</tr>
 			</thead>
 			<tbody>
@@ -232,22 +232,22 @@
 {:else}
 	<div class="table-responsive border rounded">
 		<Table hover class="align-middle mb-0">
-			<thead>
+			<thead class="table-light">
 				<tr>
-					<th scope="col" class="bg-body-tertiary small text-body-secondary d-none d-md-table-cell" style="width: 7rem;">Issue</th>
-					<th scope="col" class="bg-body-tertiary small text-body-secondary">Title</th>
-					<th scope="col" class="bg-body-tertiary small text-body-secondary d-none d-md-table-cell" style="width: 8rem;">Status</th>
-					<th scope="col" class="bg-body-tertiary small text-body-secondary d-none d-md-table-cell" style="width: 7rem;">Priority</th>
-					<th scope="col" class="bg-body-tertiary small text-body-secondary d-none d-md-table-cell" style="width: 10rem;">Assignee</th>
-					<th scope="col" class="bg-body-tertiary small text-body-secondary text-end d-none d-lg-table-cell" style="width: 8rem;">Updated</th>
+					<th scope="col" class="small text-body-secondary d-none d-md-table-cell" style="width: 7rem;">Issue</th>
+					<th scope="col" class="small text-body-secondary">Title</th>
+					<th scope="col" class="small text-body-secondary d-none d-md-table-cell" style="width: 8rem;">Status</th>
+					<th scope="col" class="small text-body-secondary d-none d-md-table-cell" style="width: 7rem;">Priority</th>
+					<th scope="col" class="small text-body-secondary d-none d-md-table-cell" style="width: 10rem;">Assignee</th>
+					<th scope="col" class="small text-body-secondary text-end d-none d-lg-table-cell" style="width: 8rem;">Updated</th>
 				</tr>
 			</thead>
 			{#each groups as group (group.key)}
 				{@const groupKey = `${groupBy}:${group.key}`}
 				{@const collapsed = isGroupCollapsed(groupKey)}
 				<tbody>
-					<tr>
-						<th colspan="6" class="bg-body-tertiary small fw-semibold text-body-secondary py-2">
+					<tr class="table-light">
+						<th colspan="6" class="small fw-semibold text-body-secondary py-2">
 							<button
 								type="button"
 								class="group-toggle btn btn-link btn-sm p-0 text-decoration-none text-reset text-wrap text-start fw-semibold"
@@ -299,7 +299,7 @@
 										/>
 										{#if issue.priority}
 											<span class="mx-1" aria-hidden="true">·</span>
-											<PriorityText priority={issue.priority} />
+											<PriorityText priority={issue.priority} showName weight="normal" />
 										{/if}
 										<span class="mx-1" aria-hidden="true">·</span>
 										{#if assigneesOf(issue)}
@@ -318,7 +318,7 @@
 								</td>
 								<td class="small d-none d-md-table-cell">
 									{#if issue.priority}
-										<PriorityText priority={issue.priority} showName />
+										<PriorityText priority={issue.priority} showName weight="normal" />
 									{:else}
 										<span class="text-body-tertiary">—</span>
 									{/if}

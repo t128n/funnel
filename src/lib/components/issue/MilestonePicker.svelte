@@ -126,7 +126,7 @@
 	}
 </script>
 
-<div class="input-group input-group-sm">
+<div class="input-group">
 	<span class="input-group-text px-2" aria-hidden="true">
 		<i class="bi bi-signpost-split"></i>
 	</span>

@@ -56,13 +56,13 @@
 {:else}
 	<div class="overflow-x-auto" data-testid="milestone-plans">
 		<Table hover class="funnel-table table-sm align-middle">
-			<thead>
+			<thead class="table-light small text-body-secondary">
 				<tr>
-					<th scope="col">Milestone</th>
-					<th scope="col">State</th>
-					<th scope="col" class="text-end">Due</th>
-					<th scope="col" class="text-end">Open Issues</th>
-					<th scope="col">Scheduled / Cap</th>
+					<th scope="col" class="text-body-secondary">Milestone</th>
+					<th scope="col" class="text-body-secondary">State</th>
+					<th scope="col" class="text-body-secondary text-end">Due</th>
+					<th scope="col" class="text-body-secondary text-end">Open Issues</th>
+					<th scope="col" class="text-body-secondary">Scheduled / Cap</th>
 				</tr>
 			</thead>
 			<tbody>

@@ -34,6 +34,13 @@
 		/** Trigger styling: `default` (filter toolbar), `ghost` (borderless), or
 		 *  `pill` (contained toolbar pill). */
 		variant?: 'default' | 'ghost' | 'pill';
+		/**
+		 * Trigger density: `sm` (default, the filter toolbars' compact control)
+		 * or `md`, the default-size trigger used beside the Properties selects.
+		 */
+		size?: 'sm' | 'md';
+		/** Stretch the trigger to its container, matching a full-width select. */
+		fullWidth?: boolean;
 		/** Optional leading glyph rendered inside the trigger. */
 		icon?: Snippet;
 	}
@@ -50,6 +57,8 @@
 		display = 'label',
 		placeholder,
 		variant = 'default',
+		size = 'sm',
+		fullWidth = false,
 		icon
 	}: Props = $props();
 
@@ -99,9 +108,11 @@
 	<DropdownToggle
 		color={variant === 'ghost' ? 'link' : 'secondary'}
 		outline={variant !== 'ghost'}
-		size="sm"
+		size={size === 'sm' ? 'sm' : undefined}
 		disabled={disabled}
-		class="d-flex align-items-center gap-1 {toggleClass}"
+		class="d-flex align-items-center gap-1 {fullWidth
+			? 'w-100 justify-content-between'
+			: ''} {toggleClass}"
 	>
 		{#if icon}
 			<span class="d-inline-flex align-items-center" aria-hidden="true">{@render icon()}</span>
@@ -112,7 +123,7 @@
 				{selected.length}
 			</span>
 		{/if}
-		<i class="bi bi-chevron-down small" aria-hidden="true"></i>
+		<i class="bi bi-chevron-down {size === 'sm' ? 'small' : ''}" aria-hidden="true"></i>
 	</DropdownToggle>
 
 	<DropdownMenu end={align === 'end'} class="p-0" style="min-width: 16rem">

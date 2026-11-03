@@ -32,16 +32,16 @@
 
 <div class="table-responsive border rounded" data-testid="epic-list">
 	<Table hover size="sm" class="align-middle funnel-table mb-0">
-		<thead class="small text-body-secondary">
+		<thead class="table-light small text-body-secondary">
 			<tr>
-				<th scope="col">Epic</th>
-				<th scope="col">Title</th>
-				<th scope="col">Milestone</th>
-				<th scope="col">Status</th>
-				<th scope="col" class="bg-body-tertiary text-end">Progress</th>
-				<th scope="col" class="bg-body-tertiary text-end">Estimate</th>
-				<th scope="col" class="bg-body-tertiary text-end">Actual</th>
-				<th scope="col" class="bg-body-tertiary text-end">Delay</th>
+				<th scope="col" class="text-body-secondary">Epic</th>
+				<th scope="col" class="text-body-secondary">Title</th>
+				<th scope="col" class="text-body-secondary">Milestone</th>
+				<th scope="col" class="text-body-secondary">Status</th>
+				<th scope="col" class="text-body-secondary text-end">Progress</th>
+				<th scope="col" class="text-body-secondary text-end">Estimate</th>
+				<th scope="col" class="text-body-secondary text-end">Actual</th>
+				<th scope="col" class="text-body-secondary text-end">Delay</th>
 			</tr>
 		</thead>
 		<tbody>

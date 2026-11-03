@@ -104,7 +104,6 @@
 			<Input
 				id="issue-status"
 				type="select"
-				bsSize="sm"
 				class="mb-3"
 				value={statusValue}
 				disabled={busy === 'status' || busy === 'close' || busy === 'reopen'}
@@ -131,7 +130,6 @@
 				<Input
 					id="issue-impact"
 					type="select"
-					bsSize="sm"
 					class="mb-2"
 					value={issue.impact === null ? '' : String(issue.impact)}
 					disabled={busy === 'priority'}
@@ -147,7 +145,6 @@
 				<Input
 					id="issue-urgency"
 					type="select"
-					bsSize="sm"
 					value={issue.urgency === null ? '' : String(issue.urgency)}
 					disabled={busy === 'priority'}
 					on:change={(event) => changeAxis('urgency', event)}
@@ -160,9 +157,11 @@
 			</div>
 
 			<div class="mb-3">
-				<span class="form-label small d-block mb-1">Assignee</span>
+				<span class="form-label small d-block">Assignee</span>
 				<MultiSelect
 					hideCount
+					size="md"
+					fullWidth
 					label="Assignee"
 					placeholder="Unassigned"
 					display="selection"
@@ -174,7 +173,7 @@
 			</div>
 
 			<div class="mb-3">
-				<span class="form-label small d-block mb-1">Milestone</span>
+				<span class="form-label small d-block">Milestone</span>
 				<MilestonePicker
 					repo={issue.repo}
 					value={issue.milestone}
@@ -189,7 +188,6 @@
 				<Input
 					id="issue-size"
 					type="select"
-					bsSize="sm"
 					value={issue.size ?? ''}
 					disabled={busy === 'size'}
 					on:change={changeSize}
@@ -202,9 +200,11 @@
 			</div>
 
 			<div>
-				<span class="form-label small d-block mb-1">Labels</span>
+				<span class="form-label small d-block">Labels</span>
 				<MultiSelect
 					hideCount
+					size="md"
+					fullWidth
 					label="Labels"
 					placeholder="No labels"
 					display="selection"

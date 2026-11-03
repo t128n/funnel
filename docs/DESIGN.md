@@ -129,10 +129,12 @@ with no underline; status and priority are icon + text, not coloured pills.
 Identifiers and group counts are muted.
 
 Use Sveltestrap `Table` with `hover align-middle` inside a
-`table-responsive border rounded` wrapper. Group headers are
-`th.bg-body-tertiary` with `colspan="6"` (the theme-aware tertiary surface
-keeps light and dark headers legible). Below `md`, the issue index hides the
-ID/status/priority/assignee columns and repeats them in a metadata line under
+`table-responsive border rounded` wrapper. The header row is
+`thead.table-light`; group headers are a full-width `tr.table-light` with
+`th colspan="6"`. A small dark-mode bridge in `app.css` maps `.table-light`
+onto Bootstrap's tertiary surface, so neither becomes a light-gray slab.
+Below `md`, the issue index hides the ID/status/priority/assignee columns and
+repeats them in a metadata line under
 the title; the Inbox hides Issue/Source/Submitted and keeps its actions visible.
 Metadata uses Bootstrap `dl`/`row` patterns or the shared `.property-list`.
 

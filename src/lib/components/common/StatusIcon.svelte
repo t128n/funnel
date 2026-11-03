@@ -6,12 +6,12 @@
 	 * carry the shape; the reserved label's hue tints it.
 	 */
 	const STATUS_ICONS: Record<string, string> = {
-		backlog: 'bi-circle-dashed',
+		backlog: 'bi-circle',
 		todo: 'bi-circle',
 		'in-progress': 'bi-circle-half',
 		'in-review': 'bi-eye',
-		done: 'bi-check-circle-fill',
-		blocked: 'bi-slash-circle-fill'
+		done: 'bi-check-circle',
+		blocked: 'bi-slash-circle'
 	};
 
 	interface Props {

@@ -38,14 +38,14 @@
 		/>
 	{:else}
 		<Table hover responsive size="sm" class="align-middle funnel-table">
-			<thead>
+			<thead class="table-light small text-body-secondary">
 				<tr>
-					<th scope="col">Issue</th>
-					<th scope="col">Status</th>
-					<th scope="col" class="text-end">Estimate</th>
-					<th scope="col" class="text-end">Actual</th>
-					<th scope="col" class="text-end">Delay</th>
-					<th scope="col" class="text-end">
+					<th scope="col" class="text-body-secondary">Issue</th>
+					<th scope="col" class="text-body-secondary">Status</th>
+					<th scope="col" class="text-body-secondary text-end">Estimate</th>
+					<th scope="col" class="text-body-secondary text-end">Actual</th>
+					<th scope="col" class="text-body-secondary text-end">Delay</th>
+					<th scope="col" class="text-body-secondary text-end">
 						<span class="visually-hidden">Actions</span>
 					</th>
 				</tr>

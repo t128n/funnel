@@ -172,7 +172,11 @@
 		<BreadcrumbItem active>Inbox</BreadcrumbItem>
 	</Breadcrumb>
 
-	<PageHeader title="Inbox" description={summary}>
+	<PageHeader
+		title="Inbox"
+		description={summary}
+		actionsClass="flex-grow-1 flex-lg-grow-0"
+	>
 		{#snippet actions()}
 			<div class="inbox-search">
 				<label class="visually-hidden" for="issue-search">Search inbox</label>
@@ -248,7 +252,7 @@
 
 	@media (min-width: 992px) {
 		.inbox-search {
-			width: 26rem;
+			width: 18rem;
 		}
 	}
 </style>

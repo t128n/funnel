@@ -309,12 +309,12 @@
 					<h2 class="fs-6 text-body mb-0">Weeks in this cycle</h2>
 					<div class="table-responsive border rounded">
 						<Table class="funnel-table table-sm align-middle mb-0">
-							<thead class="small text-body-secondary">
+							<thead class="table-light small text-body-secondary">
 								<tr>
-									<th scope="col">Week</th>
-									<th scope="col" class="bg-body-tertiary text-end">Scheduled</th>
-									<th scope="col" class="bg-body-tertiary text-end">Cap</th>
-									<th scope="col" class="bg-body-tertiary text-end">Unassigned</th>
+									<th scope="col" class="text-body-secondary">Week</th>
+									<th scope="col" class="text-body-secondary text-end">Scheduled</th>
+									<th scope="col" class="text-body-secondary text-end">Cap</th>
+									<th scope="col" class="text-body-secondary text-end">Unassigned</th>
 								</tr>
 							</thead>
 							<tbody>

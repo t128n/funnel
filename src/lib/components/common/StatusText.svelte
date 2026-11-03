@@ -33,9 +33,11 @@
 			? 'text-danger'
 			: state === 'closed' || status === 'done'
 				? 'text-success'
-				: status === 'in-progress' || status === 'in-review'
-					? 'text-warning-emphasis'
-					: 'text-body-secondary'
+				: status === 'in-progress'
+					? 'text-primary'
+					: status === 'in-review'
+						? 'text-warning'
+						: 'text-secondary'
 	);
 
 	const icon = $derived(
@@ -47,13 +49,11 @@
 					? 'bi-circle-half'
 					: status === 'in-review'
 						? 'bi-eye'
-						: status === 'backlog'
-							? 'bi-circle-dashed'
-							: 'bi-circle'
+						: 'bi-circle'
 	);
 </script>
 
-<span class="d-inline-flex align-items-center gap-1 text-nowrap {tone} {className}">
+<span class="status-text d-inline-flex align-items-center gap-1 text-nowrap {tone} {className}">
 	<i class="bi {icon}" aria-hidden="true"></i>
 	<span>{word}</span>
 </span>

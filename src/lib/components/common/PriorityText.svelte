@@ -3,10 +3,14 @@
 		priority?: string | null;
 		/** Render the level name beside the token. */
 		showName?: boolean;
+		/** Board and matrix emphasis stays semibold by default. */
+		weight?: 'normal' | 'semibold';
 		class?: string;
 	}
 
-	let { priority = null, showName = false, class: className = '' }: Props = $props();
+	let { priority = null, showName = false, weight = 'semibold', class: className = '' }: Props = $props();
+
+	const weightClass = $derived(weight === 'normal' ? 'fw-normal' : 'fw-semibold');
 
 	const meta = $derived(
 		priority === 'P1'
@@ -21,7 +25,7 @@
 
 {#if priority && meta}
 	<span
-		class="d-inline-flex align-items-center gap-1 fw-semibold text-nowrap {meta.tone} {className}"
+		class="d-inline-flex align-items-center gap-1 {weightClass} text-nowrap {meta.tone} {className}"
 		title={`${priority} · ${meta.name} priority`}
 	>
 		<span aria-hidden="true">{priority}</span>

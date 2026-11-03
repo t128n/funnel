@@ -162,6 +162,7 @@
 					tabindex={-1}
 				/>
 			{/if}
+			<span class="small text-body-secondary">Markdown supported</span>
 		</div>
 		<div class="d-flex min-w-0 flex-wrap align-items-center justify-content-end gap-2">
 			{#if showModeToggle}

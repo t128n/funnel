@@ -206,7 +206,6 @@
 			<Input
 				id="issue-status-filter"
 				type="select"
-				bsSize="sm"
 				value={currentStatus}
 				on:change={(event) => setStatus(event.currentTarget.value)}
 				aria-label="Filter by status"
@@ -222,7 +221,6 @@
 			<Input
 				id="issue-priority-filter"
 				type="select"
-				bsSize="sm"
 				value={currentPriority}
 				on:change={(event) => setPriority(event.currentTarget.value)}
 				aria-label="Filter by priority"
@@ -238,7 +236,6 @@
 			<Input
 				id="issue-assignee-filter"
 				type="select"
-				bsSize="sm"
 				value={currentAssignee}
 				on:change={(event) => setAssignee(event.currentTarget.value)}
 				aria-label="Filter by assignee"
@@ -253,7 +250,6 @@
 			<Input
 				id="issue-group-filter"
 				type="select"
-				bsSize="sm"
 				value={currentGroup}
 				on:change={(event) => setGroupBy(event.currentTarget.value as GroupKey)}
 				aria-label="Group issues by"

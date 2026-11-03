@@ -16,9 +16,19 @@
 		/** Primary and secondary page actions, right-aligned on the title baseline. */
 		actions?: Snippet;
 		class?: string;
+		/** Layout classes for the action cluster (for example responsive growth). */
+		actionsClass?: string;
 	}
 
-	let { title, description, count, level = 1, actions, class: className = '' }: Props = $props();
+	let {
+		title,
+		description,
+		count,
+		level = 1,
+		actions,
+		class: className = '',
+		actionsClass = ''
+	}: Props = $props();
 </script>
 
 <header class="d-flex flex-wrap align-items-end justify-content-between gap-3 mb-3 {className}">
@@ -40,7 +50,7 @@
 	</div>
 
 	{#if actions}
-		<div class="d-flex flex-wrap align-items-center gap-2">
+		<div class="d-flex flex-wrap align-items-center gap-2 {actionsClass}">
 			{@render actions()}
 		</div>
 	{/if}
