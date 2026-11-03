@@ -56,7 +56,10 @@
 			saved = false;
 			return async ({ result, update }) => {
 				try {
-					await update();
+					// Keep the edited values in place: `update()` resets the form by
+					// default, which blanks client-rendered inputs (no `value`
+					// attribute to fall back to) and desyncs them from the state.
+					await update({ reset: false });
 					if (result.type === 'success') saved = true;
 				} finally {
 					saving = false;
