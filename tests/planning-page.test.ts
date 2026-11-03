@@ -10,10 +10,7 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { getConfig, resetConfigCache } from "#lib/server/config";
 import { saveSettings } from "#lib/server/settings/apply";
-import {
-  clearSettings,
-  DEFAULT_WORK_DEFAULTS,
-} from "#lib/server/settings/store";
+import { clearSettings } from "#lib/server/settings/store";
 import type { Role } from "#lib/roles";
 import * as planRoute from "#/routes/(app)/plan/+page.server";
 import { load as loadSettingsLayout } from "#/routes/(app)/settings/+layout.server";
@@ -62,13 +59,6 @@ const PLANNING_PAYLOAD = {
     allocation_percent: 55,
     cycle_weeks: 3,
     cycle_anchor: "2024-01-01",
-    work_defaults: {
-      timezone: "Europe/Berlin",
-      start_minute: 480,
-      end_minute: 960,
-      work_days: [1, 2, 3, 4, 5, 6],
-      buffer_percent: 25,
-    },
     maintainers: [
       {
         forge: "github",
@@ -120,7 +110,6 @@ describe("planning settings load", () => {
     expect(data.planning.allocation_percent).toBe(60);
     expect(data.planning.maintainers).toEqual([]);
     expect(data.planning.size_minutes).toEqual({ sm: 120, md: 240, lg: 480 });
-    expect(data.planning.work_defaults).toEqual(DEFAULT_WORK_DEFAULTS);
     expect(data.candidates).toEqual([]);
   });
 
@@ -153,9 +142,6 @@ describe("planning settings load", () => {
     expect(config.board.done_days).toBe(30);
     expect(config.planning.size_minutes.sm).toBe(90);
     expect(config.planning.allocation_percent).toBe(55);
-    expect(config.planning.work_defaults).toEqual(
-      PLANNING_PAYLOAD.planning.work_defaults,
-    );
     expect(config.planning.maintainers[0]?.weekly_minutes).toBe(450);
   });
 });
@@ -170,7 +156,6 @@ describe("plan load", () => {
     const monday = currentMonday();
     expect(data.week).toBe(monday);
     expect(data.weekPlan.weekStart).toBe(monday);
-    expect(data.allocationPercent).toBe(60);
     expect(data).not.toHaveProperty("horizon");
     expect(data).not.toHaveProperty("cyclePlan");
     expect(data).not.toHaveProperty("dayView");
@@ -217,28 +202,13 @@ describe("plan load", () => {
     expect(data.next).toBe("2026-10-26");
   });
 
-  test("test_day_links_move_to_the_day_route", async () => {
-    let caught: unknown;
-    try {
-      await loadPlan({
-        locals: locals(),
-        url: url("/plan?horizon=day&day=2026-10-25"),
-      } as never);
-    } catch (error) {
-      caught = error;
-    }
-
-    expect((caught as { status?: number }).status).toBe(307);
-    expect((caught as { location?: string }).location).toBe("/day?day=2026-10-25");
-  });
-
-  test("test_cycle_and_milestone_links_settle_on_the_week", async () => {
-    for (const horizon of ["cycle", "milestone"]) {
+  test("test_legacy_horizons_redirect_to_the_week", async () => {
+    for (const horizon of ["day", "cycle", "milestone"]) {
       let caught: unknown;
       try {
         await loadPlan({
           locals: locals(),
-          url: url(`/plan?horizon=${horizon}`),
+          url: url(`/plan?horizon=${horizon}&day=2026-10-25`),
         } as never);
       } catch (error) {
         caught = error;
@@ -283,31 +253,26 @@ describe("planning navigation and copy", () => {
     expect(page).toContain("hoursToMinutes(row.hours ?? 0)");
   });
 
-  test("test_work_defaults_inputs", () => {
+  test("test_work_defaults_removed", () => {
     const page = source("src/routes/(app)/settings/planning/+page.svelte");
 
-    // The admin card uses the shared clock helpers for its two time fields.
-    expect(page).toContain("from '#lib/time/zoned'");
-    expect(page).toContain("formatClock(workDefaults.start_minute)");
-    expect(page).toContain("parseClock(startTime)");
-    expect(page.match(/type="time"/g)?.length).toBe(2);
-    expect(page).toContain("bind:value={timezone}");
-    expect(page).toContain("WORKDAYS");
-    for (const label of ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]) {
-      expect(page).toContain(label);
-    }
-    // The buffer field is bounded to the spec's 0..90 percent.
-    expect(page).toContain('max="90"');
-    expect(page).toContain("min=\"0\"");
+    // The obsolete working-hours section is gone; estimates, allocation and
+    // maintainers remain.
+    expect(page).not.toContain("Working hours");
+    expect(page).not.toContain("work_defaults");
+    expect(page).not.toContain("from '#lib/time/zoned'");
+    expect(page).toContain("title=\"Estimates\"");
+    expect(page).toContain("title=\"Allocation\"");
+    expect(page).toContain("title=\"Maintainers\"");
   });
 
-  test("test_work_defaults_form_payload", () => {
-    const page = source("src/routes/(app)/settings/planning/+page.svelte");
+  test("test_day_and_availability_surfaces_removed", () => {
+    const navigation = source("src/lib/components/shell/navigation.ts");
+    expect(navigation).not.toContain("'/day'");
+    expect(navigation).not.toContain("My Day");
 
-    expect(page).toContain("work_defaults:");
-    expect(page).toContain("start_minute: parseClock(startTime)");
-    expect(page).toContain("end_minute: parseClock(endTime)");
-    expect(page).toContain("work_days:");
-    expect(page).toContain("buffer_percent:");
+    const sections = source("src/lib/components/settings/sections.ts");
+    expect(sections).not.toContain("/settings/availability");
+    expect(sections).not.toContain("Availability");
   });
 });

@@ -570,7 +570,7 @@ const COMMENTS: Record<number, { author: number; body: string; offsetMinutes: nu
       author: 2,
       offsetMinutes: 180,
       body: [
-        "The formatter is shared with the calendar feed, so the fix has to be",
+        "The formatter is shared with the issue list, so the fix has to be",
         "an explicit timezone argument rather than a global.",
       ].join("\n"),
     },
@@ -672,16 +672,6 @@ async function seedRows(sqlite: Database, secret: string): Promise<SeedResult> {
     ["planning.allocation_percent", 60],
     ["planning.cycle_weeks", 2],
     ["planning.cycle_anchor", "2024-01-01"],
-    [
-      "planning.work_defaults",
-      {
-        timezone: "UTC",
-        start_minute: 540,
-        end_minute: 1020,
-        work_days: [1, 2, 3, 4, 5],
-        buffer_percent: 20,
-      },
-    ],
     [
       "planning.maintainers",
       [
@@ -953,35 +943,6 @@ async function seedRows(sqlite: Database, secret: string): Promise<SeedResult> {
          org, name, issue_number, week_start, created_at, updated_at
        ) VALUES (?, ?, ?, ?, ?, ?)`,
       [REPO.org, REPO.name, issueNumber, weekStart, now, now],
-    );
-  }
-
-  // A saved ALPEN day so the day horizon has actual blocks, not just
-  // candidates. The viewer is dana (UTC), matching the seeded work hours.
-  const today = isoDateOffset(0);
-  const dayBlocks = [
-    { id: "day-block-1", startMinute: 540, minutes: 240, issueNumber: 1 },
-    { id: "day-block-2", startMinute: 840, minutes: 120, issueNumber: 2 },
-  ];
-  for (const block of dayBlocks) {
-    run(
-      `INSERT INTO state_day_block (
-         id, user_id, date, start_minute, minutes, kind, org, name,
-         issue_number, created_at, updated_at
-       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        block.id,
-        "user-dana",
-        today,
-        block.startMinute,
-        block.minutes,
-        "issue",
-        REPO.org,
-        REPO.name,
-        block.issueNumber,
-        now,
-        now,
-      ],
     );
   }
 

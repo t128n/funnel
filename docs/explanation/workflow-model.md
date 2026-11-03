@@ -140,17 +140,13 @@ Estimates come from the size label, not the plan row. `planning.size_minutes` ma
 
 Capacity comes from people, not labels. Each maintainer in `planning.maintainers` has net weekly hours and an active flag. Net hours means contracted hours minus recurring meetings, on-call and other fixed commitments; Funnel plans at most 60% of that by default and leaves the rest as buffer. An issue's estimate is split across the active maintainers among its assignees, with the remainder going to the first one; if no assignee is configured the estimate lands in an unassigned bucket that has no cap. That bucket covers items whose assignees changed after scheduling: a newly scheduled issue must have at least one active, configured maintainer among its assignees, and the API rejects an unowned issue with `400`.
 
-The cap is hard on plan mutations only. Scheduling checks the affected lanes after applying the candidate and rejects a write with `409` when any maintainer would exceed `floor(weekly_minutes * weeks * allocation_percent / 100)`. A later GitHub edit — a new assignee, a bigger size label — can still push a lane over; the planner then shows the over-cap state rather than silently rewriting the plan. This is the mirror-image of the label model's eventual consistency: GitHub remains the authority for the facts the plan consumes, while Funnel is the sole authority for the intent it records.
+The cap is hard on plan mutations only. Scheduling checks the affected maintainers' capacity after applying the candidate and rejects a write with `409` when any would exceed `floor(weekly_minutes * weeks * allocation_percent / 100)`. A later GitHub edit — a new assignee, a bigger size label — can still push a maintainer over; the plan then shows the over-cap state rather than silently rewriting the plan. This is the mirror-image of the label model's eventual consistency: GitHub remains the authority for the facts the plan consumes, while Funnel is the sole authority for the intent it records.
 
-## Days sit inside the week
+## Days are not modeled
 
-Planning records intent at week granularity. **ALPEN** narrows that intent to a single local day without creating a second backlog: candidates are the same open, sized issues from the Monday week containing the date, and a day block is a timed placement of one of them. The five parts — Aufgaben, Länge, Puffer, Entscheiden, Nachkontrolle — are a reading order for the day view, not five more tables.
+Planning records intent at week granularity and stops there. Funnel deliberately does not allocate issues to hours, maintain a second daily schedule, or keep a parallel calendar. The weekly view is an issue-management projection: it shows capacity, the committed work, and the issues that still need an estimate or an assignment. A team that needs hour-level time boxes can use its existing calendar; Funnel does not duplicate that intent.
 
-Day planning adds three personal concepts next to the plan item. **Working hours** are the viewer's timezone, work window, work days and buffer percentage; a viewer without a stored row inherits `planning.work_defaults`, so the feature works before anyone configures it. Unavailable windows are recurring (`weekday`) or one-off (`date`) and subtract from the work window. The **day plan** itself lives in `state_day_block` as local minutes from midnight rather than instants, which is why blocks follow the wall clock across a DST change instead of drifting with UTC.
-
-The buffer is the important design choice. It is not a hidden safety margin subtracted at read time; auto-plan emits it as explicit `buffer` blocks, so the reserved slack is visible on the day grid and survives a manual edit. Auto-plan spends at most `available − buffer`, while a manual plan may overrun the work window and the UI flags the overrun rather than refusing it. That split keeps the machine conservative and the human authoritative: Funnel enforces hours only when it is the one choosing the blocks.
-
-The **calendar feed** is a projection, not a source of truth. It renders the same blocks and windows as read-only ICS so Outlook can show the day next to everything else. Only the SHA-256 hash and an eight-character hint of the feed token are stored, the raw URL is returned once, and regenerating or revoking it invalidates the old link immediately. Possession of the URL is the capability, which is why it is treated as a secret even though the route requires no session. Nothing flows back from the calendar: editing an event in Outlook does not change `state_day_block`.
+The removed daily planner left four tables in existing databases — `state_work_hours`, `state_unavailable_window`, `state_day_block` and `state_calendar_feed`. They are retained so an upgrade does not destroy data, but no current application code reads or writes them.
 
 ## Trade-offs: labels as state
 
@@ -178,8 +174,7 @@ It costs:
 - [Settings reference](../reference/settings.md) — `board.done_days`, projects, and repositories.
 - [Configure the board](../how-to/configure/board.md) — setting the Done window and Work-in-Progress limits.
 - [Configure estimates and weekly plans](../how-to/configure/planning.md) — size minutes, net hours and the 60% cap.
-- [Plan your day](../how-to/plan/plan-your-day.md) — working hours, the ALPEN day view, the buffer and the Outlook feed.
-- [Why planning and actuals work this way](planning-and-actuals.md) — the three layers, the buffer, observed actuals and body-based epics.
+- [Why planning and actuals work this way](planning-and-actuals.md) — the three layers, the capacity buffer, observed actuals and body-based epics.
 - [Track time and delays](../how-to/use/track-time-and-delays.md) — reading actual time and recording a delay.
 - [Manage epics](../how-to/use/epics.md) — marking an epic, adding children and reading rollups.
 - [Funnel UI design profile](../DESIGN.md) — how the register, board and streams present this model.

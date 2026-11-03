@@ -49,12 +49,7 @@ export const VIEWS = [
   {
     name: "plan",
     path: "/plan",
-    ready: '[data-testid="plan-lanes"]',
-  },
-  {
-    name: "day",
-    path: "/day",
-    ready: '[data-testid="day-plan"]',
+    ready: '[data-testid="plan-table"]',
   },
   { name: "epics", path: "/epics", ready: 'a[href^="/epics/"]' },
   {

@@ -15,8 +15,7 @@ You need the `admin` role and at least one configured repository whose assignabl
 3. Set the **Allocation** percentage. It is the share of net weekly hours that commitments may fill; `60` leaves 40% for reviews, unplanned work and slack.
 4. In **Maintainers**, add assignable people and enter each one's **net** weekly hours. Net means contracted hours minus recurring meetings, on-call and other fixed commitments. Funnel plans at most the allocation percentage of this value.
 5. Deactivate or remove a maintainer to take them out of the capacity model.
-6. Set the **Working hours** defaults — timezone, start and end time, work days and buffer percentage. They are the fallback for the ALPEN day view and the prefill for **Settings → Availability**.
-7. Select **Save changes**.
+6. Select **Save changes**.
 
 Funnel validates and persists the values, drops the cached configuration, and broadcasts a settings event. Open planners re-query with the new estimates and caps; a restart is not needed.
 
@@ -25,7 +24,6 @@ Funnel validates and persists the values, drops the cached configuration, and br
 - **Size map** — the fixed estimate for `sm`, `md` and `lg`. An issue without a size is unestimated and cannot be scheduled.
 - **Allocation** — the hard cap on plan mutations: `floor(net weekly minutes × allocation percent / 100)`.
 - **Roster** — whose net hours make up capacity. An issue's estimate is split across its assignees that are active, configured maintainers; with no match it lands in the unassigned bucket.
-- **Working hours** — the `planning.work_defaults` window (timezone, start/end, work days, buffer). A viewer without a personal row in **Settings → Availability** gets this window in the day view; their own row replaces it.
 
 The exact defaults, bounds, formulas and metadata formats are in the [Planning and time reference](../../reference/planning-and-time.md). The rationale and trade-offs are in [Why planning and actuals work this way](../../explanation/planning-and-actuals.md).
 
@@ -38,7 +36,6 @@ For the full task, see [Plan a week](../use/plan-work.md).
 ## Related
 
 - [Plan a week](../use/plan-work.md) — scheduling, moving work and handling the cap.
-- [Plan your day](../plan/plan-your-day.md) — working hours, the ALPEN day view and the Outlook feed.
 - [Planning and time reference](../../reference/planning-and-time.md) — every `planning.*` key, formula and contract.
 - [Why planning and actuals work this way](../../explanation/planning-and-actuals.md) — the design trade-offs.
 - [Plan and track a week](../../tutorials/plan-and-track-a-cycle.md) — a guided first run.

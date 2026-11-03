@@ -6,7 +6,6 @@
 	import SettingsForm from '#lib/components/settings/settings-form.svelte';
 	import type { SettingsFormResult } from '#lib/components/settings/sections';
 	import { hoursToMinutes, minutesToHours } from '#lib/planning';
-	import { formatClock, parseClock } from '#lib/time/zoned';
 	import type { PageProps } from './$types';
 
 	let { data, form }: PageProps = $props();
@@ -24,28 +23,11 @@
 
 	const planning = untrack(() => data.planning);
 	const candidates = untrack(() => data.candidates);
-	const workDefaults = untrack(() => planning.work_defaults);
-
-	/** ISO weekdays offered as work-day toggles, Monday first. */
-	const WORKDAYS = [
-		{ value: 1, label: 'Mon' },
-		{ value: 2, label: 'Tue' },
-		{ value: 3, label: 'Wed' },
-		{ value: 4, label: 'Thu' },
-		{ value: 5, label: 'Fri' },
-		{ value: 6, label: 'Sat' },
-		{ value: 7, label: 'Sun' }
-	] as const;
 
 	let sizeSm = $state<number | null>(minutesToHours(planning.size_minutes.sm));
 	let sizeMd = $state<number | null>(minutesToHours(planning.size_minutes.md));
 	let sizeLg = $state<number | null>(minutesToHours(planning.size_minutes.lg));
 	let allocationPercent = $state<number | null>(planning.allocation_percent);
-	let timezone = $state(workDefaults.timezone);
-	let startTime = $state(formatClock(workDefaults.start_minute));
-	let endTime = $state(formatClock(workDefaults.end_minute));
-	let workDays = $state<number[]>([...workDefaults.work_days]);
-	let bufferPercent = $state<number | null>(workDefaults.buffer_percent);
 	let roster = $state<RosterRow[]>(
 		untrack(() =>
 			planning.maintainers.map((maintainer) => ({
@@ -84,13 +66,6 @@
 				// instances, but the planner no longer exposes a cycle view.
 				cycle_weeks: planning.cycle_weeks,
 				cycle_anchor: planning.cycle_anchor,
-				work_defaults: {
-					timezone,
-					start_minute: parseClock(startTime) ?? workDefaults.start_minute,
-					end_minute: parseClock(endTime) ?? workDefaults.end_minute,
-					work_days: [...workDays].sort((a, b) => a - b),
-					buffer_percent: bufferPercent ?? 20
-				},
 				maintainers: roster.map((row) => ({
 					forge: row.forge,
 					instance: row.instance,
@@ -172,66 +147,6 @@
 					/>
 					<FormText>Share of net hours planning may fill (1–100).</FormText>
 				</FormGroup>
-			</div>
-		</div>
-	</Section>
-
-	<Section
-		title="Working hours"
-		description="The default day window for every viewer without personal availability, and the prefill for Settings → Availability."
-	>
-		<div class="row g-3">
-			<div class="col-md-8">
-				<FormGroup spacing="">
-					<Label for="planning-timezone">Timezone</Label>
-					<Input id="planning-timezone" bind:value={timezone} placeholder="Europe/Berlin" />
-					<FormText>An IANA zone, such as Europe/Berlin or UTC.</FormText>
-				</FormGroup>
-			</div>
-			<div class="col-md-4">
-				<FormGroup spacing="">
-					<Label for="planning-buffer">Buffer (%)</Label>
-					<Input id="planning-buffer" type="number" min="0" max="90" bind:value={bufferPercent} />
-					<FormText>Share of the work window reserved as slack (0–90).</FormText>
-				</FormGroup>
-			</div>
-			<div class="col-sm-6">
-				<FormGroup spacing="">
-					<Label for="planning-start">Start time</Label>
-					<Input id="planning-start" type="time" bind:value={startTime} />
-					<FormText>Local wall time the working day starts.</FormText>
-				</FormGroup>
-			</div>
-			<div class="col-sm-6">
-				<FormGroup spacing="">
-					<Label for="planning-end">End time</Label>
-					<Input id="planning-end" type="time" bind:value={endTime} />
-					<FormText>Local wall time the working day ends.</FormText>
-				</FormGroup>
-			</div>
-			<div class="col-12">
-				<span id="planning-work-days" class="form-label d-block">Work days</span>
-				<div
-					class="d-flex flex-wrap column-gap-4 row-gap-1"
-					role="group"
-					aria-labelledby="planning-work-days"
-				>
-					{#each WORKDAYS as day (day.value)}
-						<div class="form-check">
-							<input
-								class="form-check-input"
-								type="checkbox"
-								id={`planning-day-${day.value}`}
-								value={day.value}
-								bind:group={workDays}
-							/>
-							<label class="form-check-label" for={`planning-day-${day.value}`}>
-								{day.label}
-							</label>
-						</div>
-					{/each}
-				</div>
-				<FormText>At least one ISO weekday, Monday through Sunday.</FormText>
 			</div>
 		</div>
 	</Section>

@@ -4,12 +4,10 @@ These images are captured from a seeded demo instance so the documentation can s
 
 | File | Page |
 | :--- | :--- |
-| `plan-week.png` | `/plan` (weekly capacity) |
-| `plan-day.png` | `/day` (ALPEN day view) |
+| `plan-week.png` | `/plan` (weekly capacity and committed work) |
 | `issue-planned.png` | `/issues/acme/widgets/1` (Planned picker in Properties) |
 | `issues-planned.png` | `/issues` (Planned column) |
-| `settings-planning.png` | `/settings/planning` (estimates, allocation, working hours, roster) |
-| `settings-availability.png` | `/settings/availability` (personal hours, blocked windows, calendar feed) |
+| `settings-planning.png` | `/settings/planning` (estimates, allocation, roster) |
 | `epics-list.png` | `/epics` |
 | `epic-detail.png` | `/epics/acme/widgets/4` |
 | `inspector-time.png` | `/issues/acme/widgets/1` |
@@ -23,7 +21,6 @@ These images are captured from a seeded demo instance so the documentation can s
 
 - A temporary SQLite database is migrated with `bun scripts/release.ts`.
 - A demo user, an App row, one repository, three maintainers, ten issues, a milestone, one epic, plan items, events and delays are seeded. The data is illustrative only.
-- For the ALPEN pages the seed adds a personal availability row, a Friday lunch window, a one-off school run, timed day blocks and status events for the review column.
 - The app runs locally with a signed-in session and the dark theme.
 - Chromium headless captures a 1440 px wide viewport at device scale factor 2 against `http://127.0.0.1:5199`.
 - The timeline pair is captured from the demo workspace (`bun run dev:demo`) with an extra undated milestone, so the Apache ECharts Gantt and the `No due date` table both appear; the rest of the set uses the harness above.

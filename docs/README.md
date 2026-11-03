@@ -24,7 +24,6 @@ This index is the entry point to Funnel's documentation, which follows the four 
 | Work an issue queue day to day | [Use the cockpit](#use) |
 | Plan a week | [Plan a week](how-to/use/plan-work.md) |
 | Track milestones and see whether they will land on their due date | [Use milestones](how-to/use/milestones.md), [read the timeline](how-to/use/milestones.md#read-the-timeline) |
-| Plan a day of focused work and export it to Outlook | [Plan your day](how-to/plan/plan-your-day.md) |
 | Measure actual time, record a delay, or group issues into an epic | [Track time and delays](how-to/use/track-time-and-delays.md), [manage epics](how-to/use/epics.md) |
 | Call the intake API or hook up a Windows hotkey | [Integrate](#integrate) |
 | Build, test, or release Funnel | [Contribute](#contribute) |
@@ -63,10 +62,6 @@ Learning-oriented, with one path and expected results.
 - [Configure the board](how-to/configure/board.md) — set the Done window and per-stage Work-in-Progress limits.
 - [Configure features](how-to/configure/features.md) — choose per-browser rendering, work-note, and attachment visibility.
 - [Configure estimates and weekly plans](how-to/configure/planning.md) — set size minutes, net hours and the 60% allocation cap.
-
-### Plan
-
-- [Plan your day](how-to/plan/plan-your-day.md) — set working hours and unavailable windows, auto-plan an ALPEN day with a buffer, handle overruns and DST, and subscribe Outlook to the calendar feed.
 
 ### Use
 

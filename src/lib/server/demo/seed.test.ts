@@ -17,10 +17,8 @@ import {
   stateNotification,
   statePlanItem,
   stateSetting,
-  stateWorkHours,
   stateWorkNote,
 } from "#lib/server/db/schema";
-import { readWorkHours } from "#lib/server/planning/day-store";
 import { clearSettings, readSettings } from "#lib/server/settings/store";
 import { clearMirror } from "#tests/mirror-helpers";
 import { DEMO_USER_ID } from "./profile";
@@ -201,9 +199,6 @@ describe("seedDemoDatabase", () => {
     expect(count(statePlanItem)).toBeGreaterThanOrEqual(2);
     expect(count(stateIssueEvent)).toBeGreaterThanOrEqual(1);
     expect(count(stateIssueDelay)).toBeGreaterThanOrEqual(1);
-
-    const hours = readWorkHours(DEMO_USER_ID);
-    expect(hours).not.toBeNull();
   });
 
   test("test_offline", () => {
@@ -229,11 +224,5 @@ describe("seedDemoDatabase", () => {
     expect(count(mirrorThread)).toBe(0);
     expect(count(mirrorRepo)).toBe(0);
     expect(count(stateSetting)).toBe(0);
-    const workHours = db
-      .select()
-      .from(stateWorkHours)
-      .where(eq(stateWorkHours.userId, DEMO_USER_ID))
-      .all();
-    expect(workHours).toHaveLength(0);
   });
 });

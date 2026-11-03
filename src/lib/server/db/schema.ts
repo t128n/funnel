@@ -292,16 +292,21 @@ export const stateIssueDelay = sqliteTable(
 );
 
 // ---------------------------------------------------------------------------
-// State: ALPEN day planning (SPEC §3).
+// State: legacy ALPEN day planning (unused).
 //
-// All four tables are per-viewer durable state keyed by `auth_user.id` with
-// `ON DELETE CASCADE`. They never reference the disposable mirror: an issue is
-// identified by `org/name` + issue number, exactly like `state_plan_item`.
-// Minutes are integers from local midnight (`0..1440`); dates are
-// `YYYY-MM-DD`.
+// These four tables are retained only so existing SQLite databases keep their
+// data; the daily planner and its routes have been removed. Nothing reads or
+// writes them any more, and they must not be dropped by a migration without an
+// explicit data-migration decision. New work belongs in `state_plan_item`.
+//
+// Historically all four were per-viewer durable state keyed by `auth_user.id`
+// with `ON DELETE CASCADE`. They never reference the disposable mirror: an
+// issue is identified by `org/name` + issue number, exactly like
+// `state_plan_item`. Minutes are integers from local midnight (`0..1440`);
+// dates are `YYYY-MM-DD`.
 // ---------------------------------------------------------------------------
 
-/** Per-viewer working hours. Absent row = the admin `planning.work_defaults`. */
+/** @legacy Unused. Per-viewer working hours from the removed day planner. */
 export const stateWorkHours = sqliteTable("state_work_hours", {
   userId: text("user_id")
     .primaryKey()
@@ -319,8 +324,8 @@ export const stateWorkHours = sqliteTable("state_work_hours", {
 });
 
 /**
- * One recurring (`weekday`) or one-off (`date`) blocked window. Exactly one of
- * the two is set; the API validates that before writing.
+ * @legacy Unused. One recurring (`weekday`) or one-off (`date`) blocked window.
+ * Exactly one of the two is set; the removed API validated that before writing.
  */
 export const stateUnavailableWindow = sqliteTable(
   "state_unavailable_window",
@@ -342,7 +347,7 @@ export const stateUnavailableWindow = sqliteTable(
   (t) => [index("idx_state_unavailable_window_user").on(t.userId)],
 );
 
-/** One timed block on one local day. `issue` rows carry a ref; buffer rows do not. */
+/** @legacy Unused. One timed block on one local day from the removed day planner. */
 export const stateDayBlock = sqliteTable(
   "state_day_block",
   {
@@ -365,9 +370,9 @@ export const stateDayBlock = sqliteTable(
 );
 
 /**
- * The tokenized read-only ICS feed. Only the SHA-256 hex hash and the first 8
- * characters of the token are stored: the raw secret is shown once, and
- * rotating replaces the row so the previous URL stops resolving.
+ * @legacy Unused. The tokenized read-only ICS feed from the removed day
+ * planner. Only the SHA-256 hex hash and the first 8 characters of the token
+ * were stored: the raw secret was shown once, and rotating replaced the row.
  */
 export const stateCalendarFeed = sqliteTable("state_calendar_feed", {
   userId: text("user_id")
