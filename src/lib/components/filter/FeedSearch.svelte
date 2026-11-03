@@ -13,9 +13,11 @@
 	interface Props {
 		/** Width override for the containing toolbar. */
 		class?: string;
+		/** Match the compact density of the Composition A toolbar selects. */
+		size?: 'sm';
 	}
 
-	let { class: className = '' }: Props = $props();
+	let { class: className = '', size }: Props = $props();
 
 	const filter = $derived(parseFilterParams(page.url.searchParams));
 
@@ -54,7 +56,7 @@
 
 <div class="d-flex min-w-0 flex-grow-1 {className}">
 	<label class="visually-hidden" for="issue-search">Search</label>
-	<div class="input-group">
+	<div class="input-group {size ? `input-group-${size}` : ''}">
 		<span class="input-group-text bg-body">
 			<i class="bi bi-search" aria-hidden="true"></i>
 		</span>

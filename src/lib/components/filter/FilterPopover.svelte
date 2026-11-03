@@ -1,3 +1,16 @@
+<script module lang="ts">
+	/** A filter dimension a caller can take ownership of. */
+	export type FilterDimension =
+		| 'repo'
+		| 'status'
+		| 'assignee'
+		| 'priority'
+		| 'size'
+		| 'label'
+		| 'milestone'
+		| 'state';
+</script>
+
 <script lang="ts">
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
@@ -26,9 +39,17 @@
 		allowNoStatus?: boolean;
 		/** Offer the Open / Closed / All state switch (folded in from the header). */
 		showState?: boolean;
+		/**
+		 * Dimensions owned by another surface (the Issues single-row toolbar).
+		 * Hidden dimensions stay in the URL and are preserved by this
+		 * offcanvas's own Clear action.
+		 */
+		hide?: readonly FilterDimension[];
 	}
 
-	let { options, allowNoStatus = true, showState = false }: Props = $props();
+	let { options, allowNoStatus = true, showState = false, hide = [] }: Props = $props();
+
+	const hidden = $derived(new Set(hide));
 
 	let open = $state(false);
 
@@ -42,8 +63,14 @@
 	const count = $derived(
 		activeFilterCount({
 			...filter,
-			states: showState ? filter.states : [],
-			assignees: scopedAssignees
+			repos: hidden.has('repo') ? [] : filter.repos,
+			states: showState && !hidden.has('state') ? filter.states : [],
+			statuses: hidden.has('status') ? [] : filter.statuses,
+			assignees: hidden.has('assignee') ? [] : scopedAssignees,
+			priorities: hidden.has('priority') ? [] : filter.priorities,
+			sizes: hidden.has('size') ? [] : filter.sizes,
+			labels: hidden.has('label') ? [] : filter.labels,
+			milestones: hidden.has('milestone') ? [] : filter.milestones
 		})
 	);
 
@@ -107,15 +134,20 @@
 	}
 
 	function clearAll() {
+		// Hidden dimensions belong to another control, so Clear leaves them
+		// untouched. Callers that omit `hide` keep the historical behaviour,
+		// including preserving the `me` scope.
 		apply({
-			repos: [],
-			states: [],
-			statuses: [],
-			assignees: filter.assignees.filter((value) => value === ME),
-			priorities: [],
-			sizes: [],
-			labels: [],
-			milestones: [],
+			repos: hidden.has('repo') ? filter.repos : [],
+			states: hidden.has('state') ? filter.states : [],
+			statuses: hidden.has('status') ? filter.statuses : [],
+			assignees: hidden.has('assignee')
+				? filter.assignees
+				: filter.assignees.filter((value) => value === ME),
+			priorities: hidden.has('priority') ? filter.priorities : [],
+			sizes: hidden.has('size') ? filter.sizes : [],
+			labels: hidden.has('label') ? filter.labels : [],
+			milestones: hidden.has('milestone') ? filter.milestones : [],
 			search: filter.search
 		});
 	}
@@ -142,7 +174,7 @@
 			{/if}
 		</div>
 
-		{#if showState}
+		{#if showState && !hidden.has('state')}
 			<div class="d-flex flex-column gap-1">
 				<span class="small fw-semibold text-body-secondary">State</span>
 				<ButtonGroup size="sm">
@@ -162,48 +194,62 @@
 		{/if}
 
 		<div class="d-flex flex-wrap gap-2">
-			<MultiSelect
-				label="Repo"
-				options={repoOptions}
-				selected={filter.repos}
-				onselect={(values) => set('repos', values)}
-			/>
-			<MultiSelect
-				label="Status"
-				options={statusOptions}
-				selected={selectedStatuses}
-				onselect={(values) => set('statuses', values)}
-			/>
-			<MultiSelect
-				label="Assignee"
-				options={assigneeOptions}
-				selected={scopedAssignees}
-				onselect={(values) => set('assignees', values)}
-			/>
-			<MultiSelect
-				label="Priority"
-				options={priorityOptions}
-				selected={filter.priorities}
-				onselect={(values) => set('priorities', values)}
-			/>
-			<MultiSelect
-				label="Size"
-				options={sizeOptions}
-				selected={filter.sizes}
-				onselect={(values) => set('sizes', values)}
-			/>
-			<MultiSelect
-				label="Labels"
-				options={labelOptions}
-				selected={filter.labels}
-				onselect={(values) => set('labels', values)}
-			/>
-			<MultiSelect
-				label="Milestone"
-				options={milestoneOptions}
-				selected={filter.milestones}
-				onselect={(values) => set('milestones', values)}
-			/>
+			{#if !hidden.has('repo')}
+				<MultiSelect
+					label="Repo"
+					options={repoOptions}
+					selected={filter.repos}
+					onselect={(values) => set('repos', values)}
+				/>
+			{/if}
+			{#if !hidden.has('status')}
+				<MultiSelect
+					label="Status"
+					options={statusOptions}
+					selected={selectedStatuses}
+					onselect={(values) => set('statuses', values)}
+				/>
+			{/if}
+			{#if !hidden.has('assignee')}
+				<MultiSelect
+					label="Assignee"
+					options={assigneeOptions}
+					selected={scopedAssignees}
+					onselect={(values) => set('assignees', values)}
+				/>
+			{/if}
+			{#if !hidden.has('priority')}
+				<MultiSelect
+					label="Priority"
+					options={priorityOptions}
+					selected={filter.priorities}
+					onselect={(values) => set('priorities', values)}
+				/>
+			{/if}
+			{#if !hidden.has('size')}
+				<MultiSelect
+					label="Size"
+					options={sizeOptions}
+					selected={filter.sizes}
+					onselect={(values) => set('sizes', values)}
+				/>
+			{/if}
+			{#if !hidden.has('label')}
+				<MultiSelect
+					label="Labels"
+					options={labelOptions}
+					selected={filter.labels}
+					onselect={(values) => set('labels', values)}
+				/>
+			{/if}
+			{#if !hidden.has('milestone')}
+				<MultiSelect
+					label="Milestone"
+					options={milestoneOptions}
+					selected={filter.milestones}
+					onselect={(values) => set('milestones', values)}
+				/>
+			{/if}
 		</div>
 	</div>
 </Offcanvas>
