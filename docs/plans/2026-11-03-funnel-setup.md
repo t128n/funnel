@@ -2,7 +2,7 @@
 
 **Goal:** replace the Windows-only PowerShell wizard with a single, polished `funnel setup` command embedded in the self-contained Funnel executable, so Windows, Linux, and macOS share one installation and lifecycle path.
 **Architecture:** the existing Bun-compiled `funnel` binary gains an `src/installer/` module and subcommands (`setup`, `status`, `logs`, `uninstall`, `doctor`, `upgrade`). A small service-manager adapter per OS handles systemd, launchd, and WinSW; everything above that — prompts, `.env` creation, secret preservation, paths, health checks, upgrade/uninstall semantics — is shared TypeScript.
-**Tech stack:** Bun 1.4.3, TypeScript 6, `@clack/prompts` for the Astro/Vite-style CLI, `cac` for argument parsing, `dotenv` for `FUNNEL_ENV_FILE`, native systemd/launchd/WinSW for services, WinSW 2.12.0 `WinSW.NET461.exe` pinned and embedded, Bun test, GitHub Actions.
+**Tech stack:** Bun 1.4.3, TypeScript 6, `@clack/prompts` for the Astro/Vite-style CLI, `@bomb.sh/args` for flag parsing, `dotenv` for `FUNNEL_ENV_FILE`, native systemd/launchd/WinSW for services, WinSW 2.12.0 `WinSW.NET461.exe` pinned and embedded, Bun test, GitHub Actions.
 **Status:** proposed
 **Target release:** `0.1.0` pre-release (minor changeset: the install contract changes)
 
@@ -11,12 +11,13 @@
 - **Platforms:** Windows, Linux, and macOS from day one.
 - **Linux init:** systemd only (system and user units).
 - **Run mode:** always ask. Offer system service, user service where the OS supports it, or portable process.
-- **Config location:** native config directories, not the data directory:
+- **Config location:** native config directories by default, but fully configurable during interactive setup and through flags. The defaults are:
   - Linux system: `/etc/funnel/funnel.env`
   - Linux user: `~/.config/funnel/funnel.env`
   - macOS system: `/Library/Application Support/Funnel/funnel.env`
   - macOS user: `~/Library/Application Support/Funnel/funnel.env`
   - Windows: `C:\ProgramData\Funnel\funnel.env`
+  - The setup wizard includes an editable **Paths** step for the install directory, config file, data directory, and log directory. `D:\Data\Funnel\funnel.env` and `D:\Data\Funnel\Logs` are valid answers.
 - **Elevation:** auto-elevate with `sudo` or UAC, carrying non-secret settings through a temporary config file. The elevated child prompts for secrets again.
 - **Lifecycle scope:** full — `setup`, `status`, `logs`, `uninstall`, `doctor`, `upgrade`.
 - **Legacy GUI:** remove `setup.ps1`, `install-common.ps1`, `install-service.ps1`, `uninstall-service.ps1`, and the WinSW XML template from the release. Replace `setup.cmd` with a one-line `funnel.exe setup` launcher.
@@ -42,7 +43,8 @@ funnel
   ├─ --version / --help      -> existing CLI
   └─ setup|status|logs|uninstall|doctor|upgrade
        └─ src/installer/
-            ├─ cli.ts             cac commands and flags
+            ├─ cli.ts             command routing and help
+            ├─ args.ts            @bomb.sh/args flag parsing
             ├─ ui.ts              @clack/prompts, spinners, masks
             ├─ paths.ts           OS/mode defaults and overrides
             ├─ config.ts          read/write/backup .env, secret preservation
@@ -75,8 +77,9 @@ funnel upgrade [--check] [--binary <path>] [--version <version>] [--yes]
 | :--- | :--- |
 | `--mode system\|user\|portable` | Skip the mode prompt. `user` is unavailable on Windows. |
 | `--install-dir <path>` | Program/binary directory override. |
-| `--config-dir <path>` | Config directory override. |
+| `--config-file <path>` | Exact config file override, e.g. `D:\Data\Funnel\funnel.env`. |
 | `--data-dir <path>` | Data directory override. |
+| `--log-dir <path>` | Log directory override, e.g. `D:\Data\Funnel\Logs`. |
 | `--port <n>` | Listen port. Default `3000`. |
 | `--host <addr>` | Bind address. Defaults to `0.0.0.0` for services, `127.0.0.1` for portable. |
 | `--url <origin>` | Exact public origin for `FUNNEL_URL`; optional. |
@@ -97,6 +100,7 @@ Exit codes:
 - `3` privilege/elevation required or cancelled
 - `4` health check failed
 - `5` unsupported platform/init system
+- `130` cancelled by the user (Ctrl+C)
 
 ### Interactive flow
 
@@ -106,16 +110,27 @@ Exit codes:
    - Windows: Windows service / Portable.
    - Linux: system service / user service / portable.
    - macOS: system daemon / user agent / portable.
-4. Ask install, config, and data directories, pre-filled with native defaults.
+4. Ask whether to use the recommended paths or customize them. If customizing, ask for install directory, config file, data directory, and log directory. Pre-fill every field with the native default and validate it.
 5. Ask port, public URL, and optional onboarding token.
-6. Show a summary: paths, service mode, URL, existing `.env` handling.
+6. Show a summary with `note`: paths, service mode, URL, existing `.env` handling.
 7. Create directories and write `.env` from the embedded template.
 8. Install/start the service.
 9. Wait for `/healthz`, run `/readyz` as a warning check.
 10. Open `http://localhost:<port>/onboarding` or the public URL in the browser.
 11. Outro with `status`, `logs`, and `uninstall` hints.
 
-Use `@clack/prompts` `intro`, `select`, `text`, `confirm`, `spinner`, `log`, `note`, and `outro`. Never print `FUNNEL_SECRET` or the onboarding token.
+### Clack best practices
+
+Follow the [Clack guides](https://bomb.sh/docs/clack/guides/best-practices):
+
+- Call `intro()` once at the start and `outro()` once at the end.
+- Group related questions with `group()`; handle `isCancel()` after every prompt and call `cancel()` with a short reason.
+- Use `text`, `select`, `confirm`, `password`, `spinner`, `log`, and `note`; do not use raw `console.log` for UI.
+- Pre-fill defaults, validate inline, and show placeholders for examples.
+- Use `spinner()` around long operations (service install, health check, download) and stop it with a success or failure message.
+- Use `password()` for the onboarding token and mask it in the summary.
+- Keep output free of secrets; never print `FUNNEL_SECRET` or the onboarding token.
+- Return a cancelled exit code (`130`) when the user cancels with Ctrl+C.
 
 ## Platform paths
 
@@ -127,7 +142,7 @@ Use `@clack/prompts` `intro`, `select`, `text`, `confirm`, `spinner`, `log`, `no
 | Service | `/etc/systemd/system/funnel.service` | `~/.config/systemd/user/funnel.service` | `/Library/LaunchDaemons/io.github.t128n.funnel.plist` | `~/Library/LaunchAgents/io.github.t128n.funnel.plist` | WinSW in `%ProgramFiles%\Funnel` | none |
 | Logs | journald | `journalctl --user` | `/Library/Logs/Funnel/` | `~/Library/Logs/Funnel/` | `%ProgramData%\Funnel\logs\` | `%LOCALAPPDATA%\Funnel\logs\` |
 
-Every path can be overridden with the corresponding flag. Use `io.github.t128n.funnel` as the launchd label.
+Every path is a default, not a hard-coded location. The interactive setup exposes an editable **Paths** step for the install directory, config file, data directory, and log directory; the same values can be supplied with `--install-dir`, `--config-file`, `--data-dir`, and `--log-dir`. Service unit/plist/XML locations remain fixed by the OS, but the paths they reference are configurable. Use `io.github.t128n.funnel` as the launchd label.
 
 ## Configuration and `FUNNEL_ENV_FILE`
 
@@ -138,13 +153,15 @@ FUNNEL_ENV_FILE=/etc/funnel/funnel.env
 ```
 
 - `src/standalone.ts` loads `FUNNEL_ENV_FILE` before `applyDataDefaults()` and before importing `build/index.js` / running migrations.
-- Load with `dotenv.config({ path, override: false })`; existing `process.env` wins.
+- Load with `dotenv.config({ path, override: false, quiet: true })`; existing `process.env` wins.
+- **Why not Bun `--env-file`:** a compiled Bun executable does not parse Bun's runtime `--env-file` flag. It arrives as an application argument and is ignored by the runtime. `bun --env-file` remains useful for `bun run` development, but it cannot implement an installed service's config file. `dotenv` (or an equivalent explicit parser) is required.
+- The config file path is arbitrary: the installer writes `FUNNEL_ENV_FILE` into the service definition and `funnel setup --config-file D:\Data\Funnel\funnel.env` works without path assumptions.
 - `--migrate` and `--healthcheck` also load the file.
 - The service definition sets only `FUNNEL_ENV_FILE` and `FUNNEL_DATA_DIR`; all other settings live in the env file.
 - Portable mode sets `FUNNEL_ENV_FILE` in the spawned process environment.
 - Keep Bun's automatic cwd `.env` behavior for development.
 
-The installer writes `funnel.env` from an embedded copy of `.env.example`:
+The installer writes the configured env file (`funnel.env` by default) from an embedded copy of `.env.example`:
 
 - preserve comments
 - generate a 32-byte base64 `FUNNEL_SECRET`
@@ -201,36 +218,39 @@ ReadWritePaths=/var/lib/funnel
 WantedBy=multi-user.target
 ```
 
+- The template substitutes the configured data dir, config file, and log dir; the paths above are defaults, not constants.
 - Create a system user/group `funnel` with `useradd --system` if missing.
 - Install dirs and ownership; config `0600 root:root` or `0640 root:funnel`.
 - `systemctl daemon-reload && systemctl enable --now funnel`.
 - User unit uses `WantedBy=default.target`; run `loginctl enable-linger "$USER"` for boot without login, and warn if it fails.
 - `status` uses `systemctl is-active`, `is-enabled`, and the HTTP probes.
-- `logs` uses `journalctl -u funnel` or `journalctl --user -u funnel`.
+- `logs` uses `journalctl -u funnel` or `journalctl --user -u funnel` by default. If the operator chose a log directory, the unit uses `StandardOutput=append:<logdir>/funnel.log` and `StandardError=append:<logdir>/funnel.err.log` on systemd versions that support `append:`; otherwise setup warns and keeps journald. `funnel logs` tails the file or falls back to journalctl.
 
 ### macOS launchd
 
 - System mode: `/Library/LaunchDaemons/io.github.t128n.funnel.plist`, runs as a dedicated `_funnel` user if it can be created; otherwise stop with a clear error rather than silently running as root.
 - User mode: `~/Library/LaunchAgents/io.github.t128n.funnel.plist`, runs as the installing user.
 - Plist keys: `Label`, `ProgramArguments`, `WorkingDirectory`, `EnvironmentVariables` (`FUNNEL_ENV_FILE`, `FUNNEL_DATA_DIR`), `RunAtLoad`, `KeepAlive`, `StandardOutPath`, `StandardErrorPath`, `ProcessType=Background`.
+- The plist substitutes the configured data dir, config file, and log dir.
 - Load with `launchctl bootstrap system|gui/<uid>`, `enable`, and `kickstart -k`.
 - Status with `launchctl print`.
-- Logs: tail `/Library/Logs/Funnel/funnel.log` or `~/Library/Logs/Funnel/funnel.log`.
+- Logs: tail the configured `StandardOutPath`/`StandardErrorPath` (defaults under `/Library/Logs/Funnel/` or `~/Library/Logs/Funnel/`).
 - Uninstall with `launchctl bootout` and remove the plist/binary; keep data unless `--purge`.
 
 ### Windows WinSW
 
 - Embed **`WinSW.NET461.exe`** from WinSW 2.12.0 with a pinned SHA-256. Do not download at install time.
-- Verify .NET Framework 4.6.1+ (`HKLM:\SOFTWARE\Microsoft\NET Framework Setup\NDP\v4\Full`, `Release >= 394254`) before relying on it.
+- **.NET Framework availability:** 4.6.1+ is a built-in Windows component on supported versions — Windows 10 1903+ (4.8), Windows 11 (4.8/4.8.1), Windows Server 2016 (4.6.2), and Server 2019/2022 (4.8). It is not an extra runtime download.
+- Still verify `HKLM:\SOFTWARE\Microsoft\NET Framework Setup\NDP\v4\Full` `Release >= 394254` at setup time and stop with an actionable message if missing. If support for older Windows without .NET Framework 4.6.1 is required, use the self-contained `WinSW-x64.exe` or a Go shim instead; document that trade-off.
 - Program files: `%ProgramFiles%\Funnel\funnel.exe`, `funnel-service.exe` (WinSW), `funnel-service.xml`.
-- Config/data: `%ProgramData%\Funnel\funnel.env`, `%ProgramData%\Funnel\data`, logs in `%ProgramData%\Funnel\logs`.
+- Default config/data/logs: `%ProgramData%\Funnel\funnel.env`, `%ProgramData%\Funnel\data`, `%ProgramData%\Funnel\logs`. All three are configurable in the Paths step and by flag.
 - Service XML:
   - executable `%ProgramFiles%\Funnel\funnel.exe`
   - working directory `%ProgramData%\Funnel`
-  - `FUNNEL_ENV_FILE=%ProgramData%\Funnel\funnel.env`
-  - `FUNNEL_DATA_DIR=%ProgramData%\Funnel\data`
+  - `FUNNEL_ENV_FILE=<configured config file>`
+  - `FUNNEL_DATA_DIR=<configured data dir>`
   - delayed auto-start, restart on failure, 35s stop timeout
-  - roll-by-size logging
+  - roll-by-size logging at `<configured log dir>\funnel-service.log`
 - Service operations through WinSW: `install`, `start`, `stop`, `status`, `uninstall`.
 - Firewall: add/remove a rule for the chosen TCP port.
 - Service account: LocalSystem for v1; a dedicated least-privilege account is a follow-up hardening item.
@@ -301,8 +321,8 @@ Check:
 | Dependency / tool | Purpose | Notes |
 | :--- | :--- | :--- |
 | `@clack/prompts` | Interactive CLI UX | Same family as Astro/Vite-style prompts; works with Bun |
-| `cac` | Command/flag parsing and help | Small, already in the lockfile transitively |
-| `dotenv` | Load `FUNNEL_ENV_FILE` | `override: false`; no secret logging |
+| `@bomb.sh/args` | CLI flag parsing | <1 kB, Deno-style typed parsing; command routing and help remain our small registry |
+| `dotenv` | Load `FUNNEL_ENV_FILE` | Needed because compiled Bun binaries ignore `bun --env-file`; `override: false`, no secret logging |
 | Bun built-ins | spawn, fs, crypto, fetch, semver | `Bun.semver` for version comparison; no `semver` direct dependency |
 | `WinSW.NET461.exe` 2.12.0 | Windows service wrapper | 656 KB, MIT, pinned SHA-256, embedded |
 | systemd | Linux service manager | System and user units |
@@ -318,6 +338,7 @@ Explicitly **not** used: NSSM, `node-windows`, `pm2`, `forever`, `execa`, Docker
 ```text
 src/installer/
   cli.ts
+  args.ts
   commands/
     setup.ts
     status.ts
@@ -347,7 +368,7 @@ Other changes:
 - `src/standalone.ts`: detect installer subcommands; load `FUNNEL_ENV_FILE`.
 - `scripts/build-standalone.ts`: embed `WinSW.NET461.exe` and the env/service templates.
 - `scripts/fetch-winsw.ts` (new): download WinSW 2.12.0, verify SHA-256, cache for the build.
-- `package.json`: add `@clack/prompts`, `cac`, `dotenv`.
+- `package.json`: add `@clack/prompts`, `@bomb.sh/args`, and `dotenv`.
 - `scripts/package-release.ts`: remove PowerShell installer files from the Windows zip; add `setup.cmd` wrapper; keep `funnel-intake.exe` and `install-intake.ps1`.
 - `mise.toml`: remove Docker and PowerShell service tasks; keep `exe`, `verify`, `intake:*`.
 - Delete `packaging/windows/install-common.ps1`, `install-service.ps1`, `setup.ps1`, `uninstall-service.ps1`, `funnel-service.xml`; move the service XML into `src/installer/templates.ts`.
@@ -367,22 +388,22 @@ Other changes:
 
 ### Phase 2 — CLI shell
 
-1. Add `@clack/prompts`, `cac`.
-2. Add `src/installer/cli.ts` and route subcommands from `src/standalone.ts`.
-3. Build the `setup` prompt flow with `--yes`/`--dry-run`.
+1. Add `@clack/prompts` and `@bomb.sh/args`.
+2. Add `src/installer/cli.ts` / `args.ts` and route subcommands from `src/standalone.ts`.
+3. Build the `setup` prompt flow with `--yes`/`--dry-run`, including the **Paths** step.
 4. Add `setup.cmd` wrapper.
 5. Unit-test path defaults, validation, and non-interactive behavior.
 
-**Exit criteria:** `funnel setup --dry-run` prints a complete plan on all OSes without changing files.
+**Exit criteria:** `funnel setup --dry-run` prints a complete plan on all OSes without changing files, including custom config/data/log paths.
 
 ### Phase 3 — Shared config and paths
 
 1. Implement `config.ts`: template substitution, secret generation/preservation, backups, permissions.
-2. Implement `paths.ts`: OS/mode defaults and overrides.
+2. Implement `paths.ts`: OS/mode defaults and overrides for install dir, config file, data dir, and log dir.
 3. Embed `.env.example` in the binary.
-4. Tests for all path combinations and secret preservation.
+4. Tests for all path combinations, custom Windows drive paths, spaces, and secret preservation.
 
-**Exit criteria:** `funnel setup --mode portable` writes a valid env file and starts a healthy server on each OS.
+**Exit criteria:** `funnel setup --mode portable` writes a valid env file at a chosen path and starts a healthy server on each OS.
 
 ### Phase 4 — Linux systemd
 
@@ -406,7 +427,7 @@ Other changes:
 1. Add `scripts/fetch-winsw.ts` with pinned version/SHA-256.
 2. Embed `WinSW.NET461.exe` in the binary.
 3. Implement WinSW XML, install/start/stop/status/uninstall, firewall, logs.
-4. Add .NET Framework check.
+4. Add the .NET Framework 4.6.1+ check and clear failure copy.
 5. Integration test on Windows runner.
 
 **Exit criteria:** service starts at boot, status/logs/uninstall work, no runtime download.
@@ -460,8 +481,9 @@ Other changes:
 - env template replacement, comments preserved
 - secret generation and preservation on `--force`
 - backup naming
-- path defaults for every OS/mode
-- service XML/unit/plist rendering with special characters
+- path defaults for every OS/mode, plus custom paths such as `D:\Data\Funnel\funnel.env` and `D:\Data\Funnel\Logs`
+- service XML/unit/plist rendering with special characters and custom paths
+- `@bomb.sh/args` flag parsing, including repeated/boolean flags and invalid values
 - CLI flag validation and exit codes
 - version comparison and upgrade asset selection
 
@@ -507,7 +529,9 @@ Use `--dry-run`/`--json` where possible to keep tests deterministic. Always clea
 | Risk | Mitigation |
 | :--- | :--- |
 | WinSW 2.12.0 has no newer release | Pin and embed; verify SHA-256; abstract behind `WindowsServiceManager`; swap to NSSM or a Go shim if needed |
-| .NET Framework missing | Check the registry and fail with an actionable message; Windows 10/11/Server 2016+ normally have it |
+| .NET Framework missing | It is built into Windows 10 1903+/11 and Server 2016+; still check the registry and fail with an actionable message. For older Windows, switch to native WinSW or a Go shim |
+| Custom config/log paths on a different drive | Validate absolute paths, creatability, and permissions during setup; use them in the service definition and never assume the default |
+| Log path permissions | Create the log directory with the service user's ownership; fall back to journald on Linux if `append:` is unsupported |
 | UAC/sudo complexity | Temp config without secrets; child re-prompts; `--no-elevate` for automation |
 | macOS system user creation | Test `_funnel` creation; fail safely rather than running as root |
 | launchd/SIP restrictions | Test user mode automatically; document system-mode manual steps |
@@ -525,6 +549,7 @@ Use `--dry-run`/`--json` where possible to keep tests deterministic. Always clea
 - System service starts at boot; user service starts at login; portable mode runs without a service.
 - `funnel status`, `logs`, `doctor`, `uninstall`, and `upgrade` work on all three OSes.
 - `.env` is created from the embedded template; comments are preserved; the secret is generated and never logged.
+- The interactive setup lets the operator change the install, config, data, and log paths, including paths on another Windows drive.
 - Re-running setup/upgrade preserves the existing `FUNNEL_SECRET` and data; a `.env` backup is created.
 - No PowerShell is required for a new install.
 - The Windows release zip no longer contains the PowerShell wizard.
