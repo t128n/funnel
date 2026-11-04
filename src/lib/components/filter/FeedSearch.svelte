@@ -64,7 +64,7 @@
 			bind:this={input}
 			id="issue-search"
 			type="search"
-			class="form-control"
+			class="form-control search-with-clear"
 			placeholder="Search title, body, or comments"
 			value={search}
 			oninput={(event) => onInput(event.currentTarget.value)}

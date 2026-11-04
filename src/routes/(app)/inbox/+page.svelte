@@ -188,6 +188,7 @@
 					<Input
 						id="issue-search"
 						type="search"
+						class="search-with-clear"
 						placeholder="Search title, body, or comments"
 						value={search}
 						on:input={(event) => onSearchInput(event.currentTarget.value)}

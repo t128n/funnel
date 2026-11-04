@@ -134,3 +134,24 @@ describe('shell navigation structure', () => {
 		expect(appBar).toContain('More destinations, current:');
 	});
 });
+
+describe('deferred shell polish', () => {
+	const css = source('src/lib/styles/app.css');
+	const feedSearch = source('src/lib/components/filter/FeedSearch.svelte');
+	const inbox = source('src/routes/(app)/inbox/+page.svelte');
+	const globalSearch = source('src/lib/components/shell/GlobalSearch.svelte');
+
+	test('dark mode gives the navbar a themed bottom boundary, not a new palette', () => {
+		expect(css).toContain("[data-bs-theme='dark'] .app-bar.navbar");
+		expect(css).toContain('border-bottom: 1px solid var(--bs-border-color)');
+	});
+
+	test('search fields keep one labelled clear control', () => {
+		for (const field of [feedSearch, inbox, globalSearch]) {
+			expect(field).toContain('search-with-clear');
+			expect(field.match(/aria-label="Clear search"/g)?.length).toBe(1);
+		}
+		expect(css).toContain('.search-with-clear::-webkit-search-cancel-button');
+		expect(css).toContain('appearance: none');
+	});
+});

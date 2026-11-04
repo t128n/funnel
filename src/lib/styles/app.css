@@ -45,6 +45,27 @@ body {
 }
 
 /*
+ * In dark mode Bootstrap's dark navbar and the page body both resolve to
+ * #212529, so the shell loses its edge and the expanded mobile menu reads as
+ * page content. A hairline from the active theme's border token restores the
+ * boundary without adding a palette. Light mode is untouched.
+ */
+[data-bs-theme='dark'] .app-bar.navbar {
+  border-bottom: 1px solid var(--bs-border-color);
+}
+
+/*
+ * These search fields provide their own labelled clear button. Hide the
+ * browser's duplicate cancel decoration so a query has exactly one clear
+ * affordance (and one accessible name).
+ */
+.search-with-clear::-webkit-search-cancel-button,
+.search-with-clear::-webkit-search-decoration {
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+/*
  * Quiet icon and menu controls on the dark bar, matching the approved PoC:
  * 14px text in a 31px target (`btn-sm` padding plus a transparent 1px border)
  * at 50% white. Keeping the border transparent preserves `btn-link` geometry.

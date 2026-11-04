@@ -112,6 +112,11 @@
 		void goto(issuePath('issues', issue.repo, issue.number));
 	}
 
+	function clearQuery(): void {
+		query = '';
+		input?.focus();
+	}
+
 	function onKeydown(event: KeyboardEvent): void {
 		if (event.key === 'Escape') {
 			event.preventDefault();
@@ -178,13 +183,18 @@
 					bind:this={input}
 					id="global-search-input"
 					type="search"
-					class="form-control"
+					class="form-control search-with-clear"
 					placeholder={GLOBAL_SEARCH_PLACEHOLDER}
 					aria-label="Search all issues by title, body, or comments"
 					autocomplete="off"
 					value={query}
 					oninput={(event) => (query = event.currentTarget.value)}
 				/>
+				{#if query}
+					<Button color="outline-secondary" aria-label="Clear search" onclick={clearQuery}>
+						<i class="bi bi-x-lg" aria-hidden="true"></i>
+					</Button>
+				{/if}
 			</InputGroup>
 
 			<p class="visually-hidden" role="status">
