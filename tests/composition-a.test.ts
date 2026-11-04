@@ -91,10 +91,23 @@ describe('Composition A pages', () => {
 		const table = source('src/lib/components/issue/IssueTable.svelte');
 
 		expect(page).toContain('container-xl py-4');
-		expect(page).toContain('row g-2');
-		expect(page).toContain('col-12 col-lg-4');
 		expect(page).not.toContain('SplitView');
-		expect(page).not.toContain('Toolbar'); // the strict one-row grid is explicit
+
+		// One filter toolbar row: search plus the primary dimensions. Grouping
+		// stays in the page header because it is a view preference, not a filter.
+		expect(page).toContain('issues-toolbar d-flex flex-wrap');
+		expect(page).toContain('container: issues-toolbar / inline-size');
+		for (const id of [
+			'issue-search',
+			'issue-state-filter',
+			'issue-status-filter',
+			'issue-priority-filter',
+			'issue-assignee-filter',
+			'issue-group-filter'
+		]) {
+			expect(`${page}\n${source('src/lib/components/filter/FeedSearch.svelte')}`).toContain(id);
+		}
+		expect(page).toContain('aria-label="breadcrumb"');
 
 		for (const column of ['Issue', 'Title', 'Status', 'Priority', 'Planned', 'Assignee', 'Updated']) {
 			expect(table).toContain(column);
