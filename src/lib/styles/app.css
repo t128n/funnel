@@ -12,6 +12,8 @@
  */
 
 :root {
+  /* The in-flow app bar is a fixed 3.5rem at every responsive breakpoint. */
+  --funnel-app-bar-height: 3.5rem;
   --funnel-board-lane-width: 18rem;
   --funnel-table-min: 44.75rem;
   --funnel-row-compact: 2.25rem;
