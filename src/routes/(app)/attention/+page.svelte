@@ -56,9 +56,9 @@
 	const buckets: AttentionBuckets<AttentionItem> = $derived(classifyAttention(items, today, 7));
 
 	const groups = $derived([
-		{ key: 'overdue', label: 'Overdue', items: buckets.overdue },
-		{ key: 'today', label: 'Due today', items: buckets.today },
-		{ key: 'upcoming', label: 'Upcoming 7 days', items: buckets.upcoming },
+		{ key: 'overdue', label: 'Re-check overdue', items: buckets.overdue },
+		{ key: 'today', label: 'Re-check today', items: buckets.today },
+		{ key: 'upcoming', label: 'Re-check upcoming', items: buckets.upcoming },
 		{ key: 'unscheduled', label: 'No re-check date', items: buckets.unscheduled }
 	]);
 	const total = $derived(groups.reduce((sum, group) => sum + group.items.length, 0));
@@ -117,7 +117,11 @@
 <main class="container-xl py-4">
 	<Breadcrumbs items={[{ label: 'Workspace', href: '/issues' }, { label: 'Attention' }]} />
 
-	<PageHeader title="Attention" count={countLabel} />
+	<PageHeader
+		title="Attention"
+		count={countLabel}
+		description="Blocked issues grouped by re-check date, including those without one."
+	/>
 
 	<Toolbar>
 		<ViewSegment />

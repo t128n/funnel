@@ -46,12 +46,12 @@
 	const urgency = $derived(attentionUrgency(item.recheck, today));
 	const urgencyLabel = $derived(
 		urgency === 'overdue'
-			? 'Overdue'
+			? 'Re-check overdue'
 			: urgency === 'today'
-				? 'Due today'
+				? 'Re-check today'
 				: urgency === 'upcoming'
-					? 'Upcoming'
-					: 'No date'
+					? 'Re-check upcoming'
+					: 'No re-check date'
 	);
 	const urgencyTone = $derived(
 		urgency === 'overdue'
@@ -137,11 +137,7 @@
 				<span>{urgencyLabel}</span>
 			</span>
 
-			{#if urgency === 'unscheduled'}
-				<span class="flex-shrink-0 small text-body-secondary" title={dateTitle}>
-					No re-check date
-				</span>
-			{:else}
+			{#if urgency !== 'unscheduled'}
 				<time
 					class="flex-shrink-0 small text-body-secondary tabular"
 					datetime={item.recheck}
