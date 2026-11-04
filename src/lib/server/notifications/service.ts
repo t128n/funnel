@@ -107,6 +107,16 @@ export function listNotifications(
 		.map((row) => ({ ...row, kind: row.kind as NotificationKind }));
 }
 
+/** Every notification owned by the user, read or unread. */
+export function notificationCount(userId: string): number {
+	const row = db
+		.select({ count: sql<number>`count(*)` })
+		.from(stateNotification)
+		.where(eq(stateNotification.userId, userId))
+		.get();
+	return row?.count ?? 0;
+}
+
 export function unreadNotificationCount(userId: string): number {
 	const row = db
 		.select({ count: sql<number>`count(*)` })

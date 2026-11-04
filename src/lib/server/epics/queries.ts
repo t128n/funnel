@@ -51,6 +51,8 @@ export interface EpicSummary extends EpicRollup {
   number: number;
   title: string;
   state: string;
+  /** The epic issue's workflow status, or `null` when it has no status label. */
+  status: string | null;
   /** The epic issue's repository milestone, or `null` when unmilestoned. */
   milestone: { number: number; title: string; dueOn: number | null } | null;
   updatedAt: number;
@@ -85,6 +87,7 @@ interface EpicRow {
   number: number;
   title: string;
   state: string;
+  status: string | null;
   body: string;
   updatedAt: number;
   milestoneNumber: number | null;
@@ -265,6 +268,7 @@ function summary(row: EpicRow, rollup: EpicRollup): EpicSummary {
     number: row.number,
     title: row.title,
     state: row.state,
+    status: row.status,
     milestone:
       row.milestoneNumber !== null && row.milestoneTitle !== null
         ? {
@@ -287,6 +291,7 @@ function epicRows(): EpicRow[] {
       number: mirrorThread.number,
       title: mirrorThread.title,
       state: mirrorThread.state,
+      status: mirrorThread.status,
       body: mirrorThread.body,
       updatedAt: mirrorThread.updatedAt,
       milestoneNumber: mirrorThread.milestoneNumber,

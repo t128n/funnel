@@ -86,7 +86,7 @@
 								{epic.repo}#{epic.number}
 							</a>
 							<span class="mx-1" aria-hidden="true">·</span>
-							<StatusText status={epic.state === 'closed' ? 'done' : 'open'} state={epic.state} />
+							<StatusText status={epic.status} state={epic.state} />
 							<span class="mx-1" aria-hidden="true">·</span>
 							<span class="d-inline-flex align-items-center gap-1">
 								<span>{epic.closedChildCount} / {epic.childCount}</span>
@@ -117,7 +117,7 @@
 						{/if}
 					</td>
 					<td class="d-none d-md-table-cell">
-						<StatusText status={epic.state === 'closed' ? 'done' : 'open'} state={epic.state} />
+						<StatusText status={epic.status} state={epic.state} />
 					</td>
 					<td class="text-end text-nowrap d-none d-md-table-cell">
 						<span class="d-inline-flex align-items-center justify-content-end gap-2">
