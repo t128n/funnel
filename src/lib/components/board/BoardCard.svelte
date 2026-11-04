@@ -27,7 +27,7 @@
 	} from '@sveltestrap/sveltestrap';
 	import PriorityText from '#lib/components/common/PriorityText.svelte';
 	import RefText from '#lib/components/common/RefText.svelte';
-	import StatusText from '#lib/components/common/StatusText.svelte';
+	import BlockedText from '#lib/components/common/BlockedText.svelte';
 	import {
 		clearFocusedCard,
 		clearMenuRequest,
@@ -259,7 +259,7 @@
 	{#if hasMetadata}
 		<div class="board-card-meta d-flex min-w-0 align-items-baseline gap-2 text-body-secondary">
 			{#if issue.blocked}
-				<StatusText blocked class="flex-shrink-0" />
+				<BlockedText class="flex-shrink-0" />
 			{/if}
 			{#if issue.priority}
 				<PriorityText priority={issue.priority} class="flex-shrink-0" />

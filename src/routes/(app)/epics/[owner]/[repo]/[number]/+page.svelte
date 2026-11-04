@@ -108,7 +108,7 @@
 						{/if}
 					</span>
 				{/if}
-				<StatusText state={epic.state} />
+				<StatusText status={epic.issue.status} state={epic.state} />
 			</div>
 
 			<EpicRollups summary={epic} />

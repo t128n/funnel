@@ -12,6 +12,7 @@
 	import InlineStatus from '#lib/components/common/InlineStatus.svelte';
 	import PageHead from '#lib/components/common/PageHead.svelte';
 	import Spinner from '#lib/components/common/Spinner.svelte';
+	import BlockedText from '#lib/components/common/BlockedText.svelte';
 	import StatusText from '#lib/components/common/StatusText.svelte';
 	import BlockActionDialog from '#lib/components/board/BlockActionDialog.svelte';
 	import Composer from '#lib/components/detail/Composer.svelte';
@@ -1162,7 +1163,7 @@
 				{#if blockerActive}
 					<section class="mb-4" aria-label="Blocker">
 						<div class="d-flex flex-wrap align-items-center gap-3">
-							<StatusText blocked />
+							<BlockedText />
 							{#if blockedState.info?.recheck}
 								<span class="small text-body-secondary">
 									Re-check {blockedState.info.recheck}

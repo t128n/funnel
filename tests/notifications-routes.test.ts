@@ -403,6 +403,30 @@ describe("notification center", () => {
 		expect(data.unreadCount).toBe(2);
 	});
 
+	test("the page window never hides counted rows past 100", async () => {
+		const userId = uniqueId("routes_window");
+		for (let i = 0; i < 110; i++) {
+			seedDraft(userId, `window_${i}`, 1000 + i);
+		}
+
+		const first = await loadNotificationPage({
+			locals: viewer(userId),
+			url: new URL("http://x/notifications"),
+		} as never);
+		expect(first.total).toBe(110);
+		expect(first.unreadCount).toBe(110);
+		expect(first.items).toHaveLength(100);
+
+		const older = await loadNotificationPage({
+			locals: viewer(userId),
+			url: new URL("http://x/notifications?limit=150"),
+		} as never);
+		expect(older.total).toBe(110);
+		expect(older.items).toHaveLength(110);
+		// Every row counted by the header is now in the loaded window.
+		expect(new Set(older.items.map((item) => item.id)).size).toBe(110);
+	});
+
 	test("test_unread_badge_matches_count: the layout badge is this viewer's service count", async () => {
 		const a = uniqueId("routes_badge_a");
 		const b = uniqueId("routes_badge_b");

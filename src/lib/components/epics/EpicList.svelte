@@ -69,7 +69,7 @@
 						{/if}
 					</td>
 					<td>
-						<StatusText status={epic.state === 'closed' ? 'done' : 'open'} state={epic.state} />
+						<StatusText status={epic.status} state={epic.state} />
 					</td>
 					<td class="text-end text-nowrap">
 						<span class="d-inline-flex align-items-center justify-content-end gap-2">

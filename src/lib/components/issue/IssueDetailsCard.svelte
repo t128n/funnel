@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { Button, Card, CardBody } from '@sveltestrap/sveltestrap';
 	import Spinner from '#lib/components/common/Spinner.svelte';
-	import StatusText from '#lib/components/common/StatusText.svelte';
+	import BlockedText from '#lib/components/common/BlockedText.svelte';
 	import { timeAgo } from '#lib/client/clock.svelte';
 	import { severityWord } from '#lib/components/issue/bug-vocabulary';
 	import DelayList from '#lib/components/issue/DelayList.svelte';
@@ -95,7 +95,7 @@
 			<dd class="col-7 mb-2">
 				<span class="d-flex flex-wrap align-items-center gap-2">
 					{#if blocked}
-						<StatusText blocked />
+						<BlockedText />
 						{#if mayWrite}
 							<Button
 								color="link"

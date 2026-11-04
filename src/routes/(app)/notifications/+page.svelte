@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { goto, invalidateAll } from '$app/navigation';
+	import { page } from '$app/state';
 	import { Button } from '@sveltestrap/sveltestrap';
 	import EmptyState from '#lib/components/common/EmptyState.svelte';
 	import InlineStatus from '#lib/components/common/InlineStatus.svelte';
@@ -37,6 +38,12 @@
 	const unread = $derived(data.items.filter((item) => item.readAt === null));
 	const read = $derived(data.items.filter((item) => item.readAt !== null));
 	const unreadCount = $derived(data.unreadCount);
+	/** Window size chosen with "Load older"; the loader caps it at `total`. */
+	const PAGE_SIZE = 100;
+	const shown = $derived(data.items.length);
+	const total = $derived(data.total);
+	const hasMore = $derived(shown < total);
+	let loadingOlder = $state(false);
 	const groups = $derived([
 		{ key: 'unread', label: 'Unread', items: unread },
 		{ key: 'read', label: 'Read', items: read }
@@ -109,6 +116,23 @@
 	}
 
 	/**
+	 * Grow the loaded window by one page. The limit lives in the URL so a later
+	 * `invalidateAll` (marking a row read) keeps the same window open.
+	 */
+	async function loadOlder() {
+		if (!hasMore || loadingOlder) return;
+		const next = Math.min(total, shown + PAGE_SIZE);
+		const url = new URL(page.url.href);
+		url.searchParams.set('limit', String(next));
+		loadingOlder = true;
+		try {
+			await goto(url.toString(), { reset: false });
+		} finally {
+			loadingOlder = false;
+		}
+	}
+
+	/**
 	 * Follow a row. An unread row is marked read first so the badge is correct
 	 * even if the destination's layout is reused. Modified clicks keep the
 	 * browser's own new-tab behaviour and skip the write.
@@ -174,6 +198,25 @@
 		}
 	});
 </script>
+
+{#snippet markReadButton(item: NotificationItem, meta: { label: string })}
+	<Button
+		color="link"
+		size="sm"
+		class="flex-shrink-0 text-decoration-none"
+		disabled={busy !== null}
+		aria-label={`Mark ${item.title || meta.label} read`}
+		onclick={() => void markRead(item.id)}
+	>
+		{#if busy === item.id}
+			<span class="d-inline-flex align-items-center me-1">
+				<Spinner size={12} label="Marking read" />
+			</span>
+		{:else}
+			Mark read
+		{/if}
+	</Button>
+{/snippet}
 
 <PageHead
 	title="Notifications"
@@ -291,18 +334,31 @@
 									<div class="d-flex min-w-0 align-items-baseline gap-2">
 										<a
 											href={item.url}
-											class="min-w-0 text-truncate {isUnread ? 'fw-semibold' : ''}"
+											class="notification-title min-w-0 {isUnread ? 'fw-semibold' : ''}"
 											onclick={(event) => void openItem(item, event)}
 										>
 											{item.title || meta.label}
 										</a>
 										<time
-											class="ms-auto flex-shrink-0 small text-body-secondary tabular"
+											class="ms-auto flex-shrink-0 small text-body-secondary tabular d-none d-sm-inline"
 											datetime={new Date(item.createdAt).toISOString()}
 											title={absoluteTime(item.createdAt)}
 										>
 											{timeAgo(item.createdAt)}
 										</time>
+									</div>
+
+									<div class="d-flex align-items-center gap-2 small text-body-secondary d-sm-none mt-1">
+										<time
+											datetime={new Date(item.createdAt).toISOString()}
+											title={absoluteTime(item.createdAt)}
+										>
+											{timeAgo(item.createdAt)}
+										</time>
+										{#if isUnread}
+											<span aria-hidden="true">·</span>
+											{@render markReadButton(item, meta)}
+										{/if}
 									</div>
 
 									<div
@@ -336,22 +392,9 @@
 								</div>
 
 								{#if isUnread}
-									<Button
-										color="link"
-										size="sm"
-										class="flex-shrink-0 text-decoration-none"
-										disabled={busy !== null}
-										aria-label={`Mark ${item.title || meta.label} read`}
-										onclick={() => void markRead(item.id)}
-									>
-										{#if busy === item.id}
-											<span class="d-inline-flex align-items-center me-1">
-												<Spinner size={12} label="Marking read" />
-											</span>
-										{:else}
-											Mark read
-										{/if}
-									</Button>
+									<div class="d-none d-sm-block flex-shrink-0">
+										{@render markReadButton(item, meta)}
+									</div>
 								{/if}
 							</li>
 						{/each}
@@ -359,10 +402,45 @@
 				</section>
 			{/if}
 		{/each}
+
+		<div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mt-2">
+			<p class="small text-body-secondary mb-0">
+				Showing {shown} of {total}
+				{total === 1 ? 'notification' : 'notifications'}
+			</p>
+			{#if hasMore}
+				<Button
+					color="outline-secondary"
+					size="sm"
+					disabled={loadingOlder}
+					onclick={() => void loadOlder()}
+				>
+					{#if loadingOlder}
+						<span class="d-inline-flex align-items-center me-1">
+							<Spinner size={12} label="Loading older notifications" />
+						</span>
+					{/if}
+					Load older
+				</Button>
+			{/if}
+		</div>
 	{/if}
 </main>
 
 <style>
+	/* The title owns its line on xs; desktop keeps the single-line truncation. */
+	.notification-title {
+		overflow-wrap: anywhere;
+	}
+
+	@media (min-width: 576px) {
+		.notification-title {
+			overflow: hidden;
+			white-space: nowrap;
+			text-overflow: ellipsis;
+		}
+	}
+
 	.unread-dot {
 		width: 0.5rem;
 		height: 0.5rem;
