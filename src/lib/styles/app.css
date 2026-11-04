@@ -161,6 +161,18 @@ body {
   font-size: 1rem;
 }
 
+/* Tables that fold columns into a metadata line below `md` must not keep the
+   desktop minimum width on narrow screens. */
+.funnel-table--fluid {
+  min-width: 0;
+}
+
+@media (min-width: 768px) {
+  .funnel-table--fluid {
+    min-width: var(--funnel-table-min);
+  }
+}
+
 .funnel-table > :not(caption) > * > * {
   padding: 0.5rem 0.75rem;
 }

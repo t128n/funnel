@@ -5,6 +5,7 @@
 	import IssueList from '#lib/components/issue/IssueList.svelte';
 	import ProgressBar from '#lib/components/epics/ProgressBar.svelte';
 	import PageHeader from '#lib/components/shell/PageHeader.svelte';
+	import { isMilestoneOverdue, milestoneDueLabel } from '#lib/milestone-format';
 	import { projectIssues } from '#lib/client/optimistic.svelte';
 	import { barPercent } from '#lib/planning';
 	import type { PageProps } from './$types';
@@ -13,9 +14,10 @@
 
 	const issues = $derived(projectIssues(data.issues));
 	const totalIssues = $derived(data.milestone.closedIssues + data.milestone.openIssues);
+	const now = Date.now();
 
 	function dueLabel(dueOn: number | null): string {
-		return dueOn === null ? 'No due date' : new Date(dueOn).toISOString().slice(0, 10);
+		return milestoneDueLabel(dueOn) ?? 'No due date';
 	}
 </script>
 
@@ -40,7 +42,14 @@
 
 	<div class="d-flex flex-wrap align-items-baseline column-gap-3 row-gap-1 pb-3 small text-body-secondary">
 		<span>{data.milestone.repo}#{data.milestone.number}</span>
-		<span>{data.milestone.dueOn === null ? 'No due date' : `Due ${dueLabel(data.milestone.dueOn)}`}</span>
+		{#if isMilestoneOverdue(data.milestone, now)}
+			<span class="text-danger text-nowrap">
+				<i class="bi bi-exclamation-circle me-1" aria-hidden="true"></i>
+				Overdue · {dueLabel(data.milestone.dueOn)}
+			</span>
+		{:else}
+			<span>{data.milestone.dueOn === null ? 'No due date' : `Due ${dueLabel(data.milestone.dueOn)}`}</span>
+		{/if}
 		{#if data.milestone.state === 'closed'}
 			<StatusText state="closed" />
 		{:else}
