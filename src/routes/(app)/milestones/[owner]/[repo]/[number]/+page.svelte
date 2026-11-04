@@ -5,6 +5,7 @@
 	import StatusText from '#lib/components/common/StatusText.svelte';
 	import IssueTable from '#lib/components/issue/IssueTable.svelte';
 	import ProgressBar from '#lib/components/epics/ProgressBar.svelte';
+	import Breadcrumbs from '#lib/components/shell/Breadcrumbs.svelte';
 	import AddMilestoneIssueDialog from '#lib/components/milestones/AddMilestoneIssueDialog.svelte';
 	import PageHeader from '#lib/components/shell/PageHeader.svelte';
 	import type { Feed } from '#lib/client/feed.svelte';
@@ -63,10 +64,6 @@
 </script>
 
 {#snippet pageActions()}
-	<Button color="link" size="sm" href="/milestones" class="text-decoration-none">
-		<i class="bi bi-arrow-left me-1" aria-hidden="true"></i>
-		Milestones
-	</Button>
 	{#if mayWrite}
 		<Button color="primary" size="sm" onclick={() => (dialogOpen = true)}>
 			<i class="bi bi-plus-lg me-1" aria-hidden="true"></i>
@@ -74,13 +71,20 @@
 		</Button>
 	{/if}
 {/snippet}
-
 <PageHead
 	title={data.milestone.title || 'Milestone'}
 	description={data.milestone.description || undefined}
 />
 
 <main class="container-xl py-4">
+	<Breadcrumbs
+		items={[
+			{ label: 'Workspace', href: '/issues' },
+			{ label: 'Milestones', href: '/milestones' },
+			{ label: data.milestone.title || 'Untitled milestone' }
+		]}
+	/>
+
 	<PageHeader
 		title={data.milestone.title || 'Untitled milestone'}
 		description={data.milestone.description || undefined}
