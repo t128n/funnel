@@ -58,7 +58,7 @@ describe("MatrixGrid contract", () => {
     );
   });
 
-  test("moves focus to the stacked detail after a selection", () => {
+  test("reveals the stacked detail after the selection has rendered", () => {
     const source = readFileSync(
       fileURLToPath(
         new URL("../../../routes/(app)/matrix/+page.svelte", import.meta.url),
@@ -69,6 +69,15 @@ describe("MatrixGrid contract", () => {
     expect(source).toContain("getElementById('matrix-detail-heading')");
     expect(source).toContain("scrollIntoView");
     expect(source).toContain("heading.focus({ preventScroll: true })");
+    // Stale-selection tap and keyboard Enter both queue a reveal.
+    expect(source).toContain("revealRequest += 1");
+    expect(source).not.toMatch(
+      /if \(page\.url\.searchParams\.get\('cell'\) === value\) return;/,
+    );
+    // The reveal runs after a tick and one animation frame, not inside the
+    // navigation callback where the grid can still reclaim focus.
+    expect(source).toContain("await tick()");
+    expect(source).toContain("requestAnimationFrame(revealSelection)");
   });
 });
 

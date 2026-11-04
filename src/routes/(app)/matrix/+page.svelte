@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
+	import { tick } from 'svelte';
 	import { Button, Modal, ModalBody, ModalFooter, ModalHeader } from '@sveltestrap/sveltestrap';
 	import InlineStatus from '#lib/components/common/InlineStatus.svelte';
 	import PageHead from '#lib/components/common/PageHead.svelte';
@@ -35,6 +36,9 @@
 	);
 	let guideOpen = $state(false);
 	let queueOpen = $state(false);
+	/** Incremented after a selection so the reveal effect runs post-DOM. */
+	let revealRequest = $state(0);
+	let lastRevealRequest = 0;
 
 	const guides = [
 		{
@@ -64,12 +68,31 @@
 	/** Cell selection lives in `?cell=`, so it is shareable and filter-safe. */
 	async function selectCell(impact: number, urgency: number): Promise<void> {
 		const value = matrixCellValue(impact, urgency);
-		if (page.url.searchParams.get('cell') === value) return;
-		const url = new URL(page.url.href);
-		url.searchParams.set('cell', value);
-		await goto(url, { reset: false });
-		revealSelection();
+		if (page.url.searchParams.get('cell') !== value) {
+			const url = new URL(page.url.href);
+			url.searchParams.set('cell', value);
+			await goto(url, { reset: false });
+		}
+		// Reveal even when the tapped cell was already selected: at stacked
+		// widths the detail is below the grid, so an inert-looking tap still
+		// has to show the user where the result lives.
+		await tick();
+		revealRequest += 1;
 	}
+
+	/**
+	 * Run the reveal only after the selection has rendered. A frame of delay
+	 * lets the grid finish its own focus bookkeeping so it cannot pull focus
+	 * back after the heading takes it.
+	 */
+	$effect(() => {
+		const request = revealRequest;
+		if (request === 0 || request === lastRevealRequest) return;
+		if (!revealsStackedSelection(window.innerWidth)) return;
+		lastRevealRequest = request;
+		const frame = requestAnimationFrame(revealSelection);
+		return () => cancelAnimationFrame(frame);
+	});
 
 	/**
 	 * On stacked layouts the detail starts below the matrix, so a tap would
