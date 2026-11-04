@@ -3,6 +3,19 @@
 Windows helpers for Funnel. The intake hotkey is now a native Go binary — the
 old `intake.ps1` / `install-intake-shortcut.ps1` scripts have been removed.
 
+## Brand icons
+
+`static/favicon.svg` is the source of truth for the Funnel mark and its colour.
+Regenerate the committed raster set after changing it:
+
+```sh
+bun scripts/generate-icons.ts
+```
+
+The script renders the SVG with Playwright at 16, 32, 48, 180, 192 and 512 px
+and writes `static/favicon.ico`, `static/apple-touch-icon.png`,
+`static/icon-192.png` and `static/icon-512.png`.
+
 ## Intake hotkey helper
 
 `funnel-intake.exe` runs in the background (started at login), registers a
