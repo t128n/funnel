@@ -27,14 +27,24 @@ describe("issue detail page", () => {
 	test("test_route_is_a_dedicated_page_with_an_8_4_document_and_rail", () => {
 		expect(route).toContain('<main class="container-lg py-4" aria-label="Issue">');
 		expect(page).toContain('class="row g-4 mt-2"');
-		expect(page).toContain('class="col-lg-8"');
-		expect(page).toContain('class="col-lg-4"');
+		expect(page).toContain('class="col-lg-8 order-2 order-md-1"');
+		expect(page).toContain('class="col-lg-4 order-1 order-md-2"');
+	});
+
+	test("test_mobile_orders_the_rail_first_and_tablet_restores_document_first", () => {
+		// Below md the metadata rail is shown before the conversation; from md
+		// up the document is first again, matching the approved 8/4 order.
+		expect(page).toContain("order-2 order-md-1");
+		expect(page).toContain("order-1 order-md-2");
+		expect(page).toContain('href="#issue-properties"');
+		expect(page).toContain("d-none d-md-inline-block d-lg-none");
+		expect(properties).toContain('id="issue-properties"');
 	});
 
 	test("test_document_and_activity_precede_the_rail_in_dom_order", () => {
 		const document = page.indexOf('aria-label="Description"');
 		const activity = page.indexOf('aria-label="Activity"');
-		const rail = page.indexOf('class="col-lg-4"');
+		const rail = page.indexOf('class="col-lg-4 order-1 order-md-2"');
 		expect(document).toBeGreaterThan(-1);
 		expect(activity).toBeGreaterThan(document);
 		expect(rail).toBeGreaterThan(activity);
