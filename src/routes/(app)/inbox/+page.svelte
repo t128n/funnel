@@ -94,7 +94,8 @@
 
 	// Search shares the feed's `q` parameter with the global filter model, so a
 	// query survives a refresh and deep links stay bookmarkable. The input keeps
-	// the shared `#issue-search` id for the global ⌘K shortcut.
+	// the shared `#issue-search` id for the page-local `/` shortcut; Mod+K opens
+	// the shell's global search panel instead.
 	const filter = $derived(parseFilterParams(page.url.searchParams));
 	let search = $state(untrack(() => filter.search));
 	let searchFocused = $state(false);
@@ -187,7 +188,7 @@
 					<Input
 						id="issue-search"
 						type="search"
-						placeholder="Search title, body, or issue ID"
+						placeholder="Search title, body, or comments"
 						value={search}
 						on:input={(event) => onSearchInput(event.currentTarget.value)}
 						on:focus={() => (searchFocused = true)}

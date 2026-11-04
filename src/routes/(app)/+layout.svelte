@@ -1,8 +1,9 @@
 <script lang="ts">
-	import { onMount, tick } from 'svelte';
+	import { onMount } from 'svelte';
 	import { goto, refreshAll } from '$app/navigation';
 	import { createHotkeys, getAppHotkeys } from '@tanstack/svelte-hotkeys';
 	import AppShell from '#lib/components/shell/AppShell.svelte';
+	import { openGlobalSearch } from '#lib/client/global-search.svelte';
 	import { actionableCount, classifyAttention, toISODate } from '#lib/attention';
 	import { connectEvents, type FunnelEvent } from '#lib/client/events';
 	import { startNativeNotifications } from '#lib/client/native-notifications';
@@ -123,15 +124,17 @@
 		};
 	});
 
-	/** Focus the view's filter-bar search, navigating to Issues if needed. */
-	async function focusSearch() {
-		let input = document.getElementById('issue-search');
-		if (!input) {
-			await goto('/issues');
-			await tick();
-			input = document.getElementById('issue-search');
-		}
-		input?.focus();
+	/**
+	 * The global shortcut opens the one shell search panel from any route. Page
+	 * filters keep their own state and are never focused by Mod+K.
+	 */
+	function openSearch() {
+		openGlobalSearch();
+	}
+
+	/** `/` keeps focusing the current view's filter field when it has one. */
+	function focusLocalSearch() {
+		document.getElementById('issue-search')?.focus();
 	}
 
 	function openNew() {
@@ -145,8 +148,8 @@
 	const hotkeys = getAppHotkeys();
 
 	createHotkeys(() => [
-		{ hotkey: hotkeys.current['nav.search'], callback: () => void focusSearch() },
-		{ hotkey: hotkeys.current['nav.search-slash'], callback: () => void focusSearch() },
+		{ hotkey: hotkeys.current['nav.search'], callback: openSearch },
+		{ hotkey: hotkeys.current['nav.search-slash'], callback: focusLocalSearch },
 		{ hotkey: hotkeys.current['app.settings'], callback: () => void goto('/settings') },
 		...(mayWrite
 			? [{ hotkey: hotkeys.current['issue.create'], callback: openNew }]
@@ -156,11 +159,11 @@
 
 <AppShell
 	user={data.user}
-	repos={data.options.repos.map((repo) => repo.slug)}
+	repoShortcodes={data.repoShortcodes}
 	{dueCount}
 	inboxCount={data.inboxCount}
 	unread={data.unreadNotifications}
-	onSearch={focusSearch}
+	onSearch={openSearch}
 >
 	{@render children()}
 </AppShell>

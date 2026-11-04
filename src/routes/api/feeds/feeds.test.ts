@@ -190,6 +190,40 @@ describe("GET /api/feeds/issues", () => {
     expect(page.total).toBe(1);
   });
 
+  test("searches every repository when no repo scope is supplied", async () => {
+    issue({
+      repoId: 1,
+      number: 6,
+      externalId: "106",
+      title: "Shared search needle in core",
+      updatedAt: 500,
+      status: "todo",
+      priority: "P2",
+    });
+    issue({
+      repoId: 2,
+      number: 7,
+      externalId: "107",
+      title: "Shared search needle in web",
+      updatedAt: 600,
+      status: "todo",
+      priority: "P2",
+    });
+
+    const page = await pageOf(
+      await getIssues({
+        url: url("/api/feeds/issues", "?q=shared%20search%20needle&limit=8"),
+        locals: READ,
+      } as never),
+    );
+
+    expect(page.total).toBe(2);
+    expect(page.items.map((item) => item.repo).sort()).toEqual([
+      "orgA/core",
+      "orgA/web",
+    ]);
+  });
+
   test("maps a malformed or foreign cursor to 400", async () => {
     const malformed = await getIssues({
       url: url("/api/feeds/issues", "?cursor=not-a-cursor"),

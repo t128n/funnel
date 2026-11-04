@@ -1,11 +1,13 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
 	import AppBar from './AppBar.svelte';
+	import GlobalSearch from './GlobalSearch.svelte';
 	import type { Role } from '#lib/roles';
 
 	interface Props {
 		user: { id: string; name: string; email: string; image: string | null; role: Role };
-		repos?: string[];
+		/** `owner/name` → project key for issue references in search results. */
+		repoShortcodes?: Record<string, string>;
 		inboxCount?: number;
 		dueCount?: number;
 		unread?: number;
@@ -15,7 +17,7 @@
 
 	let {
 		user,
-		repos = [],
+		repoShortcodes = {},
 		inboxCount = 0,
 		dueCount = 0,
 		unread = 0,
@@ -29,7 +31,8 @@
 	href="#main">Skip to main content</a
 >
 
-<AppBar {user} {repos} {inboxCount} {dueCount} {unread} onsearch={onSearch} />
+<AppBar {user} {inboxCount} {dueCount} {unread} onsearch={onSearch} />
+<GlobalSearch {repoShortcodes} />
 
 <!--
 	Composition A has one navigation layer and normal document scroll. There is

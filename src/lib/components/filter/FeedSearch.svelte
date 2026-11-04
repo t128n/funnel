@@ -7,8 +7,8 @@
 
 	/**
 	 * Full-text search for the feed column. Owns the same `q` parameter as the
-	 * classic Filter Bar and keeps the shared `#issue-search` id so the global
-	 * ⌘K shortcut can focus it.
+	 * classic Filter Bar and keeps the shared `#issue-search` id so the `/`
+	 * shortcut can focus the page-local filter (Mod+K is the global panel).
 	 */
 	interface Props {
 		/** Width override for the containing toolbar. */
@@ -65,7 +65,7 @@
 			id="issue-search"
 			type="search"
 			class="form-control"
-			placeholder="Search title, body, or issue ID"
+			placeholder="Search title, body, or comments"
 			value={search}
 			oninput={(event) => onInput(event.currentTarget.value)}
 			onfocus={() => (focused = true)}
