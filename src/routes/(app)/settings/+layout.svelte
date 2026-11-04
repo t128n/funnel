@@ -1,10 +1,13 @@
 <script lang="ts">
-	import { goto } from '$app/navigation';
+	import { beforeNavigate, goto } from '$app/navigation';
 	import { page } from '$app/state';
+	import { onMount } from 'svelte';
+	import { get } from 'svelte/store';
 	import { Input, Nav, NavItem, NavLink } from '@sveltestrap/sveltestrap';
 	import PageHead from '#lib/components/common/PageHead.svelte';
 	import PageHeader from '#lib/components/shell/PageHeader.svelte';
 	import { settingsGroups } from '#lib/components/settings/sections';
+	import { settingsDirty } from '#lib/components/settings/settings-dirty';
 	import { hasRole } from '#lib/roles';
 	import type { LayoutProps } from './$types';
 
@@ -38,16 +41,60 @@
 			sections[0]
 	);
 
+	/** The mobile switcher reads the same guard as every other link. */
 	function navigateTo(event: Event): void {
 		const target = event.currentTarget as HTMLSelectElement;
-		if (target.value !== page.url.pathname) void goto(target.value);
+		const href = target.value;
+		const current = page.url.pathname;
+		if (href === current) return;
+		// A cancelled navigation must leave this select on the current section.
+		// Reset before `goto` (the confirm blocks inside it) and once more after
+		// the dialog closes, in case the browser restored the clicked option.
+		target.value = current;
+		void goto(href);
+		setTimeout(() => {
+			if (page.url.pathname === current && target.isConnected) target.value = current;
+		}, 0);
 	}
+
+	/** Ask before discarding an edited section, wherever the navigation starts. */
+	beforeNavigate(({ cancel, to }) => {
+		if (!get(settingsDirty) || !to) return;
+		if (to.url.href === page.url.href) return;
+
+		cancel();
+		if (window.confirm('You have unsaved changes. Discard them and leave this section?')) {
+			settingsDirty.set(false);
+			void goto(to.url.href);
+		}
+	});
+
+	// A reload, tab close, or link to another origin is not an in-app
+	// `beforeNavigate`; the browser's own confirmation still protects the edit.
+	onMount(() => {
+		const beforeUnload = (event: BeforeUnloadEvent) => {
+			if (!get(settingsDirty)) return;
+			event.preventDefault();
+			event.returnValue = '';
+		};
+		window.addEventListener('beforeunload', beforeUnload);
+		return () => window.removeEventListener('beforeunload', beforeUnload);
+	});
 </script>
 
 <PageHead title={`${active.label} · Settings`} />
 
 <main class="container-xl py-4">
-	<PageHeader title={active.label} description={active.description} />
+	<PageHeader title={active.label} description={active.description}>
+		{#snippet actions()}
+			{#if $settingsDirty}
+				<span class="badge text-bg-warning d-inline-flex align-items-center gap-1">
+					<i class="bi bi-pencil-square" aria-hidden="true"></i>
+					Unsaved changes
+				</span>
+			{/if}
+		{/snippet}
+	</PageHeader>
 
 	<div class="row g-4">
 		<div class="col-lg-3">

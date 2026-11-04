@@ -86,6 +86,7 @@
 						<tr>
 							<td>
 								<Input
+									id={`settings-project-${index}`}
 									bind:value={projects[index].label}
 									aria-label={`Project label ${index + 1}`}
 									placeholder="project1"
@@ -96,6 +97,7 @@
 							</td>
 							<td>
 								<Input
+									id={`settings-project-name-${index}`}
 									bind:value={projects[index].name}
 									aria-label={`Project name ${index + 1}`}
 									placeholder="Project One"
