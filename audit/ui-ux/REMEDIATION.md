@@ -14,8 +14,8 @@ forms, recognizable links, restrained spacing/colours, minimal custom CSS.
 
 **Current state:** implementation delivered, awaiting review. Twenty
 implementation PRs are open against `main`; none are merged. The combined branch
-passes `bun run check`, `bun run test` (1,380 pass / 0 fail), `bun run build`, and
-cross-route browser verification. GitHub issues/PRs remain authoritative.
+passes `bun run check`, `bun run test` (1,408 pass / 0 fail), `bun run build`, and
+cross-route browser verification, including the 10 previously deferred observations. GitHub issues/PRs remain authoritative.
 
 ## Status legend
 
@@ -121,7 +121,7 @@ Subagents: **12**. Implementation PRs: **20**. Docs/ledger PR: [#161](https://gi
 - Merged all 20 implementation PRs in dependency-aware order; resolved only the
   conflicts listed above.
 - `bun run check` — 0 errors, 0 warnings.
-- `bun run test` — **1,380 pass / 0 fail** across 146 files.
+- `bun run test` — **1,408 pass / 0 fail** across 149 files.
 - `bun run build` — passed.
 - Browser checks: `/issues` 768 title 446px + one tab stop; My Issues identity
   and labelled breadcrumb; Inbox accept stays on `/inbox` and no-match state;
@@ -132,6 +132,15 @@ Subagents: **12**. Implementation PRs: **20**. Docs/ledger PR: [#161](https://gi
   restore; global search works from `/settings`; mobile menu closes; intake
   success shows a reference; 404 keeps the shell without a dead Try Again;
   brand manifest/icon use `#0060df`.
+- Deferred polish checks: labelled issue rows stay 41px at 1440; PriorityText
+  announces “P1, high priority” once; re-check/delays use `9 Nov 2026` /
+  `2 Nov 2026, 07:07`; Attention says “Re-check overdue/today/upcoming” and its
+  description names re-check dates; settings WIP labels match the Board and
+  Projects/People have distinct section headings; dark navbar has a 1px border
+  while light is unchanged; search shows exactly one clear control; milestone
+  detail uses the shared IssueTable with no repeated milestone name and an
+  “Add issues” picker; Epic Add child is `btn-primary btn-sm` with task-oriented
+  copy.
 
 ## Recommended merge order
 
@@ -156,20 +165,32 @@ The audit recorded 12 deferred/rejected observations. They are intentionally
   “Schedule issue” action on `/plan`. Both contradict the shipped product
   decision in `ba958ac` (#101): planning is an issue property and scheduling
   lives in the issue Properties panel.
-- **Deferred observations:** priority text announced twice and hiding P1–P3 from
-  AT; four date formats on issue detail; milestone detail using `IssueList` and
-  repeating the milestone name; Attention re-check wording; settings WIP labels
-  and duplicated h1/h2; dark navbar boundary; duplicate native/custom search
-  clears; index label badges inflating row height; Epic Add-child styling/copy;
-  milestone membership entry point. Reasons: copy/product decisions, cosmetic
-  scope, or feature-shaped work, all lower value than the confirmed findings.
-  No implementation PR intentionally changes them.
+- **Deferred observations — now delivered:** all 10 lower-value observations
+  were implemented as extensions to their owning PRs after the confirmed
+  backlog:
+  1. Priority announced once as “P1, high priority” — #144.
+  2. Issue-detail date formats unified (`2 Nov 2026`, delay start/end, precise
+     tooltips) — #148.
+  3. Milestone detail now uses the shared `IssueTable` and does not repeat the
+     milestone name — #149.
+  4. Attention uses re-check language and a visible description — #154.
+  5. Settings WIP labels match the Board; Projects/People headings are distinct
+     — #152.
+  6. Dark navbar has a token-derived boundary; light is unchanged — #151.
+  7. Search fields show one labelled clear control — #151.
+  8. Index label badges stay on the title line (41px rows), with `+N` overflow
+     — #141.
+  9. Epic Add child uses compact primary styling and task-oriented copy — #149.
+  10. Milestone detail has an “Add issues” picker and documents removal via the
+      issue’s Milestone property — #149.
+  No rejected finding was revived.
 
 ## Campaign state
 
 - Audited findings evaluated: **33** new (#108–#140) + **4** pre-existing
   (#99, #100, #16, #15); #19/#21 inspected and cross-referenced.
-- Fixed and delivered: **31** new issues + **4** pre-existing.
+- Fixed and delivered: **31** new issues + **4** pre-existing + **10** deferred
+  observations.
 - Obsolete on the implementation baseline: **#126, #136** (closed with rationale
   after #106 removed `/day`).
 - Partial / still open by design: **#19, #21** (features; only their UI-audit
