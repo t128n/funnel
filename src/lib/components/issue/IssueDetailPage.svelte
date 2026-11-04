@@ -21,6 +21,7 @@
 	import IssueDetailsCard from '#lib/components/issue/IssueDetailsCard.svelte';
 	import IssuePropertiesCard from '#lib/components/issue/IssuePropertiesCard.svelte';
 	import { delayReasonLabel } from '#lib/components/issue/inspector-format';
+	import { statusSelection } from '#lib/components/issue/status-control';
 	import { weekHeadline } from '#lib/components/plan/format';
 	import {
 		scheduleErrorMessage,
@@ -216,7 +217,6 @@
 		`${detail?.bodyHtml ?? ''}:${detail?.comments.length ?? 0}:${detail?.workNotes.length ?? 0}`
 	);
 
-	const closed = $derived(issue?.state === 'closed');
 	const impactValue = $derived(issue?.impact ?? null);
 	const urgencyValue = $derived(issue?.urgency ?? null);
 
@@ -479,6 +479,16 @@
 		return window.getSelection()?.isCollapsed ?? true;
 	}
 
+	/** Focus and select the title when the inline editor mounts. */
+	$effect(() => {
+		if (!editingTitle) return;
+		const field = document.getElementById('issue-title-input');
+		if (field instanceof HTMLInputElement) {
+			field.focus();
+			field.select();
+		}
+	});
+
 	function startTitleEdit() {
 		if (!mayWrite || !issue) return;
 		title = issue.title;
@@ -493,12 +503,30 @@
 
 	async function saveTitle() {
 		if (!editingTitle || busy) return;
+		const next = title.trim();
 		if (!titleDirty) {
 			editingTitle = false;
 			return;
 		}
-		const ok = await runPatch({ title: title.trim() }, 'title');
-		if (ok) editingTitle = false;
+		if (next.length === 0) {
+			setWriteError('Title cannot be empty.');
+			return;
+		}
+		const previous = issue?.title ?? '';
+		const ok = await runPatch({ title: next }, 'title');
+		if (ok) {
+			title = next;
+			editingTitle = false;
+			setWriteSuccess('Title updated.', () => void restoreTitle(previous));
+		}
+	}
+
+	async function restoreTitle(previous: string) {
+		const ok = await runPatch({ title: previous }, 'title');
+		if (ok) {
+			title = previous;
+			setWriteSuccess('Title restored.');
+		}
 	}
 
 	/**
@@ -593,21 +621,22 @@
 		}
 	}
 
-	async function setStatus(value: string | null) {
-		if (!value) return;
-		// Done is a state transition: reuse the structured close dialog rather
-		// than writing a label (SPEC §5.2.3).
-		if (value === 'done') {
+	async function setStatus(value: string | null): Promise<boolean> {
+		if (!value || !issue) return false;
+		const selection = statusSelection(value, issue);
+		if (selection.kind === 'ignore') return false;
+		// Done closes, and leaving Done reopens; both reuse the structured
+		// dialog because they require a resolution note (SPEC §5.2.3) and write
+		// nothing until the dialog is confirmed.
+		if (selection.kind === 'close') {
 			openDialog('close');
-			return;
+			return false;
 		}
-		// Leaving Done reopens the issue, which requires a note; carry the chosen
-		// status through the dialog so it applies after the state change.
-		if (closed) {
-			openDialog('reopen', value);
-			return;
+		if (selection.kind === 'reopen') {
+			openDialog('reopen', selection.status);
+			return false;
 		}
-		await runPatch({ status: value }, 'status');
+		return runPatch({ status: selection.status }, 'status');
 	}
 
 	/**
@@ -997,31 +1026,62 @@
 
 			{#if issue}
 				{#if editingTitle}
-					<div class="d-flex min-w-0 align-items-center gap-2">
+					<form
+						class="mb-2"
+						onsubmit={(event) => {
+							event.preventDefault();
+							void saveTitle();
+						}}
+					>
+						<label class="form-label small text-body-secondary" for="issue-title-input">
+							Editing title
+						</label>
 						<Input
+							id="issue-title-input"
 							bsSize="lg"
-							class="min-w-0 flex-grow-1 border-0 bg-transparent px-0 fw-semibold shadow-none"
+							class="min-w-0 fw-semibold"
 							value={title}
 							oninput={(event) => (title = event.currentTarget.value)}
-							onblur={saveTitle}
 							onkeydown={(event) => {
 								if (event.key === 'Enter') {
 									event.preventDefault();
-									event.currentTarget.blur();
+									void saveTitle();
 								} else if (event.key === 'Escape') {
 									event.preventDefault();
 									cancelTitleEdit();
 								}
 							}}
 							aria-label="Issue title"
+							aria-describedby="issue-title-hint"
 							disabled={busy === 'title'}
 						/>
-						{#if busy === 'title'}
-							<Spinner size={14} />
-						{:else if titleDirty}
-							<Button color="primary" size="sm" onclick={saveTitle}>Save</Button>
-						{/if}
-					</div>
+						<div class="d-flex flex-wrap align-items-center gap-2 mt-2">
+							{#if busy === 'title'}
+								<Spinner size={14} />
+							{:else}
+								<Button
+									color="primary"
+									size="sm"
+									type="submit"
+									disabled={!titleDirty || busy !== null}
+								>
+									Save
+								</Button>
+								<Button
+									color="link"
+									size="sm"
+									class="text-decoration-none"
+									onclick={cancelTitleEdit}
+									disabled={busy !== null}
+								>
+									Cancel
+								</Button>
+							{/if}
+							<span id="issue-title-hint" class="small text-body-secondary">
+								Enter to save · Esc to cancel
+							</span>
+						</div>
+					</form>
 				{:else}
 					<!--
 						Plain text rather than an input: a rendered input value is not
@@ -1044,7 +1104,7 @@
 							}
 						}}
 					>
-						{title}
+						{issue.title}
 					</h1>
 				{/if}
 

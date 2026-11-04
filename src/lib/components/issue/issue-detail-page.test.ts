@@ -95,6 +95,27 @@ describe("properties card", () => {
 		expect(properties).toContain("selected={labels}");
 	});
 
+	test("test_status_select_is_owned_by_the_issue_model", () => {
+		expect(properties).toContain("displayedStatus(issue)");
+		expect(properties).toContain("const committed = await onstatus(value)");
+		expect(properties).toContain("if (!committed) select.value = statusValue");
+		// A cancelled close/reopen leaves the model unchanged; the control must
+		// be restored rather than keep the option that only opened a dialog.
+		expect(properties).toContain("onstatus: (value: string) => Promise<boolean>");
+	});
+
+	test("test_title_editor_has_explicit_save_cancel_and_a_hint", () => {
+		expect(page).toContain('id="issue-title-input"');
+		expect(page).toContain('id="issue-title-hint"');
+		expect(page).toContain("Enter to save · Esc to cancel");
+		expect(page).toContain("Editing title");
+		expect(page).toContain("document.getElementById('issue-title-input')");
+		expect(page).toContain("onclick={cancelTitleEdit}");
+		// Blur used to commit silently; only the explicit actions write now.
+		expect(page).not.toContain("onblur={saveTitle}");
+		expect(page).toContain("setWriteSuccess('Title updated.'");
+	});
+
 	test("test_read_only_viewers_get_plain_text_values", () => {
 		expect(properties).toContain("{:else}");
 		expect(properties).toContain("<StatusText");
