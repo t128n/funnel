@@ -40,6 +40,30 @@ interface DialogEntry {
 	previousKey: string | null;
 }
 
+interface RecentTarget {
+	element: HTMLElement;
+	at: number;
+}
+
+/**
+ * The newest tracked interaction. Prefer a target that is still connected, but
+ * keep the newest detached one: a drag or a value change can re-render the
+ * trigger before the dialog opens, and its stable key resolves the replacement
+ * at restore time.
+ */
+function mostRecent(...candidates: (RecentTarget | null)[]): HTMLElement | null {
+	let connected: RecentTarget | null = null;
+	let newest: RecentTarget | null = null;
+	for (const candidate of candidates) {
+		if (!candidate) continue;
+		if (!newest || candidate.at > newest.at) newest = candidate;
+		if (candidate.element.isConnected && (!connected || candidate.at > connected.at)) {
+			connected = candidate;
+		}
+	}
+	return (connected ?? newest)?.element ?? null;
+}
+
 /**
  * Index to focus when Tab would leave the dialog, or `-1` when the browser's
  * default traversal stays inside it.
@@ -62,12 +86,42 @@ export function focusables(root: ParentNode): HTMLElement[] {
 	return Array.from(root.querySelectorAll<HTMLElement>(FOCUSABLE)).filter(isVisibleFocusTarget);
 }
 
+/**
+ * Choose the element to return focus to. A Svelte update can replace the
+ * trigger while the dialog is open (`#issue-status` is re-rendered when its
+ * value changes), so a detached node is resolved again by its stable key.
+ */
+export function focusReturnCandidate(
+	previous: HTMLElement | null,
+	key: string | null,
+	lookup: (selector: string) => HTMLElement | null
+): HTMLElement | null {
+	if (previous?.isConnected) return previous;
+	return key ? lookup(key) : null;
+}
+
+/**
+ * A re-render replaces the focused control and focus falls back to the
+ * document. Re-assert the return target while that is true; never fight focus
+ * the user has deliberately moved elsewhere.
+ */
+export function shouldReassertFocus(active: Element | null, body: Element | null): boolean {
+	return active === null || active === body;
+}
+
 let observer: MutationObserver | null = null;
 let stack: DialogEntry[] = [];
 let inerted: HTMLElement[] = [];
-let lastFocusedOutside: HTMLElement | null = null;
-let lastPointerTarget: HTMLElement | null = null;
+/**
+ * The last control the user focused, changed, or pressed. Prefer the most
+ * recent one: a programmatic select change never focuses the select, while a
+ * drag focuses its card and a click focuses its button.
+ */
+let lastFocused: RecentTarget | null = null;
+let lastChanged: RecentTarget | null = null;
+let lastPointer: RecentTarget | null = null;
 let titleSequence = 0;
+let restoreSequence = 0;
 let started = false;
 
 function activeDialog(): HTMLElement | null {
@@ -184,25 +238,58 @@ function returnTarget(previous: HTMLElement | null): HTMLElement | null {
 /**
  * Sveltestrap returns focus itself when the fade-out ends, which happens after
  * the `.show` class is gone. Wait until the closing portal has actually left
- * the DOM so our return target wins, and abort if another dialog opened.
+ * the DOM so our return target wins, then keep watch briefly: a Svelte update
+ * triggered by the cancel (for example restoring `#issue-status`) can replace
+ * the trigger right after we focus it, leaving focus on `<body>`.
  */
 function scheduleRestore(entry: DialogEntry): void {
-	const deadline = Date.now() + 500;
+	const sequence = ++restoreSequence;
+	const deadline = Date.now() + 600;
+
 	const attempt = () => {
-		if (activeDialog()) return;
+		if (sequence !== restoreSequence || activeDialog()) return;
 		if (entry.dialog.isConnected && Date.now() < deadline) {
 			requestAnimationFrame(attempt);
 			return;
 		}
 		if (activeDialog()) return;
 
-		let previous = entry.previous;
-		if (!previous?.isConnected && entry.previousKey) {
-			previous = document.querySelector<HTMLElement>(entry.previousKey);
+		const target = focusReturnCandidate(entry.previous, entry.previousKey, (selector) =>
+			document.querySelector<HTMLElement>(selector)
+		);
+		const resolved = returnTarget(target);
+		if (!resolved) {
+			if (Date.now() < deadline) requestAnimationFrame(attempt);
+			return;
 		}
-		returnTarget(previous)?.focus({ preventScroll: true });
+		resolved.focus({ preventScroll: true });
+		settle(entry, sequence);
 	};
+
 	requestAnimationFrame(attempt);
+}
+
+/** Re-assert focus for a short window if a re-render drops it to `<body>`. */
+function settle(entry: DialogEntry, sequence: number): void {
+	const until = Date.now() + 400;
+
+	const verify = () => {
+		if (sequence !== restoreSequence || activeDialog() || Date.now() > until) return;
+		const candidate = focusReturnCandidate(entry.previous, entry.previousKey, (selector) =>
+			document.querySelector<HTMLElement>(selector)
+		);
+		const target = returnTarget(candidate);
+		if (
+			target &&
+			target.isConnected &&
+			shouldReassertFocus(document.activeElement, document.body)
+		) {
+			target.focus({ preventScroll: true });
+		}
+		requestAnimationFrame(verify);
+	};
+
+	requestAnimationFrame(verify);
 }
 
 function sync(): void {
@@ -222,7 +309,7 @@ function sync(): void {
 		// is not a return target.
 		const outside =
 			focused instanceof HTMLElement && focused !== document.body && !dialog.contains(focused);
-		const previous = outside ? focused : (lastFocusedOutside ?? lastPointerTarget);
+		const previous = outside ? focused : mostRecent(lastFocused, lastChanged, lastPointer);
 		stack.push({ dialog, previous, previousKey: previous ? identityOf(previous) : null });
 		describe(dialog);
 		applyInert();
@@ -263,7 +350,7 @@ function onFocusIn(event: FocusEvent): void {
 	if (!(target instanceof HTMLElement) || target === document.body) return;
 	const dialog = activeDialog();
 	if (dialog?.contains(target)) return;
-	lastFocusedOutside = target;
+	lastFocused = { element: target, at: Date.now() };
 }
 
 /**
@@ -273,7 +360,18 @@ function onFocusIn(event: FocusEvent): void {
 function onPointerDown(event: PointerEvent): void {
 	const target = event.target;
 	if (!(target instanceof HTMLElement) || target.closest('.modal')) return;
-	lastPointerTarget = target;
+	lastPointer = { element: target, at: Date.now() };
+}
+
+/**
+ * A programmatic `select` change (and similar controls) can open a dialog
+ * without ever receiving focus, so the changed control is also a candidate
+ * return target.
+ */
+function onChange(event: Event): void {
+	const target = event.target;
+	if (!(target instanceof HTMLElement) || target.closest('.modal')) return;
+	lastChanged = { element: target, at: Date.now() };
 }
 
 /**
@@ -287,6 +385,7 @@ export function initDialogFocus(): () => void {
 	document.addEventListener('keydown', onKeydown, true);
 	document.addEventListener('focusin', onFocusIn, true);
 	document.addEventListener('pointerdown', onPointerDown, true);
+	document.addEventListener('change', onChange, true);
 
 	observer = new MutationObserver(() => sync());
 	observer.observe(document.body, {
@@ -304,6 +403,7 @@ export function initDialogFocus(): () => void {
 		document.removeEventListener('keydown', onKeydown, true);
 		document.removeEventListener('focusin', onFocusIn, true);
 		document.removeEventListener('pointerdown', onPointerDown, true);
+		document.removeEventListener('change', onChange, true);
 		releaseInert();
 		stack = [];
 	};
