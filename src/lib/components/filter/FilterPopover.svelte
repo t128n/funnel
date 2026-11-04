@@ -1,17 +1,3 @@
-<script module lang="ts">
-	/** A filter dimension a caller can take ownership of. */
-	export type FilterDimension =
-		| 'repo'
-		| 'status'
-		| 'assignee'
-		| 'priority'
-		| 'size'
-		| 'label'
-		| 'planned'
-		| 'milestone'
-		| 'state';
-</script>
-
 <script lang="ts">
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
@@ -22,12 +8,18 @@
 	import { PRIORITY_SCALE } from '#lib/priority';
 	import type { FilterOptions } from '#lib/server/issues/types';
 	import {
-		activeFilterCount,
 		buildFilterUrl,
 		NONE,
 		parseFilterParams,
 		type ClientFilter
 	} from '#lib/url-filter';
+	import {
+		clearOwnedFilters,
+		ME,
+		ownedFilterCount,
+		ownsDimension,
+		type FilterDimension
+	} from '#lib/components/filter/drawer-filters';
 
 	/**
 	 * Compact filter control for the narrow feed column. Collapses the six
@@ -67,22 +59,9 @@
 	// "Me" is owned by the All/Mine scope switch (ViewSegment), so the Assignee
 	// multi-select only offers other people and ignores the scope when it counts
 	// active filters.
-	const ME = 'me';
+	const scope = $derived({ hidden, showState });
 	const scopedAssignees = $derived(filter.assignees.filter((value) => value !== ME));
-	const count = $derived(
-		activeFilterCount({
-			...filter,
-			repos: hidden.has('repo') ? [] : filter.repos,
-			states: showState && !hidden.has('state') ? filter.states : [],
-			statuses: hidden.has('status') ? [] : filter.statuses,
-			assignees: hidden.has('assignee') ? [] : scopedAssignees,
-			priorities: hidden.has('priority') ? [] : filter.priorities,
-			sizes: hidden.has('size') ? [] : filter.sizes,
-			labels: hidden.has('label') ? [] : filter.labels,
-			planned: hidden.has('planned') ? [] : filter.planned,
-			milestones: hidden.has('milestone') ? [] : filter.milestones
-		})
-	);
+	const count = $derived(ownedFilterCount(filter, scope));
 
 	const repoOptions = $derived(
 		options.repos.map((repo) => ({ value: repo.slug, label: repo.slug }))
@@ -137,6 +116,97 @@
 		{ value: 'all', label: 'All' }
 	];
 
+	/** A dimension this drawer currently owns. */
+	function visible(dimension: FilterDimension): boolean {
+		return ownsDimension(dimension, scope);
+	}
+
+	type ChipKey =
+		| 'repos'
+		| 'states'
+		| 'statuses'
+		| 'assignees'
+		| 'priorities'
+		| 'sizes'
+		| 'labels'
+		| 'planned'
+		| 'milestones';
+
+	interface ActiveChip {
+		key: ChipKey;
+		value: string;
+		label: string;
+	}
+
+	function optionLabel(
+		options: readonly { value: string; label: string }[],
+		value: string
+	): string {
+		return options.find((option) => option.value === value)?.label ?? value;
+	}
+
+	/**
+	 * One removable chip per active value in a drawer-owned dimension. Hidden
+	 * (toolbar-owned) dimensions and the `me` scope are deliberately absent, so
+	 * the chips match the badge and Clear action exactly.
+	 */
+	const activeChips = $derived.by((): ActiveChip[] => {
+		const chips: ActiveChip[] = [];
+		const add = (
+			key: ChipKey,
+			name: string,
+			values: readonly string[],
+			label: (value: string) => string
+		) => {
+			for (const value of values) {
+				chips.push({ key, value, label: `${name}: ${label(value)}` });
+			}
+		};
+
+		if (visible('state')) {
+			add('states', 'State', filter.states, (value) => optionLabel(STATE_OPTIONS, value));
+		}
+		if (visible('repo')) {
+			add('repos', 'Repo', filter.repos, (value) => value);
+		}
+		if (visible('status')) {
+			add('statuses', 'Status', selectedStatuses, (value) =>
+				optionLabel(statusOptions, value)
+			);
+		}
+		if (visible('assignee')) {
+			add('assignees', 'Assignee', scopedAssignees, (value) =>
+				optionLabel(assigneeOptions, value)
+			);
+		}
+		if (visible('priority')) {
+			add('priorities', 'Priority', filter.priorities, (value) =>
+				optionLabel(priorityOptions, value)
+			);
+		}
+		if (visible('size')) {
+			add('sizes', 'Size', filter.sizes, (value) => optionLabel(sizeOptions, value));
+		}
+		if (visible('label')) {
+			add('labels', 'Label', filter.labels, (value) => value);
+		}
+		if (visible('planned')) {
+			add('planned', 'Planned', filter.planned, (value) =>
+				optionLabel(plannedOptions, value)
+			);
+		}
+		if (visible('milestone')) {
+			add('milestones', 'Milestone', filter.milestones, (value) =>
+				optionLabel(milestoneOptions, value)
+			);
+		}
+		return chips;
+	});
+
+	function removeChip(key: ChipKey, value: string) {
+		set(key, filter[key].filter((entry) => entry !== value));
+	}
+
 	function apply(next: ClientFilter) {
 		void goto(buildFilterUrl(page.url.pathname, page.url.searchParams, next), { reset: false });
 	}
@@ -150,23 +220,7 @@
 	}
 
 	function clearAll() {
-		// Hidden dimensions belong to another control, so Clear leaves them
-		// untouched. Callers that omit `hide` keep the historical behaviour,
-		// including preserving the `me` scope.
-		apply({
-			repos: hidden.has('repo') ? filter.repos : [],
-			states: hidden.has('state') ? filter.states : [],
-			statuses: hidden.has('status') ? filter.statuses : [],
-			assignees: hidden.has('assignee')
-				? filter.assignees
-				: filter.assignees.filter((value) => value === ME),
-			priorities: hidden.has('priority') ? filter.priorities : [],
-			sizes: hidden.has('size') ? filter.sizes : [],
-			labels: hidden.has('label') ? filter.labels : [],
-			planned: hidden.has('planned') ? filter.planned : [],
-			milestones: hidden.has('milestone') ? filter.milestones : [],
-			search: filter.search
-		});
+		apply(clearOwnedFilters(filter, scope));
 	}
 
 	function toggle() {
@@ -181,105 +235,142 @@
 	onclick={() => (open = true)}
 >
 	<i class="bi bi-funnel me-1" aria-hidden="true"></i>
-	Filters
+	More filters
 	{#if count > 0}
 		<span class="badge text-bg-secondary ms-1">{count}</span>
 	{/if}
 </Button>
 
-<Offcanvas isOpen={open} {toggle} placement="end" header="Filters" body={false}>
+<Offcanvas isOpen={open} {toggle} placement="end" header="More filters" body={false}>
 	<div class="d-flex flex-column gap-3 p-3" use:focusTrap={open}>
 		<div class="d-flex align-items-center justify-content-between gap-3">
-			<span class="fw-semibold">Filters</span>
+			<span class="small text-body-secondary">
+				Long-tail filters shared by every issue list.
+			</span>
 			{#if count > 0}
-				<Button color="link" size="sm" onclick={clearAll}>Clear</Button>
+				<Button color="link" size="sm" onclick={clearAll}>
+					Clear {count} {count === 1 ? 'filter' : 'filters'}
+				</Button>
 			{/if}
 		</div>
 
-		{#if showState && !hidden.has('state')}
-			<div class="d-flex flex-column gap-1">
-				<span class="small fw-semibold text-body-secondary">State</span>
-				<ButtonGroup size="sm">
-					{#each STATE_OPTIONS as option (option.value)}
-						<Button
-							color="outline-secondary"
-							size="sm"
-							active={currentState === option.value}
-							aria-pressed={currentState === option.value}
-							onclick={() => setState(option.value)}
-						>
-							{option.label}
-						</Button>
-					{/each}
-				</ButtonGroup>
+		{#if activeChips.length > 0}
+			<div class="d-flex flex-wrap gap-2" aria-label="Active filters">
+				{#each activeChips as chip (`${chip.key}:${chip.value}`)}
+					<button
+						type="button"
+						class="btn btn-sm btn-outline-secondary rounded-pill d-inline-flex align-items-center gap-1"
+						aria-label={`Remove ${chip.label} filter`}
+						onclick={() => removeChip(chip.key, chip.value)}
+					>
+						<span>{chip.label}</span>
+						<i class="bi bi-x-lg small" aria-hidden="true"></i>
+					</button>
+				{/each}
 			</div>
 		{/if}
 
-		<div class="d-flex flex-wrap gap-2">
-			{#if !hidden.has('repo')}
-				<MultiSelect
-					label="Repo"
-					options={repoOptions}
-					selected={filter.repos}
-					onselect={(values) => set('repos', values)}
-				/>
-			{/if}
-			{#if !hidden.has('status')}
-				<MultiSelect
-					label="Status"
-					options={statusOptions}
-					selected={selectedStatuses}
-					onselect={(values) => set('statuses', values)}
-				/>
-			{/if}
-			{#if !hidden.has('assignee')}
-				<MultiSelect
-					label="Assignee"
-					options={assigneeOptions}
-					selected={scopedAssignees}
-					onselect={(values) => set('assignees', values)}
-				/>
-			{/if}
-			{#if !hidden.has('priority')}
-				<MultiSelect
-					label="Priority"
-					options={priorityOptions}
-					selected={filter.priorities}
-					onselect={(values) => set('priorities', values)}
-				/>
-			{/if}
-			{#if !hidden.has('size')}
-				<MultiSelect
-					label="Size"
-					options={sizeOptions}
-					selected={filter.sizes}
-					onselect={(values) => set('sizes', values)}
-				/>
-			{/if}
-			{#if !hidden.has('label')}
-				<MultiSelect
-					label="Labels"
-					options={labelOptions}
-					selected={filter.labels}
-					onselect={(values) => set('labels', values)}
-				/>
-			{/if}
-			{#if !hidden.has('planned')}
-				<MultiSelect
-					label="Planned"
-					options={plannedOptions}
-					selected={filter.planned}
-					onselect={(values) => set('planned', values)}
-				/>
-			{/if}
-			{#if !hidden.has('milestone')}
-				<MultiSelect
-					label="Milestone"
-					options={milestoneOptions}
-					selected={filter.milestones}
-					onselect={(values) => set('milestones', values)}
-				/>
-			{/if}
-		</div>
+		{#if visible('state') || visible('repo') || visible('milestone')}
+			<section>
+				<h3 class="h6 fw-semibold text-body-secondary mb-2">Scope</h3>
+				<div class="d-flex flex-column gap-2">
+					{#if visible('state')}
+						<ButtonGroup size="sm">
+							{#each STATE_OPTIONS as option (option.value)}
+								<Button
+									color="outline-secondary"
+									size="sm"
+									active={currentState === option.value}
+									aria-pressed={currentState === option.value}
+									onclick={() => setState(option.value)}
+								>
+									{option.label}
+								</Button>
+							{/each}
+						</ButtonGroup>
+					{/if}
+					<div class="d-flex flex-wrap gap-2">
+						{#if visible('repo')}
+							<MultiSelect
+								label="Repo"
+								options={repoOptions}
+								selected={filter.repos}
+								onselect={(values) => set('repos', values)}
+							/>
+						{/if}
+						{#if visible('milestone')}
+							<MultiSelect
+								label="Milestone"
+								options={milestoneOptions}
+								selected={filter.milestones}
+								onselect={(values) => set('milestones', values)}
+							/>
+						{/if}
+					</div>
+				</div>
+			</section>
+		{/if}
+
+		{#if visible('status') || visible('priority') || visible('assignee') || visible('size') || visible('label')}
+			<section>
+				<h3 class="h6 fw-semibold text-body-secondary mb-2">Classification</h3>
+				<div class="d-flex flex-wrap gap-2">
+					{#if visible('status')}
+						<MultiSelect
+							label="Status"
+							options={statusOptions}
+							selected={selectedStatuses}
+							onselect={(values) => set('statuses', values)}
+						/>
+					{/if}
+					{#if visible('priority')}
+						<MultiSelect
+							label="Priority"
+							options={priorityOptions}
+							selected={filter.priorities}
+							onselect={(values) => set('priorities', values)}
+						/>
+					{/if}
+					{#if visible('assignee')}
+						<MultiSelect
+							label="Assignee"
+							options={assigneeOptions}
+							selected={scopedAssignees}
+							onselect={(values) => set('assignees', values)}
+						/>
+					{/if}
+					{#if visible('size')}
+						<MultiSelect
+							label="Size"
+							options={sizeOptions}
+							selected={filter.sizes}
+							onselect={(values) => set('sizes', values)}
+						/>
+					{/if}
+					{#if visible('label')}
+						<MultiSelect
+							label="Labels"
+							options={labelOptions}
+							selected={filter.labels}
+							onselect={(values) => set('labels', values)}
+						/>
+					{/if}
+				</div>
+			</section>
+		{/if}
+
+		{#if visible('planned')}
+			<section>
+				<h3 class="h6 fw-semibold text-body-secondary mb-2">Planning</h3>
+				<div class="d-flex flex-wrap gap-2">
+					<MultiSelect
+						label="Planned"
+						options={plannedOptions}
+						selected={filter.planned}
+						onselect={(values) => set('planned', values)}
+					/>
+				</div>
+			</section>
+		{/if}
 	</div>
 </Offcanvas>
