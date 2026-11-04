@@ -12,9 +12,8 @@ changing code.
 — conventional Bootstrap 5.3 + Sveltestrap + Bootstrap Icons, compact tables and
 forms, recognizable links, restrained spacing/colours, minimal custom CSS.
 
-**Current state:** implementation delivered. Fifteen implementation PRs are
-merged into `main`; five remain open (#147, #151, #153, #154, #156) plus the
-ledger PR (#161). The combined branch passes `bun run check`, `bun run test` (1,408 pass / 0 fail), `bun run build`, and
+**Current state:** implementation complete. All **20** implementation PRs are
+merged into `main`; only this ledger PR (#161) remains open. The combined branch passes `bun run check`, `bun run test` (1,408 pass / 0 fail), `bun run build`, and
 cross-route browser verification, including the 10 previously deferred observations. GitHub issues/PRs remain authoritative.
 
 ## Status legend
@@ -50,23 +49,23 @@ Subagents: **12**. Implementation PRs: **20**. Docs/ledger PR: [#161](https://gi
 | Issue | Priority | Route / component | Problem (short) | PR | Status |
 | --- | --- | --- | --- | --- | --- |
 | #108 | P1 | `/board`, card menu | menu clipped by lane scroller/virtualized stacking context | [#143](https://github.com/t128n/funnel/pull/143) | Merged (#143) |
-| #109 | P1 | `/board`, lane feeds | moved card stayed rendered in source lane until reload | [#147](https://github.com/t128n/funnel/pull/147) | Open — ready for review (#147) |
+| #109 | P1 | `/board`, lane feeds | moved card stayed rendered in source lane until reload | [#147](https://github.com/t128n/funnel/pull/147) | Merged |
 | #110 | P1 | `/issues`, `IssueTable` | Title collapsed to ~102px at 768 | [#141](https://github.com/t128n/funnel/pull/141) | Merged (#141) |
 | #111 | P1 | `/inbox` triage | accept/decline ended on a 404 with a stale queue | [#146](https://github.com/t128n/funnel/pull/146) | Merged (#146) |
-| #112 | P2 | navbar Search / Mod+K | page-local focus helper, no global surface, ID promise | [#151](https://github.com/t128n/funnel/pull/151) | Open — ready for review (#151) |
-| #113 | P2 | mobile navbar collapse | menu stayed open after several navigation paths | [#151](https://github.com/t128n/funnel/pull/151) | Open — ready for review (#151) |
-| #114 | P2 | overflow nav + `/issues?assignee=me` | no visible current state; generic My Issues identity | [#151](https://github.com/t128n/funnel/pull/151) + [#144](https://github.com/t128n/funnel/pull/144) | Merged #144 (page); #151 open (nav) |
-| #115 | P2 | organization/issue/inbox breadcrumbs | missing/unlabelled breadcrumb landmarks; epic dead end | [#154](https://github.com/t128n/funnel/pull/154) + [#144](https://github.com/t128n/funnel/pull/144) | Merged #144 (Issues label); #154 open (all pages) |
+| #112 | P2 | navbar Search / Mod+K | page-local focus helper, no global surface, ID promise | [#151](https://github.com/t128n/funnel/pull/151) | Merged |
+| #113 | P2 | mobile navbar collapse | menu stayed open after several navigation paths | [#151](https://github.com/t128n/funnel/pull/151) | Merged |
+| #114 | P2 | overflow nav + `/issues?assignee=me` | no visible current state; generic My Issues identity | [#151](https://github.com/t128n/funnel/pull/151) + [#144](https://github.com/t128n/funnel/pull/144) | Merged |
+| #115 | P2 | organization/issue/inbox breadcrumbs | missing/unlabelled breadcrumb landmarks; epic dead end | [#154](https://github.com/t128n/funnel/pull/154) + [#144](https://github.com/t128n/funnel/pull/144) | Merged |
 | #116 | P2 | skip link | painted underneath the navbar | [#145](https://github.com/t128n/funnel/pull/145) | Merged (#145) |
 | #117 | P2 | all dialogs | no focus move/trap/restore, no `aria-modal`/name | [#142](https://github.com/t128n/funnel/pull/142) | Merged (#142) |
 | #118 | P2 | `/settings/*` | unsaved edits discarded without warning | [#152](https://github.com/t128n/funnel/pull/152) | Merged (#152) |
 | #119 | P2 | settings validation | off-screen, duplicated, leaked internal keys, no field link | [#152](https://github.com/t128n/funnel/pull/152) | Merged (#152) |
 | #120 | P2 | epics/milestones tables | desktop columns overflowed at tablet/mobile | [#149](https://github.com/t128n/funnel/pull/149) | Merged (#149) |
-| #121 | P2 | `/notifications` | mobile titles truncated; rows past 100 unreachable | [#153](https://github.com/t128n/funnel/pull/153) | Open — ready for review (#153) |
-| #122 | P2 | `StatusText` / blocked / epic detail | status, blocked and missing status conflated | [#153](https://github.com/t128n/funnel/pull/153) | Open — ready for review (#153) |
+| #121 | P2 | `/notifications` | mobile titles truncated; rows past 100 unreachable | [#153](https://github.com/t128n/funnel/pull/153) | Merged |
+| #122 | P2 | `StatusText` / blocked / epic detail | status, blocked and missing status conflated | [#153](https://github.com/t128n/funnel/pull/153) | Merged |
 | #123 | P2 | `/epics` | epic title was not a link | [#149](https://github.com/t128n/funnel/pull/149) | Merged (#149) |
 | #124 | P2 | `/milestones` | overdue and future milestones looked identical | [#149](https://github.com/t128n/funnel/pull/149) | Merged (#149) |
-| #125 | P2 | `/plan` | planned null-size issues vanished; “nothing planned” | [#156](https://github.com/t128n/funnel/pull/156) | Open — ready for review (#156) |
+| #125 | P2 | `/plan` | planned null-size issues vanished; “nothing planned” | [#156](https://github.com/t128n/funnel/pull/156) | Merged |
 | #126 | P2 | `/day` | horizontal overflow at 390 | — | **Obsolete** — `/day` removed by #106; issue closed |
 | #127 | P2 | `/timeline` labels | fixed 44px rows clipped/overlapped labels | [#155](https://github.com/t128n/funnel/pull/155) | Merged (#155) |
 | #128 | P2 | `/matrix` mobile | selection produced no visible result; Low column hidden | [#157](https://github.com/t128n/funnel/pull/157) | Merged (#157) |
@@ -75,7 +74,7 @@ Subagents: **12**. Implementation PRs: **20**. Docs/ledger PR: [#161](https://gi
 | #131 | P2 | `/issues` `/board` `/matrix` filters | split toolbar/offcanvas; State hidden; badge/Clear disagree | [#144](https://github.com/t128n/funnel/pull/144) | Merged (#144) |
 | #132 | P2 | `/inbox?q=` | no-match search showed “Inbox is clear” | [#146](https://github.com/t128n/funnel/pull/146) | Merged (#146) |
 | #133 | P2 | issue Status select | cancelling close/reopen left select out of sync | [#148](https://github.com/t128n/funnel/pull/148) | Merged (#148) |
-| #134 | P3 | navbar dropdowns | no Escape/arrow keys; visual-only selection | [#151](https://github.com/t128n/funnel/pull/151) | Open — ready for review (#151) |
+| #134 | P3 | navbar dropdowns | no Escape/arrow keys; visual-only selection | [#151](https://github.com/t128n/funnel/pull/151) | Merged |
 | #135 | P3 | `/settings/appearance` | no radio reflected the current theme | [#152](https://github.com/t128n/funnel/pull/152) | Merged (#152) |
 | #136 | P3 | `/day` candidates | planned candidates stayed addable; impossible Retry | — | **Obsolete** — `/day` removed by #106; issue closed |
 | #137 | P3 | issue title editor | blur committed silently; no Save/Cancel | [#148](https://github.com/t128n/funnel/pull/148) | Merged (#148) |
@@ -87,7 +86,7 @@ Subagents: **12**. Implementation PRs: **20**. Docs/ledger PR: [#161](https://gi
 
 | Issue | PR | Status | Note |
 | --- | --- | --- | --- |
-| #99 | [#151](https://github.com/t128n/funnel/pull/151) | Open — ready for review (#151) | repo scope removed; `?repo=` + Filters preserved |
+| #99 | [#151](https://github.com/t128n/funnel/pull/151) | Merged | repo scope removed; `?repo=` + Filters preserved |
 | #100 | [#143](https://github.com/t128n/funnel/pull/143) | Merged (#143) | board fits viewport; lanes scroll internally |
 | #16 | [#144](https://github.com/t128n/funnel/pull/144) | Merged (#144) | container-responsive search at 1440/768 |
 | #15 | [#158](https://github.com/t128n/funnel/pull/158) | Merged (#158) | icons/manifest/error page → `#0060df` |
@@ -118,9 +117,10 @@ Subagents: **12**. Implementation PRs: **20**. Docs/ledger PR: [#161](https://gi
 - **Post-merge rebases** — after the first 15 PRs landed, #147, #151, #153,
   #154 and #156 were rebased onto the new `main`. #151/#153/#154 are stacked on
   #147 because it adds the shared `Feed.retain` contract; #147 must merge first.
-  All six remaining PRs now report `MERGEABLE / CLEAN`; a fresh simulation of
-  the recommended merge order passes check, the full suite (1,408 tests) and
-  build.
+  All six remaining PRs reported `MERGEABLE / CLEAN`; a fresh simulation of
+  the recommended merge order passed check, the full suite (1,408 tests) and
+  build. The five implementation PRs were then squash-merged in order
+  (#147 → #151 → #153 → #154 → #156).
 
 ## Cross-PR verification (isolated integration branch)
 
@@ -201,7 +201,5 @@ The audit recorded 12 deferred/rejected observations. They are intentionally
   after #106 removed `/day`).
 - Partial / still open by design: **#19, #21** (features; only their UI-audit
   overlap was addressed).
-- Implementation PRs: **20** — **15 merged**, **5 open** (#147, #151, #153,
-  #154, #156). Ledger PR: [#161](https://github.com/t128n/funnel/pull/161).
-- Merge state: **implementation delivered; 15 PRs merged, 5 open**. #147 must
-  merge before #151/#153/#154 (they are stacked on its shared `Feed` contract).
+- Implementation PRs: **20** — **all merged**. Ledger PR: [#161](https://github.com/t128n/funnel/pull/161).
+- Merge state: **complete** — all 20 implementation PRs merged; ledger PR pending.
