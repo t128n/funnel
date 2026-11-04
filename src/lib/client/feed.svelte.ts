@@ -11,7 +11,7 @@
  * methods, and the stores are created during component init so the runes
  * inside them are owned by that component.
  */
-import { appendUnique, mergeFirstPage } from "#lib/client/feed-merge";
+import { appendUnique, mergeFirstPage, removeByKey } from "#lib/client/feed-merge";
 import { feedUrl } from "#lib/feeds";
 
 /** One page returned by a feed endpoint; mirrors the server's `ListPage`. */
@@ -56,6 +56,8 @@ export interface Feed<T> {
   readonly error: string | null;
   /** Merge (same view) or replace with (new view) an authoritative page. */
   sync(page: FeedPage<T>): void;
+  /** Drop one row after the server confirms it was deleted. */
+  remove(itemKey: string): void;
   /** Fetch the page after `nextCursor` and append it. */
   loadMore(): Promise<void>;
   /** Refetch the loaded window from the start, capped at 500 rows. */
@@ -145,6 +147,10 @@ export function createFeed<T>(config: FeedConfig<T>): Feed<T> {
     error = null;
   }
 
+  function remove(key: string): void {
+    items = removeByKey(items, itemKey, key);
+  }
+
   async function loadMore(): Promise<void> {
     if (loading || nextCursor === null) return;
     // Without a sync the cursor belongs to the previous view; never append it.
@@ -207,6 +213,7 @@ export function createFeed<T>(config: FeedConfig<T>): Feed<T> {
       return error;
     },
     sync,
+    remove,
     loadMore,
     refreshLoaded,
   };
