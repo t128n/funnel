@@ -37,6 +37,16 @@ export function moveMatrixCell(
 }
 
 /**
+ * Below `lg` the matrix and the selected-cell detail stack with the grid
+ * first, so a tap changes a cell that is already above the fold while the
+ * result sits below it. At those widths selection must reveal the detail;
+ * on `lg+` the two columns are side by side and the page should not jump.
+ */
+export function revealsStackedSelection(viewportWidth: number): boolean {
+  return viewportWidth < 992;
+}
+
+/**
  * Project the board onto the fixed 3×3 grid (impact rows × urgency columns).
  * A pair missing from `board.cells` reads as zero, so an empty board still
  * lays out fully.

@@ -9,6 +9,7 @@
 		Button,
 		Input
 	} from '@sveltestrap/sveltestrap';
+	import ErrorState from '#lib/components/common/ErrorState.svelte';
 	import InlineStatus from '#lib/components/common/InlineStatus.svelte';
 	import PageHead from '#lib/components/common/PageHead.svelte';
 	import Spinner from '#lib/components/common/Spinner.svelte';
@@ -22,6 +23,7 @@
 	import IssueDetailsCard from '#lib/components/issue/IssueDetailsCard.svelte';
 	import IssuePropertiesCard from '#lib/components/issue/IssuePropertiesCard.svelte';
 	import { delayReasonLabel } from '#lib/components/issue/inspector-format';
+	import { statusSelection } from '#lib/components/issue/status-control';
 	import { weekHeadline } from '#lib/components/plan/format';
 	import {
 		scheduleErrorMessage,
@@ -67,6 +69,7 @@
 	} from '#lib/funnel-metadata';
 	import { issueThreadMarkdown, shouldScopeSelectAll } from '#lib/issue-copy';
 	import { timeAgo } from '#lib/client/clock.svelte';
+	import { isRetryable } from '#lib/errors';
 	import { canonicalLabel, isUntriaged } from '#lib/labels';
 	import {
 		derivePriorityOrNull,
@@ -76,7 +79,7 @@
 		parseUrgencyLabel,
 		urgencyLabel
 	} from '#lib/priority';
-	import { absoluteTime } from '#lib/time';
+	import { absoluteDate, absoluteTime } from '#lib/time';
 	import { ATTACHMENTS_FLAG, WORK_NOTES_FLAG } from '#lib/features';
 	import { canWrite } from '#lib/roles';
 	import type {
@@ -117,6 +120,8 @@
 	/** Newest comments requested; grown when the thread has earlier comments. */
 	let commentLimit = $state(DEFAULT_COMMENT_LIMIT);
 	let error = $state<string | null>(null);
+	/** HTTP status behind `error`; null means the request never reached the server. */
+	let errorStatus = $state<number | null>(null);
 	let busy = $state<string | null>(null);
 	/** Whether the viewer watches this issue (T5 surfaces it on the detail). */
 	let watching = $state(false);
@@ -217,7 +222,6 @@
 		`${detail?.bodyHtml ?? ''}:${detail?.comments.length ?? 0}:${detail?.workNotes.length ?? 0}`
 	);
 
-	const closed = $derived(issue?.state === 'closed');
 	const impactValue = $derived(issue?.impact ?? null);
 	const urgencyValue = $derived(issue?.urgency ?? null);
 
@@ -230,6 +234,10 @@
 	const githubLink = $derived(`${githubUrl}/${repo}/issues/${number}`);
 	/** Only show the composer once the issue has loaded. */
 	const canEdit = $derived(issue !== null && detail !== null);
+	/** A 404/410 is a dead end; the GitHub link cannot open anything either. */
+	const missingIssue = $derived(errorStatus === 404 || errorStatus === 410);
+	/** A network failure (no status) or a transient status may be retried. */
+	const canRetryLoad = $derived(errorStatus === null || isRetryable(errorStatus));
 
 	/** Guards against an out-of-order fetch clobbering a newer one. */
 	let loadSeq = 0;
@@ -257,9 +265,11 @@
 			metadataBlock = split.block;
 			editingBody = false;
 			editingTitle = false;
+			errorStatus = null;
 		} else {
 			detail = null;
 			error = result.error;
+			errorStatus = result.status ?? null;
 		}
 		loading = false;
 	}
@@ -480,6 +490,16 @@
 		return window.getSelection()?.isCollapsed ?? true;
 	}
 
+	/** Focus and select the title when the inline editor mounts. */
+	$effect(() => {
+		if (!editingTitle) return;
+		const field = document.getElementById('issue-title-input');
+		if (field instanceof HTMLInputElement) {
+			field.focus();
+			field.select();
+		}
+	});
+
 	function startTitleEdit() {
 		if (!mayWrite || !issue) return;
 		title = issue.title;
@@ -494,12 +514,30 @@
 
 	async function saveTitle() {
 		if (!editingTitle || busy) return;
+		const next = title.trim();
 		if (!titleDirty) {
 			editingTitle = false;
 			return;
 		}
-		const ok = await runPatch({ title: title.trim() }, 'title');
-		if (ok) editingTitle = false;
+		if (next.length === 0) {
+			setWriteError('Title cannot be empty.');
+			return;
+		}
+		const previous = issue?.title ?? '';
+		const ok = await runPatch({ title: next }, 'title');
+		if (ok) {
+			title = next;
+			editingTitle = false;
+			setWriteSuccess('Title updated.', () => void restoreTitle(previous));
+		}
+	}
+
+	async function restoreTitle(previous: string) {
+		const ok = await runPatch({ title: previous }, 'title');
+		if (ok) {
+			title = previous;
+			setWriteSuccess('Title restored.');
+		}
 	}
 
 	/**
@@ -594,21 +632,22 @@
 		}
 	}
 
-	async function setStatus(value: string | null) {
-		if (!value) return;
-		// Done is a state transition: reuse the structured close dialog rather
-		// than writing a label (SPEC §5.2.3).
-		if (value === 'done') {
+	async function setStatus(value: string | null): Promise<boolean> {
+		if (!value || !issue) return false;
+		const selection = statusSelection(value, issue);
+		if (selection.kind === 'ignore') return false;
+		// Done closes, and leaving Done reopens; both reuse the structured
+		// dialog because they require a resolution note (SPEC §5.2.3) and write
+		// nothing until the dialog is confirmed.
+		if (selection.kind === 'close') {
 			openDialog('close');
-			return;
+			return false;
 		}
-		// Leaving Done reopens the issue, which requires a note; carry the chosen
-		// status through the dialog so it applies after the state change.
-		if (closed) {
-			openDialog('reopen', value);
-			return;
+		if (selection.kind === 'reopen') {
+			openDialog('reopen', selection.status);
+			return false;
 		}
-		await runPatch({ status: value }, 'status');
+		return runPatch({ status: selection.status }, 'status');
 	}
 
 	/**
@@ -961,12 +1000,6 @@
 	</Button>
 {/snippet}
 
-{#snippet retryLoad()}
-	<Button color="link" size="sm" class="text-decoration-none px-1 py-0" onclick={() => void load()}>
-		Retry
-	</Button>
-{/snippet}
-
 {#snippet composer()}
 	<Composer
 		bind:value={comment}
@@ -998,31 +1031,62 @@
 
 			{#if issue}
 				{#if editingTitle}
-					<div class="d-flex min-w-0 align-items-center gap-2">
+					<form
+						class="mb-2"
+						onsubmit={(event) => {
+							event.preventDefault();
+							void saveTitle();
+						}}
+					>
+						<label class="form-label small text-body-secondary" for="issue-title-input">
+							Editing title
+						</label>
 						<Input
+							id="issue-title-input"
 							bsSize="lg"
-							class="min-w-0 flex-grow-1 border-0 bg-transparent px-0 fw-semibold shadow-none"
+							class="min-w-0 fw-semibold"
 							value={title}
 							oninput={(event) => (title = event.currentTarget.value)}
-							onblur={saveTitle}
 							onkeydown={(event) => {
 								if (event.key === 'Enter') {
 									event.preventDefault();
-									event.currentTarget.blur();
+									void saveTitle();
 								} else if (event.key === 'Escape') {
 									event.preventDefault();
 									cancelTitleEdit();
 								}
 							}}
 							aria-label="Issue title"
+							aria-describedby="issue-title-hint"
 							disabled={busy === 'title'}
 						/>
-						{#if busy === 'title'}
-							<Spinner size={14} />
-						{:else if titleDirty}
-							<Button color="primary" size="sm" onclick={saveTitle}>Save</Button>
-						{/if}
-					</div>
+						<div class="d-flex flex-wrap align-items-center gap-2 mt-2">
+							{#if busy === 'title'}
+								<Spinner size={14} />
+							{:else}
+								<Button
+									color="primary"
+									size="sm"
+									type="submit"
+									disabled={!titleDirty || busy !== null}
+								>
+									Save
+								</Button>
+								<Button
+									color="link"
+									size="sm"
+									class="text-decoration-none"
+									onclick={cancelTitleEdit}
+									disabled={busy !== null}
+								>
+									Cancel
+								</Button>
+							{/if}
+							<span id="issue-title-hint" class="small text-body-secondary">
+								Enter to save · Esc to cancel
+							</span>
+						</div>
+					</form>
 				{:else}
 					<!--
 						Plain text rather than an input: a rendered input value is not
@@ -1045,7 +1109,7 @@
 							}
 						}}
 					>
-						{title}
+						{issue.title}
 					</h1>
 				{/if}
 
@@ -1066,18 +1130,30 @@
 		</div>
 
 		<div class="d-flex flex-wrap align-items-center gap-2">
-			<Button
-				color="secondary"
-				outline
-				size="sm"
-				href={githubLink}
-				target="_blank"
-				rel="noreferrer"
-			>
-				<i class="bi bi-box-arrow-up-right me-1" aria-hidden="true"></i>
-				Open in GitHub
-			</Button>
+			{#if !missingIssue}
+				<Button
+					color="secondary"
+					outline
+					size="sm"
+					href={githubLink}
+					target="_blank"
+					rel="noreferrer"
+				>
+					<i class="bi bi-box-arrow-up-right me-1" aria-hidden="true"></i>
+					Open in GitHub
+				</Button>
+			{/if}
 			{#if issue}
+				<Button
+					color="secondary"
+					outline
+					size="sm"
+					href="#issue-properties"
+					class="d-none d-md-inline-block d-lg-none"
+				>
+					<i class="bi bi-sliders me-1" aria-hidden="true"></i>
+					Properties
+				</Button>
 				<Button
 					color="secondary"
 					outline
@@ -1147,16 +1223,20 @@
 			<Spinner size={16} label="Loading issue" />
 		</div>
 	{:else if error}
-		<div class="d-flex flex-column gap-2 py-4">
-			<InlineStatus tone="error" message={error} action={retryLoad} />
-			<p class="small mb-0">
-				<a href="/issues" class="link-primary">Return to Issues</a>
-			</p>
-		</div>
+		<ErrorState
+			status={missingIssue ? 404 : (errorStatus ?? 500)}
+			section="issues"
+			title={errorStatus === null ? 'Could not load this issue' : undefined}
+			description={errorStatus === null
+				? 'Could not reach the server. Check your connection and try again.'
+				: undefined}
+			onretry={canRetryLoad ? () => void load() : null}
+			retryable={canRetryLoad}
+		/>
 	{:else if issue && detail}
 		<div class="row g-4 mt-2">
 			<div
-				class="col-lg-8"
+				class="col-lg-8 order-2 order-md-1"
 				use:codeBlocks={contentKey}
 				use:mermaidDiagrams={contentKey}
 			>
@@ -1166,7 +1246,10 @@
 							<BlockedText />
 							{#if blockedState.info?.recheck}
 								<span class="small text-body-secondary">
-									Re-check {blockedState.info.recheck}
+									Re-check
+									<time datetime={blockedState.info.recheck}>
+										{absoluteDate(blockedState.info.recheck)}
+									</time>
 								</span>
 							{/if}
 						</div>
@@ -1339,7 +1422,7 @@
 				{/if}
 			</div>
 
-			<div class="col-lg-4">
+			<div class="col-lg-4 order-1 order-md-2">
 				<IssuePropertiesCard
 					{issue}
 					{detail}

@@ -4,8 +4,8 @@
 	"description": "A focused triage and delivery cockpit for GitHub issues.",
 	"start_url": "/",
 	"display": "standalone",
-	"background_color": "#191a1c",
-	"theme_color": "#3574f0",
+	"background_color": "#212529",
+	"theme_color": "#0060df",
 	"icons": [
 		{
 			"src": "/icon-192.png",

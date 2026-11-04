@@ -11,6 +11,7 @@ import {
   isOverdue,
   progressText,
   timelineRef,
+  timelineRowHeight,
   utcDay,
 } from "./timeline-format";
 
@@ -59,5 +60,16 @@ describe("timeline formatting", () => {
     );
     expect(timelineRef("acme/widgets", 3, { "acme/widgets": "WGT" })).toBe("WGT#3");
     expect(timelineRef("acme/widgets", 3)).toBe("acme/widgets#3");
+  });
+
+  test("sizes every label row to the tallest label content", () => {
+    // A short label keeps the compact minimum; the row adds its 1px border.
+    expect(timelineRowHeight([])).toBe(44);
+    expect(timelineRowHeight([21])).toBe(44);
+    // The wrapped metadata measured 57-71px before the fix; nothing may clip.
+    expect(timelineRowHeight([46, 57, 45])).toBe(58);
+    expect(timelineRowHeight([46, 71, 45])).toBe(72);
+    // Fractional layout heights round up and invalid readings are ignored.
+    expect(timelineRowHeight([57.2, Number.NaN], 40)).toBe(59);
   });
 });

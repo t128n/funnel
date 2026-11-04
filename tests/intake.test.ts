@@ -1,8 +1,10 @@
 import { beforeEach, describe, expect, test } from "bun:test";
+import { readFileSync } from "node:fs";
 import { db } from "#lib/server/db/index";
 import { stateIntakeSubmission } from "#lib/server/db/schema";
 import { getSubmission } from "#lib/server/intake/staging";
 import { resetEventBus, subscribe } from "#lib/server/sync/events";
+import { actions as intakeFormActions } from "#/routes/intake/+page.server";
 import { OPTIONS, POST } from "#/routes/api/intake/+server";
 
 function intakeReq(body: string): Request {
@@ -114,5 +116,65 @@ describe("OPTIONS /api/intake", () => {
     expect(res.headers.get("access-control-allow-headers")).toContain(
       "Content-Type",
     );
+  });
+});
+
+function submissionForm(fields: Record<string, string> = {}): Request {
+  const form = new FormData();
+  for (const [key, value] of Object.entries(fields)) form.set(key, value);
+  return new Request("http://x/intake", { method: "POST", body: form });
+}
+
+async function submitForm(fields: Record<string, string> = {}) {
+  return intakeFormActions.default!({
+    request: submissionForm(fields),
+  } as never);
+}
+
+/**
+ * The public form no longer relies on the native `required` bubble: empty and
+ * whitespace-only titles both reach the same server action and render the same
+ * persistent inline error. The action also returns the staged reference the
+ * success panel displays.
+ */
+describe("POST /intake form action", () => {
+  test("empty and whitespace-only titles fail with the same inline error", async () => {
+    const results = [await submitForm(), await submitForm({ title: "   " })];
+
+    for (const result of results) {
+      expect(result).toMatchObject({
+        status: 400,
+        data: {
+          error: "A title is required.",
+          title: "",
+          body: "",
+          source: "",
+        },
+      });
+    }
+  });
+
+  test("a valid submission returns the staging reference", async () => {
+    const result = (await submitForm({
+      title: "Crash on save",
+      body: "Steps to reproduce",
+    })) as { submitted?: boolean; ref?: string };
+
+    expect(result.submitted).toBe(true);
+    expect(result.ref).toBeString();
+    expect(getSubmission(result.ref ?? "")?.title).toBe("Crash on save");
+  });
+
+  test("the title is visibly required and linked to its help and error text", () => {
+    const page = readFileSync(
+      new URL("../src/routes/intake/+page.svelte", import.meta.url),
+      "utf8",
+    );
+
+    expect(page).toContain('aria-required="true"');
+    expect(page).toContain('aria-describedby={titleDescribedBy}');
+    expect(page).toContain('id="submission-title-help"');
+    expect(page).toContain('id="submission-title-error"');
+    expect(page).not.toMatch(/\n\s+required\n/);
   });
 });

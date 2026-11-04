@@ -36,7 +36,7 @@
 	{/if}
 
 	<Section
-		title="People"
+		title="People and roles"
 		description="Read can view the cockpit, write can also edit issues, and admin can manage settings and people."
 	>
 		<Table responsive class="table-sm align-middle">
