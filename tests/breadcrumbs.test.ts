@@ -51,6 +51,23 @@ describe("organization breadcrumbs", () => {
 		).toContain("{ label: 'Epics', href: '/epics' }");
 	});
 
+	test("Inbox and submission pages use the labelled wrapper", () => {
+		expect(source("src/routes/(app)/inbox/+page.svelte")).toContain(
+			"<Breadcrumbs items={[{ label: 'Workspace', href: '/issues' }, { label: 'Inbox' }]} />",
+		);
+		expect(
+			source("src/routes/(app)/inbox/submission/[id]/+page.svelte"),
+		).toContain(
+			"<Breadcrumbs items={[{ label: 'Inbox', href: '/inbox' }, { label: 'Submission' }]} />",
+		);
+	});
+
+	test("issue detail breadcrumb has the accessible name", () => {
+		expect(source("src/lib/components/issue/IssueDetailPage.svelte")).toContain(
+			'<Breadcrumb class="mb-2" aria-label="breadcrumb">',
+		);
+	});
+
 	test("milestone detail uses the breadcrumb instead of a back button", () => {
 		const detail = source(
 			"src/routes/(app)/milestones/[owner]/[repo]/[number]/+page.svelte",

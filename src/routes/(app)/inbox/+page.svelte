@@ -4,8 +4,6 @@
 	import { page } from '$app/state';
 	import {
 		Alert,
-		Breadcrumb,
-		BreadcrumbItem,
 		Button,
 		Input,
 		InputGroup,
@@ -14,6 +12,7 @@
 	import InlineStatus from '#lib/components/common/InlineStatus.svelte';
 	import PageHead from '#lib/components/common/PageHead.svelte';
 	import InboxTable from '#lib/components/inbox/InboxTable.svelte';
+	import Breadcrumbs from '#lib/components/shell/Breadcrumbs.svelte';
 	import PageHeader from '#lib/components/shell/PageHeader.svelte';
 	import { createFeed } from '#lib/client/feed.svelte';
 	import {
@@ -165,12 +164,7 @@
 />
 
 <main class="container-xl py-4">
-	<Breadcrumb class="mb-2">
-		<BreadcrumbItem>
-			<a href="/issues">Workspace</a>
-		</BreadcrumbItem>
-		<BreadcrumbItem active>Inbox</BreadcrumbItem>
-	</Breadcrumb>
+	<Breadcrumbs items={[{ label: 'Workspace', href: '/issues' }, { label: 'Inbox' }]} />
 
 	<PageHeader
 		title="Inbox"

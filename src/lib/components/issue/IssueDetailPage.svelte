@@ -981,7 +981,7 @@
 <div class="d-flex flex-column" bind:this={pageEl}>
 	<PageHead title={`${repo}#${number} · Issues`} />
 
-	<Breadcrumb class="mb-2">
+	<Breadcrumb class="mb-2" aria-label="breadcrumb">
 		<BreadcrumbItem>
 			<a href="/issues" class="link-primary text-decoration-none">Issues</a>
 		</BreadcrumbItem>

@@ -1,8 +1,9 @@
 <script lang="ts">
-	import { Breadcrumb, BreadcrumbItem, Button } from '@sveltestrap/sveltestrap';
+	import { Button } from '@sveltestrap/sveltestrap';
 	import EmptyState from '#lib/components/common/EmptyState.svelte';
 	import PageHead from '#lib/components/common/PageHead.svelte';
 	import SubmissionDetail from '#lib/components/inbox/SubmissionDetail.svelte';
+	import Breadcrumbs from '#lib/components/shell/Breadcrumbs.svelte';
 	import type { RenderedSubmission } from '#lib/server/issues/types';
 	import type { PageProps } from './$types';
 
@@ -24,12 +25,7 @@
 </script>
 
 <main class="container-xl py-4">
-	<Breadcrumb class="mb-2">
-		<BreadcrumbItem>
-			<a href="/inbox">Inbox</a>
-		</BreadcrumbItem>
-		<BreadcrumbItem active>Submission</BreadcrumbItem>
-	</Breadcrumb>
+	<Breadcrumbs items={[{ label: 'Inbox', href: '/inbox' }, { label: 'Submission' }]} />
 
 	{#if submission}
 		<PageHead title={`${submission.title} · Inbox`} />
