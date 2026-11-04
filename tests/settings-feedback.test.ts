@@ -9,6 +9,7 @@
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { isDirty } from "#lib/components/settings/settings-dirty";
+import { STATUS_OPTIONS } from "#lib/labels";
 
 function source(relative: string): string {
   return readFileSync(new URL(`../${relative}`, import.meta.url), "utf8");
@@ -79,5 +80,28 @@ describe("appearance theme radios", () => {
 
   test("keeps the local choice synchronized with the theme store", () => {
     expect(appearance).toContain("themeChoice.subscribe");
+  });
+});
+
+describe("deferred audit polish", () => {
+  const board = source("src/routes/(app)/settings/board/+page.svelte");
+  const projects = source("src/routes/(app)/settings/projects/+page.svelte");
+  const people = source("src/routes/(app)/settings/people/+page.svelte");
+
+  test("board WIP labels come from the shared status vocabulary", () => {
+    const labels = new Map(STATUS_OPTIONS.map((option) => [option.value, option.label]));
+
+    expect(labels.get("in-progress")).toBe("In Progress");
+    expect(labels.get("in-review")).toBe("In Review");
+    expect(board).toContain("STATUS_OPTIONS");
+    expect(board).toContain("stageLabel(stage)");
+    expect(board).not.toContain("text-capitalize");
+  });
+
+  test("Projects and People use distinct section headings", () => {
+    expect(projects).toContain('title="Configured projects"');
+    expect(projects).not.toContain('title="Projects"');
+    expect(people).toContain('title="People and roles"');
+    expect(people).not.toContain('title="People"');
   });
 });

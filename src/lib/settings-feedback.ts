@@ -6,6 +6,8 @@
  * every issue is mapped to the visible field label, its DOM selector and a
  * single sentence without internal keys.
  */
+import { STATUS_OPTIONS } from "#lib/labels";
+
 type WipStage = "backlog" | "todo" | "in-progress" | "in-review";
 
 /** One validator issue as returned by a settings save action. */
@@ -76,12 +78,7 @@ const FIELD_TARGETS: Record<string, FieldTarget> = {
 
 const FIELD_KEYS = Object.keys(FIELD_TARGETS).sort((a, b) => b.length - a.length);
 
-const WIP_LABELS: Record<WipStage, string> = {
-  backlog: "Backlog",
-  todo: "Todo",
-  "in-progress": "In Progress",
-  "in-review": "In Review"
-};
+const WIP_LABELS = new Map(STATUS_OPTIONS.map((option) => [option.value, option.label]));
 
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -138,7 +135,7 @@ function fieldFor(key: string | undefined): FieldTarget | undefined {
   if (key === "board.wip_limits") return FIELD_TARGETS["board.wip_limits"];
   if (key.startsWith("board.wip_limits.")) {
     const stage = key.slice("board.wip_limits.".length) as WipStage;
-    const label = WIP_LABELS[stage] ?? humanizeKey(stage);
+    const label = WIP_LABELS.get(stage) ?? humanizeKey(stage);
     return { label: `${label} work-in-progress limit`, selector: `#board-wip-${stage}` };
   }
 

@@ -58,7 +58,7 @@
 
 <SettingsForm form={form as SettingsFormResult | null} {payload}>
 	<Section
-		title="Projects"
+		title="Configured projects"
 		description="GitHub labels that mark an issue as belonging to a project; enables the Project group-by option in the issue feeds. The name defaults to the label."
 	>
 		<Table responsive class="table-sm align-middle">

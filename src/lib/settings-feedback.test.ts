@@ -36,13 +36,18 @@ describe("describeSettingsIssues", () => {
     expect(issue.text).not.toMatch(/intake\.default_repo/);
   });
 
-  test("labels a per-stage work-in-progress failure", () => {
-    const [issue] = describeSettingsIssues([
+  test("labels a per-stage work-in-progress failure with shared status names", () => {
+    const [todo] = describeSettingsIssues([
       { key: "board.wip_limits.todo", message: "board.wip_limits must be a number" },
     ]);
+    const [review] = describeSettingsIssues([
+      { key: "board.wip_limits.in-review", message: "board.wip_limits must be a number" },
+    ]);
 
-    expect(issue.text).toBe("Todo work-in-progress limit must be a whole number.");
-    expect(issue.selector).toBe("#board-wip-todo");
+    expect(todo.text).toBe("Todo work-in-progress limit must be a whole number.");
+    expect(todo.selector).toBe("#board-wip-todo");
+    expect(review.text).toBe("In Review work-in-progress limit must be a whole number.");
+    expect(review.selector).toBe("#board-wip-in-review");
   });
 
   test("deduplicates the same sentence and never exposes a dotted key", () => {
