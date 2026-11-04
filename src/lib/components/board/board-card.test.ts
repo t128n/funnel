@@ -92,6 +92,15 @@ describe('board cards', () => {
 		expect(source).toContain('use:draggableCard={dragPayload}');
 		expect(source).toContain('data-board-card={key}');
 	});
+
+	test('the actions menu escapes the lane scroller and virtualized cards', () => {
+		expect(source).toContain('use:fixedMenu');
+		expect(source).toContain('role="menu"');
+		expect(source).toContain('aria-expanded={menuOpen}');
+		// The stock menu would stay inside the lane's overflow container.
+		expect(source).not.toContain('DropdownMenu');
+		expect(source).not.toContain('DropdownToggle');
+	});
 });
 
 describe('board lanes', () => {
