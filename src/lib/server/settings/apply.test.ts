@@ -68,7 +68,9 @@ describe("saveSettings", () => {
     const result = saveSettings({ repos: [] });
 
     expect(result.ok).toBe(false);
-    if (!result.ok) expect(result.message).toMatch(/default_repo/);
+    if (!result.ok) {
+      expect(result.issues.some((issue) => issue.message.includes("default_repo"))).toBe(true);
+    }
     // The store is left untouched.
     expect(readSettings().repos).toEqual(BASE.repos);
   });
@@ -79,7 +81,22 @@ describe("saveSettings", () => {
     const result = saveSettings({ sync: { history_days: -1 } });
 
     expect(result.ok).toBe(false);
-    if (!result.ok) expect(result.issues.length).toBeGreaterThan(0);
+    if (!result.ok) {
+      expect(result.issues.length).toBeGreaterThan(0);
+      // The UI needs a stable field identity, not just the raw sentence.
+      expect(result.issues.some((issue) => issue.key === "sync.history_days")).toBe(true);
+    }
+  });
+
+  test("carries a field key for a cross-field configuration failure", () => {
+    writeSettings(BASE);
+
+    const result = saveSettings({ repos: [] });
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.issues.some((issue) => issue.key === "intake.default_repo")).toBe(true);
+    }
   });
 
   test("applies a valid patch", () => {
@@ -139,7 +156,9 @@ describe("saveSettings", () => {
     });
 
     expect(result.ok).toBe(false);
-    if (!result.ok) expect(result.message).toMatch(/unique/);
+    if (!result.ok) {
+      expect(result.issues.some((issue) => issue.message.includes("unique"))).toBe(true);
+    }
     expect(readSettings().planning.maintainers).toEqual([]);
   });
 

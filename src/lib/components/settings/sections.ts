@@ -28,14 +28,7 @@ export interface SettingsGroup {
 	sections: SettingsSection[];
 }
 
-/**
- * The `fail(...)` shape the `/settings/*` save actions return, shared by the
- * pages and the form component that renders the errors.
- */
-export interface SettingsFormResult {
-	message?: string;
-	issues?: string[];
-}
+export type { SettingsFormResult, SettingsIssue } from '#lib/settings-feedback';
 
 /**
  * Scoped like the cockpit sidebar: personal experience first, then the
