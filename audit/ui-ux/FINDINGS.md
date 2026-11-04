@@ -12,15 +12,15 @@
 | Metric | Value |
 | --- | ---: |
 | Workstreams (subagents) | 5 |
-| Route entries covered | 34 |
+| Route entries covered | 38 |
 | Interaction/state checks | ~210 |
 | Screenshots captured | 226 |
 | Raw findings | 67 |
 | New GitHub issues | 33 |
 | Existing issues confirmed/updated | 4 (#99, #100, #16, #15) |
 | Existing issues cross-referenced | 2 (#21, #19) |
-| Duplicate/overlapping findings consolidated | 14 |
-| Findings rejected or deferred | 15 |
+| Duplicate/overlapping findings consolidated | 11 |
+| Findings rejected or deferred | 12 |
 
 Priority distribution of the 33 new issues: **P1 × 4, P2 × 24, P3 × 5**.
 
