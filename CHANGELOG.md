@@ -1,5 +1,41 @@
 # funnel
 
+## 0.0.10
+
+### Patch Changes
+
+- f772bce: Paint the skip link above the navbar when focused, and raise dark-mode
+  secondary controls, success/danger text, and the composer shortcut hint above
+  the 4.5:1 contrast threshold.
+- 64744ac: Describe Attention dates as re-check dates: the page states the grouping, bucket and row labels say "Re-check", and an undated row shows "No re-check date" once.
+- 4bd23de: Remove moved cards from the source board lane immediately instead of waiting for a reload.
+- 1868e54: Fix the board card-actions menu being clipped by the lane scroller, and fit the board canvas to the viewport instead of a fixed 60svh box.
+- 1a1bf35: Bring the app icon, raster icons, web manifest theme colour and offline error page onto the current brand blue `#0060df`, and align the manifest splash background with the app's dark body. The `in-progress` GitHub label keeps its existing colour because it is a synced repository label.
+- d0022de: Move focus into every dialog, trap Tab inside it, expose it as a modal, and
+  return focus to the control that opened it.
+- 69417ba: Keep error and not-found surfaces inside the app navigation, use plain-language
+  per-section copy, and remove recovery actions that cannot succeed.
+- e50b75a: Mark the intake title as required, route empty and whitespace submissions through
+  the same persistent inline error, and show the staged submission reference on
+  success.
+- e948dc9: Use one absolute date format on issue detail: re-check dates read like the index, and delay start/end share the same formatted timestamp with the precise value in a tooltip.
+- e21fb88: Put search and the primary issue filters in one predictable toolbar, label the long-tail drawer, identify the My Issues view, and announce each priority's token exactly once.
+- fd0e1ff: Keep the issue index title readable at tablet width, keep label badges on the title line, and make each row a single keyboard stop.
+- 6b1bb84: Keep Inbox triage on the queue after accepting or dismissing a submission, refresh
+  the queue after a detail-page decision, and show a neutral no-match state instead
+  of the "Inbox is clear" success when a search filters out waiting items.
+- b0ad4f1: Put the Properties and Details rail before the conversation below `md` so status, assignee, and milestone are reachable without scrolling the whole issue, and add a Properties jump link on tablet widths.
+- 76ef060: Add one global search surface to the navbar and Mod+K, remove the redundant repository-scope control, close the mobile menu after every navigation, make navbar dropdowns keyboard-operable, show an active state on the More toggle for overflow destinations, restore the dark navbar boundary, and keep one labelled clear control in search fields.
+- 37e5a37: Keep notification titles readable on phones, expose every counted notification past the first 100, and separate blocked from workflow status so status cells always match their issue and filter.
+- 64744ac: Give organization pages a consistent labelled breadcrumb: Epics, Milestones, Notifications and Attention index/detail pages now share `Workspace / Section / current`, and every breadcrumb uses one `aria-label="breadcrumb"` wrapper.
+- 1dce8ab: Make the epic and milestone tables readable at every width, use the shared issue table on milestone detail, add a writer-only Add issues picker on milestones, and promote the epic Add child action to a compact primary button with task-focused dialog copy.
+- 607a339: Show planned issues that have no size as committed-but-unestimated work on the weekly plan instead of claiming the week is empty.
+- 291e802: Guard unsaved settings edits, make validation failures visible and actionable, show the active choice in the appearance theme radios, align the board WIP labels with the Board's status vocabulary, and give Projects and People distinct section headings.
+- d60be30: Simplify weekly planning and remove the daily planner. `/plan` is now a conventional Bootstrap document with a page heading, previous/next week buttons, a capacity table, a scheduled-issues table, an unassigned section only when relevant, and an unestimated table with an **Estimate** action. The old lane/progress-bar composition and the `/day`, availability, day-plan and calendar-feed surfaces are removed. The four legacy daily-planning tables remain in existing databases but are no longer read or written.
+- e948dc9: Keep the Properties status select on the issue's real value after a cancelled close or reopen, and make inline title editing an explicit Save/Cancel form with a hint and saved feedback.
+- f45b430: Make Matrix cell selection visible on mobile: fit all three urgency columns at stacked widths and scroll/focus the selected-cell detail after a tap or keyboard selection.
+- c49b243: Stop timeline milestone labels clipping and overlapping at desktop and tablet widths by sizing every label row to its tallest content and keeping the chart bands in sync.
+
 ## 0.0.9
 
 ### Patch Changes
