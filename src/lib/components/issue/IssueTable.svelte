@@ -18,6 +18,7 @@
 	import { issueRef } from '#lib/issue-ref';
 	import { canonicalLabel } from '#lib/labels';
 	import { isRetiredPriorityLabel } from '#lib/priority';
+	import { inlineLabels } from '#lib/components/issue/labels-inline';
 	import type { IssueListItem } from '#lib/server/issues/types';
 
 	/**
@@ -272,23 +273,37 @@
 					</tr>
 					{#if !collapsed}
 						{#each group.issues as issue (`${issue.repoId}:${issue.number}`)}
+							{@const labels = inlineLabels(labelsOf(issue))}
 							<tr class="issue-row" onclick={(event) => onRowClick(event, issue)}>
 								<td class="font-monospace small text-body-secondary text-nowrap d-none d-md-table-cell">
 									{refOf(issue)}
 								</td>
 								<td>
-									<div class="d-flex flex-wrap align-items-center gap-2">
+									<div class="d-flex align-items-center gap-2">
 										<a
 											href={issuePath('issues', issue.repo, issue.number)}
 											class="min-w-0 text-primary text-decoration-none text-break"
 										>
 											{titleOf(issue)}
 										</a>
-										{#each labelsOf(issue) as label (label)}
-											<Badge color="light" class="border fw-normal text-body-secondary">
-												{label}
-											</Badge>
-										{/each}
+										{#if labels.shown.length > 0}
+											<span class="d-inline-flex align-items-center gap-1 flex-shrink-0">
+												{#each labels.shown as label (label)}
+													<Badge color="light" class="border fw-normal text-body-secondary">
+														{label}
+													</Badge>
+												{/each}
+												{#if labels.overflow > 0}
+													<Badge
+														color="light"
+														class="border fw-normal text-body-secondary"
+														title={`${labels.overflow} more ${labels.overflow === 1 ? 'label' : 'labels'}`}
+													>
+														+{labels.overflow}
+													</Badge>
+												{/if}
+											</span>
+										{/if}
 									</div>
 									<div class="small text-body-secondary d-md-none mt-1 text-break">
 										<span class="font-monospace">{refOf(issue)}</span>

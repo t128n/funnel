@@ -22,6 +22,20 @@ describe('IssueTable keyboard model', () => {
 	});
 });
 
+describe('IssueTable title line', () => {
+	test('keeps labels in the title flow instead of wrapping them to a new line', () => {
+		expect(source).toContain('{@const labels = inlineLabels(labelsOf(issue))}');
+		expect(source).toContain('class="d-flex align-items-center gap-2"');
+		expect(source).toContain('class="d-inline-flex align-items-center gap-1 flex-shrink-0"');
+		expect(source).not.toContain('class="d-flex flex-wrap align-items-center gap-2"');
+		expect(source).toContain('+{labels.overflow}');
+	});
+
+	test('the mobile metadata line still exists below md', () => {
+		expect(source).toContain('small text-body-secondary d-md-none mt-1 text-break');
+	});
+});
+
 describe('IssueTable responsive columns', () => {
 	const columns = [...source.matchAll(/<th scope="col"[\s\S]*?<\/th>/g)].map((match) =>
 		match[0].replace(/\s+/g, ' ')
