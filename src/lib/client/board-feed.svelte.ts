@@ -13,6 +13,7 @@
  * Everything here is DOM-free; the stores are allocated during component init.
  */
 import { createFeed, type Feed, type FeedPage } from "#lib/client/feed.svelte";
+import { laneOwners, movedToAnotherLane } from "#lib/client/feed-merge";
 import {
   overlayRevisionValue,
   projectBoard,
@@ -148,6 +149,22 @@ export function createBoardFeed(
       if (!column) continue;
       labels.set(statusKey, column.label);
       columns[statusKey].sync(columnPage(column));
+    }
+
+    // A lane window can still hold a row from before a move when that row sits
+    // beyond the first page. The other lanes' authoritative pages prove it has
+    // left this one, so drop it before the projection reseeds.
+    const owners = laneOwners(
+      board.columns.map((column) => ({
+        key: column.key,
+        items: column.issues ?? [],
+      })),
+      issueKey,
+    );
+    for (const statusKey of BOARD_VIEW_KEYS) {
+      columns[statusKey].retain(
+        (issue) => !movedToAnotherLane(issueKey(issue), statusKey, owners),
+      );
     }
   }
 
