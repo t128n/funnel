@@ -67,6 +67,12 @@
 	const formError = $derived(
 		form?.error && !titleError && !bodyError ? form.error : null
 	);
+	/** Help text and the inline error share the title's description. */
+	const titleDescribedBy = $derived(
+		titleError
+			? 'submission-title-help submission-title-error'
+			: 'submission-title-help'
+	);
 
 	/** Resolve canonical source labels and keep unknown prefill values intact. */
 	const sourceOptions = $derived.by((): { value: string; label: string }[] => {
@@ -381,7 +387,9 @@
 
 			<FormGroup>
 				<div class="d-flex align-items-baseline justify-content-between gap-3">
-					<Label for="submission-title">Title</Label>
+					<Label for="submission-title">
+						Title <span class="text-danger" aria-hidden="true">*</span>
+					</Label>
 					{#if showCounter}
 						<span class="font-monospace small text-body-tertiary" aria-hidden="true">
 							{titleLength}/{INTAKE_TITLE_MAX}
@@ -396,14 +404,15 @@
 					type="text"
 					class="form-control"
 					class:is-invalid={Boolean(titleError)}
-					required
+					aria-required="true"
 					maxlength={INTAKE_TITLE_MAX}
 					placeholder="A short summary of the problem"
 					aria-invalid={titleError ? true : undefined}
-					aria-describedby={titleError ? 'submission-title-error' : undefined}
+					aria-describedby={titleDescribedBy}
 					onkeydown={onTitleKeydown}
 					oninput={markDirty}
 				/>
+				<FormText id="submission-title-help">Required.</FormText>
 				{#if titleError}
 					<FormFeedback id="submission-title-error" role="alert">
 						<i class="bi bi-exclamation-circle me-1" aria-hidden="true"></i>{titleError}
