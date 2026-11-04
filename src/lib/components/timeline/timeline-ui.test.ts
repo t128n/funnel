@@ -39,6 +39,14 @@ describe("timeline chart", () => {
 		expect(chart).toContain("overflow-x: auto");
 	});
 
+	test("lets the tallest label drive every row height so nothing clips", () => {
+		expect(chart).toContain("data-timeline-row-content");
+		expect(chart).toContain("timelineRowHeight");
+		expect(chart).toContain("min-height: var(--funnel-timeline-row)");
+		expect(chart).not.toMatch(/^\s*height:\s*var\(--funnel-timeline-row\)/m);
+		expect(chart).not.toMatch(/\.timeline-row\s*\{[^}]*overflow:\s*hidden/);
+	});
+
 	test("renders the legend in HTML, not in the canvas", () => {
 		for (const label of [
 			"Planned window",
