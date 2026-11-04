@@ -65,7 +65,7 @@ describe('board cards', () => {
 		expect(source).toContain('title={issue.title}');
 		expect(source).toContain('d-flex align-items-start gap-1 small lh-sm');
 		expect(source).toContain('PriorityText');
-		expect(source).toContain('StatusText blocked');
+		expect(source).toContain('BlockedText');
 		expect(source).toContain('board-card-meta');
 		expect(source).toContain('text-body-secondary');
 		expect(source).toContain('ms-auto');
