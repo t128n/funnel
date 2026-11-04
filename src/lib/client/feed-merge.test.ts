@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { appendUnique, mergeFirstPage } from "./feed-merge";
+import { appendUnique, mergeFirstPage, removeByKey } from "./feed-merge";
 import {
   flattenInboxRows,
   flattenIssueRows,
@@ -128,6 +128,22 @@ describe("appendUnique", () => {
   test("returns the loaded rows when the page is empty", () => {
     const keyOf = (item: unknown) => (item as { id: string }).id;
     expect(appendUnique([{ id: "a" }], [], keyOf)).toEqual([{ id: "a" }]);
+  });
+});
+
+describe("removeByKey", () => {
+  const keyOf = (item: unknown) => (item as { id: string }).id;
+
+  test("drops a deleted row without reordering the others", () => {
+    expect(removeByKey([{ id: "a" }, { id: "b" }, { id: "c" }], keyOf, "b")).toEqual([
+      { id: "a" },
+      { id: "c" },
+    ]);
+  });
+
+  test("returns the loaded rows when the key is absent", () => {
+    const loaded = [{ id: "a" }];
+    expect(removeByKey(loaded, keyOf, "missing")).toBe(loaded);
   });
 });
 

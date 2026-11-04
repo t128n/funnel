@@ -65,9 +65,11 @@ describe('Inbox table columns', () => {
 });
 
 describe('Inbox table triage', () => {
-	test('submissions accept and decline through the existing form actions', () => {
-		expect(source).toContain('?/accept');
-		expect(source).toContain('?/dismiss');
+	test('submissions accept and decline through the inbox route forms', () => {
+		expect(source).toContain('inboxActionUrl(page.url.search, \'accept\')');
+		expect(source).toContain('inboxActionUrl(page.url.search, \'dismiss\')');
+		expect(source).toContain('action={acceptAction}');
+		expect(source).toContain('action={dismissAction}');
 		expect(source).toContain('use:enhance');
 	});
 
