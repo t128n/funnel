@@ -1087,6 +1087,16 @@
 					color="secondary"
 					outline
 					size="sm"
+					href="#issue-properties"
+					class="d-none d-md-inline-block d-lg-none"
+				>
+					<i class="bi bi-sliders me-1" aria-hidden="true"></i>
+					Properties
+				</Button>
+				<Button
+					color="secondary"
+					outline
+					size="sm"
 					title={copied ? 'Copied' : 'Copy issue as Markdown'}
 					onclick={() => void copyThread()}
 				>
@@ -1165,7 +1175,7 @@
 	{:else if issue && detail}
 		<div class="row g-4 mt-2">
 			<div
-				class="col-lg-8"
+				class="col-lg-8 order-2 order-md-1"
 				use:codeBlocks={contentKey}
 				use:mermaidDiagrams={contentKey}
 			>
@@ -1348,7 +1358,7 @@
 				{/if}
 			</div>
 
-			<div class="col-lg-4">
+			<div class="col-lg-4 order-1 order-md-2">
 				<IssuePropertiesCard
 					{issue}
 					{detail}

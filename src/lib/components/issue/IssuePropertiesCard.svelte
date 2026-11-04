@@ -124,7 +124,7 @@
 	}
 </script>
 
-<Card class="mb-3">
+<Card id="issue-properties" class="mb-3">
 	<CardBody>
 		<h2 class="h6 mb-3">Properties</h2>
 
