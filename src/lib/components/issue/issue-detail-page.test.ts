@@ -22,6 +22,7 @@ const route = readFileSync(
 	"utf8",
 );
 const composer = readFileSync(new URL("../detail/Composer.svelte", import.meta.url), "utf8");
+const delays = readFileSync(new URL("./DelayList.svelte", import.meta.url), "utf8");
 
 describe("issue detail page", () => {
 	test("test_route_is_a_dedicated_page_with_an_8_4_document_and_rail", () => {
@@ -55,6 +56,20 @@ describe("issue detail page", () => {
 		expect(page).toContain("setStatus('backlog')");
 		expect(page).toContain('href="/inbox"');
 		expect(page).toContain("This issue is still in the Inbox and has not been triaged.");
+	});
+
+	test("test_dates_use_the_product_absolute_format_with_precise_tooltips", () => {
+		expect(page).toContain("import { absoluteDate, absoluteTime } from '#lib/time'");
+		expect(page).toContain("Re-check");
+		expect(page).toContain("datetime={blockedState.info.recheck}");
+		expect(page).toContain("{absoluteDate(blockedState.info.recheck)}");
+		expect(page).not.toContain("Re-check {blockedState.info.recheck}");
+		expect(delays).toContain("import { absoluteDateTime, absoluteTime } from '#lib/time'");
+		expect(delays).toContain("title={absoluteTime(row.startedAt)}");
+		expect(delays).toContain("title={absoluteTime(row.endedAt)}");
+		expect(delays).toContain("{absoluteDateTime(row.startedAt)}");
+		expect(delays).toContain("{absoluteDateTime(row.endedAt)}");
+		expect(delays).not.toContain("toLocaleString");
 	});
 
 	test("test_comments_keep_anchors_paging_and_cmd_enter", () => {

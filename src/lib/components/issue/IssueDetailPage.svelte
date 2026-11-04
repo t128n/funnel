@@ -76,7 +76,7 @@
 		parseUrgencyLabel,
 		urgencyLabel
 	} from '#lib/priority';
-	import { absoluteTime } from '#lib/time';
+	import { absoluteDate, absoluteTime } from '#lib/time';
 	import { ATTACHMENTS_FLAG, WORK_NOTES_FLAG } from '#lib/features';
 	import { canWrite } from '#lib/roles';
 	import type {
@@ -1225,7 +1225,10 @@
 							<StatusText blocked />
 							{#if blockedState.info?.recheck}
 								<span class="small text-body-secondary">
-									Re-check {blockedState.info.recheck}
+									Re-check
+									<time datetime={blockedState.info.recheck}>
+										{absoluteDate(blockedState.info.recheck)}
+									</time>
 								</span>
 							{/if}
 						</div>
