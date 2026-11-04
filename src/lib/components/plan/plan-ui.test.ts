@@ -120,6 +120,22 @@ describe("plan tables", () => {
 		expect(page).toContain("aria-label={`Estimate ${issueKey(issue)}`}");
 	});
 
+	test("test_planned_unsized_issues_are_visible_commitments", () => {
+		expect(page).toContain("const unsizedCommitted = $derived.by(");
+		expect(page).toContain("lane.unsizedIssues");
+		expect(page).toContain("unassigned.unsizedIssues");
+		expect(page).toContain(">Committed without an estimate<");
+		expect(page).toContain('data-testid="plan-unsized-table"');
+		expect(page).toContain("They are commitments and add");
+		expect(page).toContain("Needs estimate");
+		// The empty week must not claim nothing is planned while an unsized
+		// commitment exists.
+		expect(page).toContain(
+			"scheduled.length + unassigned.length + unsizedCommitted.length > 0",
+		);
+		expect(page).toContain("{lane.unsizedIssues.length} unsized");
+	});
+
 	test("test_mobile_columns_collapse_without_page_overflow", () => {
 		expect(page).toContain("d-none d-md-table-cell");
 		expect(page).toContain("d-md-none");

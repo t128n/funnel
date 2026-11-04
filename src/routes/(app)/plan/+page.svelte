@@ -61,7 +61,28 @@
 		return issues;
 	});
 
-	const hasPlannedWork = $derived(scheduled.length + unassigned.length > 0);
+	// Committed issues without a size are real commitments even though they add
+	// no minutes. They are shown in their own table and never hidden by the
+	// empty-week state.
+	const unsizedCommitted = $derived.by(() => {
+		const seen = new Set<string>();
+		const issues: PlanningIssue[] = [];
+		const add = (issue: PlanningIssue) => {
+			const key = issueKey(issue);
+			if (seen.has(key)) return;
+			seen.add(key);
+			issues.push(issue);
+		};
+		for (const lane of lanes) {
+			for (const issue of lane.unsizedIssues) add(issue);
+		}
+		for (const issue of data.weekPlan?.unassigned.unsizedIssues ?? []) add(issue);
+		return issues;
+	});
+
+	const hasPlannedWork = $derived(
+		scheduled.length + unassigned.length + unsizedCommitted.length > 0,
+	);
 
 	function issueKey(issue: PlanningIssue): string {
 		return `${issue.repo}#${issue.number}`;
@@ -232,6 +253,14 @@
 									</td>
 									<td class="font-monospace text-end text-nowrap">
 										{formatMinutes(lane.committedMinutes)}
+										{#if lane.unsizedIssues.length > 0}
+											<div
+												class="small text-body-secondary"
+												title="Planned but unestimated; not counted in the minutes above."
+											>
+												{lane.unsizedIssues.length} unsized
+											</div>
+										{/if}
 									</td>
 									<td
 										class="font-monospace text-end text-nowrap {lane.over ||
@@ -315,10 +344,86 @@
 					</div>
 				{:else}
 					<p class="border rounded px-3 py-2 text-body-secondary mb-0">
-						Nothing is scheduled to a maintainer this week.
+						{unsizedCommitted.length > 0
+							? 'No sized issues are scheduled to a maintainer this week.'
+							: 'Nothing is scheduled to a maintainer this week.'}
 					</p>
 				{/if}
 			</section>
+
+			{#if unsizedCommitted.length > 0}
+				<section class="mb-4">
+					<h2 class="h5 mb-2">Committed without an estimate</h2>
+					<p class="small text-body-secondary">
+						These issues are planned for this week but have no size. They are commitments and add
+						no minutes until estimated.
+					</p>
+					<div class="table-responsive border rounded" data-testid="plan-unsized-table">
+						<Table hover class="align-middle mb-0">
+							<thead class="table-light">
+								<tr>
+									<th
+										scope="col"
+										class="small text-body-secondary d-none d-md-table-cell"
+										style="width: 7rem;"
+									>
+										Issue
+									</th>
+									<th scope="col" class="small text-body-secondary">Title</th>
+									<th
+										scope="col"
+										class="small text-body-secondary d-none d-md-table-cell"
+										style="width: 8rem;"
+									>
+										Assignee
+									</th>
+									<th scope="col" class="small text-body-secondary text-end" style="width: 6rem;">
+										Estimate
+									</th>
+								</tr>
+							</thead>
+							<tbody>
+								{#each unsizedCommitted as issue (issueKey(issue))}
+									<tr>
+										<td
+											class="font-monospace small text-body-secondary text-nowrap d-none d-md-table-cell"
+										>
+											{issueKey(issue)}
+										</td>
+										<td>
+											<a
+												href={issuePath('issues', issue.repo, issue.number)}
+												class="text-primary text-decoration-none text-break"
+											>
+												{issue.title.trim() || 'Untitled'}
+											</a>
+											<div class="small text-body-secondary d-md-none mt-1 text-break">
+												<span class="font-monospace">{issueKey(issue)}</span>
+												<span class="mx-1" aria-hidden="true">·</span>
+												<span>{assigneesOf(issue) || '—'}</span>
+											</div>
+										</td>
+										<td class="small text-break d-none d-md-table-cell">
+											{assigneesOf(issue) || '—'}
+										</td>
+										<td class="text-end text-nowrap">
+											<Button
+												color="link"
+												size="sm"
+												href={issuePath('issues', issue.repo, issue.number)}
+												class="text-decoration-none"
+												aria-label={`Estimate ${issueKey(issue)}`}
+											>
+												Needs estimate
+											</Button>
+										</td>
+									</tr>
+								{/each}
+							</tbody>
+						</Table>
+					</div>
+				</section>
+			{/if}
 
 			{#if unassigned.length > 0}
 				<section class="mb-4">
