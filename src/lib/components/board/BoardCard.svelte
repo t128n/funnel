@@ -18,13 +18,6 @@
 </script>
 
 <script lang="ts">
-	import {
-		Button,
-		Dropdown,
-		DropdownItem,
-		DropdownMenu,
-		DropdownToggle
-	} from '@sveltestrap/sveltestrap';
 	import PriorityText from '#lib/components/common/PriorityText.svelte';
 	import RefText from '#lib/components/common/RefText.svelte';
 	import StatusText from '#lib/components/common/StatusText.svelte';
@@ -50,6 +43,7 @@
 	import { STATUS_OPTIONS } from '#lib/labels';
 	import type { IssueListItem, UserRef } from '#lib/server/issues/types';
 	import { cardData, draggableCard } from './dnd';
+	import { fixedMenu } from './fixed-menu';
 
 	/**
 	 * One draggable board card: a plain bordered item with stock Bootstrap
@@ -121,6 +115,9 @@
 
 	/** The `S` shortcut raises this card's menu via the shared focus store. */
 	let menuOpen = $state(false);
+	let menuTrigger = $state<HTMLButtonElement | null>(null);
+	let menuElement = $state<HTMLUListElement | null>(null);
+
 	$effect(() => {
 		if (getMenuRequestKey() === key) {
 			menuOpen = true;
@@ -132,8 +129,58 @@
 		}
 	});
 
+	// The menu is portaled to the body, so focus it explicitly once it exists.
+	// Keyboard users land on the first action instead of behind the lane.
+	$effect(() => {
+		if (!menuOpen) return;
+		const menu = menuElement;
+		if (!menu) return;
+		const first = menu.querySelector<HTMLElement>('[role^="menuitem"]');
+		first?.focus({ preventScroll: true });
+	});
+
 	function open() {
 		selectIssue(issue.repo, issue.number);
+	}
+
+	/** Close the menu and put focus back on the three-dots trigger. */
+	function closeMenu(focusTrigger = true) {
+		menuOpen = false;
+		if (focusTrigger) menuTrigger?.focus({ preventScroll: true });
+	}
+
+	function toggleMenu() {
+		if (menuOpen) closeMenu(false);
+		else menuOpen = true;
+	}
+
+	/** Run a menu action after closing the menu and restoring focus. */
+	function choose(action: () => void) {
+		closeMenu();
+		action();
+	}
+
+	/** Keep the portaled menu operable from the keyboard. */
+	function onMenuKeydown(event: KeyboardEvent) {
+		const menu = menuElement;
+		if (!menu) return;
+		if (event.key === 'Tab') {
+			closeMenu(false);
+			return;
+		}
+		if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return;
+
+		const items = [...menu.querySelectorAll<HTMLElement>('.dropdown-item:not(:disabled)')];
+		if (items.length === 0) return;
+		const at = items.indexOf(document.activeElement as HTMLElement);
+		let next: number;
+		if (event.key === 'Home') next = 0;
+		else if (event.key === 'End') next = items.length - 1;
+		else if (event.key === 'ArrowDown') next = at < 0 ? 0 : (at + 1) % items.length;
+		else next = at <= 0 ? items.length - 1 : at - 1;
+
+		event.preventDefault();
+		items[next]?.focus();
 	}
 
 	function onFocusOut(event: FocusEvent) {
@@ -181,47 +228,86 @@
 			<RefText value={ref} title={`${issue.repo}#${issue.number}`} class="text-reset" />
 		</span>
 
-		<Dropdown bind:isOpen={menuOpen}>
-			<DropdownToggle
-				color="link"
-				size="sm"
-				caret={false}
-				class="ms-auto flex-shrink-0 text-body-secondary text-decoration-none px-1"
-				aria-label="Issue actions"
-				title="Issue actions"
-			>
-				<i class="bi bi-three-dots" aria-hidden="true"></i>
-			</DropdownToggle>
-			<DropdownMenu class="board-card-menu">
-				<DropdownItem header>Move to…</DropdownItem>
-				{#each stageOptions as option (option.value)}
-					<DropdownItem
-						active={stage === option.value}
-						on:click={() => void moveToStatus(issue, option.value)}
+		<button
+			bind:this={menuTrigger}
+			type="button"
+			class="btn btn-link btn-sm ms-auto flex-shrink-0 text-body-secondary text-decoration-none px-1"
+			aria-label="Issue actions"
+			title="Issue actions"
+			aria-haspopup="menu"
+			aria-expanded={menuOpen}
+			onclick={toggleMenu}
+		>
+			<i class="bi bi-three-dots" aria-hidden="true"></i>
+		</button>
+	</div>
+
+	<!-- Portaled to `document.body` so the lane scroller and Virtua's `contain`
+	     cannot clip the menu or stack later cards over it. -->
+	{#if menuOpen && menuTrigger}
+		<ul
+			bind:this={menuElement}
+			class="dropdown-menu show board-card-menu"
+			role="menu"
+			aria-label="Issue actions"
+			use:fixedMenu={{
+				anchor: menuTrigger,
+				onClose: () => closeMenu()
+			}}
+			onkeydown={onMenuKeydown}
+		>
+			<li role="none"><h6 class="dropdown-header">Move to…</h6></li>
+			{#each stageOptions as option (option.value)}
+				<li role="none">
+					<button
+						type="button"
+						class="dropdown-item"
+						class:active={stage === option.value}
+						role="menuitemradio"
+						aria-checked={stage === option.value}
+						onclick={() => choose(() => void moveToStatus(issue, option.value))}
 					>
 						<i
 							class="bi {stage === option.value ? 'bi-check-lg' : 'bi-circle'} me-2 small"
 							aria-hidden="true"
 						></i>
 						<span class="text-truncate">{option.label}</span>
-					</DropdownItem>
-				{/each}
+					</button>
+				</li>
+			{/each}
 
-				<DropdownItem divider />
-				{#if canAssign}
-					<DropdownItem on:click={() => void assignToMe(issue, viewer!)}>
+			<li role="none"><hr class="dropdown-divider" /></li>
+			{#if canAssign}
+				<li role="none">
+					<button
+						type="button"
+						class="dropdown-item"
+						role="menuitem"
+						onclick={() => choose(() => void assignToMe(issue, viewer!))}
+					>
 						<i class="bi bi-person-plus me-2" aria-hidden="true"></i>
 						Assign to me
-					</DropdownItem>
-				{/if}
-				<DropdownItem
-					on:click={() => (issue.blocked ? requestUnblock(issue) : requestBlock(issue))}
+					</button>
+				</li>
+			{/if}
+			<li role="none">
+				<button
+					type="button"
+					class="dropdown-item"
+					role="menuitem"
+					onclick={() =>
+						choose(() => (issue.blocked ? requestUnblock(issue) : requestBlock(issue)))}
 				>
 					<i class="bi bi-slash-circle text-danger me-2" aria-hidden="true"></i>
 					{issue.blocked ? 'Unblock…' : 'Block…'}
-				</DropdownItem>
-				<DropdownItem
-					on:click={() => (closed ? requestReopen(issue) : requestClose(issue))}
+				</button>
+			</li>
+			<li role="none">
+				<button
+					type="button"
+					class="dropdown-item"
+					role="menuitem"
+					onclick={() => choose(() => (closed ? requestReopen(issue) : requestClose(issue)))}
 				>
 					{#if closed}
 						<i class="bi bi-arrow-counterclockwise me-2" aria-hidden="true"></i>
@@ -230,16 +316,18 @@
 						<i class="bi bi-check-circle me-2" aria-hidden="true"></i>
 						Close issue
 					{/if}
-				</DropdownItem>
+				</button>
+			</li>
 
-				<DropdownItem divider />
-				<DropdownItem on:click={open}>
+			<li role="none"><hr class="dropdown-divider" /></li>
+			<li role="none">
+				<button type="button" class="dropdown-item" role="menuitem" onclick={() => choose(open)}>
 					<i class="bi bi-box-arrow-up-right me-2" aria-hidden="true"></i>
 					Open details
-				</DropdownItem>
-			</DropdownMenu>
-		</Dropdown>
-	</div>
+				</button>
+			</li>
+		</ul>
+	{/if}
 
 	<h3 class="d-flex align-items-start gap-1 small lh-sm mb-0">
 		<span class="board-card-title min-w-0 text-body" title={issue.title}>

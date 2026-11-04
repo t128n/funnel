@@ -71,19 +71,22 @@
 
 	/**
 	 * Settle a decision without re-running `load()`: a full refresh would race
-	 * the SSE reconciliation and flicker the queue. The row was already removed
-	 * optimistically, so success only needs to leave the page; a failure
-	 * restores the row (the page stayed open throughout). The Inbox's inline
-	 * `formError` status surfaces the reason, with or without JavaScript.
+	 * the SSE reconciliation, flicker the queue, and 404 the detail route once
+	 * the submission is gone. The row was already removed optimistically, so
+	 * success only needs to leave the page; a failure restores the row (the page
+	 * stayed open throughout). The Inbox's inline `formError` status surfaces
+	 * the reason, with or without JavaScript.
 	 */
 	async function settle(
 		result: { type: string },
-		update: (opts?: { reset?: boolean; invalidateAll?: boolean }) => Promise<void>
+		update: (opts?: { reset?: boolean; refreshAll?: boolean }) => Promise<void>
 	) {
-		await update({ reset: false, invalidateAll: false });
+		await update({ reset: false, refreshAll: false });
 		pending = null;
 		if (result.type === 'success') {
-			clearSelection();
+			// Re-run the destination's load so the queue cannot come back with the
+			// consumed row still interactive.
+			clearSelection({ invalidateAll: true });
 			return;
 		}
 		restoreSubmission(submission.id);
@@ -265,7 +268,7 @@
 	onopenchange={(open) => (duplicating = open)}
 	onbegin={begin}
 	onresult={(ok) => {
-		if (ok) clearSelection();
+		if (ok) clearSelection({ invalidateAll: true });
 		else restoreSubmission(submission.id);
 	}}
 />

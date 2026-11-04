@@ -58,7 +58,7 @@
 
 <SettingsForm form={form as SettingsFormResult | null} {payload}>
 	<Section
-		title="Projects"
+		title="Configured projects"
 		description="GitHub labels that mark an issue as belonging to a project; enables the Project group-by option in the issue feeds. The name defaults to the label."
 	>
 		<Table responsive class="table-sm align-middle">
@@ -86,6 +86,7 @@
 						<tr>
 							<td>
 								<Input
+									id={`settings-project-${index}`}
 									bind:value={projects[index].label}
 									aria-label={`Project label ${index + 1}`}
 									placeholder="project1"
@@ -96,6 +97,7 @@
 							</td>
 							<td>
 								<Input
+									id={`settings-project-name-${index}`}
 									bind:value={projects[index].name}
 									aria-label={`Project name ${index + 1}`}
 									placeholder="Project One"

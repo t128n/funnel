@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { prioritySpokenLabel } from '#lib/components/common/priority-text';
+
 	interface Props {
 		priority?: string | null;
 		/** Render the level name beside the token. */
@@ -30,8 +32,8 @@
 	>
 		<span aria-hidden="true">{priority}</span>
 		{#if showName}
-			<span>{meta.name}</span>
+			<span aria-hidden="true">{meta.name}</span>
 		{/if}
-		<span class="visually-hidden">, {meta.name} priority</span>
+		<span class="visually-hidden">{prioritySpokenLabel(priority, meta.name)}</span>
 	</span>
 {/if}

@@ -34,10 +34,10 @@
 	 * canvas. There is no list/detail split — cards open the dedicated
 	 * `/issues/<owner>/<repo>/<n>` page, and `/board` never docks a pane.
 	 *
-	 * The canvas is not a fixed viewport frame: the document scrolls normally and
-	 * the page header, toolbar, and canvas share one container gutter. Each lane
-	 * keeps its own scroll window because the cards are virtualized per lane, so
-	 * infinite scroll stays independent per status.
+	 * The board owns the viewport height below the app bar: header, toolbar, and
+	 * canvas fill it, and each lane keeps its own scroll window because the
+	 * cards are virtualized per lane. Backlog is a list, not a lane, so its
+	 * canvas sizes to the rows instead of inheriting the board's frame.
 	 */
 	let { data }: PageProps = $props();
 
@@ -118,7 +118,7 @@
 
 <PageHead title="Board" description="Issues arranged by workflow status." />
 
-<main class="container-fluid px-3 px-lg-4 py-4">
+<main class="board-page container-fluid px-3 px-lg-4 py-4">
 	<PageHeader
 		title={backlogView ? 'Backlog' : 'Board'}
 		count={backlogView ? boardFeed.columns.backlog.total : total}
@@ -156,7 +156,9 @@
 
 	{#if backlogView}
 		<!-- Backlog rows open the dedicated issue page; no docked selection. -->
-		<div class="board-canvas d-flex flex-column overflow-hidden rounded border">
+		<div
+			class="board-canvas board-canvas--content d-flex flex-column overflow-hidden rounded border"
+		>
 			<IssueList
 				feed={boardFeed.columns.backlog}
 				project={(issues) =>
@@ -172,7 +174,7 @@
 		<!-- Each projected lane carries its own `total`, `nextCursor`,
 		     `loading`, and `loadMore`, so `StatusBoard` can wire infinite
 		     scroll without touching the feed stores. -->
-		<div class="board-canvas d-flex flex-column">
+		<div class="board-canvas board-canvas--lanes d-flex flex-column">
 			<StatusBoard
 				{board}
 				wipLimits={data.wipLimits}
@@ -210,12 +212,23 @@
 
 <style>
 	/*
-	 * Canvas geometry only. The page itself is in normal document flow, so the
-	 * header and toolbar scroll away like any other page; this box gives the
-	 * lanes a definite height so they can virtualize and paginate independently.
+	 * Canvas geometry only. The board is the one route that owns the viewport:
+	 * the app bar is in normal flow, and the page takes the rest so the lane
+	 * scrollers end at the bottom of the screen instead of at 60svh.
 	 */
-	.board-canvas {
-		height: 60svh;
+	.board-page {
+		height: calc(100dvh - var(--funnel-app-bar-height));
+		display: flex;
+		flex-direction: column;
+	}
+
+	.board-canvas--lanes {
+		flex: 1 1 auto;
 		min-height: 24rem;
+	}
+
+	/* Backlog is a list view: let the rows define the box, not the board frame. */
+	.board-canvas--content {
+		flex: 0 0 auto;
 	}
 </style>

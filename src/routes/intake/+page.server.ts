@@ -55,6 +55,6 @@ export const actions: Actions = {
     });
     publish({ type: "intake", action: "staged", id });
 
-    return { submitted: true };
+    return { submitted: true, ref: id };
   },
 };

@@ -24,6 +24,7 @@
  */
 import { eq } from "drizzle-orm";
 import * as v from "valibot";
+import type { SettingsIssue } from "#lib/settings-feedback";
 import { db } from "#lib/server/db/index";
 import { stateSetting } from "#lib/server/db/schema";
 import { createLogger } from "#lib/server/log";
@@ -279,8 +280,12 @@ export interface Settings {
 export class SettingsError extends Error {
   override name = "SettingsError";
 
-  constructor(readonly issues: string[]) {
-    super(`Invalid settings: ${issues.join("; ")}`);
+  constructor(readonly issues: SettingsIssue[]) {
+    super(
+      `Invalid settings: ${issues
+        .map((issue) => `${issue.key ? `${issue.key}: ` : ""}${issue.message}`)
+        .join("; ")}`,
+    );
   }
 }
 
@@ -461,13 +466,13 @@ function toEntries(input: SettingsInput): [SettingKey, unknown][] {
  */
 export function writeSettings(input: SettingsInput): void {
   const entries = toEntries(input);
-  const issues: string[] = [];
+  const issues: SettingsIssue[] = [];
   const encoded: [SettingKey, string | undefined][] = [];
 
   for (const [key, value] of entries) {
     const result = v.safeParse(defs[key].schema, value);
     if (!result.success) {
-      issues.push(...result.issues.map((issue) => `${key}: ${issue.message}`));
+      issues.push(...result.issues.map((issue) => ({ key, message: issue.message })));
       continue;
     }
     // `undefined` is not JSON-serializable and means "unset this key".

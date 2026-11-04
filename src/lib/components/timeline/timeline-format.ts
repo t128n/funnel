@@ -102,6 +102,26 @@ export function escapeHtml(value: string): string {
   });
 }
 
+/**
+ * One height shared by every label row and canvas band.
+ *
+ * A milestone label needs a title line plus a metadata line (and sometimes a
+ * status badge), so a fixed 44px row clips the content. The label rows and the
+ * ECharts bands must stay one-to-one, so every row gets the tallest measured
+ * content plus its bottom border; the minimum keeps the original compact row
+ * when a label happens to be short.
+ */
+export function timelineRowHeight(
+  contentHeights: readonly number[],
+  minimum = 44,
+): number {
+  let tallest = 0;
+  for (const height of contentHeights) {
+    if (Number.isFinite(height) && height > tallest) tallest = height;
+  }
+  return Math.max(minimum, Math.ceil(tallest) + 1);
+}
+
 /** `owner/name#number`, with the repo shortcode when one is configured. */
 export function timelineRef(
   repo: string,

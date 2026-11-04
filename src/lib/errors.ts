@@ -84,6 +84,84 @@ export function isServerError(status: number): boolean {
 	return status >= 500;
 }
 
+/**
+ * Whether a request can be retried without changing the URL or inputs. Only
+ * transient failures qualify; retrying a 4xx would repeat the same rejection.
+ */
+export function isRetryable(status: number): boolean {
+	return status >= 500 || status === 408 || status === 429;
+}
+
+/** True for the statuses that mean "this resource is not here". */
+export function isNotFound(status: number): boolean {
+	return status === 404 || status === 410;
+}
+
+/** An app area with its own not-found copy and recovery destination. */
+export type ErrorSection = 'app' | 'issues' | 'milestones' | 'epics' | 'inbox';
+
+/** A recovery destination for one error surface. */
+export interface ErrorRecovery {
+	href: string;
+	label: string;
+}
+
+const NOT_FOUND: Record<Exclude<ErrorSection, 'app'>, ErrorCopy> = {
+	issues: {
+		title: 'Issue not found',
+		description: 'This issue does not exist or is not available.',
+	},
+	milestones: {
+		title: 'Milestone not found',
+		description: 'This milestone does not exist or is not available.',
+	},
+	epics: {
+		title: 'Epic not found',
+		description: 'This epic does not exist or is not available.',
+	},
+	inbox: {
+		title: 'Submission not found',
+		description: 'This submission is no longer in the intake queue.',
+	},
+};
+
+const RECOVERY: Record<ErrorSection, ErrorRecovery> = {
+	app: { href: '/issues', label: 'Back to Issues' },
+	issues: { href: '/issues', label: 'Back to Issues' },
+	milestones: { href: '/milestones', label: 'Back to Milestones' },
+	epics: { href: '/epics', label: 'Back to Epics' },
+	inbox: { href: '/inbox', label: 'Back to Inbox' },
+};
+
+/** The section an error surface belongs to, derived from its pathname. */
+export function errorSection(pathname: string): ErrorSection {
+	if (pathname === '/issues' || pathname.startsWith('/issues/')) return 'issues';
+	if (pathname === '/milestones' || pathname.startsWith('/milestones/')) {
+		return 'milestones';
+	}
+	if (pathname === '/epics' || pathname.startsWith('/epics/')) return 'epics';
+	if (pathname === '/inbox' || pathname.startsWith('/inbox/')) return 'inbox';
+	return 'app';
+}
+
+/** The list a user should return to after an error in a section. */
+export function recoveryFor(section: ErrorSection): ErrorRecovery {
+	return RECOVERY[section];
+}
+
+/**
+ * Status copy for a section. A missing entity says what the user was looking
+ * for (issue, milestone, epic, submission) instead of a generic page 404, so
+ * the recovery link and the heading agree.
+ */
+export function describeStatus(
+	status: number,
+	section: ErrorSection = 'app',
+): ErrorCopy {
+	if (isNotFound(status) && section !== 'app') return NOT_FOUND[section];
+	return describeError(status);
+}
+
 /** The title/description for a status, with sensible fallbacks. */
 export function describeError(status: number): ErrorCopy {
 	const known = COPY[status];

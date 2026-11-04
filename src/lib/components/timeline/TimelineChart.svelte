@@ -21,6 +21,7 @@
 		isOverdue,
 		progressText,
 		timelineRef,
+		timelineRowHeight,
 	} from './timeline-format';
 
 	use([CustomChart, ScatterChart, GridComponent, TooltipComponent, AriaComponent, CanvasRenderer]);
@@ -114,9 +115,11 @@
 	function measure(): void {
 		if (labelColumn === null) return;
 		const head = labelColumn.querySelector<HTMLElement>('[data-timeline-head]');
-		const row = labelColumn.querySelector<HTMLElement>('[data-timeline-row]');
 		if (head !== null) headerHeight = head.getBoundingClientRect().height;
-		if (row !== null) rowHeight = row.getBoundingClientRect().height;
+		const contents = labelColumn.querySelectorAll<HTMLElement>('[data-timeline-row-content]');
+		rowHeight = timelineRowHeight(
+			[...contents].map((content) => content.getBoundingClientRect().height),
+		);
 	}
 
 	onMount(() => {
@@ -172,41 +175,44 @@
 					</div>
 					{#each datedRows as row (rowKey(row))}
 						<a
-							class="timeline-row d-flex flex-column justify-content-center gap-1 px-3 border-bottom text-reset text-decoration-none"
+							class="timeline-row d-flex flex-column justify-content-center px-3 border-bottom text-reset text-decoration-none"
 							data-timeline-row
 							href={milestonePath(row.repo, row.number)}
 							title={titleOf(row)}
+							style="min-height: {rowHeight}px"
 						>
-							<span class="d-flex min-w-0 flex-wrap align-items-center column-gap-2 row-gap-1">
-								<span class="min-w-0 text-truncate small text-body">
-									{titleOf(row)}
+							<span data-timeline-row-content class="d-flex min-w-0 flex-column gap-1">
+								<span class="d-flex min-w-0 flex-nowrap align-items-center column-gap-2">
+									<span class="min-w-0 text-truncate small text-body">
+										{titleOf(row)}
+									</span>
+									{#if isOverdue(row, now)}
+										<span class="d-inline-flex flex-shrink-0 align-items-center gap-1 small text-nowrap text-danger">
+											<i class="bi bi-exclamation-triangle" aria-hidden="true"></i>
+											Overdue
+										</span>
+									{:else if isAfterDue(row)}
+										<span class="d-inline-flex flex-shrink-0 align-items-center gap-1 small text-nowrap text-warning-emphasis">
+											<i class="bi bi-exclamation-triangle" aria-hidden="true"></i>
+											After due
+										</span>
+									{:else if row.startOn === null}
+										<span class="d-inline-flex flex-shrink-0 align-items-center gap-1 small text-nowrap text-body-tertiary">
+											<i class="bi bi-circle" aria-hidden="true"></i>
+											No start
+										</span>
+									{/if}
 								</span>
-								{#if isOverdue(row, now)}
-									<span class="d-inline-flex align-items-center gap-1 small text-nowrap text-danger">
-										<i class="bi bi-exclamation-triangle" aria-hidden="true"></i>
-										Overdue
+								<span
+									class="d-flex min-w-0 flex-wrap align-items-center column-gap-2 row-gap-1 small text-body-secondary"
+								>
+									<span class="font-monospace min-w-0 text-truncate d-none d-md-inline">
+										{timelineRef(row.repo, row.number, repoShortcodes)}
 									</span>
-								{:else if isAfterDue(row)}
-									<span class="d-inline-flex align-items-center gap-1 small text-nowrap text-warning-emphasis">
-										<i class="bi bi-exclamation-triangle" aria-hidden="true"></i>
-										After due
+									<span class="text-nowrap">Due {formatDay(row.dueOn)}</span>
+									<span class="text-nowrap">
+										{progressText(row)}
 									</span>
-								{:else if row.startOn === null}
-									<span class="d-inline-flex align-items-center gap-1 small text-nowrap text-body-tertiary">
-										<i class="bi bi-circle" aria-hidden="true"></i>
-										No start
-									</span>
-								{/if}
-							</span>
-							<span
-								class="d-flex min-w-0 flex-wrap align-items-center column-gap-2 row-gap-1 small text-body-secondary"
-							>
-								<span class="font-monospace min-w-0 text-truncate d-none d-md-inline">
-									{timelineRef(row.repo, row.number, repoShortcodes)}
-								</span>
-								<span class="text-nowrap">Due {formatDay(row.dueOn)}</span>
-								<span class="text-nowrap">
-									{progressText(row)}
 								</span>
 							</span>
 						</a>
@@ -328,8 +334,7 @@
 	}
 
 	.timeline-row {
-		height: var(--funnel-timeline-row);
-		overflow: hidden;
+		min-height: var(--funnel-timeline-row);
 	}
 
 	.timeline-row:focus-visible {

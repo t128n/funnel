@@ -2,11 +2,12 @@
 	import { untrack } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
-	import { Breadcrumb, BreadcrumbItem, Button, Input } from '@sveltestrap/sveltestrap';
+	import { Breadcrumb, BreadcrumbItem, Button } from '@sveltestrap/sveltestrap';
 	import PageHead from '#lib/components/common/PageHead.svelte';
 	import FeedSearch from '#lib/components/filter/FeedSearch.svelte';
 	import FilterPopover from '#lib/components/filter/FilterPopover.svelte';
 	import IssueTable from '#lib/components/issue/IssueTable.svelte';
+	import { issuesIdentity } from '#lib/components/issue/page-identity';
 	import type { GroupKey } from '#lib/components/issue/grouping';
 	import PageHeader from '#lib/components/shell/PageHeader.svelte';
 	import { createFeed } from '#lib/client/feed.svelte';
@@ -41,11 +42,18 @@
 
 	const filter = $derived(parseFilterParams(page.url.searchParams));
 
-	// Status and priority are single-choice in the toolbar. A URL carrying a
-	// multi-select (or a status/priority the toolbar does not offer) reads as
-	// "All" until the reader picks a value.
+	// State, status and priority are single-choice in the toolbar. A URL carrying
+	// a multi-select (or a value the toolbar does not offer) reads as "All" until
+	// the reader picks a value.
 	const STATUS_VALUES: readonly string[] = ['backlog', 'todo', 'in-progress', 'in-review'];
 	const PRIORITY_VALUES: readonly string[] = ['p1', 'p2', 'p3'];
+
+	const currentState = $derived.by((): 'open' | 'closed' | 'all' => {
+		const states = new Set(filter.states);
+		if (states.has('open') && states.has('closed')) return 'all';
+		if (states.has('closed')) return 'closed';
+		return 'open';
+	});
 
 	const STATUS_FILTER_OPTIONS = [
 		{ value: 'backlog', label: 'Backlog' },
@@ -107,12 +115,19 @@
 		groupOptions.some((option) => option.value === storedGroup) ? storedGroup : 'none'
 	);
 
-	// State is a scope switch owned by the Filters offcanvas, not a filter
-	// dimension, so it does not contribute to the header's filter count.
-	const filterCount = $derived(activeFilterCount({ ...filter, states: [] }));
+	// The header count and "Clear" cover every active dimension, including the
+	// search term, State and the My Issues scope. The "More filters" drawer
+	// counts and clears only the long-tail dimensions it owns.
+	const filterCount = $derived(activeFilterCount(filter));
 	const repoScope = $derived(filter.repos.length === 1 ? filter.repos[0] : null);
 
-	const HIDDEN_FILTERS = ['status', 'priority', 'assignee'] as const;
+	// `/issues?assignee=me` is the My Issues destination. It keeps the same
+	// table and filters but gets its own heading, description and document title.
+	const identity = $derived(issuesIdentity(filter));
+	const pageTitle = $derived(identity.title);
+	const pageDescription = $derived(identity.description);
+
+	const HIDDEN_FILTERS = ['state', 'status', 'priority', 'assignee'] as const;
 
 	function apply(patch: Partial<ClientFilter>) {
 		void goto(
@@ -126,6 +141,12 @@
 			buildFilterUrl(page.url.pathname, page.url.searchParams, EMPTY_CLIENT_FILTER),
 			{ reset: false }
 		);
+	}
+
+	function setState(value: string) {
+		apply({
+			states: value === 'all' ? ['open', 'closed'] : value === 'closed' ? ['closed'] : []
+		});
 	}
 
 	function setStatus(value: string) {
@@ -160,105 +181,105 @@
 	$effect(() => reconcileIssues(data.issues.items));
 </script>
 
-<PageHead
-	title="Issues"
-	description="Every open issue in the current scope, grouped for scanning."
-/>
+<PageHead title={pageTitle} description={pageDescription} />
 
 <main class="container-xl py-4">
-	<Breadcrumb class="mb-2">
+	<Breadcrumb aria-label="breadcrumb" class="mb-2">
 		<BreadcrumbItem><a href="/issues">Workspace</a></BreadcrumbItem>
-		<BreadcrumbItem active>Issues</BreadcrumbItem>
+		<BreadcrumbItem active>{pageTitle}</BreadcrumbItem>
 	</Breadcrumb>
 
-	<PageHeader
-		title="Issues"
-		count={issueFeed.total}
-		description="Every open issue in the current scope, grouped for scanning."
-	>
+	<PageHeader title={pageTitle} count={issueFeed.total} description={pageDescription}>
 		{#snippet actions()}
-			{#if filterCount > 0}
-				<Button
-					color="link"
-					size="sm"
-					class="text-decoration-none p-0"
-					onclick={clearFilters}
-				>
-					Clear {filterCount} active {filterCount === 1 ? 'filter' : 'filters'}
-				</Button>
-			{/if}
-			<FilterPopover
-				options={data.options}
-				allowNoStatus={false}
-				showState
-				hide={HIDDEN_FILTERS}
-				quiet
-			/>
-		{/snippet}
-	</PageHeader>
-
-	<div class="row g-2 align-items-center mb-3">
-		<div class="col-12 col-lg-4">
-			<FeedSearch size="sm" />
-		</div>
-
-		<div class="col-6 col-lg-2">
-			<Input
-				id="issue-status-filter"
-				type="select"
-				value={currentStatus}
-				on:change={(event) => setStatus(event.currentTarget.value)}
-				aria-label="Filter by status"
-			>
-				<option value="">All statuses</option>
-				{#each STATUS_FILTER_OPTIONS as option (option.value)}
-					<option value={option.value}>{option.label}</option>
-				{/each}
-			</Input>
-		</div>
-
-		<div class="col-6 col-lg-2">
-			<Input
-				id="issue-priority-filter"
-				type="select"
-				value={currentPriority}
-				on:change={(event) => setPriority(event.currentTarget.value)}
-				aria-label="Filter by priority"
-			>
-				<option value="">All priorities</option>
-				{#each PRIORITY_FILTER_OPTIONS as option (option.value)}
-					<option value={option.value}>{option.label}</option>
-				{/each}
-			</Input>
-		</div>
-
-		<div class="col-6 col-lg-2">
-			<Input
-				id="issue-assignee-filter"
-				type="select"
-				value={currentAssignee}
-				on:change={(event) => setAssignee(event.currentTarget.value)}
-				aria-label="Filter by assignee"
-			>
-				{#each assigneeOptions as option (option.value)}
-					<option value={option.value}>{option.label}</option>
-				{/each}
-			</Input>
-		</div>
-
-		<div class="col-6 col-lg-2">
-			<Input
+			<!-- Grouping is a view preference, not a filter; keeping it in the
+			     header leaves the single filter toolbar room for search. -->
+			<select
 				id="issue-group-filter"
-				type="select"
+				class="form-select form-select-sm w-auto"
 				value={currentGroup}
-				on:change={(event) => setGroupBy(event.currentTarget.value as GroupKey)}
+				onchange={(event) => setGroupBy(event.currentTarget.value as GroupKey)}
 				aria-label="Group issues by"
 			>
 				{#each groupOptions as option (option.value)}
 					<option value={option.value}>Group: {option.label}</option>
 				{/each}
-			</Input>
+			</select>
+		{/snippet}
+	</PageHeader>
+
+	<div class="issues-toolbar d-flex flex-wrap align-items-center gap-2 mb-3">
+		<div class="issues-search min-w-0">
+			<FeedSearch size="sm" />
 		</div>
+
+		<select
+			id="issue-state-filter"
+			class="form-select form-select-sm w-auto"
+			value={currentState}
+			onchange={(event) => setState(event.currentTarget.value)}
+			aria-label="Filter by state"
+		>
+			<option value="open">Open</option>
+			<option value="closed">Closed</option>
+			<option value="all">All</option>
+		</select>
+
+		<select
+			id="issue-status-filter"
+			class="form-select form-select-sm w-auto"
+			value={currentStatus}
+			onchange={(event) => setStatus(event.currentTarget.value)}
+			aria-label="Filter by status"
+		>
+			<option value="">All statuses</option>
+			{#each STATUS_FILTER_OPTIONS as option (option.value)}
+				<option value={option.value}>{option.label}</option>
+			{/each}
+		</select>
+
+		<select
+			id="issue-priority-filter"
+			class="form-select form-select-sm w-auto"
+			value={currentPriority}
+			onchange={(event) => setPriority(event.currentTarget.value)}
+			aria-label="Filter by priority"
+		>
+			<option value="">All priorities</option>
+			{#each PRIORITY_FILTER_OPTIONS as option (option.value)}
+				<option value={option.value}>{option.label}</option>
+			{/each}
+		</select>
+
+		<select
+			id="issue-assignee-filter"
+			class="form-select form-select-sm w-auto"
+			value={currentAssignee}
+			onchange={(event) => setAssignee(event.currentTarget.value)}
+			aria-label="Filter by assignee"
+		>
+			{#each assigneeOptions as option (option.value)}
+				<option value={option.value}>{option.label}</option>
+			{/each}
+		</select>
+
+		{#if filterCount > 0}
+			<Button
+				color="link"
+				size="sm"
+				class="text-decoration-none p-0 ms-auto"
+				onclick={clearFilters}
+			>
+				Clear {filterCount} active {filterCount === 1 ? 'filter' : 'filters'}
+			</Button>
+		{/if}
+
+		<FilterPopover
+			options={data.options}
+			allowNoStatus={false}
+			showState
+			hide={HIDDEN_FILTERS}
+			quiet
+		/>
 	</div>
 
 	<IssueTable
@@ -270,3 +291,25 @@
 		{repoScope}
 	/>
 </main>
+
+<style>
+	.issues-toolbar {
+		container: issues-toolbar / inline-size;
+	}
+
+	/*
+	 * The search competes with six controls inside the page container, not the
+	 * viewport. It keeps a readable basis at every width and owns a full row
+	 * once that container is too narrow to share.
+	 */
+	.issues-search {
+		flex: 1 1 22rem;
+		max-width: 100%;
+	}
+
+	@container issues-toolbar (max-width: 520px) {
+		.issues-search {
+			flex-basis: 100%;
+		}
+	}
+</style>

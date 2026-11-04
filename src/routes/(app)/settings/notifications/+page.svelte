@@ -56,6 +56,7 @@
 						<div class="small text-body-secondary">{control.description}</div>
 					</div>
 					<FormCheck
+						id={`notification-${control.key}`}
 						type="switch"
 						class="flex-shrink-0"
 						checked={on}
