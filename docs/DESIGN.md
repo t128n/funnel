@@ -46,6 +46,18 @@ Components must consume Bootstrap variables (`--bs-body-color`,
 `--bs-body-bg`, `--bs-tertiary-bg`, …) rather than hard-coded colours or
 parallel theme attributes.
 
+### Brand colour and the `in-progress` label
+
+The app icon, raster icons, manifest `theme_color` and the offline error page
+use `#0060df`. `static/favicon.svg` is the source of truth for the mark;
+`bun scripts/generate-icons.ts` regenerates the PNG and ICO set from it.
+
+The reserved `in-progress` label keeps GitHub colour `3574f0`. That colour is
+synced into every configured repository, so repainting it is an outward data
+migration rather than a theme tweak. **Decision (2026-11-04): keep the label
+vocabulary colour unchanged** and treat it as the label vocabulary's own value;
+revisit only with a deliberate label-sync migration.
+
 ## 3. Components
 
 Use Sveltestrap before raw Bootstrap markup:

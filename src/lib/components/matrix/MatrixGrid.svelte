@@ -174,6 +174,15 @@
 		margin-bottom: 0;
 	}
 
+	/* Below lg the grid is the full page width, so it can fit all three
+	   urgency columns instead of hiding the last one behind a horizontal
+	   scroll with no visible cue. */
+	@media (max-width: 991.98px) {
+		.matrix-table {
+			min-width: 0;
+		}
+	}
+
 	.matrix-axis-column {
 		width: 8rem;
 	}

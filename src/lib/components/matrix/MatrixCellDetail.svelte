@@ -66,6 +66,12 @@
 </div>
 
 <style>
+	/* Keep a focused detail heading clear of the viewport edge when a mobile
+	   cell selection scrolls it into view. */
+	h2 {
+		scroll-margin-top: 1rem;
+	}
+
 	.tnum {
 		font-variant-numeric: tabular-nums;
 	}

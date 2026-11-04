@@ -26,10 +26,7 @@
 	}: Props = $props();
 </script>
 
-<a
-	class="visually-hidden-focusable position-absolute top-0 start-0 m-2 p-2 bg-body border rounded"
-	href="#main">Skip to main content</a
->
+<a class="skip-link visually-hidden-focusable" href="#main">Skip to main content</a>
 
 <AppBar {user} {inboxCount} {dueCount} {unread} onsearch={onSearch} />
 <GlobalSearch {repoShortcodes} />

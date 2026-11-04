@@ -19,6 +19,7 @@
  * config/worker dependencies (which would form an import cycle).
  */
 import * as v from "valibot";
+import type { SettingsIssue } from "#lib/settings-feedback";
 import {
   ConfigError,
   resetConfigCache,
@@ -38,7 +39,28 @@ import {
 /** Outcome of a settings save, shaped for a SvelteKit form action. */
 export type SettingsSaveResult =
   | { ok: true }
-  | { ok: false; status: number; message: string; issues: string[] };
+  | { ok: false; status: number; message: string; issues: SettingsIssue[] };
+
+/**
+ * Convert valibot issues to the settings action shape. The path is the only
+ * stable field identity the UI can use; the raw message stays in logs while
+ * the client turns it into a visible label.
+ */
+function toIssues(issues: readonly v.BaseIssue<unknown>[]): SettingsIssue[] {
+  return issues.map((issue) => {
+    const path = issue.path
+      ?.map((item) => (typeof item.key === "symbol" ? "" : String(item.key)))
+      .filter(Boolean)
+      .join(".");
+    // Cross-field `v.check` issues have a root path but still name the setting
+    // they concern in the message; keep that key so the UI can label the field.
+    const key = path || issue.message.match(/\b[a-z][a-z0-9_]*(?:\.[a-z0-9_]+)+\b/)?.[0];
+    return {
+      ...(key ? { key } : {}),
+      message: issue.message,
+    };
+  });
+}
 
 /**
  * Validate a raw patch (e.g. a form's JSON payload) and apply it. Never throws
@@ -52,7 +74,7 @@ export function saveSettings(raw: unknown): SettingsSaveResult {
       ok: false,
       status: 400,
       message: "Settings could not be saved",
-      issues: parsed.issues.map((issue) => issue.message),
+      issues: toIssues(parsed.issues),
     };
   }
 
@@ -63,12 +85,20 @@ export function saveSettings(raw: unknown): SettingsSaveResult {
       return {
         ok: false,
         status: 400,
-        message: error.message,
+        message: "Some settings need attention",
         issues: error.issues,
       };
     }
     if (error instanceof ConfigError) {
-      return { ok: false, status: 400, message: error.message, issues: [] };
+      const cause = (error as { cause?: unknown }).cause;
+      return {
+        ok: false,
+        status: 400,
+        message: "Some settings need attention",
+        issues: Array.isArray(cause)
+          ? toIssues(cause as v.BaseIssue<unknown>[])
+          : [],
+      };
     }
     throw error;
   }

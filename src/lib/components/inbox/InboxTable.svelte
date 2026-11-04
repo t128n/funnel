@@ -21,7 +21,9 @@
 </script>
 
 <script lang="ts">
+	import type { ActionResult } from '$app/forms';
 	import { enhance } from '$app/forms';
+	import { page } from '$app/state';
 	import {
 		Alert,
 		Button,
@@ -34,6 +36,7 @@
 	} from '@sveltestrap/sveltestrap';
 	import Spinner from '#lib/components/common/Spinner.svelte';
 	import { timeAgo } from '#lib/client/clock.svelte';
+	import { inboxActionUrl } from '#lib/client/inbox';
 	import { mutate, overlayKey, removeSubmission, restoreSubmission } from '#lib/client/optimistic.svelte';
 	import { updateIssue } from '#lib/client/mutations';
 	import { issuePath, submissionPath } from '#lib/issue-url';
@@ -61,13 +64,19 @@
 		repos?: string[];
 		/** Intake's configured default repository. */
 		defaultRepo?: string;
+		/** Called after the server confirms a submission left the queue. */
+		onremove?: (key: string) => void;
+		/** Brief success feedback owned by the page-level status region. */
+		onnotice?: (message: string | null) => void;
 	}
 
 	let {
 		entries,
 		repoShortcodes = {},
 		repos = [],
-		defaultRepo = ''
+		defaultRepo = '',
+		onremove,
+		onnotice
 	}: Props = $props();
 
 	type SubmissionEntry = Extract<RenderedInboxEntry, { kind: 'submission' }>;
@@ -75,6 +84,12 @@
 
 	/** Accept/decline target, resolved the same way the detail page resolves it. */
 	const acceptRepo = $derived(defaultRepo.trim() || repos[0] || '');
+
+	// The forms live on `/inbox`, so the action must run on that same route.
+	// Keeping the current query in the action URL preserves the filter for a
+	// no-JS post too (SvelteKit strips only the leading `/<action>` parameter).
+	const acceptAction = $derived(inboxActionUrl(page.url.search, 'accept'));
+	const dismissAction = $derived(inboxActionUrl(page.url.search, 'dismiss'));
 
 	let busy = $state<Record<string, Busy>>({});
 	let error = $state<string | null>(null);
@@ -100,14 +115,28 @@
 
 	/** Hide a submission the moment its decision is submitted. */
 	function begin(id: string, state: Busy): void {
+		error = null;
+		onnotice?.(null);
 		setBusy(id, state);
 		removeSubmission(id);
 	}
 
 	/** Settle a decision: a failure puts the row back so it can be retried. */
-	function settle(id: string, ok: boolean): void {
+	function settle(id: string, result: ActionResult, verb: 'accepted' | 'dismissed'): void {
 		clearBusy(id);
-		if (!ok) restoreSubmission(id);
+		if (result.type === 'success') {
+			// The fresh first page omits the consumed submission, but the loaded
+			// window keeps its tail; drop the row so it cannot stay interactive.
+			onremove?.(`submission:${id}`);
+			onnotice?.(`Submission ${verb}. It is no longer in the queue.`);
+			return;
+		}
+		restoreSubmission(id);
+		const message =
+			result.type === 'failure' && typeof result.data?.message === 'string'
+				? result.data.message
+				: 'Could not complete the triage action. Try again.';
+		error = message;
 	}
 
 	async function triageIssue(issue: IssueListItem, status: string): Promise<void> {
@@ -202,13 +231,13 @@
 							<div class="d-inline-flex align-items-center justify-content-end gap-1">
 								<form
 									method="POST"
-									action={`${submissionPath(submission.id)}?/accept`}
+									action={acceptAction}
 									class="d-inline-flex"
 									use:enhance={() => {
 										begin(submission.id, 'accept');
 										return async ({ result, update }) => {
-											await update({ reset: false, invalidateAll: false });
-											settle(submission.id, result.type === 'success');
+											await update({ reset: false, navigate: false });
+											settle(submission.id, result, 'accepted');
 										};
 									}}
 								>
@@ -317,14 +346,14 @@
 		</Button>
 		<form
 			method="POST"
-			action={declining ? `${submissionPath(declining.submission.id)}?/dismiss` : ''}
+			action={dismissAction}
 			use:enhance={() => {
 				const id = declining?.submission.id;
 				if (!id) return;
 				begin(id, 'dismiss');
 				return async ({ result, update }) => {
-					await update({ reset: false, invalidateAll: false });
-					settle(id, result.type === 'success');
+					await update({ reset: false, navigate: false });
+					settle(id, result, 'dismissed');
 					declining = null;
 				};
 			}}

@@ -4,11 +4,14 @@
 	import Section from '#lib/components/settings/section.svelte';
 	import SettingsForm from '#lib/components/settings/settings-form.svelte';
 	import type { SettingsFormResult } from '#lib/components/settings/sections';
+	import { STATUS_OPTIONS } from '#lib/labels';
 	import type { PageProps } from './$types';
 
 	let { data, form }: PageProps = $props();
 
 	const wipStages = untrack(() => data.wipStages);
+	const wipLabels = new Map(STATUS_OPTIONS.map((option) => [option.value, option.label]));
+	const stageLabel = (stage: string): string => wipLabels.get(stage) ?? 'Unknown stage';
 	let doneDays = $state<number | null>(untrack(() => data.board.done_days));
 	let wipLimits = $state<Record<string, number | null>>(
 		untrack(() =>
@@ -49,7 +52,7 @@
 			{#each wipStages as stage (stage)}
 				<div class="col-sm-4">
 					<FormGroup spacing="">
-						<Label for={`board-wip-${stage}`} class="text-capitalize">{stage}</Label>
+						<Label for={`board-wip-${stage}`}>{stageLabel(stage)}</Label>
 						<Input
 							id={`board-wip-${stage}`}
 							type="number"

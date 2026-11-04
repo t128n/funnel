@@ -73,7 +73,7 @@
 
 {#snippet epicActions()}
 	{#if mayWrite}
-		<Button onclick={() => (dialogOpen = true)}>
+		<Button color="primary" size="sm" onclick={() => (dialogOpen = true)}>
 			<i class="bi bi-plus-lg me-1" aria-hidden="true"></i>
 			Add child
 		</Button>
