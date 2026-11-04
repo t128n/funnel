@@ -2,6 +2,7 @@
 	import { Button, Table } from '@sveltestrap/sveltestrap';
 	import EmptyState from '#lib/components/common/EmptyState.svelte';
 	import PageHead from '#lib/components/common/PageHead.svelte';
+	import Breadcrumbs from '#lib/components/shell/Breadcrumbs.svelte';
 	import StatusText from '#lib/components/common/StatusText.svelte';
 	import ProgressBar from '#lib/components/epics/ProgressBar.svelte';
 	import PageHeader from '#lib/components/shell/PageHeader.svelte';
@@ -27,6 +28,8 @@
 <PageHead title="Milestones" />
 
 <main class="container-xl py-4">
+	<Breadcrumbs items={[{ label: 'Workspace', href: '/issues' }, { label: 'Milestones' }]} />
+
 	<PageHeader title="Milestones">
 		{#snippet actions()}
 			<Button color="outline-secondary" href="/timeline">

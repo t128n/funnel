@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { Button } from '@sveltestrap/sveltestrap';
 	import PageHead from '#lib/components/common/PageHead.svelte';
+	import Breadcrumbs from '#lib/components/shell/Breadcrumbs.svelte';
 	import EmptyState from '#lib/components/common/EmptyState.svelte';
 	import EpicList from '#lib/components/epics/EpicList.svelte';
 	import PageHeader from '#lib/components/shell/PageHeader.svelte';
@@ -19,6 +20,8 @@
 <PageHead title="Epics" />
 
 <main class="container-xl py-4">
+	<Breadcrumbs items={[{ label: 'Workspace', href: '/issues' }, { label: 'Epics' }]} />
+
 	<PageHeader title="Epics" count={`${openCount} open · ${epics.length} total`} />
 
 	{#if epics.length === 0}

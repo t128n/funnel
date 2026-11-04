@@ -5,6 +5,7 @@
 	import EmptyState from '#lib/components/common/EmptyState.svelte';
 	import InlineStatus from '#lib/components/common/InlineStatus.svelte';
 	import PageHead from '#lib/components/common/PageHead.svelte';
+	import Breadcrumbs from '#lib/components/shell/Breadcrumbs.svelte';
 	import Spinner from '#lib/components/common/Spinner.svelte';
 	import PageHeader from '#lib/components/shell/PageHeader.svelte';
 	import { timeAgo } from '#lib/client/clock.svelte';
@@ -181,6 +182,8 @@
 />
 
 <main class="container-xl py-4">
+	<Breadcrumbs items={[{ label: 'Workspace', href: '/issues' }, { label: 'Notifications' }]} />
+
 	<PageHeader
 		title="Notifications"
 		count={unreadCount > 0 ? `${unreadCount} unread` : undefined}

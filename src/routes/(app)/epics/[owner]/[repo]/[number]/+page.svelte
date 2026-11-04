@@ -4,6 +4,7 @@
 	import InlineStatus from '#lib/components/common/InlineStatus.svelte';
 	import PageHead from '#lib/components/common/PageHead.svelte';
 	import AddChildDialog from '#lib/components/epics/AddChildDialog.svelte';
+	import Breadcrumbs from '#lib/components/shell/Breadcrumbs.svelte';
 	import EpicChildTable from '#lib/components/epics/EpicChildTable.svelte';
 	import EpicRollups from '#lib/components/epics/EpicRollups.svelte';
 	import {
@@ -90,6 +91,14 @@
 	<PageHead title={epic.title || 'Epic'} />
 
 	<main class="container-xl py-4">
+		<Breadcrumbs
+			items={[
+				{ label: 'Workspace', href: '/issues' },
+				{ label: 'Epics', href: '/epics' },
+				{ label: epic.ref }
+			]}
+		/>
+
 		<PageHeader title={epic.title || 'Untitled epic'} actions={epicActions} />
 
 		<div class="d-flex flex-column gap-3 pb-2">

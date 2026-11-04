@@ -4,6 +4,7 @@
 	import { Button } from '@sveltestrap/sveltestrap';
 	import AttentionRow from '#lib/components/attention/AttentionRow.svelte';
 	import PageHead from '#lib/components/common/PageHead.svelte';
+	import Breadcrumbs from '#lib/components/shell/Breadcrumbs.svelte';
 	import EmptyState from '#lib/components/common/EmptyState.svelte';
 	import BlockActionDialog from '#lib/components/board/BlockActionDialog.svelte';
 	import ViewSegment from '#lib/components/filter/ViewSegment.svelte';
@@ -114,6 +115,8 @@
 />
 
 <main class="container-xl py-4">
+	<Breadcrumbs items={[{ label: 'Workspace', href: '/issues' }, { label: 'Attention' }]} />
+
 	<PageHeader title="Attention" count={countLabel} />
 
 	<Toolbar>
