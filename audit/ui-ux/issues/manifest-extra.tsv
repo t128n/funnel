@@ -1,0 +1,2 @@
+32	fix(a11y): every issue row is a second, empty tab stop	bug,p2,todo,sm,accessibility
+33	fix(issues): mobile detail buries Properties after the entire thread	bug,p2,todo,sm

@@ -1,0 +1,31 @@
+01	fix(board): card actions menu is clipped and unusable	bug,p1,todo,md
+02	fix(board): moved cards remain in the source lane until reload	bug,p1,todo,md
+03	fix(issues): title column collapses at tablet width	bug,p1,todo,sm
+04	fix(inbox): triage actions end on a 404 and leave stale queue state	bug,p1,todo,lg
+05	fix(search): navbar search is page-local and promises unsupported lookups	bug,p2,todo,lg
+06	fix(nav): mobile menu stays open after navigation	bug,p2,todo,sm
+07	fix(nav): overflow destinations have no visible current-page state	bug,p2,todo,sm
+08	fix(nav): breadcrumbs are missing and unlabelled	bug,p2,todo,sm
+09	fix(a11y): skip link is painted under the navbar	bug,p2,todo,sm,accessibility
+10	fix(a11y): dialogs do not move or trap focus	bug,p2,todo,md,accessibility
+11	fix(settings): unsaved edits are discarded without warning	bug,p2,todo,md
+12	fix(settings): validation errors are invisible, duplicated, and leak internal keys	bug,p2,todo,md
+13	fix(responsive): epics and milestones tables overflow on tablet and mobile	bug,p2,todo,md
+14	fix(notifications): titles truncate on mobile and items past 100 are unreachable	bug,p2,todo,md
+15	fix(status): status cells show Blocked or Unconfirmed instead of the real status	bug,p2,todo,sm
+16	fix(epics): epic titles are not links	bug,p2,todo,sm
+17	fix(milestones): overdue milestones look identical to future ones	bug,p2,todo,sm
+18	fix(plan): planned issues without a size disappear from the plan	bug,p2,todo,sm
+19	fix(day): page overflows horizontally at 390px	bug,p2,todo,sm
+20	fix(timeline): milestone labels are clipped and overlap	bug,p2,todo,md
+21	fix(matrix): mobile cell selection gives no visible result	bug,p2,todo,sm
+22	fix(a11y): text and control contrast fails in light and dark themes	bug,p2,todo,md,accessibility
+23	fix(errors): not-found pages lose the shell and offer dead recovery actions	bug,p2,todo,md
+24	fix(filters): filtering is split across two surfaces and an offcanvas	bug,p2,todo,md
+25	fix(inbox): no-match search shows "Inbox is clear"	bug,p2,todo,sm
+26	fix(issues): cancelling close/reopen leaves status select out of sync	bug,p2,todo,sm
+27	fix(a11y): navbar dropdowns lack Escape, arrow keys, and selected-state semantics	bug,p3,todo,md,accessibility
+28	fix(settings): appearance radio group shows no current theme	bug,p3,todo,sm
+29	fix(day): planned candidates remain addable and overlap errors offer an impossible retry	bug,p3,todo,sm
+30	fix(issues): inline title editing commits on blur with no save or cancel	bug,p3,todo,sm
+31	fix(intake): required field and success reference are missing	bug,p3,todo,sm

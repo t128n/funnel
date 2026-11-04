@@ -1,0 +1,33 @@
+01	108	fix(board): card actions menu is clipped and unusable
+02	109	fix(board): moved cards remain in the source lane until reload
+03	110	fix(issues): title column collapses at tablet width
+04	111	fix(inbox): triage actions end on a 404 and leave stale queue state
+05	112	fix(search): navbar search is page-local and promises unsupported lookups
+06	113	fix(nav): mobile menu stays open after navigation
+07	114	fix(nav): overflow destinations have no visible current-page state
+08	115	fix(nav): breadcrumbs are missing and unlabelled
+09	116	fix(a11y): skip link is painted under the navbar
+10	117	fix(a11y): dialogs do not move or trap focus
+11	118	fix(settings): unsaved edits are discarded without warning
+12	119	fix(settings): validation errors are invisible, duplicated, and leak internal keys
+13	120	fix(responsive): epics and milestones tables overflow on tablet and mobile
+14	121	fix(notifications): titles truncate on mobile and items past 100 are unreachable
+15	122	fix(status): status cells show Blocked or Unconfirmed instead of the real status
+16	123	fix(epics): epic titles are not links
+17	124	fix(milestones): overdue milestones look identical to future ones
+18	125	fix(plan): planned issues without a size disappear from the plan
+19	126	fix(day): page overflows horizontally at 390px
+20	127	fix(timeline): milestone labels are clipped and overlap
+21	128	fix(matrix): mobile cell selection gives no visible result
+22	129	fix(a11y): text and control contrast fails in light and dark themes
+23	130	fix(errors): not-found pages lose the shell and offer dead recovery actions
+24	131	fix(filters): filtering is split across two surfaces and an offcanvas
+25	132	fix(inbox): no-match search shows "Inbox is clear"
+26	133	fix(issues): cancelling close/reopen leaves status select out of sync
+27	134	fix(a11y): navbar dropdowns lack Escape, arrow keys, and selected-state semantics
+28	135	fix(settings): appearance radio group shows no current theme
+29	136	fix(day): planned candidates remain addable and overlap errors offer an impossible retry
+30	137	fix(issues): inline title editing commits on blur with no save or cancel
+31	138	fix(intake): required field and success reference are missing
+32	139	fix(a11y): every issue row is a second, empty tab stop
+33	140	fix(issues): mobile detail buries Properties after the entire thread
