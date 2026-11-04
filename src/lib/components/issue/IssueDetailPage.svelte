@@ -9,6 +9,7 @@
 		Button,
 		Input
 	} from '@sveltestrap/sveltestrap';
+	import ErrorState from '#lib/components/common/ErrorState.svelte';
 	import InlineStatus from '#lib/components/common/InlineStatus.svelte';
 	import PageHead from '#lib/components/common/PageHead.svelte';
 	import Spinner from '#lib/components/common/Spinner.svelte';
@@ -66,6 +67,7 @@
 	} from '#lib/funnel-metadata';
 	import { issueThreadMarkdown, shouldScopeSelectAll } from '#lib/issue-copy';
 	import { timeAgo } from '#lib/client/clock.svelte';
+	import { isRetryable } from '#lib/errors';
 	import { canonicalLabel, isUntriaged } from '#lib/labels';
 	import {
 		derivePriorityOrNull,
@@ -116,6 +118,8 @@
 	/** Newest comments requested; grown when the thread has earlier comments. */
 	let commentLimit = $state(DEFAULT_COMMENT_LIMIT);
 	let error = $state<string | null>(null);
+	/** HTTP status behind `error`; null means the request never reached the server. */
+	let errorStatus = $state<number | null>(null);
 	let busy = $state<string | null>(null);
 	/** Whether the viewer watches this issue (T5 surfaces it on the detail). */
 	let watching = $state(false);
@@ -229,6 +233,10 @@
 	const githubLink = $derived(`${githubUrl}/${repo}/issues/${number}`);
 	/** Only show the composer once the issue has loaded. */
 	const canEdit = $derived(issue !== null && detail !== null);
+	/** A 404/410 is a dead end; the GitHub link cannot open anything either. */
+	const missingIssue = $derived(errorStatus === 404 || errorStatus === 410);
+	/** A network failure (no status) or a transient status may be retried. */
+	const canRetryLoad = $derived(errorStatus === null || isRetryable(errorStatus));
 
 	/** Guards against an out-of-order fetch clobbering a newer one. */
 	let loadSeq = 0;
@@ -256,9 +264,11 @@
 			metadataBlock = split.block;
 			editingBody = false;
 			editingTitle = false;
+			errorStatus = null;
 		} else {
 			detail = null;
 			error = result.error;
+			errorStatus = result.status ?? null;
 		}
 		loading = false;
 	}
@@ -960,12 +970,6 @@
 	</Button>
 {/snippet}
 
-{#snippet retryLoad()}
-	<Button color="link" size="sm" class="text-decoration-none px-1 py-0" onclick={() => void load()}>
-		Retry
-	</Button>
-{/snippet}
-
 {#snippet composer()}
 	<Composer
 		bind:value={comment}
@@ -1065,17 +1069,19 @@
 		</div>
 
 		<div class="d-flex flex-wrap align-items-center gap-2">
-			<Button
-				color="secondary"
-				outline
-				size="sm"
-				href={githubLink}
-				target="_blank"
-				rel="noreferrer"
-			>
-				<i class="bi bi-box-arrow-up-right me-1" aria-hidden="true"></i>
-				Open in GitHub
-			</Button>
+			{#if !missingIssue}
+				<Button
+					color="secondary"
+					outline
+					size="sm"
+					href={githubLink}
+					target="_blank"
+					rel="noreferrer"
+				>
+					<i class="bi bi-box-arrow-up-right me-1" aria-hidden="true"></i>
+					Open in GitHub
+				</Button>
+			{/if}
 			{#if issue}
 				<Button
 					color="secondary"
@@ -1146,12 +1152,16 @@
 			<Spinner size={16} label="Loading issue" />
 		</div>
 	{:else if error}
-		<div class="d-flex flex-column gap-2 py-4">
-			<InlineStatus tone="error" message={error} action={retryLoad} />
-			<p class="small mb-0">
-				<a href="/issues" class="link-primary">Return to Issues</a>
-			</p>
-		</div>
+		<ErrorState
+			status={missingIssue ? 404 : (errorStatus ?? 500)}
+			section="issues"
+			title={errorStatus === null ? 'Could not load this issue' : undefined}
+			description={errorStatus === null
+				? 'Could not reach the server. Check your connection and try again.'
+				: undefined}
+			onretry={canRetryLoad ? () => void load() : null}
+			retryable={canRetryLoad}
+		/>
 	{:else if issue && detail}
 		<div class="row g-4 mt-2">
 			<div
