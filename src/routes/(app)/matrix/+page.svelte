@@ -11,7 +11,7 @@
 	import MatrixCellDetail from '#lib/components/matrix/MatrixCellDetail.svelte';
 	import MatrixGrid from '#lib/components/matrix/MatrixGrid.svelte';
 	import MatrixSummary from '#lib/components/matrix/MatrixSummary.svelte';
-	import { matrixGrid } from '#lib/components/matrix/matrix-grid';
+	import { matrixGrid, revealsStackedSelection } from '#lib/components/matrix/matrix-grid';
 	import PageHeader from '#lib/components/shell/PageHeader.svelte';
 	import Toolbar from '#lib/components/shell/Toolbar.svelte';
 	import { matrixCellValue, parseMatrixCell } from '#lib/matrix';
@@ -62,12 +62,27 @@
 	});
 
 	/** Cell selection lives in `?cell=`, so it is shareable and filter-safe. */
-	function selectCell(impact: number, urgency: number): void {
+	async function selectCell(impact: number, urgency: number): Promise<void> {
 		const value = matrixCellValue(impact, urgency);
 		if (page.url.searchParams.get('cell') === value) return;
 		const url = new URL(page.url.href);
 		url.searchParams.set('cell', value);
-		void goto(url, { reset: false });
+		await goto(url, { reset: false });
+		revealSelection();
+	}
+
+	/**
+	 * On stacked layouts the detail starts below the matrix, so a tap would
+	 * otherwise look like a no-op. Scroll the selected-cell heading into view
+	 * and move focus to it; keyboard selection keeps working the same way.
+	 */
+	function revealSelection(): void {
+		if (!revealsStackedSelection(window.innerWidth)) return;
+		const heading = document.getElementById('matrix-detail-heading');
+		if (heading === null) return;
+		const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+		heading.scrollIntoView({ block: 'start', behavior: reduced ? 'auto' : 'smooth' });
+		heading.focus({ preventScroll: true });
 	}
 
 	function closeGuide() {

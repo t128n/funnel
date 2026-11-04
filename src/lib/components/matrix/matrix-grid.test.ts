@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { moveMatrixCell } from "./matrix-grid";
+import { moveMatrixCell, revealsStackedSelection } from "./matrix-grid";
 import { matrixGrid } from "#lib/components/matrix/matrix-grid";
 
 describe("matrixGrid", () => {
@@ -47,6 +47,29 @@ describe("MatrixGrid contract", () => {
     expect(source).toContain("aria-selected");
     expect(source).toContain('data-testid="matrix-grid"');
   });
+
+  test("fits all three urgency columns below lg", () => {
+    const source = readFileSync(
+      fileURLToPath(new URL("./MatrixGrid.svelte", import.meta.url)),
+      "utf8",
+    );
+    expect(source).toMatch(
+      /@media \(max-width: 991\.98px\)\s*\{[\s\S]*?\.matrix-table\s*\{[^}]*min-width:\s*0/,
+    );
+  });
+
+  test("moves focus to the stacked detail after a selection", () => {
+    const source = readFileSync(
+      fileURLToPath(
+        new URL("../../../routes/(app)/matrix/+page.svelte", import.meta.url),
+      ),
+      "utf8",
+    );
+    expect(source).toContain("revealsStackedSelection");
+    expect(source).toContain("getElementById('matrix-detail-heading')");
+    expect(source).toContain("scrollIntoView");
+    expect(source).toContain("heading.focus({ preventScroll: true })");
+  });
 });
 
 describe("moveMatrixCell", () => {
@@ -58,5 +81,15 @@ describe("moveMatrixCell", () => {
     expect(moveMatrixCell(1, 1, "ArrowUp")).toEqual({ impact: 1, urgency: 1 });
     expect(moveMatrixCell(3, 3, "ArrowRight")).toEqual({ impact: 3, urgency: 3 });
     expect(moveMatrixCell(2, 2, "Enter")).toBeNull();
+  });
+});
+
+describe("revealsStackedSelection", () => {
+  test("reveals the detail only while the layout is stacked below lg", () => {
+    expect(revealsStackedSelection(390)).toBe(true);
+    expect(revealsStackedSelection(768)).toBe(true);
+    expect(revealsStackedSelection(991)).toBe(true);
+    expect(revealsStackedSelection(992)).toBe(false);
+    expect(revealsStackedSelection(1440)).toBe(false);
   });
 });
