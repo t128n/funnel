@@ -21,10 +21,11 @@
 	import type { IssueListItem } from '#lib/server/issues/types';
 
 	/**
-	 * Composition A issue index: a grouped six-column table inside a bordered
-	 * responsive wrapper. Rows carry a real title link; the row itself stays a
-	 * pointer/keyboard shortcut. Below `md` the metadata columns collapse into
-	 * one secondary line under the title, so the page never scrolls sideways.
+	 * Composition A issue index: a grouped table inside a bordered responsive
+	 * wrapper. Rows carry a real title link; the row itself stays a pointer
+	 * shortcut. Below `md` the metadata columns collapse into one secondary line
+	 * under the title, so the page never scrolls sideways. At `md` the title
+	 * keeps the remainder while Planned and Assignee wait for wider screens.
 	 *
 	 * The feed owns the loaded window. A sentinel after the table asks for the
 	 * next keyset page while the reader is still ~300px above the end.
@@ -131,12 +132,6 @@
 		openIssue(issue);
 	}
 
-	function onRowKeydown(event: KeyboardEvent, issue: IssueListItem): void {
-		if (event.key !== 'Enter' || isInteractive(event.target)) return;
-		event.preventDefault();
-		openIssue(issue);
-	}
-
 	let sentinel = $state<HTMLDivElement | null>(null);
 
 	function nearEnd(node: HTMLElement): boolean {
@@ -198,13 +193,13 @@
 		<Table hover class="align-middle mb-0">
 			<thead class="table-light">
 				<tr>
-					<th scope="col" class="small text-body-secondary d-none d-md-table-cell" style="width: 7rem;">Issue</th>
+					<th scope="col" class="small text-body-secondary d-none d-md-table-cell" style="width: 5.5rem;">Issue</th>
 					<th scope="col" class="small text-body-secondary">Title</th>
-					<th scope="col" class="small text-body-secondary d-none d-md-table-cell" style="width: 8rem;">Status</th>
-					<th scope="col" class="small text-body-secondary d-none d-md-table-cell" style="width: 7rem;">Priority</th>
-					<th scope="col" class="small text-body-secondary d-none d-md-table-cell" style="width: 8rem;">Planned</th>
-					<th scope="col" class="small text-body-secondary d-none d-md-table-cell" style="width: 10rem;">Assignee</th>
-					<th scope="col" class="small text-body-secondary text-end d-none d-lg-table-cell" style="width: 8rem;">Updated</th>
+					<th scope="col" class="small text-body-secondary d-none d-md-table-cell" style="width: 7rem;">Status</th>
+					<th scope="col" class="small text-body-secondary d-none d-md-table-cell" style="width: 6rem;">Priority</th>
+					<th scope="col" class="small text-body-secondary d-none d-xl-table-cell" style="width: 8rem;">Planned</th>
+					<th scope="col" class="small text-body-secondary d-none d-lg-table-cell" style="width: 9rem;">Assignee</th>
+					<th scope="col" class="small text-body-secondary text-end d-none d-lg-table-cell" style="width: 7rem;">Updated</th>
 				</tr>
 			</thead>
 			<tbody>
@@ -214,8 +209,8 @@
 						<td><span class="skeleton" style="width: 62%"></span></td>
 						<td class="d-none d-md-table-cell"><span class="skeleton" style="width: 4.5rem"></span></td>
 						<td class="d-none d-md-table-cell"><span class="skeleton" style="width: 3.5rem"></span></td>
-						<td class="d-none d-md-table-cell"><span class="skeleton" style="width: 4.5rem"></span></td>
-						<td class="d-none d-md-table-cell"><span class="skeleton" style="width: 5.5rem"></span></td>
+						<td class="d-none d-xl-table-cell"><span class="skeleton" style="width: 4.5rem"></span></td>
+						<td class="d-none d-lg-table-cell"><span class="skeleton" style="width: 5.5rem"></span></td>
 						<td class="d-none d-lg-table-cell"><span class="skeleton ms-auto" style="width: 4rem"></span></td>
 					</tr>
 				{/each}
@@ -244,13 +239,13 @@
 		<Table hover class="align-middle mb-0">
 			<thead class="table-light">
 				<tr>
-					<th scope="col" class="small text-body-secondary d-none d-md-table-cell" style="width: 7rem;">Issue</th>
+					<th scope="col" class="small text-body-secondary d-none d-md-table-cell" style="width: 5.5rem;">Issue</th>
 					<th scope="col" class="small text-body-secondary">Title</th>
-					<th scope="col" class="small text-body-secondary d-none d-md-table-cell" style="width: 8rem;">Status</th>
-					<th scope="col" class="small text-body-secondary d-none d-md-table-cell" style="width: 7rem;">Priority</th>
-					<th scope="col" class="small text-body-secondary d-none d-md-table-cell" style="width: 8rem;">Planned</th>
-					<th scope="col" class="small text-body-secondary d-none d-md-table-cell" style="width: 10rem;">Assignee</th>
-					<th scope="col" class="small text-body-secondary text-end d-none d-lg-table-cell" style="width: 8rem;">Updated</th>
+					<th scope="col" class="small text-body-secondary d-none d-md-table-cell" style="width: 7rem;">Status</th>
+					<th scope="col" class="small text-body-secondary d-none d-md-table-cell" style="width: 6rem;">Priority</th>
+					<th scope="col" class="small text-body-secondary d-none d-xl-table-cell" style="width: 8rem;">Planned</th>
+					<th scope="col" class="small text-body-secondary d-none d-lg-table-cell" style="width: 9rem;">Assignee</th>
+					<th scope="col" class="small text-body-secondary text-end d-none d-lg-table-cell" style="width: 7rem;">Updated</th>
 				</tr>
 			</thead>
 			{#each groups as group (group.key)}
@@ -277,12 +272,7 @@
 					</tr>
 					{#if !collapsed}
 						{#each group.issues as issue (`${issue.repoId}:${issue.number}`)}
-							<tr
-								class="issue-row"
-								tabindex="0"
-								onclick={(event) => onRowClick(event, issue)}
-								onkeydown={(event) => onRowKeydown(event, issue)}
-							>
+							<tr class="issue-row" onclick={(event) => onRowClick(event, issue)}>
 								<td class="font-monospace small text-body-secondary text-nowrap d-none d-md-table-cell">
 									{refOf(issue)}
 								</td>
@@ -340,7 +330,7 @@
 										<span class="text-body-tertiary">—</span>
 									{/if}
 								</td>
-								<td class="small d-none d-md-table-cell">
+								<td class="small d-none d-xl-table-cell">
 									{#if issue.planWeek}
 										<span
 											class="text-primary text-nowrap"
@@ -352,7 +342,7 @@
 										<span class="text-body-tertiary">—</span>
 									{/if}
 								</td>
-								<td class="small d-none d-md-table-cell">
+								<td class="small d-none d-lg-table-cell">
 									{#if assigneesOf(issue)}
 										{assigneesOf(issue)}
 									{:else}
@@ -393,9 +383,11 @@
 		cursor: pointer;
 	}
 
-	.issue-row:focus-visible {
+	/* The title link is the row's only keyboard stop, so it must stay obvious. */
+	.issue-row a:focus-visible {
 		outline: 2px solid var(--bs-primary);
-		outline-offset: -2px;
+		outline-offset: 2px;
+		border-radius: 2px;
 	}
 
 	.skeleton {

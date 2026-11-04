@@ -1,0 +1,58 @@
+import { readFileSync } from 'node:fs';
+import { describe, expect, test } from 'bun:test';
+
+/**
+ * `IssueTable.svelte`'s responsive column contract and its keyboard model are
+ * markup structure, not pure functions. Bun has no Svelte loader, so assert on
+ * the source the same way the other component tests in this folder do.
+ */
+const source = readFileSync(new URL('./IssueTable.svelte', import.meta.url), 'utf8');
+
+describe('IssueTable keyboard model', () => {
+	test('the title link is the row’s only tab stop', () => {
+		expect(source).not.toContain('tabindex="0"');
+		expect(source).not.toContain('onkeydown');
+		expect(source).not.toContain('onRowKeydown');
+	});
+
+	test('the row stays clickable for the mouse', () => {
+		expect(source).toContain('onclick={(event) => onRowClick(event, issue)}');
+		expect(source).toContain('.issue-row {\n\t\tcursor: pointer;');
+		expect(source).toContain('window.getSelection()?.toString()');
+	});
+});
+
+describe('IssueTable responsive columns', () => {
+	const columns = [...source.matchAll(/<th scope="col"[\s\S]*?<\/th>/g)].map((match) =>
+		match[0].replace(/\s+/g, ' ')
+	);
+
+	function column(label: string): string {
+		const found = columns.find((entry) => entry.includes(`>${label}</th>`));
+		if (!found) throw new Error(`missing ${label} column`);
+		return found;
+	}
+
+	test('the title column has no fixed width', () => {
+		expect(column('Title')).not.toContain('width:');
+	});
+
+	test('secondary metadata waits for wider screens', () => {
+		expect(column('Planned')).toContain('d-none d-xl-table-cell');
+		expect(column('Assignee')).toContain('d-none d-lg-table-cell');
+		expect(column('Updated')).toContain('d-none d-lg-table-cell');
+	});
+
+	test('the tablet row keeps Issue, Status and Priority beside the title', () => {
+		for (const label of ['Issue', 'Status', 'Priority']) {
+			expect(column(label)).toContain('d-none d-md-table-cell');
+		}
+	});
+
+	test('every column keeps one responsive header', () => {
+		// The loading skeleton and the loaded table each render the seven headers.
+		expect(columns).toHaveLength(14);
+		expect(source.match(/class="small d-none d-xl-table-cell"/g)).toHaveLength(1);
+		expect(source.match(/class="small d-none d-lg-table-cell"/g)).toHaveLength(1);
+	});
+});
