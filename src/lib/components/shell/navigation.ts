@@ -76,3 +76,16 @@ export function isNavActive(destination: NavDestination, url: NavUrl): boolean {
 	}
 	return true;
 }
+
+/**
+ * The overflow destination matching `url`, or `null` when the current page is
+ * a primary destination (or outside the catalog).
+ *
+ * The navbar uses this to give the closed `More` toggle the same current-page
+ * treatment as a visible link. Without it, five destinations look unselected
+ * in the shell because their active item lives inside a collapsed menu.
+ */
+export function overflowDestination(url: NavUrl): NavDestination | null {
+	return OVERFLOW_NAV.find((destination) => isNavActive(destination, url)) ?? null;
+}
+

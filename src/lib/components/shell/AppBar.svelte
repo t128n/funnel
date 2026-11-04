@@ -6,7 +6,6 @@
 		Badge,
 		Button,
 		Collapse,
-		Dropdown,
 		DropdownItem,
 		DropdownMenu,
 		DropdownToggle,
@@ -18,34 +17,33 @@
 		NavLink
 	} from '@sveltestrap/sveltestrap';
 	import Avatar from '#lib/components/common/Avatar.svelte';
+	import { globalSearch } from '#lib/client/global-search.svelte';
 	import { resolvedTheme, setTheme, themeChoice, type ThemeChoice } from '#lib/client/theme';
 	import { signOut } from '#lib/client/auth';
 	import type { Role } from '#lib/roles';
-	import { isNavActive, OVERFLOW_NAV, PRIMARY_NAV } from './navigation';
+	import NavDropdown from './NavDropdown.svelte';
+	import {
+		isNavActive,
+		overflowDestination,
+		OVERFLOW_NAV,
+		PRIMARY_NAV
+	} from './navigation';
 
 	interface Props {
 		user: { id: string; name: string; email: string; image: string | null; role: Role };
-		/** Mirrored repository slugs offered by the navbar scope control. */
-		repos?: string[];
 		inboxCount?: number;
 		dueCount?: number;
 		unread?: number;
 		onsearch: () => void;
 	}
 
-	let {
-		user,
-		repos = [],
-		inboxCount = 0,
-		dueCount = 0,
-		unread = 0,
-		onsearch
-	}: Props = $props();
+	let { user, inboxCount = 0, dueCount = 0, unread = 0, onsearch }: Props = $props();
 
 	/**
 	 * Composition A's responsive menu is a one-layer Bootstrap collapse, not an
-	 * off-canvas drawer and not a second navigation rail. It closes whenever a
-	 * destination, the repository scope, or search is chosen.
+	 * off-canvas drawer and not a second navigation rail. Every path that
+	 * navigates or opens search closes it, so the destination page is never
+	 * hidden behind a stale expanded menu.
 	 */
 	let navOpen = $state(false);
 
@@ -56,27 +54,13 @@
 
 	const dark = $derived($resolvedTheme === 'dark');
 	const shortcut = $derived(isMac ? '⌘ K' : 'Ctrl K');
+	const overflowActive = $derived(overflowDestination(page.url));
 
 	/** Counts shown beside the Inbox link and the overflow Attention entry. */
 	function countFor(href: string): number {
 		if (href === '/inbox') return inboxCount;
 		if (href === '/attention') return dueCount;
 		return 0;
-	}
-
-	const scopedRepos = $derived(page.url.searchParams.getAll('repo'));
-	const repoLabel = $derived.by(() => {
-		if (scopedRepos.length === 0) return 'All repositories';
-		if (scopedRepos.length === 1) return scopedRepos[0];
-		return `${scopedRepos.length} repositories`;
-	});
-
-	/** Apply a single repository scope while preserving every other parameter. */
-	function setRepo(slug: string | null) {
-		const url = new URL(page.url.href);
-		url.searchParams.delete('repo');
-		if (slug) url.searchParams.set('repo', slug);
-		void goto(url, { reset: false });
 	}
 
 	const themes: { value: ThemeChoice; label: string; icon: string }[] = [
@@ -86,26 +70,38 @@
 	];
 
 	async function handleSignOut() {
+		closeNav();
 		await signOut();
 		await goto('/login');
 	}
 
 	function openSettings(path: string) {
+		closeNav();
 		void goto(path);
 	}
 
+	/**
+	 * Close the collapsed menu and drop focus if it was on a menu item that is
+	 * about to be hidden. The brand/toggler stay visible and keep their focus.
+	 */
 	function closeNav() {
+		const wasOpen = navOpen;
 		navOpen = false;
+		if (!wasOpen || typeof document === 'undefined') return;
+		const active = document.activeElement;
+		if (active instanceof HTMLElement && active.closest('.navbar-collapse')) active.blur();
 	}
 
 	function openSearch() {
-		navOpen = false;
+		closeNav();
 		onsearch();
 	}
 </script>
 
 <Navbar dark color="dark" expand="lg" class="app-bar py-2">
-	<NavbarBrand href="/issues" class="fw-semibold mb-0" translate="no">funnel</NavbarBrand>
+	<NavbarBrand href="/issues" class="fw-semibold mb-0" translate="no" onclick={closeNav}>
+		funnel
+	</NavbarBrand>
 	<span class="vr d-none d-lg-block opacity-25 mx-1"></span>
 
 	<NavbarToggler
@@ -142,8 +138,15 @@
 			{/each}
 
 			<NavItem>
-				<Dropdown>
-					<DropdownToggle nav caret class="px-2" aria-label="More destinations">
+				<NavDropdown>
+					<DropdownToggle
+						nav
+						caret
+						class="px-2 {overflowActive ? 'active' : ''}"
+						aria-label={overflowActive
+							? `More destinations, current: ${overflowActive.label}`
+							: 'More destinations'}
+					>
 						More
 					</DropdownToggle>
 					<DropdownMenu end>
@@ -164,43 +167,19 @@
 							</DropdownItem>
 						{/each}
 					</DropdownMenu>
-				</Dropdown>
+				</NavDropdown>
 			</NavItem>
 		</Nav>
 
 		<div class="d-flex flex-wrap align-items-center gap-2 py-2 py-lg-0">
-			<Dropdown>
-				<DropdownToggle
-					color="link"
-					size="sm"
-					caret
-					class="nav-quiet text-decoration-none"
-					aria-label={`Repository scope: ${repoLabel}`}
-				>
-					<i class="bi bi-folder2 me-1" aria-hidden="true"></i>
-					<span class="d-lg-none d-xl-inline">{repoLabel}</span>
-				</DropdownToggle>
-				<DropdownMenu end>
-					<h6 class="dropdown-header">Repository scope</h6>
-					<DropdownItem active={scopedRepos.length === 0} on:click={() => setRepo(null)}>
-						All repositories
-					</DropdownItem>
-					{#each repos as repo (repo)}
-						<DropdownItem
-							active={scopedRepos.length === 1 && scopedRepos[0] === repo}
-							on:click={() => setRepo(repo)}
-						>
-							{repo}
-						</DropdownItem>
-					{/each}
-				</DropdownMenu>
-			</Dropdown>
-
 			<Button
+				id="global-search-trigger"
 				color="link"
 				size="sm"
 				class="nav-quiet d-flex align-items-center gap-2 text-decoration-none"
 				aria-label="Search issues"
+				aria-controls="global-search-panel"
+				aria-expanded={globalSearch.open}
 				onclick={openSearch}
 			>
 				<i class="bi bi-search" aria-hidden="true"></i>
@@ -227,7 +206,7 @@
 				{/if}
 			</Button>
 
-			<Dropdown>
+			<NavDropdown>
 				<DropdownToggle
 					color="link"
 					size="sm"
@@ -241,7 +220,12 @@
 				<DropdownMenu end>
 					<DropdownItem header>Theme</DropdownItem>
 					{#each themes as theme (theme.value)}
-						<DropdownItem class="d-flex align-items-center gap-2" on:click={() => setTheme(theme.value)}>
+						<DropdownItem
+							class="d-flex align-items-center gap-2"
+							role="menuitemradio"
+							aria-checked={$themeChoice === theme.value}
+							on:click={() => setTheme(theme.value)}
+						>
 							<i class="bi {theme.icon}" aria-hidden="true"></i>
 							<span>{theme.label}</span>
 							{#if $themeChoice === theme.value}
@@ -250,9 +234,9 @@
 						</DropdownItem>
 					{/each}
 				</DropdownMenu>
-			</Dropdown>
+			</NavDropdown>
 
-			<Dropdown>
+			<NavDropdown>
 				<DropdownToggle
 					color="link"
 					size="sm"
@@ -287,7 +271,7 @@
 						<i class="bi bi-box-arrow-right" aria-hidden="true"></i>Sign Out
 					</DropdownItem>
 				</DropdownMenu>
-			</Dropdown>
+			</NavDropdown>
 		</div>
 	</Collapse>
 </Navbar>
