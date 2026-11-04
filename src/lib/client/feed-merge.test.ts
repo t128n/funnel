@@ -1,5 +1,12 @@
 import { describe, expect, test } from "bun:test";
-import { appendUnique, mergeFirstPage, removeByKey } from "./feed-merge";
+import {
+  appendUnique,
+  laneOwners,
+  mergeAuthoritativePage,
+  mergeFirstPage,
+  movedToAnotherLane,
+  removeByKey,
+} from "./feed-merge";
 import {
   flattenInboxRows,
   flattenIssueRows,
@@ -114,6 +121,121 @@ describe("mergeFirstPage", () => {
   test("an empty first page retains every loaded row", () => {
     const keyOf = (item: unknown) => (item as { id: string }).id;
     expect(mergeFirstPage([{ id: "a" }], [], keyOf)).toEqual([{ id: "a" }]);
+  });
+});
+
+describe("mergeAuthoritativePage", () => {
+  interface Row {
+    id: string;
+    title?: string;
+  }
+  const keyOf = (item: Row) => item.id;
+
+  test("a complete page drops rows that left the window", () => {
+    // A board card moved to another status is absent from this lane's first
+    // page; the lane total shrank, so the loaded copy must go too.
+    const loaded: Row[] = [{ id: "a" }, { id: "b" }, { id: "moved" }];
+    const merged = mergeAuthoritativePage(
+      loaded,
+      { items: [{ id: "a" }, { id: "b" }], total: 2, nextCursor: null },
+      keyOf,
+    );
+    expect(merged).toEqual([{ id: "a" }, { id: "b" }]);
+  });
+
+  test("an unchanged complete page reuses the loaded window", () => {
+    const loaded: Row[] = [{ id: "a" }, { id: "b" }];
+    const items = JSON.parse(JSON.stringify(loaded)) as Row[];
+    expect(
+      mergeAuthoritativePage(loaded, { items, total: 2, nextCursor: null }, keyOf),
+    ).toBe(loaded);
+  });
+
+  test("a moved card leaves the source lane and appears once in the destination", () => {
+    const source = mergeAuthoritativePage(
+      [{ id: "fun7" }, { id: "fun3" }, { id: "fun14" }],
+      { items: [{ id: "fun3" }, { id: "fun14" }], total: 2, nextCursor: null },
+      keyOf,
+    );
+    const destination = mergeAuthoritativePage(
+      [{ id: "fun5" }],
+      {
+        items: [{ id: "fun7" }, { id: "fun5" }],
+        total: 2,
+        nextCursor: null,
+      },
+      keyOf,
+    );
+
+    expect(source.map((row) => row.id)).toEqual(["fun3", "fun14"]);
+    expect(destination.map((row) => row.id)).toEqual(["fun7", "fun5"]);
+    expect([...source, ...destination].filter((row) => row.id === "fun7")).toHaveLength(1);
+  });
+
+  test("a page with more rows drops a stale tail even when it grew", () => {
+    const loaded: Row[] = [{ id: "a" }, { id: "moved" }];
+    const merged = mergeAuthoritativePage(
+      loaded,
+      { items: [{ id: "a" }, { id: "b" }], total: 2, nextCursor: null },
+      keyOf,
+    );
+    expect(merged).toEqual([{ id: "a" }, { id: "b" }]);
+  });
+
+  test("a paged page keeps the loaded tail", () => {
+    const loaded: Row[] = [{ id: "a" }, { id: "b" }, { id: "c" }];
+    const merged = mergeAuthoritativePage(
+      loaded,
+      {
+        items: [{ id: "a", title: "updated" }, { id: "b" }],
+        total: 10,
+        nextCursor: "next",
+      },
+      keyOf,
+    );
+    expect(merged).toEqual([
+      { id: "a", title: "updated" },
+      { id: "b" },
+      { id: "c" },
+    ]);
+  });
+
+  test("a paged page caps the window at the server total", () => {
+    const loaded: Row[] = [{ id: "a" }, { id: "b" }, { id: "c" }, { id: "d" }];
+    const merged = mergeAuthoritativePage(
+      loaded,
+      { items: [{ id: "a" }, { id: "b" }], total: 3, nextCursor: "next" },
+      keyOf,
+    );
+    expect(merged).toEqual([{ id: "a" }, { id: "b" }, { id: "c" }]);
+  });
+});
+
+describe("lane ownership", () => {
+  interface Row {
+    id: string;
+  }
+  const keyOf = (item: Row) => item.id;
+  const owners = laneOwners<Row>(
+    [
+      { key: "todo", items: [{ id: "fun3" }, { id: "fun14" }] },
+      { key: "in-review", items: [{ id: "fun7" }] },
+    ],
+    keyOf,
+  );
+
+  test("maps every authoritative row to its lane", () => {
+    expect(owners.get("fun7")).toBe("in-review");
+    expect(owners.get("fun3")).toBe("todo");
+  });
+
+  test("detects a row whose authoritative lane changed", () => {
+    // The source lane still renders its old loaded copy; the destination page
+    // proves it moved, so the source must drop it.
+    expect(movedToAnotherLane("fun7", "todo", owners)).toBe(true);
+    expect(movedToAnotherLane("fun7", "in-review", owners)).toBe(false);
+    // Rows beyond the first page are not claimed by any lane: keep them.
+    expect(movedToAnotherLane("fun99", "todo", owners)).toBe(false);
   });
 });
 
