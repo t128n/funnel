@@ -11,7 +11,11 @@
  * methods, and the stores are created during component init so the runes
  * inside them are owned by that component.
  */
-import { appendUnique, mergeAuthoritativePage } from "#lib/client/feed-merge";
+import {
+  appendUnique,
+  mergeAuthoritativePage,
+  removeByKey,
+} from "#lib/client/feed-merge";
 import { feedUrl } from "#lib/feeds";
 
 /** One page returned by a feed endpoint; mirrors the server's `ListPage`. */
@@ -56,6 +60,8 @@ export interface Feed<T> {
   readonly error: string | null;
   /** Merge (same view) or replace with (new view) an authoritative page. */
   sync(page: FeedPage<T>): void;
+  /** Drop one row after the server confirms it was deleted. */
+  remove(itemKey: string): void;
   /** Drop loaded rows that no longer belong to this view. */
   retain(keep: (item: T) => boolean): void;
   /** Fetch the page after `nextCursor` and append it. */
@@ -148,6 +154,10 @@ export function createFeed<T>(config: FeedConfig<T>): Feed<T> {
     error = null;
   }
 
+  function remove(key: string): void {
+    items = removeByKey(items, itemKey, key);
+  }
+
   function retain(keep: (item: T) => boolean): void {
     const next = items.filter(keep);
     // Keep the array identity when nothing was removed, so the board's
@@ -217,6 +227,7 @@ export function createFeed<T>(config: FeedConfig<T>): Feed<T> {
       return error;
     },
     sync,
+    remove,
     retain,
     loadMore,
     refreshLoaded,

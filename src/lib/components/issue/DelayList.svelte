@@ -4,7 +4,7 @@
 	import Spinner from '#lib/components/common/Spinner.svelte';
 	import InlineStatus from '#lib/components/common/InlineStatus.svelte';
 	import type { DelayItem } from '#lib/server/actuals/store';
-	import { absoluteTime } from '#lib/time';
+	import { absoluteDateTime, absoluteTime } from '#lib/time';
 	import {
 		canCloseDelay,
 		canDeleteDelay,
@@ -115,13 +115,23 @@
 						</span>
 					</div>
 					<div class="d-flex min-w-0 flex-wrap align-items-center gap-2 small text-body-secondary">
-						<span title={absoluteTime(row.startedAt)}>
-							{absoluteTime(row.startedAt)}
-						</span>
+						<time
+							datetime={new Date(row.startedAt).toISOString()}
+							title={absoluteTime(row.startedAt)}
+						>
+							{absoluteDateTime(row.startedAt)}
+						</time>
 						<span aria-hidden="true">→</span>
-						<span>
-							{row.endedAt === null ? 'Ongoing' : absoluteTime(row.endedAt)}
-						</span>
+						{#if row.endedAt === null}
+							<span>Ongoing</span>
+						{:else}
+							<time
+								datetime={new Date(row.endedAt).toISOString()}
+								title={absoluteTime(row.endedAt)}
+							>
+								{absoluteDateTime(row.endedAt)}
+							</time>
+						{/if}
 					</div>
 					{#if row.note.trim().length > 0}
 						<p class="mb-0">{row.note}</p>

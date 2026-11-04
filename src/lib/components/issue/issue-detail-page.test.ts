@@ -22,19 +22,30 @@ const route = readFileSync(
 	"utf8",
 );
 const composer = readFileSync(new URL("../detail/Composer.svelte", import.meta.url), "utf8");
+const delays = readFileSync(new URL("./DelayList.svelte", import.meta.url), "utf8");
 
 describe("issue detail page", () => {
 	test("test_route_is_a_dedicated_page_with_an_8_4_document_and_rail", () => {
 		expect(route).toContain('<main class="container-lg py-4" aria-label="Issue">');
 		expect(page).toContain('class="row g-4 mt-2"');
-		expect(page).toContain('class="col-lg-8"');
-		expect(page).toContain('class="col-lg-4"');
+		expect(page).toContain('class="col-lg-8 order-2 order-md-1"');
+		expect(page).toContain('class="col-lg-4 order-1 order-md-2"');
+	});
+
+	test("test_mobile_orders_the_rail_first_and_tablet_restores_document_first", () => {
+		// Below md the metadata rail is shown before the conversation; from md
+		// up the document is first again, matching the approved 8/4 order.
+		expect(page).toContain("order-2 order-md-1");
+		expect(page).toContain("order-1 order-md-2");
+		expect(page).toContain('href="#issue-properties"');
+		expect(page).toContain("d-none d-md-inline-block d-lg-none");
+		expect(properties).toContain('id="issue-properties"');
 	});
 
 	test("test_document_and_activity_precede_the_rail_in_dom_order", () => {
 		const document = page.indexOf('aria-label="Description"');
 		const activity = page.indexOf('aria-label="Activity"');
-		const rail = page.indexOf('class="col-lg-4"');
+		const rail = page.indexOf('class="col-lg-4 order-1 order-md-2"');
 		expect(document).toBeGreaterThan(-1);
 		expect(activity).toBeGreaterThan(document);
 		expect(rail).toBeGreaterThan(activity);
@@ -55,6 +66,20 @@ describe("issue detail page", () => {
 		expect(page).toContain("setStatus('backlog')");
 		expect(page).toContain('href="/inbox"');
 		expect(page).toContain("This issue is still in the Inbox and has not been triaged.");
+	});
+
+	test("test_dates_use_the_product_absolute_format_with_precise_tooltips", () => {
+		expect(page).toContain("import { absoluteDate, absoluteTime } from '#lib/time'");
+		expect(page).toContain("Re-check");
+		expect(page).toContain("datetime={blockedState.info.recheck}");
+		expect(page).toContain("{absoluteDate(blockedState.info.recheck)}");
+		expect(page).not.toContain("Re-check {blockedState.info.recheck}");
+		expect(delays).toContain("import { absoluteDateTime, absoluteTime } from '#lib/time'");
+		expect(delays).toContain("title={absoluteTime(row.startedAt)}");
+		expect(delays).toContain("title={absoluteTime(row.endedAt)}");
+		expect(delays).toContain("{absoluteDateTime(row.startedAt)}");
+		expect(delays).toContain("{absoluteDateTime(row.endedAt)}");
+		expect(delays).not.toContain("toLocaleString");
 	});
 
 	test("test_comments_keep_anchors_paging_and_cmd_enter", () => {
@@ -93,6 +118,27 @@ describe("properties card", () => {
 		expect(properties).toContain("<MultiSelect");
 		expect(properties).toContain("selected={assigneeLogins}");
 		expect(properties).toContain("selected={labels}");
+	});
+
+	test("test_status_select_is_owned_by_the_issue_model", () => {
+		expect(properties).toContain("displayedStatus(issue)");
+		expect(properties).toContain("const committed = await onstatus(value)");
+		expect(properties).toContain("if (!committed) select.value = statusValue");
+		// A cancelled close/reopen leaves the model unchanged; the control must
+		// be restored rather than keep the option that only opened a dialog.
+		expect(properties).toContain("onstatus: (value: string) => Promise<boolean>");
+	});
+
+	test("test_title_editor_has_explicit_save_cancel_and_a_hint", () => {
+		expect(page).toContain('id="issue-title-input"');
+		expect(page).toContain('id="issue-title-hint"');
+		expect(page).toContain("Enter to save · Esc to cancel");
+		expect(page).toContain("Editing title");
+		expect(page).toContain("document.getElementById('issue-title-input')");
+		expect(page).toContain("onclick={cancelTitleEdit}");
+		// Blur used to commit silently; only the explicit actions write now.
+		expect(page).not.toContain("onblur={saveTitle}");
+		expect(page).toContain("setWriteSuccess('Title updated.'");
 	});
 
 	test("test_read_only_viewers_get_plain_text_values", () => {

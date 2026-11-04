@@ -1,5 +1,13 @@
 import { describe, expect, test } from 'bun:test';
-import { describeError, isServerError, safeErrorMessage } from './errors';
+import {
+	describeError,
+	describeStatus,
+	errorSection,
+	isRetryable,
+	isServerError,
+	recoveryFor,
+	safeErrorMessage
+} from './errors';
 
 describe('describeError', () => {
 	test('maps known statuses to friendly copy', () => {
@@ -41,5 +49,65 @@ describe('safeErrorMessage', () => {
 	test('falls back to the description when empty', () => {
 		expect(safeErrorMessage(404, '   ')).toBe(describeError(404).description);
 		expect(safeErrorMessage(404, undefined)).toBe(describeError(404).description);
+	});
+});
+
+describe('isRetryable', () => {
+	test('retries only transient failures', () => {
+		expect(isRetryable(500)).toBe(true);
+		expect(isRetryable(503)).toBe(true);
+		expect(isRetryable(408)).toBe(true);
+		expect(isRetryable(429)).toBe(true);
+		expect(isRetryable(404)).toBe(false);
+		expect(isRetryable(403)).toBe(false);
+		expect(isRetryable(409)).toBe(false);
+	});
+});
+
+describe('errorSection', () => {
+	test('maps list and detail routes to their section', () => {
+		expect(errorSection('/issues')).toBe('issues');
+		expect(errorSection('/issues/demo/funnel/999')).toBe('issues');
+		expect(errorSection('/milestones/demo/funnel/999')).toBe('milestones');
+		expect(errorSection('/epics/demo/funnel/12')).toBe('epics');
+		expect(errorSection('/inbox/submission/abc')).toBe('inbox');
+		expect(errorSection('/nonexistent-route')).toBe('app');
+	});
+});
+
+describe('describeStatus', () => {
+	test('names the missing entity instead of a generic page', () => {
+		expect(describeStatus(404, 'issues')).toEqual({
+			title: 'Issue not found',
+			description: 'This issue does not exist or is not available.',
+		});
+		expect(describeStatus(404, 'milestones').title).toBe('Milestone not found');
+		expect(describeStatus(404, 'epics').title).toBe('Epic not found');
+		expect(describeStatus(404, 'inbox').title).toBe('Submission not found');
+	});
+
+	test('keeps generic copy for a root 404 and for server failures', () => {
+		expect(describeStatus(404, 'app').title).toBe('Page not found');
+		expect(describeStatus(500, 'issues')).toEqual(describeError(500));
+	});
+
+	test('never exposes internal sync vocabulary', () => {
+		for (const section of ['issues', 'milestones', 'epics', 'inbox'] as const) {
+			const copy = describeStatus(404, section);
+			expect(`${copy.title} ${copy.description}`).not.toContain('mirrored');
+		}
+	});
+});
+
+describe('recoveryFor', () => {
+	test('returns the matching list for each section', () => {
+		expect(recoveryFor('issues')).toEqual({ href: '/issues', label: 'Back to Issues' });
+		expect(recoveryFor('milestones')).toEqual({
+			href: '/milestones',
+			label: 'Back to Milestones',
+		});
+		expect(recoveryFor('epics')).toEqual({ href: '/epics', label: 'Back to Epics' });
+		expect(recoveryFor('inbox')).toEqual({ href: '/inbox', label: 'Back to Inbox' });
+		expect(recoveryFor('app')).toEqual({ href: '/issues', label: 'Back to Issues' });
 	});
 });

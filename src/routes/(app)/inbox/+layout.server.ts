@@ -30,11 +30,19 @@ export const load: LayoutServerLoad = async ({ url, parent }) => {
         }
       : entry,
   );
+  // All matching submissions arrive on the first page; only issues paginate.
+  // Split totals let the page report the queue honestly even when the loaded
+  // window still carries rows a triage decision has since removed.
+  const submissionTotal = items.filter(
+    (entry) => entry.kind === "submission",
+  ).length;
   return {
     inbox: {
       items,
       entries: items,
       total: page.total,
+      submissionTotal,
+      issueTotal: page.total - submissionTotal,
       nextCursor: page.nextCursor,
     },
   };

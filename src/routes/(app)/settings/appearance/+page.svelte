@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { get } from 'svelte/store';
 	import { FormCheck, FormText } from '@sveltestrap/sveltestrap';
 	import Section from '#lib/components/settings/section.svelte';
 	import { resolvedTheme, setTheme, themeChoice, type ThemeChoice } from '#lib/client/theme';
@@ -22,9 +21,11 @@
 	let mounted = $state(false);
 	let choice = $state<ThemeChoice>('system');
 
+	// Sveltestrap radios render from their `group` binding, not a `checked`
+	// prop. Subscribing to the store keeps the visible selection in step with
+	// the navbar control and with the value restored from localStorage.
 	onMount(() => {
 		mounted = true;
-		choice = get(themeChoice);
 		const unsubscribe = themeChoice.subscribe((value) => (choice = value));
 		return unsubscribe;
 	});
@@ -44,7 +45,7 @@
 					type="radio"
 					name="theme"
 					value={option.value}
-					checked={choice === option.value}
+					bind:group={choice}
 					on:change={() => change(option.value)}
 					label={option.label}
 					class="mb-1"

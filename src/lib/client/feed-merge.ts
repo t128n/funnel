@@ -169,3 +169,19 @@ export function appendUnique<T>(
   }
   return out ?? loaded;
 }
+
+/**
+ * Drop one row from the loaded window. A deleted row (for example a consumed
+ * intake submission) is not part of the authoritative first page any more, and
+ * `mergeFirstPage` deliberately keeps rows beyond that page for scrolling, so
+ * the owner of the window must remove it explicitly.
+ */
+export function removeByKey<T>(
+  loaded: T[],
+  keyOf: (item: T) => string,
+  key: string,
+): T[] {
+  const index = loaded.findIndex((item) => keyOf(item) === key);
+  if (index === -1) return loaded;
+  return [...loaded.slice(0, index), ...loaded.slice(index + 1)];
+}

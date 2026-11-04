@@ -14,10 +14,10 @@ import { page } from "$app/state";
 import { issuePath, submissionPath } from "#lib/issue-url";
 
 /** Navigate to `pathname` while preserving the current query string. */
-function go(pathname: string): void {
+function go(pathname: string, options: { invalidateAll?: boolean } = {}): void {
   const url = new URL(page.url.href);
   url.pathname = pathname;
-  void goto(url, { reset: false });
+  void goto(url, { reset: false, ...options });
 }
 
 /** Open the dedicated detail page for issue `repo#number`. */
@@ -31,12 +31,12 @@ export function selectSubmission(id: string): void {
 }
 
 /** Leave a detail page and return to its index. */
-export function clearSelection(): void {
+export function clearSelection(options: { invalidateAll?: boolean } = {}): void {
   const path = page.url.pathname;
-  if (path.startsWith("/inbox/submission/")) go("/inbox");
-  else if (path.startsWith("/issues/")) go("/issues");
-  else if (path.startsWith("/board/")) go("/board");
-  else if (path.startsWith("/matrix/")) go("/matrix");
-  else if (path.startsWith("/inbox/")) go("/inbox");
-  else go("/issues");
+  if (path.startsWith("/inbox/submission/")) go("/inbox", options);
+  else if (path.startsWith("/issues/")) go("/issues", options);
+  else if (path.startsWith("/board/")) go("/board", options);
+  else if (path.startsWith("/matrix/")) go("/matrix", options);
+  else if (path.startsWith("/inbox/")) go("/inbox", options);
+  else go("/issues", options);
 }

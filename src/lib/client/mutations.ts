@@ -21,7 +21,7 @@ import {
 
 export type MutationResult<T> =
   | { ok: true; value: T }
-  | { ok: false; error: string };
+  | { ok: false; error: string; status?: number };
 
 /** Split an `owner/name` slug into encoded path segments. */
 function repoPath(repo: string): string {
@@ -53,7 +53,13 @@ async function request<T>(
         ...(init?.headers ?? {}),
       },
     });
-    if (!response.ok) return { ok: false, error: await toError(response) };
+    if (!response.ok) {
+      return {
+        ok: false,
+        error: await toError(response),
+        status: response.status,
+      };
+    }
     if (response.status === 204) return { ok: true, value: undefined as T };
     return { ok: true, value: (await response.json()) as T };
   } catch (error) {
@@ -373,7 +379,13 @@ export async function uploadAttachment(
       method: "POST",
       body: form,
     });
-    if (!response.ok) return { ok: false, error: await toError(response) };
+    if (!response.ok) {
+      return {
+        ok: false,
+        error: await toError(response),
+        status: response.status,
+      };
+    }
     return { ok: true, value: (await response.json()) as AttachmentItem };
   } catch (error) {
     return { ok: false, error: (error as Error).message };

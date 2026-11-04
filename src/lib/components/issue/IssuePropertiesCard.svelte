@@ -4,6 +4,7 @@
 	import PriorityText from '#lib/components/common/PriorityText.svelte';
 	import StatusText from '#lib/components/common/StatusText.svelte';
 	import MilestonePicker from '#lib/components/issue/MilestonePicker.svelte';
+	import { displayedStatus } from '#lib/components/issue/status-control';
 	import { weekHeadline } from '#lib/components/plan/format';
 	import {
 		planBlockMessage,
@@ -44,7 +45,8 @@
 		labels: string[];
 		mayWrite: boolean;
 		busy: string | null;
-		onstatus: (value: string) => void;
+		/** Resolves `true` only when the value was written to the issue. */
+		onstatus: (value: string) => Promise<boolean>;
 		onpriority: (axis: 'impact' | 'urgency', value: number | null) => void;
 		onassignees: (logins: string[]) => void;
 		onmilestone: (milestone: RepoMilestoneRef | null) => void;
@@ -75,9 +77,7 @@
 		...STATUS_OPTIONS,
 		{ value: 'done', label: 'Done', color: 'var(--bs-success)' }
 	];
-	const statusValue = $derived(
-		issue.state === 'closed' ? 'done' : (issue.status ?? '')
-	);
+	const statusValue = $derived(displayedStatus(issue));
 
 	const assigneeLogins = $derived(issue.assignees.map((assignee) => assignee.login));
 	const assigneeOptions = $derived(detail.assigneeOptions ?? []);
@@ -102,9 +102,16 @@
 		busy === 'plan' || (!eligibility.schedulable && (issue.planWeek ?? null) === null)
 	);
 
-	function changeStatus(event: Event) {
-		const value = (event.currentTarget as HTMLSelectElement).value;
-		if (value) onstatus(value);
+	async function changeStatus(event: Event) {
+		const select = event.currentTarget as HTMLSelectElement;
+		const value = select.value;
+		if (!value) return;
+		const committed = await onstatus(value);
+		// Close and reopen open a dialog instead of writing, so the issue model
+		// — and therefore the value Svelte renders — is unchanged. Put the
+		// control back on the model value; otherwise it keeps a selection the
+		// issue does not have, and re-selecting that option fires no change.
+		if (!committed) select.value = statusValue;
 	}
 
 	function changeAxis(axis: 'impact' | 'urgency', event: Event) {
@@ -124,7 +131,7 @@
 	}
 </script>
 
-<Card class="mb-3">
+<Card id="issue-properties" class="mb-3">
 	<CardBody>
 		<h2 class="h6 mb-3">Properties</h2>
 

@@ -102,6 +102,7 @@
 						<tr>
 							<td>
 								<Input
+									id={`settings-repo-${index}`}
 									bind:value={repos[index].repo}
 									aria-label={`Repository ${index + 1}`}
 									placeholder="owner/name"
@@ -112,6 +113,7 @@
 							</td>
 							<td>
 								<Input
+									id={`settings-repo-shortcode-${index}`}
 									bind:value={repos[index].shortcode}
 									aria-label={`Shortcode for repository ${index + 1}`}
 									placeholder="FIT"
