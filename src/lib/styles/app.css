@@ -81,6 +81,61 @@ body {
 }
 
 /*
+ * The skip link is the first Tab stop on every app route. Bootstrap's
+ * `.visually-hidden-focusable` takes it out of layout until it has focus.
+ * `.navbar` is `position: relative`, so the focused link needs its own
+ * stacking context to paint above the bar instead of underneath it.
+ */
+.skip-link:focus,
+.skip-link:focus-visible {
+  position: fixed;
+  z-index: 1035;
+  top: 0;
+  left: 0;
+  margin: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border: 2px solid var(--bs-emphasis-color);
+  border-radius: var(--bs-border-radius);
+  outline: 3px solid var(--bs-emphasis-color);
+  outline-offset: 2px;
+  background: var(--bs-body-bg);
+  color: var(--bs-body-color);
+  text-decoration: none;
+}
+
+/*
+ * Bootstrap's outline-secondary keeps a fixed #6c757d, which measures 3.29:1
+ * on the dark canvas and makes enabled buttons look disabled. Use the
+ * theme-aware secondary emphasis colour instead, and give hover/active a
+ * light fill with dark text.
+ */
+[data-bs-theme='dark'] .btn-outline-secondary {
+  --bs-btn-color: var(--bs-secondary-text-emphasis);
+  --bs-btn-border-color: var(--bs-secondary-text-emphasis);
+  --bs-btn-hover-color: var(--bs-body-bg);
+  --bs-btn-hover-bg: var(--bs-secondary-text-emphasis);
+  --bs-btn-hover-border-color: var(--bs-secondary-text-emphasis);
+  --bs-btn-active-color: var(--bs-body-bg);
+  --bs-btn-active-bg: var(--bs-secondary-text-emphasis);
+  --bs-btn-active-border-color: var(--bs-secondary-text-emphasis);
+  --bs-btn-disabled-color: var(--bs-secondary-color);
+  --bs-btn-disabled-border-color: var(--bs-border-color);
+}
+
+/*
+ * Bootstrap fixes `.text-success`/`.text-danger` at the light-mode palette,
+ * where they measure 3.40:1 and 3.41:1 on the dark canvas. The dark emphasis
+ * tokens are designed for this surface and clear 4.5:1.
+ */
+[data-bs-theme='dark'] .text-success {
+  color: var(--bs-success-text-emphasis) !important;
+}
+
+[data-bs-theme='dark'] .text-danger {
+  color: var(--bs-danger-text-emphasis) !important;
+}
+
+/*
  * Bootstrap keeps `--bs-primary` at #0d6efd in dark mode, which is dim on the
  * dark surface. Lift only the status token to Bootstrap's dark emphasis colour.
  */

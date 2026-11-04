@@ -185,7 +185,7 @@
 					</Button>
 				</ButtonGroup>
 			{/if}
-			<kbd class="border px-1 d-none d-sm-inline-flex text-body-secondary" aria-hidden="true">
+			<kbd class="composer-kbd border px-1 d-none d-sm-inline-flex" aria-hidden="true">
 				{isMac ? '⌘' : 'Ctrl'}&nbsp;Enter
 			</kbd>
 			<Button
@@ -206,6 +206,20 @@
 </div>
 
 <style>
+	/*
+	 * Bootstrap's default <kbd> is light text on the body colour. The old
+	 * `text-body-secondary` override painted dark text over that dark fill in
+	 * light mode, leaving the shortcut invisible. Use the muted surface chip
+	 * in both themes instead.
+	 */
+	.composer-kbd {
+		background: var(--bs-tertiary-bg);
+		color: var(--bs-secondary-color);
+		font-family: var(--bs-font-monospace);
+		font-size: 0.75rem;
+		font-weight: 400;
+	}
+
 	.composer-prompt-icon {
 		position: absolute;
 		top: 50%;
