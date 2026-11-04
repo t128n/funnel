@@ -11,7 +11,11 @@
  * methods, and the stores are created during component init so the runes
  * inside them are owned by that component.
  */
-import { appendUnique, mergeFirstPage, removeByKey } from "#lib/client/feed-merge";
+import {
+  appendUnique,
+  mergeAuthoritativePage,
+  removeByKey,
+} from "#lib/client/feed-merge";
 import { feedUrl } from "#lib/feeds";
 
 /** One page returned by a feed endpoint; mirrors the server's `ListPage`. */
@@ -58,6 +62,8 @@ export interface Feed<T> {
   sync(page: FeedPage<T>): void;
   /** Drop one row after the server confirms it was deleted. */
   remove(itemKey: string): void;
+  /** Drop loaded rows that no longer belong to this view. */
+  retain(keep: (item: T) => boolean): void;
   /** Fetch the page after `nextCursor` and append it. */
   loadMore(): Promise<void>;
   /** Refetch the loaded window from the start, capped at 500 rows. */
@@ -133,8 +139,9 @@ export function createFeed<T>(config: FeedConfig<T>): Feed<T> {
   function sync(page: FeedPage<T>): void {
     const nextKey = config.key();
     if (nextKey === key) {
-      // Authoritative rows replace their loaded copies in place; the tail stays.
-      items = mergeFirstPage(items, page.items, itemKey);
+      // Rows the page still returns replace their loaded copies in place; rows
+      // that left a complete window are dropped rather than kept as a stale tail.
+      items = mergeAuthoritativePage(items, page, itemKey);
     } else {
       // A different filter: the old window must not leak into the new one.
       key = nextKey;
@@ -149,6 +156,13 @@ export function createFeed<T>(config: FeedConfig<T>): Feed<T> {
 
   function remove(key: string): void {
     items = removeByKey(items, itemKey, key);
+  }
+
+  function retain(keep: (item: T) => boolean): void {
+    const next = items.filter(keep);
+    // Keep the array identity when nothing was removed, so the board's
+    // revision (and its lane reseed) only fires on real content changes.
+    if (next.length !== items.length) items = next;
   }
 
   async function loadMore(): Promise<void> {
@@ -214,6 +228,7 @@ export function createFeed<T>(config: FeedConfig<T>): Feed<T> {
     },
     sync,
     remove,
+    retain,
     loadMore,
     refreshLoaded,
   };

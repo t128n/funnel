@@ -93,6 +93,63 @@ export function mergeFirstPage<T>(
   return out;
 }
 
+/** One authoritative page plus the metadata that bounds the loaded window. */
+export interface AuthoritativePage<T> {
+  items: T[];
+  total: number;
+  nextCursor: string | null;
+}
+
+/**
+ * Merge or replace the loaded window with an authoritative first page.
+ *
+ * A page without a cursor is the complete result set: any loaded row it no
+ * longer returns has left the view. That is how a card moved out of a board
+ * lane is removed immediately instead of lingering in the source lane until a
+ * reload. A paged first page keeps the loaded tail (rows beyond the page the
+ * client has already scrolled through), but the window is capped at the
+ * server's total so the rendered count can never disagree with it.
+ */
+export function mergeAuthoritativePage<T>(
+  loaded: T[],
+  page: AuthoritativePage<T>,
+  keyOf: (item: T) => string,
+): T[] {
+  const merged = mergeFirstPage(loaded, page.items, keyOf);
+  if (page.nextCursor === null) {
+    // No cursor means there is no valid tail beyond this page. `mergeFirstPage`
+    // keeps a longer loaded window, which is exactly the stale-row case.
+    return merged.length > page.items.length ? uniqueBy(page.items, keyOf) : merged;
+  }
+  return merged.length > page.total ? merged.slice(0, page.total) : merged;
+}
+
+/**
+ * Build the owner lane for every key in a set of authoritative lane pages.
+ * A row may belong to exactly one lane, so a duplicate is always stale in the
+ * lane that the pages no longer name.
+ */
+export function laneOwners<T>(
+  lanes: ReadonlyArray<{ key: string; items: T[] }>,
+  keyOf: (item: T) => string,
+): Map<string, string> {
+  const owners = new Map<string, string>();
+  for (const lane of lanes) {
+    for (const item of lane.items) owners.set(keyOf(item), lane.key);
+  }
+  return owners;
+}
+
+/** True when the authoritative pages place this row in a different lane. */
+export function movedToAnotherLane(
+  itemKey: string,
+  laneKey: string,
+  owners: ReadonlyMap<string, string>,
+): boolean {
+  const owner = owners.get(itemKey);
+  return owner !== undefined && owner !== laneKey;
+}
+
 /** Append a page, skipping rows already loaded (and duplicates in the page). */
 export function appendUnique<T>(
   loaded: T[],

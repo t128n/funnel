@@ -53,6 +53,7 @@
 		},
 		sync() {},
 		remove() {},
+		retain() {},
 		loadMore: async () => {},
 		refreshLoaded: async () => {}
 	};
