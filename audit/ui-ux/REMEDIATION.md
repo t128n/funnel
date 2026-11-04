@@ -43,7 +43,7 @@ cross-route browser verification. GitHub issues/PRs remain authoritative.
 | Errors/Intake | #130 #138 | `fix/ux-errors`, `fix/ux-intake-form` | #159, #160 | Delivered |
 | Brand | #15 | `fix/ux-brand-assets` | #158 | Delivered |
 
-Subagents: **12**. Implementation PRs: **20**. Docs/ledger PR: **1**.
+Subagents: **12**. Implementation PRs: **20**. Docs/ledger PR: [#161](https://github.com/t128n/funnel/pull/161).
 
 ## Issue ledger
 
@@ -174,5 +174,5 @@ The audit recorded 12 deferred/rejected observations. They are intentionally
   after #106 removed `/day`).
 - Partial / still open by design: **#19, #21** (features; only their UI-audit
   overlap was addressed).
-- Implementation PRs: **20**, all open and unmerged. Ledger PR: **1**.
+- Implementation PRs: **20**, all open and unmerged. Ledger PR: [#161](https://github.com/t128n/funnel/pull/161).
 - Merge state: **implementation delivered, awaiting review** — not fully merged.
