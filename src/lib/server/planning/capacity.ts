@@ -4,8 +4,9 @@
  * Estimates are fixed size-to-minutes mappings owned by settings; an issue's
  * estimate is split evenly across the active maintainers among its assignees
  * with the integer remainder going to the first one. Work assigned only to
- * inactive or unconfigured people lands in an unassigned bucket with no cap,
- * and unestimated issues never contribute committed minutes.
+ * inactive or unconfigured people lands in an unassigned bucket with no cap.
+ * Unestimated issues never contribute committed minutes, but they are still
+ * attributed to the lane that owns them so the planner can show the commitment.
  *
  * All arithmetic is integer minutes. Capacity for a window is
  * `floor(weeklyMinutes * weeks * allocationPercent / 100)`.
@@ -41,6 +42,12 @@ export interface CapacityTotal {
 	over: boolean;
 	/** Indexes into the issue list this lane draws from, ascending. */
 	issueIndexes: number[];
+	/**
+	 * Indexes of issues attributed to this lane without an estimate. They are
+	 * visible commitments but contribute no minutes, so they are kept apart
+	 * from {@link issueIndexes} and never affect the cap.
+	 */
+	unsizedIssueIndexes: number[];
 }
 
 /** A maintainer whose projected committed minutes exceed their cap. */
@@ -142,6 +149,7 @@ export function distributeIssues(
 		remainingMinutes: 0,
 		over: false,
 		issueIndexes: [],
+		unsizedIssueIndexes: [],
 	}));
 	const lanes = new Map(totals.map((lane) => [lane.key, lane]));
 	const unassigned: CapacityTotal = {
@@ -151,12 +159,24 @@ export function distributeIssues(
 		remainingMinutes: 0,
 		over: false,
 		issueIndexes: [],
+		unsizedIssueIndexes: [],
 	};
 	const unestimated: number[] = [];
 
 	issues.forEach((issue, index) => {
 		if (issue.estimateMinutes === null) {
 			unestimated.push(index);
+			// An unestimated issue is still a commitment. Attribute it to the
+			// same lanes as sized work so the plan can show it where it belongs,
+			// but never add minutes to that lane.
+			const assignees = unique(issue.assignees).filter((key) => known.has(key));
+			if (assignees.length === 0) {
+				unassigned.unsizedIssueIndexes.push(index);
+				return;
+			}
+			for (const key of assignees) {
+				lanes.get(key)?.unsizedIssueIndexes.push(index);
+			}
 			return;
 		}
 		const estimate = Math.max(0, Math.trunc(issue.estimateMinutes));

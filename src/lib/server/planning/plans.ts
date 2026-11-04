@@ -43,12 +43,16 @@ export interface PlanLane {
   remainingMinutes: number;
   over: boolean;
   issues: PlanningIssue[];
+  /** Committed issues with no size; visible, but they add no minutes. */
+  unsizedIssues: PlanningIssue[];
 }
 
 /** Sized work with no active, configured assignee. It has no cap. */
 export interface PlanUnassigned {
   committedMinutes: number;
   issues: PlanningIssue[];
+  /** Committed issues with no size and no active maintainer. */
+  unsizedIssues: PlanningIssue[];
 }
 
 /** One Monday week: lanes, unassigned work and open unsized issues. */
@@ -154,6 +158,7 @@ function bucketsFrom(
       remainingMinutes: total.remainingMinutes,
       over: total.over,
       issues: issuesAt(total.issueIndexes, issues),
+      unsizedIssues: issuesAt(total.unsizedIssueIndexes, issues),
     } satisfies PlanLane;
   });
   return {
@@ -161,6 +166,10 @@ function bucketsFrom(
     unassigned: {
       committedMinutes: distribution.unassigned.committedMinutes,
       issues: issuesAt(distribution.unassigned.issueIndexes, issues),
+      unsizedIssues: issuesAt(
+        distribution.unassigned.unsizedIssueIndexes,
+        issues,
+      ),
     },
     unestimated: issuesAt(distribution.unestimated, issues),
   };
@@ -314,18 +323,28 @@ function openUnestimatedIssues(): PlanningIssue[] {
  * active maintainers, plus the open unsized list. Planned issues whose mirror
  * row is closed or gone are already excluded by `listPlannedIssues`, so they
  * reserve no capacity.
+ *
+ * A planned issue with no size is kept as an unsized commitment in its lane
+ * (or the unassigned bucket) and receives no minutes. It is removed from the
+ * general unestimated queue because it already has a row on this page; other
+ * unsized issues remain available to estimate.
  */
 export async function weekPlan(week: string): Promise<WeekPlan> {
   const weekStart = weekStartOf(week);
   const config = await getConfig();
   const issues = listPlannedIssues({ weekStart });
   const buckets = planBuckets(issues, config.planning, 1);
+  const committed = new Set(
+    issues.map((issue) => `${issue.repoId}:${issue.number}`),
+  );
 
   return {
     weekStart,
     label: weekLabel(weekStart),
     lanes: buckets.lanes,
     unassigned: buckets.unassigned,
-    unestimated: openUnestimatedIssues(),
+    unestimated: openUnestimatedIssues().filter(
+      (issue) => !committed.has(`${issue.repoId}:${issue.number}`),
+    ),
   };
 }

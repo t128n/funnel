@@ -92,8 +92,58 @@ describe("week and cycle plans", () => {
 
     expect(plan.unassigned.committedMinutes).toBe(240);
     expect(plan.unassigned.issues.map((issue) => issue.number)).toEqual([1]);
+    expect(plan.unassigned.unsizedIssues).toEqual([]);
     expect(plan.lanes[0].committedMinutes).toBe(0);
+    expect(plan.lanes[0].unsizedIssues).toEqual([]);
     expect(plan.unestimated.map((issue) => issue.number)).toEqual([2]);
+  });
+
+  test("a planned issue without a size stays visible in its lane", async () => {
+    const repoId = seedPlanningRepo("orgA/core");
+    seedPlanningIssue({
+      repoId,
+      number: 2,
+      size: null,
+      assignees: [planningUser("ann")],
+    });
+    setPlanItem({
+      org: "orgA",
+      name: "core",
+      issueNumber: 2,
+      weekStart: WEEK,
+    });
+
+    const plan = await weekPlan(WEEK);
+
+    expect(plan.lanes[0]).toMatchObject({
+      committedMinutes: 0,
+      remainingMinutes: 360,
+      over: false,
+    });
+    expect(plan.lanes[0].issues).toEqual([]);
+    expect(plan.lanes[0].unsizedIssues.map((issue) => issue.number)).toEqual([2]);
+    expect(plan.unassigned.unsizedIssues).toEqual([]);
+    // Committed work is shown in its lane, so it is not repeated in the
+    // general "needs an estimate" queue.
+    expect(plan.unestimated).toEqual([]);
+  });
+
+  test("a planned unassigned issue without a size lands in the unassigned bucket", async () => {
+    const repoId = seedPlanningRepo("orgA/core");
+    seedPlanningIssue({ repoId, number: 3, size: null, assignees: [] });
+    setPlanItem({
+      org: "orgA",
+      name: "core",
+      issueNumber: 3,
+      weekStart: WEEK,
+    });
+
+    const plan = await weekPlan(WEEK);
+
+    expect(plan.lanes[0].committedMinutes).toBe(0);
+    expect(plan.lanes[0].unsizedIssues).toEqual([]);
+    expect(plan.unassigned.committedMinutes).toBe(0);
+    expect(plan.unassigned.unsizedIssues.map((issue) => issue.number)).toEqual([3]);
   });
 
   test("inactive maintainers get no lane and their work is unassigned", async () => {
@@ -123,7 +173,11 @@ describe("week and cycle plans", () => {
 
     expect(plan.lanes).toHaveLength(1);
     expect(plan.lanes[0]).toMatchObject({ capMinutes: 360, committedMinutes: 0 });
-    expect(plan.unassigned).toEqual({ committedMinutes: 0, issues: [] });
+    expect(plan.unassigned).toEqual({
+      committedMinutes: 0,
+      issues: [],
+      unsizedIssues: [],
+    });
     expect(plan.unestimated).toEqual([]);
   });
 
@@ -159,7 +213,11 @@ describe("week and cycle plans", () => {
     const pruned = await weekPlan(WEEK);
     expect(pruned.lanes[0]).toMatchObject({ committedMinutes: 0, over: false });
     expect(pruned.lanes[0].issues).toEqual([]);
-    expect(pruned.unassigned).toEqual({ committedMinutes: 0, issues: [] });
+    expect(pruned.unassigned).toEqual({
+      committedMinutes: 0,
+      issues: [],
+      unsizedIssues: [],
+    });
   });
 
   test("test_lane_issue_indexes_map_back", async () => {

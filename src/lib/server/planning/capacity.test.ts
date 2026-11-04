@@ -149,6 +149,7 @@ describe("distributeIssues", () => {
 				remainingMinutes: 360,
 				over: false,
 				issueIndexes: [],
+				unsizedIssueIndexes: [],
 			},
 			{
 				key: maintainerKey(bob),
@@ -157,6 +158,7 @@ describe("distributeIssues", () => {
 				remainingMinutes: 360,
 				over: false,
 				issueIndexes: [],
+				unsizedIssueIndexes: [],
 			},
 		]);
 	});
@@ -170,6 +172,29 @@ describe("distributeIssues", () => {
 
 		expect(result.totals[0]?.committedMinutes).toBe(240);
 		expect(result.unestimated).toEqual([0]);
+	});
+
+	test("attributes null estimates to their lanes without minutes", () => {
+		const issues: CapacityIssue[] = [
+			{ estimateMinutes: null, assignees: [key("ann")] },
+			{ estimateMinutes: null, assignees: [key("ghost")] },
+			{ estimateMinutes: null, assignees: [key("ann"), key("ghost")] },
+		];
+		const result = distributeIssues(issues, [ann]);
+
+		expect(result.totals[0]).toMatchObject({
+			committedMinutes: 0,
+			remainingMinutes: 360,
+			over: false,
+			issueIndexes: [],
+			unsizedIssueIndexes: [0, 2],
+		});
+		expect(result.unassigned).toMatchObject({
+			committedMinutes: 0,
+			issueIndexes: [],
+			unsizedIssueIndexes: [1],
+		});
+		expect(result.unestimated).toEqual([0, 1, 2]);
 	});
 
 	test("deduplicates repeated assignees", () => {
