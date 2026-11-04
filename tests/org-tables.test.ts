@@ -108,6 +108,35 @@ describe("milestone format", () => {
 		expect(milestoneDueLabel(null)).toBeNull();
 	});
 
+	test("milestone detail uses the shared issue table", () => {
+		const detail = source(
+			"src/routes/(app)/milestones/[owner]/[repo]/[number]/+page.svelte",
+		);
+		expect(detail).toContain("<IssueTable");
+		expect(detail).not.toMatch(/<IssueList[\s>]/);
+		expect(detail).not.toContain("groupable");
+		expect(detail).toContain("repoShortcodes={data.repoShortcodes}");
+	});
+
+	test("milestone detail offers a writer-only Add issues picker", () => {
+		const detail = source(
+			"src/routes/(app)/milestones/[owner]/[repo]/[number]/+page.svelte",
+		);
+		const dialog = source(
+			"src/lib/components/milestones/AddMilestoneIssueDialog.svelte",
+		);
+		const server = source(
+			"src/routes/(app)/milestones/[owner]/[repo]/[number]/+page.server.ts",
+		);
+		expect(detail).toContain("canWrite(data.user?.role)");
+		expect(detail).toContain("<AddMilestoneIssueDialog");
+		expect(detail).toContain("Add issues");
+		expect(dialog).toContain("updateIssue(repo, selected.number, { milestone: milestoneNumber })");
+		expect(dialog).toContain("To remove an issue");
+		expect(server).toContain("noMilestone: true");
+		expect(server).toContain("canWrite(locals.user?.role)");
+	});
+
 	test("the list and detail use the shared Overdue treatment", () => {
 		const list = source("src/routes/(app)/milestones/+page.svelte");
 		const detail = source(
@@ -119,5 +148,26 @@ describe("milestone format", () => {
 			expect(page).toContain("bi-exclamation-circle");
 			expect(page).toContain("text-danger");
 		}
+	});
+});
+
+
+describe("epic add-child action", () => {
+	const epicDetail = source(
+		"src/routes/(app)/epics/[owner]/[repo]/[number]/+page.svelte",
+	);
+	const dialog = source("src/lib/components/epics/AddChildDialog.svelte");
+
+	test("the page action is a compact primary button", () => {
+		expect(epicDetail).toContain(
+			'<Button color="primary" size="sm" onclick={() => (dialogOpen = true)}>',
+		);
+	});
+
+	test("the dialog confirm is compact primary and the copy describes the task", () => {
+		expect(dialog).toContain('color="primary"');
+		expect(dialog).toContain('size="sm"');
+		expect(dialog).toContain("Choose an open issue to add to this epic.");
+		expect(dialog).not.toContain("written to the epic issue body");
 	});
 });

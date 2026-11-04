@@ -99,8 +99,8 @@
 	<ModalHeader toggle={() => close(false)}>Add child</ModalHeader>
 	<ModalBody>
 		<p class="small text-body-secondary">
-			Open issues that are not already in another epic. The full child list is written to the epic
-			issue body.
+			Choose an open issue to add to this epic. Only issues that are not already in another epic
+			are listed.
 		</p>
 
 		<div class="d-flex flex-column gap-3">
@@ -163,8 +163,15 @@
 	</ModalBody>
 
 	<ModalFooter>
-		<Button color="outline-secondary" disabled={busy} onclick={() => close(false)}>Cancel</Button>
-		<Button disabled={busy || selected === null} onclick={() => void submit()}>
+		<Button color="outline-secondary" size="sm" disabled={busy} onclick={() => close(false)}>
+			Cancel
+		</Button>
+		<Button
+			color="primary"
+			size="sm"
+			disabled={busy || selected === null}
+			onclick={() => void submit()}
+		>
 			{#if busy}
 				<Spinner label="Adding child" />
 			{/if}

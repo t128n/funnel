@@ -2,4 +2,4 @@
 "funnel": patch
 ---
 
-Make the epic and milestone tables readable at every width: epic titles are now the primary link, secondary columns fold into a metadata line below `md`, and overdue milestones show the same text-plus-icon treatment as the Timeline.
+Make the epic and milestone tables readable at every width, use the shared issue table on milestone detail, add a writer-only Add issues picker on milestones, and promote the epic Add child action to a compact primary button with task-focused dialog copy.
