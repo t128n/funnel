@@ -6,6 +6,7 @@
  * mixed submission/issue queue, and the six-column status board.
  */
 import type { Impact, Urgency } from "#lib/priority";
+import type { CommentReactions } from "#lib/reactions";
 import type { WaitingReason } from "#lib/waiting";
 import type { StagedSubmission } from "#lib/server/intake/staging";
 import type { DelayReason } from "#lib/server/actuals/reasons";
@@ -263,6 +264,14 @@ export interface CommentItem {
   author: UserRef | null;
   body: string;
   createdAt: number;
+  /** When GitHub last edited the comment; equal to `createdAt` when unedited. */
+  updatedAt?: number;
+  /**
+   * Aggregate reactions plus the signed-in viewer's own choices. Optional so
+   * older payload consumers (and tests) keep compiling; the detail query always
+   * attaches it.
+   */
+  reactions?: CommentReactions;
 }
 
 /** One comment with server-rendered, sanitized HTML for display. */

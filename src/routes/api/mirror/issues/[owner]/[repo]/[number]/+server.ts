@@ -44,7 +44,10 @@ export const GET: RequestHandler = ({ params, url, locals }) => {
     ? Math.min(Math.max(Math.trunc(requested), 1), MAX_COMMENT_LIMIT)
     : DEFAULT_COMMENT_LIMIT;
 
-  const detail = getIssueDetail(repo.id, number, { commentLimit });
+  const detail = getIssueDetail(repo.id, number, {
+    commentLimit,
+    viewerUserId: userId,
+  });
   if (!detail) {
     return Response.json(
       {

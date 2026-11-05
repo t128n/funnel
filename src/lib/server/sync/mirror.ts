@@ -42,6 +42,7 @@ import {
   type Priority,
   type Urgency,
 } from "#lib/priority";
+import type { CommentReactions } from "#lib/reactions";
 
 export type RepoRow = typeof mirrorRepo.$inferSelect;
 
@@ -60,6 +61,8 @@ export interface CommentRecord {
   externalId: string;
   author: UserRecord | null;
   body: string;
+  /** Aggregate reactions; omitted when the caller has not hydrated them. */
+  reactions?: CommentReactions | null;
   createdAt: number;
   updatedAt: number;
 }
@@ -726,6 +729,7 @@ interface PreparedComment {
   externalId: string;
   authorId: number | null;
   body: string;
+  reactions: CommentReactions | null;
   createdAt: number;
   updatedAt: number;
 }
@@ -772,6 +776,7 @@ function prepareIssue(
         ? requireUserId(userIds, comment.author)
         : null,
       body: comment.body,
+      reactions: comment.reactions ?? null,
       createdAt: comment.createdAt,
       updatedAt: comment.updatedAt,
     })),
@@ -995,6 +1000,7 @@ function writeIssue(
           externalId: comment.externalId,
           authorId: comment.authorId,
           body: comment.body,
+          reactions: comment.reactions,
           createdAt: comment.createdAt,
           updatedAt: comment.updatedAt,
         })),
@@ -1005,6 +1011,7 @@ function writeIssue(
           threadNumber: sql`excluded.thread_number`,
           authorId: sql`excluded.author_id`,
           body: sql`excluded.body`,
+          reactions: sql`excluded.reactions`,
           createdAt: sql`excluded.created_at`,
           updatedAt: sql`excluded.updated_at`,
         },

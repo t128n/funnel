@@ -7,6 +7,7 @@ import {
   text,
   uniqueIndex,
 } from "drizzle-orm/sqlite-core";
+import type { CommentReactions } from "#lib/reactions";
 
 // Single `funnel.db`. Timestamps are INTEGER unix milliseconds.
 //
@@ -351,6 +352,41 @@ export const stateIssueWatch = sqliteTable(
       t.org,
       t.name,
       t.issueNumber,
+    ),
+  ],
+);
+
+// ---------------------------------------------------------------------------
+// State: the signed-in user's own comment reactions.
+//
+// GitHub aggregates reactions on the mirrored comment, but it reports the
+// viewer's own reaction only to a request made with that viewer's token. The
+// detail read is served from the local mirror, so Funnel remembers the acting
+// user's choices here and merges them into the comment DTO. The row is keyed
+// by the durable `owner/name` plus the forge-native comment id, not a mirror
+// FK, so it survives mirror pruning and re-sync. It is a best-effort cache:
+// reactions added directly on GitHub appear in the aggregate counts but not as
+// the local `viewerReacted` chip until the same reaction is toggled in Funnel.
+// ---------------------------------------------------------------------------
+export const stateCommentReaction = sqliteTable(
+  "state_comment_reaction",
+  {
+    userId: text("user_id").notNull(),
+    /** `owner/name` of the comment's repository. */
+    repo: text("repo").notNull(),
+    /** Forge-native comment id (`mirror_comment.external_id`). */
+    commentExternalId: text("comment_external_id").notNull(),
+    /** One of Funnel's reaction names, e.g. `+1` or `heart`. */
+    content: text("content").notNull(),
+    createdAt: integer("created_at").notNull(),
+  },
+  (t) => [
+    primaryKey({
+      columns: [t.userId, t.repo, t.commentExternalId, t.content],
+    }),
+    index("idx_state_comment_reaction_comment").on(
+      t.repo,
+      t.commentExternalId,
     ),
   ],
 );
@@ -941,6 +977,13 @@ export const mirrorComment = sqliteTable(
       onDelete: "set null",
     }),
     body: text("body").notNull().default(""),
+    /**
+     * Aggregated reaction summary as JSON. Nullable because older rows predate
+     * reaction hydration and because a comment with no reactions needs no row
+     * payload. `viewerReacted` is always empty here; the detail read merges
+     * the acting user's own choices from `state_comment_reaction`.
+     */
+    reactions: text("reactions", { mode: "json" }).$type<CommentReactions>(),
     createdAt: integer("created_at").notNull(),
     updatedAt: integer("updated_at").notNull(),
   },

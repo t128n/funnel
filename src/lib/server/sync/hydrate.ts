@@ -21,6 +21,7 @@ import { db } from "#lib/server/db/index";
 import { authAccount } from "#lib/server/db/schema";
 import { forge } from "#lib/server/forge/providers.server";
 import { createLogger, errorFields } from "#lib/server/log";
+import { normalizeGraphqlReactions } from "#lib/reactions";
 import { readSettings } from "#lib/server/settings/store";
 import {
   parseMentions,
@@ -77,6 +78,11 @@ export const HYDRATE_QUERY = `query FunnelHydrate($ids: [ID!]!) {
           body
           createdAt
           updatedAt
+          reactions(first: 1) { totalCount }
+          reactionGroups {
+            content
+            users(first: 1) { totalCount }
+          }
         }
       }
     }
@@ -98,6 +104,11 @@ export const COMMENTS_QUERY = `query FunnelComments($id: ID!, $after: String) {
           body
           createdAt
           updatedAt
+          reactions(first: 1) { totalCount }
+          reactionGroups {
+            content
+            users(first: 1) { totalCount }
+          }
         }
       }
     }
@@ -118,12 +129,19 @@ interface GqlActor {
   avatarUrl?: string | null;
 }
 
+interface GqlReactionGroup {
+  content?: string | null;
+  users?: { totalCount?: number | null } | null;
+}
+
 interface GqlComment {
   databaseId?: number | null;
   author?: GqlActor | null;
   body?: string | null;
   createdAt?: string | null;
   updatedAt?: string | null;
+  reactions?: { totalCount?: number | null } | null;
+  reactionGroups?: GqlReactionGroup[] | null;
 }
 
 interface GqlPageInfo {
@@ -194,13 +212,24 @@ function normalizeComments(
       (c): c is GqlComment & { databaseId: number } =>
         typeof c.databaseId === "number",
     )
-    .map((c) => ({
-      externalId: String(c.databaseId),
-      author: toUser(c.author, forge, instance),
-      body: c.body ?? "",
-      createdAt: ms(c.createdAt) ?? 0,
-      updatedAt: ms(c.updatedAt) ?? 0,
-    }));
+    .map((c) => {
+      const reactions = normalizeGraphqlReactions(
+        c.reactionGroups,
+        c.reactions?.totalCount,
+      );
+      return {
+        externalId: String(c.databaseId),
+        author: toUser(c.author, forge, instance),
+        body: c.body ?? "",
+        // Keep the record shape unchanged when a fixture (or a forge) reports
+        // no reaction fields at all.
+        ...(c.reactionGroups !== undefined || c.reactions !== undefined
+          ? { reactions }
+          : {}),
+        createdAt: ms(c.createdAt) ?? 0,
+        updatedAt: ms(c.updatedAt) ?? 0,
+      };
+    });
 }
 
 /**
