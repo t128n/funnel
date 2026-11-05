@@ -46,6 +46,22 @@ Search applies to both halves: it matches a submission's title and body, and an 
 
 The Inbox badge in the sidebar counts pending submissions plus untriaged open issues. A `read` user can browse the queue; only a `write` user can make a triage decision. See [roles and permissions](../../reference/roles-and-permissions.md).
 
+## Snooze an Inbox item
+
+Every Inbox row — a staged submission or an untriaged issue — has a **Snooze** control with three choices:
+
+- **Tomorrow** — 09:00 local time the next day.
+- **Next week** — 09:00 local time seven days later.
+- **Custom date** — 09:00 local time on the date you pick.
+
+A snoozed row leaves the queue immediately and is excluded from the sidebar badge. It returns automatically once its resurface time passes; there is no reminder or notification (those are separate roadmap work). Snoozing never archives a submission, changes a label, or touches the GitHub mirror, so the issue remains visible in All Issues, the board and the matrix.
+
+The **Snoozed** tab on `/inbox` (`/inbox?snoozed=1`) lists deferred items with their resurface date and a **Resurface** action that clears the snooze immediately. The tab shows its own count; the queue badge never includes snoozed rows.
+
+Snoozes are stored in `state_snooze`. Issues are keyed by `owner/name` plus issue number rather than a mirror id, so a snooze survives re-sync and mirror pruning; a pruned issue still appears in the Snoozed view so it can be resurfaced. Submissions are keyed by their staged id. The server rejects a resurface date in the past or more than one year away.
+
+Triage clears the snooze: accepting, dismissing or duplicating a submission removes its snooze row, and writing an issue status (from the Inbox quick triage or the Inspector) removes the issue's snooze.
+
 ## Open a submission
 
 Select a **Staged** row, or press Enter or Space while it is focused. The detail pane shows the intake tag, the source when one was recorded, the title, when it was staged, and the rendered Markdown description. An empty description is shown as “No description provided.”

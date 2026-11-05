@@ -71,6 +71,37 @@ export const stateTriageEvent = sqliteTable(
 );
 
 // ---------------------------------------------------------------------------
+// State: snoozed Inbox items.
+// A snooze hides a staged submission or an untriaged mirrored issue from the
+// pending queue until `snoozed_until` passes. Issues are keyed by `owner/name`
+// plus number rather than a mirror FK, so a snooze survives mirror pruning and
+// a re-sync. `key` is the stable identity (`submission:<id>` or
+// `issue:<owner/name>#<number>`), which makes the row a simple upsert target.
+// ---------------------------------------------------------------------------
+export const stateSnooze = sqliteTable(
+  "state_snooze",
+  {
+    key: text("key").primaryKey(),
+    /** Set for a staged submission snooze; null for an issue snooze. */
+    submissionId: text("submission_id"),
+    /** `owner/name` for an issue snooze; null for a submission snooze. */
+    repo: text("repo"),
+    /** Issue number for an issue snooze; null for a submission snooze. */
+    number: integer("number"),
+    /** Unix ms when the item returns to the Inbox. */
+    snoozedUntil: integer("snoozed_until").notNull(),
+    createdAt: integer("created_at").notNull(),
+    /** `auth_user.id` of the person who snoozed it, when known. */
+    actorUserId: text("actor_user_id"),
+  },
+  (t) => [
+    index("idx_state_snooze_until").on(t.snoozedUntil),
+    index("idx_state_snooze_submission").on(t.submissionId),
+    index("idx_state_snooze_issue").on(t.repo, t.number),
+  ],
+);
+
+// ---------------------------------------------------------------------------
 // State: instance settings (SPEC §4, §10).
 // A normalized key/value store that replaces `funnel.config.yaml`. Keys are
 // dotted paths (`sync.history_days`, `intake.default_repo`, ...) and `value`

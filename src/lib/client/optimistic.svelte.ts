@@ -56,6 +56,17 @@ export interface IssuePatch {
 
 const overlays = new SvelteMap<OverlayKey, IssuePatch>();
 const removedSubmissions = new SvelteSet<string>();
+/**
+ * Issues optimistically removed from the Inbox by a snooze. Keyed by
+ * `owner/name#number`, the durable snooze identity, so a mirror refresh cannot
+ * make the row reappear before the server's own exclusion does.
+ */
+const snoozedIssues = new SvelteSet<string>();
+
+/** Durable identity for an issue in the snooze overlay. */
+function snoozedIssueKey(repo: string, number: number): string {
+  return `${repo}#${number}`;
+}
 
 /**
  * Bumped on every overlay change. Board projections read this so a re-render
@@ -222,6 +233,26 @@ export function reconcileSubmissions(presentIds: Iterable<string>): void {
   });
 }
 
+/**
+ * Drop optimistic snooze markers once the authoritative Inbox shows the issue
+ * again (its snooze became due, or it was resurfaced elsewhere). An absent row
+ * is left alone: it may simply be beyond the loaded page, and keeping the
+ * marker cannot bring a row back once the server excludes it.
+ */
+export function reconcileSnoozedIssues(
+  issues: readonly IssueListItem[],
+): void {
+  if (snoozedIssues.size === 0) return;
+  const present = new Set(
+    issues.map((issue) => snoozedIssueKey(issue.repo, issue.number)),
+  );
+  untrack(() => {
+    for (const key of snoozedIssues) {
+      if (present.has(key)) snoozedIssues.delete(key);
+    }
+  });
+}
+
 // --- Projections ------------------------------------------------------------
 
 /** Apply a pending overlay to a single issue. */
@@ -331,6 +362,9 @@ export function projectInboxEntries(
     } else {
       const issue = projectIssue(entry.issue);
       if (!isUntriaged(issue)) continue;
+      if (snoozedIssues.has(snoozedIssueKey(issue.repo, issue.number))) {
+        continue;
+      }
       projected.push({ kind: "issue", issue });
     }
   }
@@ -347,4 +381,16 @@ export function removeSubmission(id: string): void {
 /** Restore a submission whose triage action failed. */
 export function restoreSubmission(id: string): void {
   removedSubmissions.delete(id);
+}
+
+// --- Optimistic snooze removal (inbox defer) -------------------------------
+
+/** Hide an issue from the Inbox before the snooze request round-trips. */
+export function removeSnoozedIssue(repo: string, number: number): void {
+  snoozedIssues.add(snoozedIssueKey(repo, number));
+}
+
+/** Put an issue back when its snooze request failed. */
+export function restoreSnoozedIssue(repo: string, number: number): void {
+  snoozedIssues.delete(snoozedIssueKey(repo, number));
 }

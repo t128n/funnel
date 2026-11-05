@@ -39,6 +39,20 @@ test("test_intake_archive_columns", () => {
   );
 });
 
+test("test_snooze_columns", () => {
+  expect(cols("state_snooze")).toEqual(
+    expect.arrayContaining([
+      "key",
+      "submission_id",
+      "repo",
+      "number",
+      "snoozed_until",
+      "created_at",
+      "actor_user_id",
+    ]),
+  );
+});
+
 test("test_triage_event_columns", () => {
   expect(cols("state_triage_event")).toEqual(
     expect.arrayContaining([

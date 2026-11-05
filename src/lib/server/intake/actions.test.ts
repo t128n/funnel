@@ -1,8 +1,9 @@
-import { beforeEach, describe, expect, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { setConfig } from "#lib/server/config";
 import { db } from "#lib/server/db/index";
 import {
   stateIntakeSubmission,
+  stateSnooze,
   stateTriageEvent,
 } from "#lib/server/db/schema";
 import type { GitHubProvider } from "#lib/server/forge/providers.server";
@@ -18,6 +19,7 @@ import {
   undoTriageEvent,
 } from "./actions";
 import { createSubmission, getSubmission } from "./staging";
+import { isSubmissionSnoozed, snoozeSubmission } from "#lib/server/snooze";
 
 const ACTOR = "triager";
 
@@ -107,11 +109,16 @@ function seedIssue(): void {
 }
 
 beforeEach(() => {
+  db.delete(stateSnooze).run();
   db.delete(stateTriageEvent).run();
   db.delete(stateIntakeSubmission).run();
   clearMirror();
   resetEventBus();
   setConfig(TEST_CONFIG);
+});
+
+afterEach(() => {
+  db.delete(stateSnooze).run();
 });
 
 describe("acceptSubmission", () => {
@@ -153,6 +160,18 @@ describe("acceptSubmission", () => {
     expect(events).toContainEqual(
       expect.objectContaining({ type: "intake", action: "accepted", id }),
     );
+  });
+
+  test("clears a submission snooze once the issue is created", async () => {
+    setConfig({ ...TEST_CONFIG, intake: { default_repo: "orgA/core" } });
+    const { id } = createSubmission({ title: "Snoozed accept" });
+    expect(snoozeSubmission(id, Date.now() + 60_000).ok).toBe(true);
+    const { provider } = stubProvider();
+
+    const result = await acceptSubmission({ id, actorUserId: ACTOR, provider });
+
+    expect(result.ok).toBe(true);
+    expect(isSubmissionSnoozed(id)).toBe(false);
   });
 
   test("honors an explicit repo selector and extra labels/assignees", async () => {
@@ -352,6 +371,17 @@ describe("dismissSubmission", () => {
         reason: "duplicate report",
       }),
     ]);
+  });
+
+  test("clears a submission snooze when dismissed", () => {
+    const { id } = createSubmission({ title: "Snoozed then dismissed" });
+    const until = Date.now() + 60_000;
+    expect(snoozeSubmission(id, until).ok).toBe(true);
+    expect(isSubmissionSnoozed(id)).toBe(true);
+
+    dismissSubmission({ id, actorUserId: ACTOR, reason: "not needed" });
+
+    expect(isSubmissionSnoozed(id)).toBe(false);
   });
 
   test("requires a non-blank reason and keeps the row pending", () => {

@@ -27,6 +27,7 @@ Funnel stores all durable state, auth records and the disposable GitHub mirror i
 - A mirrored thread is identified by `(repo_id, number)`; its forge-native id is `external_id` (text, because ids are opaque across forges). REST polling yields `node_id`s for hydration, and the GraphQL response's `databaseId` populates `external_id`.
 - Repositories are identified by `(forge, instance, external_id)`, which survives renames; `(forge, instance, org, name)` is unique. The internal `id` is the only foreign-key target.
 - Funnel-local work notes and attachments are keyed by `org/name` plus thread number, not by the disposable mirror thread row, so they survive mirror pruning and re-sync.
+- Inbox snoozes share that durable issue identity (`owner/name` plus number) and key submissions by their staged id.
 - People are keyed by `(forge, instance, external_id)` and referenced internally by `mirror_user.id`. Better Auth users use a separate text id; `auth_account.accountId` stores the GitHub account id as a string for the `github` provider.
 
 ## State tables
@@ -67,6 +68,28 @@ Append-only triage history for intake submissions. Rows are keyed by submission 
 Primary key: `id`. Foreign keys: none. Indexes:
 
 - `idx_state_triage_event_submission` on `(submission_id, created_at)`.
+
+### `state_snooze`
+
+Durable Inbox snoozes. A snooze hides a staged submission or an untriaged mirrored issue from the pending queue until `snoozed_until` passes, then the row returns automatically because pending reads compare against the current time. Issues are keyed by `owner/name` plus number rather than a mirror foreign key, so a snooze survives mirror pruning and a re-sync. `key` is the stable upsert identity: `submission:<id>` or `issue:<owner/name>#<number>`.
+
+| Column | Type | Constraints / notes |
+| :--- | :--- | :--- |
+| `key` | TEXT | Primary key; `submission:<id>` or `issue:<owner/name>#<number>`. |
+| `submission_id` | TEXT | Nullable; set for a staged submission snooze. |
+| `repo` | TEXT | Nullable `owner/name`; set for an issue snooze. |
+| `number` | INTEGER | Nullable issue number; set for an issue snooze. |
+| `snoozed_until` | INTEGER | Not null, Unix ms; the item is hidden while this is greater than the current time. Validated to be in the future and at most one year away. |
+| `created_at` | INTEGER | Not null, Unix ms when the snooze was last set. |
+| `actor_user_id` | TEXT | Nullable `auth_user.id` of the person who snoozed it. |
+
+Primary key: `key`. Foreign keys: none; the issue identity is the durable `org/name` plus number and the submission identity is its staged id. Indexes:
+
+- `idx_state_snooze_until` on `(snoozed_until)`.
+- `idx_state_snooze_submission` on `(submission_id)`.
+- `idx_state_snooze_issue` on `(repo, number)`.
+
+Triage or a status change clears the matching row: accepting, dismissing or duplicating a submission, and writing an issue status, both remove it.
 
 ### `state_notification`
 
@@ -684,7 +707,7 @@ Foreign keys declared in the schema:
 | `mirror_repo_assignee.user_id` | `mirror_user.id` | `CASCADE` |
 | `mirror_comment.author_id` | `mirror_user.id` | `SET NULL` |
 
-The composite child tables `mirror_thread_label` and `mirror_thread_assignee`, and the `repo_id`/`thread_number` columns on `mirror_comment`, carry no foreign key to `mirror_thread`. `mirror_thread.milestone_number` also has no foreign key to `mirror_milestone`: the milestone set is replaced wholesale on refresh, and a thread may briefly reference a number that has not been mirrored yet. The sync layer therefore deletes labels, assignees and comments explicitly before deleting a thread row (`deleteIssue` in `src/lib/server/sync/mirror.ts`). `state_work_note`, `state_attachment`, `state_notification`, `state_issue_watch`, `state_plan_item`, `state_issue_event`, `state_issue_delay`, `state_triage_event`, `state_work_hours`, `state_unavailable_window`, `state_day_block` and `state_calendar_feed` also carry no foreign key to the mirror: their author/uploader/recipient/actor identities are snapshots, and their issue identity is the durable `org/name` plus number. The four legacy day-planning tables reference `auth_user.id` directly with `ON DELETE CASCADE`; deleting an account removes any retained rows.
+The composite child tables `mirror_thread_label` and `mirror_thread_assignee`, and the `repo_id`/`thread_number` columns on `mirror_comment`, carry no foreign key to `mirror_thread`. `mirror_thread.milestone_number` also has no foreign key to `mirror_milestone`: the milestone set is replaced wholesale on refresh, and a thread may briefly reference a number that has not been mirrored yet. The sync layer therefore deletes labels, assignees and comments explicitly before deleting a thread row (`deleteIssue` in `src/lib/server/sync/mirror.ts`). `state_work_note`, `state_attachment`, `state_notification`, `state_issue_watch`, `state_plan_item`, `state_issue_event`, `state_issue_delay`, `state_snooze`, `state_triage_event`, `state_work_hours`, `state_unavailable_window`, `state_day_block` and `state_calendar_feed` also carry no foreign key to the mirror: their author/uploader/recipient/actor identities are snapshots, and their issue identity is the durable `org/name` plus number. The four legacy day-planning tables reference `auth_user.id` directly with `ON DELETE CASCADE`; deleting an account removes any retained rows.
 
 ## Storage, pragmas and migrations
 

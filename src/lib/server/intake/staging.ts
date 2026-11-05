@@ -16,6 +16,7 @@ import { stateIntakeSubmission } from "#lib/server/db/schema";
 import { createLogger } from "#lib/server/log";
 import { notifyNewIntake } from "#lib/server/notifications/service";
 import { readSettings } from "#lib/server/settings/store";
+import { submissionSnoozeClause } from "#lib/server/snooze";
 
 const log = createLogger({ component: "intake" });
 
@@ -108,12 +109,20 @@ export function getSubmission(id: string): StagedSubmission | undefined {
     .get();
 }
 
-/** Pending submissions, newest first (the Inbox stream; SPEC §2.1). */
-export function listSubmissions(): StagedSubmission[] {
+/**
+ * Pending submissions, newest first (the Inbox stream; SPEC §2.1). A
+ * submission with an active snooze is omitted until `snoozed_until` passes.
+ */
+export function listSubmissions(now = Date.now()): StagedSubmission[] {
   return db
     .select()
     .from(stateIntakeSubmission)
-    .where(isNull(stateIntakeSubmission.archivedAt))
+    .where(
+      and(
+        isNull(stateIntakeSubmission.archivedAt),
+        submissionSnoozeClause(now),
+      ),
+    )
     // `rowid` breaks same-millisecond ties so ordering is deterministic.
     .orderBy(desc(stateIntakeSubmission.createdAt), sql`rowid desc`)
     .all();
@@ -133,11 +142,18 @@ export function listArchivedSubmissions(): StagedSubmission[] {
  * Number of pending submissions matching `search`, counted in SQL so the Inbox
  * badge never materialises the queue (plan T4). Matching mirrors
  * `matchesSearch` in the query layer: a case-insensitive substring over title
- * or body, with `%`/`_` treated literally (`instr`, not `LIKE`).
+ * or body, with `%`/`_` treated literally (`instr`, not `LIKE`). Active snoozes
+ * are excluded, so the badge agrees with the queue.
  */
-export function countPendingSubmissions(search = ""): number {
+export function countPendingSubmissions(
+  search = "",
+  now = Date.now(),
+): number {
   const needle = search.toLowerCase();
-  const pending = isNull(stateIntakeSubmission.archivedAt);
+  const pending = and(
+    isNull(stateIntakeSubmission.archivedAt),
+    submissionSnoozeClause(now),
+  );
   const where =
     needle.length === 0
       ? pending

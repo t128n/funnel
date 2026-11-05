@@ -7,9 +7,14 @@ mock.module("svelte-sonner", () => ({
   toast: Object.assign(() => {}, { error: () => {}, success: () => {} }),
 }));
 
-const { mutate, overlayKey, projectInboxEntries } = await import(
-  "#lib/client/optimistic.svelte"
-);
+const {
+  mutate,
+  overlayKey,
+  projectInboxEntries,
+  reconcileSnoozedIssues,
+  removeSnoozedIssue,
+  restoreSnoozedIssue,
+} = await import("#lib/client/optimistic.svelte");
 
 /** A minimal untriaged inbox issue entry. */
 function issueEntry(number: number, status: string | null = null) {
@@ -93,5 +98,19 @@ describe("projectInboxEntries", () => {
     }[];
     expect(projected).toHaveLength(1);
     expect(projected[0].issue.number).toBe(31);
+  });
+
+  test("drops a snoozed issue until it is restored or resurfaced", () => {
+    const entries = [issueEntry(40)] as never[];
+    removeSnoozedIssue("orgA/core", 40);
+    expect(projectInboxEntries(entries)).toHaveLength(0);
+
+    restoreSnoozedIssue("orgA/core", 40);
+    expect(projectInboxEntries(entries)).toHaveLength(1);
+
+    removeSnoozedIssue("orgA/core", 40);
+    // The authoritative Inbox showing the issue again means its snooze is over.
+    reconcileSnoozedIssues([issueEntry(40).issue] as never);
+    expect(projectInboxEntries(entries)).toHaveLength(1);
   });
 });

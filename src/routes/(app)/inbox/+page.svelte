@@ -7,8 +7,10 @@
 		Button,
 		Input,
 		InputGroup,
-		InputGroupText
+		InputGroupText,
+		Table
 	} from '@sveltestrap/sveltestrap';
+	import { invalidateAll } from '$app/navigation';
 	import InlineStatus from '#lib/components/common/InlineStatus.svelte';
 	import EmptyState from '#lib/components/common/EmptyState.svelte';
 	import PageHead from '#lib/components/common/PageHead.svelte';
@@ -17,12 +19,16 @@
 	import PageHeader from '#lib/components/shell/PageHeader.svelte';
 	import { createFeed } from '#lib/client/feed.svelte';
 	import { inboxEmptyState, inboxSummary } from '#lib/client/inbox';
+	import { resurface } from '#lib/client/mutations';
 	import {
 		projectInboxEntries,
 		reconcileIssues,
+		reconcileSnoozedIssues,
 		reconcileSubmissions
 	} from '#lib/client/optimistic.svelte';
 	import { FEED_ENDPOINTS } from '#lib/feeds';
+	import { issuePath, submissionPath } from '#lib/issue-url';
+	import { absoluteTime } from '#lib/time';
 	import { activeFilterCount, buildFilterUrl, parseFilterParams } from '#lib/url-filter';
 	import type { IssueListItem, RenderedInboxEntry } from '#lib/server/issues/types';
 	import type { PageProps } from './$types';
@@ -101,8 +107,31 @@
 			else submissionIds.push(entry.submission.id);
 		}
 		reconcileIssues(issueItems);
+		reconcileSnoozedIssues(issueItems);
 		reconcileSubmissions(submissionIds);
 	});
+
+	const showSnoozed = $derived(data.snoozedView);
+	let resurfaceError = $state<string | null>(null);
+	let resurfacing = $state<Record<string, boolean>>({});
+
+	async function resurfaceItem(
+		item: (typeof data.snoozedItems)[number]
+	): Promise<void> {
+		resurfaceError = null;
+		resurfacing[item.key] = true;
+		const target =
+			item.kind === 'submission'
+				? { kind: 'submission' as const, id: item.submissionId ?? '' }
+				: { kind: 'issue' as const, repo: item.repo ?? '', number: item.number ?? 0 };
+		const result = await resurface(target);
+		delete resurfacing[item.key];
+		if (!result.ok) {
+			resurfaceError = result.error;
+			return;
+		}
+		await invalidateAll();
+	}
 
 	// Search shares the feed's `q` parameter with the global filter model, so a
 	// query survives a refresh and deep links stay bookmarkable. The input keeps
@@ -250,6 +279,28 @@
 		{/snippet}
 	</PageHeader>
 
+	<div class="d-flex flex-wrap align-items-center gap-2 mb-3" role="group" aria-label="Inbox view">
+		<Button
+			color={showSnoozed ? 'outline-secondary' : 'primary'}
+			size="sm"
+			href={filter.search ? `/inbox?q=${encodeURIComponent(filter.search)}` : '/inbox'}
+		>
+			Queue
+		</Button>
+		<Button
+			color={showSnoozed ? 'primary' : 'outline-secondary'}
+			size="sm"
+			href={filter.search
+				? `/inbox?snoozed=1&q=${encodeURIComponent(filter.search)}`
+				: '/inbox?snoozed=1'}
+		>
+			Snoozed
+			{#if data.snoozedCount > 0}
+				<span class="badge text-bg-secondary ms-1">{data.snoozedCount}</span>
+			{/if}
+		</Button>
+	</div>
+
 	{#if formError}
 		<Alert color="danger" class="border d-flex align-items-center gap-2">
 			<i class="bi bi-exclamation-circle" aria-hidden="true"></i>
@@ -262,7 +313,90 @@
 		</Alert>
 	{/if}
 
-	{#if entries.length === 0}
+	{#if showSnoozed}
+		{#if resurfaceError}
+			<Alert color="danger" class="border d-flex align-items-center gap-2">
+				<i class="bi bi-exclamation-circle" aria-hidden="true"></i>
+				<span>{resurfaceError}</span>
+			</Alert>
+		{/if}
+
+		{#if data.snoozedItems.length === 0}
+			<EmptyState
+				title="Nothing is snoozed"
+				description="Snooze an Inbox row to defer it. It will return automatically when its resurface date passes."
+			>
+				{#snippet action()}
+					<Button color="outline-secondary" size="sm" href="/inbox">Back to the queue</Button>
+				{/snippet}
+			</EmptyState>
+		{:else}
+			<div class="table-responsive border rounded">
+				<Table hover class="align-middle mb-0">
+					<caption class="visually-hidden">Snoozed Inbox items</caption>
+					<thead class="table-light">
+						<tr>
+							<th scope="col" class="small text-body-secondary">Item</th>
+							<th scope="col" class="small text-body-secondary d-none d-md-table-cell">Kind</th>
+							<th scope="col" class="small text-body-secondary">Resurfaces</th>
+							<th scope="col" class="small text-body-secondary text-end">Action</th>
+						</tr>
+					</thead>
+					<tbody>
+						{#each data.snoozedItems as item (item.key)}
+							<tr>
+								<td class="min-w-0">
+									{#if item.kind === 'submission'}
+										<a
+											href={submissionPath(item.submissionId ?? '')}
+											class="link-primary text-decoration-none"
+											title={item.title}
+										>
+											{item.title}
+										</a>
+									{:else}
+										<a
+											href={issuePath('issues', item.repo ?? '', item.number ?? 0)}
+											class="link-primary text-decoration-none"
+											title={item.title}
+										>
+											{item.title}
+										</a>
+										<div class="small text-body-secondary font-monospace">
+											{item.repo}#{item.number}
+										</div>
+									{/if}
+									{#if !item.available}
+										<div class="small text-warning-emphasis">
+											This row is no longer in the mirror; resurface clears the snooze.
+										</div>
+									{/if}
+								</td>
+								<td class="small text-body-secondary d-none d-md-table-cell">
+									{item.kind === 'submission' ? 'Submission' : 'Issue'}
+								</td>
+								<td class="small text-body-secondary text-nowrap">
+									<time datetime={new Date(item.snoozedUntil).toISOString()}>
+										{absoluteTime(item.snoozedUntil)}
+									</time>
+								</td>
+								<td class="text-end text-nowrap">
+									<Button
+										color="outline-secondary"
+										size="sm"
+										disabled={resurfacing[item.key] === true}
+										onclick={() => void resurfaceItem(item)}
+									>
+										Resurface
+									</Button>
+								</td>
+							</tr>
+						{/each}
+					</tbody>
+				</Table>
+			</div>
+		{/if}
+	{:else if entries.length === 0}
 		{#if inboxEmptyState(data.inboxCount) === 'clear'}
 			<Alert color="success" class="border d-flex align-items-center gap-2">
 				<i class="bi bi-check-circle" aria-hidden="true"></i>

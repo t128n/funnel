@@ -305,6 +305,50 @@ export function createRepoMilestone(
 }
 
 // ---------------------------------------------------------------------------
+// Inbox snoozes (Funnel-local)
+// ---------------------------------------------------------------------------
+
+/** What a snooze request targets. */
+export type SnoozeTarget =
+  | { kind: "submission"; id: string }
+  | { kind: "issue"; repo: string; number: number };
+
+/** One stored snooze row returned by the API. */
+export interface SnoozeResultRow {
+  key: string;
+  submissionId: string | null;
+  repo: string | null;
+  number: number | null;
+  snoozedUntil: number;
+  createdAt: number;
+  actorUserId: string | null;
+}
+
+/** Defer an Inbox item until `until` (unix ms). */
+export function snooze(
+  target: SnoozeTarget,
+  until: number,
+): Promise<MutationResult<SnoozeResultRow>> {
+  return request("/api/snooze", {
+    method: "POST",
+    body: JSON.stringify({ ...target, until }),
+  });
+}
+
+/** Clear a snooze so the item returns to the Inbox immediately. */
+export function resurface(
+  target: SnoozeTarget,
+): Promise<MutationResult<{ cleared: boolean }>> {
+  const params = new URLSearchParams({ kind: target.kind });
+  if (target.kind === "submission") params.set("id", target.id);
+  else {
+    params.set("repo", target.repo);
+    params.set("number", String(target.number));
+  }
+  return request(`/api/snooze?${params.toString()}`, { method: "DELETE" });
+}
+
+// ---------------------------------------------------------------------------
 // Work notes (Funnel-local, internal)
 // ---------------------------------------------------------------------------
 

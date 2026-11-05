@@ -6,27 +6,24 @@ import { renderMarkdown } from "#lib/server/markdown/render";
 import type { Actions, PageServerLoad } from "./$types";
 
 /**
- * A pending submission resolves from the Inbox feed. An archived submission
- * stays viewable by id so an inline Undo survives the SSE refresh that follows
- * a dismissal; anything else is a real 404.
+ * A submission resolves by id. A pending row (including a currently snoozed
+ * one) renders the live review page; an archived row stays viewable so an
+ * inline Undo survives the SSE refresh that follows a dismissal. A missing id
+ * is a real 404.
  */
-export const load: PageServerLoad = async ({ params, parent }) => {
-  const { inbox } = await parent();
-  const found = inbox.entries.some(
-    (entry) => entry.kind === "submission" && entry.submission.id === params.id,
-  );
-  if (found) return { archivedSubmission: null, archivedUndoEventId: null };
+export const load: PageServerLoad = ({ params }) => {
+  const staged = getSubmission(params.id);
+  if (!staged) error(404, "Submission not found");
 
-  const archived = getSubmission(params.id);
-  if (!archived || archived.archivedAt === null) {
-    error(404, "Submission not found");
+  if (staged.archivedAt === null) {
+    return { archivedSubmission: null, archivedUndoEventId: null };
   }
 
   const latest = latestTriageEvent(params.id);
   return {
     archivedSubmission: {
-      ...archived,
-      bodyHtml: renderMarkdown(archived.body),
+      ...staged,
+      bodyHtml: renderMarkdown(staged.body),
     },
     archivedUndoEventId: latest?.action === "dismissed" ? latest.id : null,
   };
