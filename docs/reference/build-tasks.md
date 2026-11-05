@@ -11,7 +11,7 @@ This page records the mise tasks and `package.json` scripts that build, check, t
 | `default` | `mise tasks` | Task list on standard output | Lists the tasks defined in `mise.toml`. |
 | `bun:install` | `bun install --frozen-lockfile` | `node_modules` from `bun.lock` | Fails if the lockfile and `package.json` disagree. |
 | `check` | `bun run check` | Type-check and Svelte diagnostics | Runs `svelte-kit sync` and then `svelte-check`. |
-| `test` | `bun run test` | Test results and coverage | Serial execution with `tests/setup.ts` preloaded. |
+| `test` | `bun run test` | Test results, coverage, and the coverage gate summary | Serial execution with `tests/setup.ts` preloaded. Fails when core server coverage is below the 95% lines/functions floor. |
 | `build` | `bun run build` | Adapter-node server in `build/` | Declares `src/**`, `static/**`, `drizzle/**`, `package.json`, `bun.lock`, `tsconfig.json`, and `vite.config.ts` as sources, and `build` as the output. |
 | `release` | `bun run release` | Migration report on standard output | Applies pending migrations to the configured database. No server is started. |
 | `exe` | `bun scripts/build-standalone.ts [--target=<target>]` | `dist/funnel`, or `dist/funnel.exe` for a Windows target | Depends on `build` and `intake:exe`. Declares `build/**`, `drizzle/**`, `src/standalone.ts`, `scripts/build-standalone.ts`, `scripts/standalone/**`, `package.json`, and `bun.lock` as sources. The declared output is target-aware. |
@@ -96,7 +96,7 @@ The addon comes from the optional package `@bruits/satteri-<suffix>`. `bun insta
 | `db:generate` | `bun --bun drizzle-kit generate` | Generates migration SQL under `drizzle/`. |
 | `db:migrate` | `bun --bun drizzle-kit migrate` | Applies migrations through Drizzle Kit. |
 | `db:studio` | `bun --bun drizzle-kit studio` | Opens Drizzle Studio against the configured database. |
-| `test` | `bun test --preload ./tests/setup.ts --max-concurrency 1 --coverage src tests` | Runs the suite serially with setup preloaded and coverage enabled for `src` and `tests`. |
+| `test` | `bun test --preload ./tests/setup.ts --max-concurrency 1 --coverage src tests && bun scripts/check-coverage.ts` | Runs the suite serially with setup preloaded, enables coverage for `src` and `tests`, then enforces the 95% floor over the core server directories. |
 
 The Drizzle Kit scripts read `FUNNEL_DB`, defaulting to `./data/funnel.db` through `drizzle.config.ts`.
 
