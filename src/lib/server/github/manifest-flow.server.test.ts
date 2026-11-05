@@ -98,6 +98,13 @@ describe("installationUrl", () => {
       "https://github.com/apps/funnel-acme/installations/new",
     );
   });
+
+  test("targets the configured GHES web host", async () => {
+    setConfig(GHE_CONFIG);
+    expect(await installationUrl("funnel-acme")).toBe(
+      "https://acme.ghe.com/apps/funnel-acme/installations/new",
+    );
+  });
 });
 
 describe("installation listing", () => {

@@ -57,8 +57,9 @@ If a test clears the GitHub App credentials, re-seed them with `seedTestGithubAp
 | Hotkeys           | `tests/hotkeys.test.ts`                                                                | Every default hotkey is valid and no two actions share a binding. |
 | Mirror & sync     | `src/lib/server/sync/{mirror,hydrate,reconcile,worker,conflicts}.test.ts`, `tests/mirror-issues-route.test.ts` | Mirror upserts, hydration, reconciliation, the polling worker, and conflict detection. |
 | Release migrations | `tests/release.test.ts`                                                               | The release/admin migration runner and folder resolution, including `bun run release` against a temp database. |
+| GitHub layer      | `src/lib/server/github/*.test.ts`, `src/lib/server/forge/providers.test.ts`              | Manifest form/conversion, REST and GraphQL host derivation (including GitHub Enterprise Server), link and `html_url` rewriting, label provisioning, and refs/web URLs. |
 
-Other suites cover feature flags (`tests/flags.test.ts`, `src/lib/features.test.ts`), the GitHub layer (`src/lib/server/github/*.test.ts`), Markdown rendering, auth, onboarding access, logging, crypto secrets, and small shared helpers (`seo`, `time`, `errors`, `issue-url`, `issue-ref`, `attention`, `funnel-metadata`).
+Other suites cover feature flags (`tests/flags.test.ts`, `src/lib/features.test.ts`), Markdown rendering, auth, onboarding access, logging, crypto secrets, and small shared helpers (`seo`, `time`, `errors`, `issue-url`, `issue-ref`, `attention`, `funnel-metadata`).
 
 ## How to write a route test
 
