@@ -33,6 +33,7 @@ import { deriveMetadata, resolveIssueConflict } from "./conflicts";
 import { clientCount, publish } from "./events";
 import { hydrateAndStore } from "./hydrate";
 import * as mirror from "./mirror";
+import { syncPullRequestsForIssues } from "./pull-requests";
 
 const log = createLogger({ component: "sync" });
 
@@ -62,6 +63,10 @@ export interface PollResult {
   pruned: number;
   /** Issues whose reserved-label conflicts were processed. */
   conflicts: number;
+  /** Linked pull requests refreshed or discovered this cycle. */
+  pullRequests: number;
+  /** Opt-in PR status transitions that actually changed an issue. */
+  transitions: number;
   /** Issue numbers seen inside the window (reconciliation prune input). */
   seenNumbers: number[];
 }
@@ -131,6 +136,34 @@ async function resolveConflicts(
   return processed;
 }
 
+/** Linked-PR sync is best-effort: a failure leaves the issue mirror usable. */
+async function syncPullRequests(
+  provider: GitHubProvider,
+  repo: mirror.RepoRow,
+  issueNumbers: readonly number[],
+  sync: {
+    pr_in_review: boolean;
+    pr_done: boolean;
+  },
+  vocabulary: ReservedVocabulary,
+): Promise<{ issues: number; pullRequests: number; transitions: number }> {
+  try {
+    return await syncPullRequestsForIssues(provider, repo, issueNumbers, {
+      autoStatus: {
+        inReview: sync.pr_in_review,
+        done: sync.pr_done,
+        vocabulary,
+      },
+    });
+  } catch (error) {
+    log.warn(
+      { repo: `${repo.org}/${repo.name}`, ...errorFields(error) },
+      "linked pull request sync failed",
+    );
+    return { issues: 0, pullRequests: 0, transitions: 0 };
+  }
+}
+
 /**
  * One conditional poll of a single repo. Exported for tests, which drive it
  * directly and never start the scheduler.
@@ -160,6 +193,9 @@ export async function pollRepo(
 
   const first = await provider.threads.list(repoRef, query).page();
   if (first.notModified) {
+    // No issue changed, but a tracked PR may have merged or turned red since
+    // the last poll; refresh those cheaply and apply opt-in transitions.
+    const pull = await syncPullRequests(provider, repo, [], sync, vocabulary);
     mirror.setRepoPolledAt(repo.id, now);
     mirror.setRepoDegraded(repo.id, false);
     return {
@@ -168,6 +204,8 @@ export async function pollRepo(
       hydrated: 0,
       pruned: 0,
       conflicts: 0,
+      pullRequests: pull.pullRequests,
+      transitions: pull.transitions,
       seenNumbers: [],
     };
   }
@@ -213,6 +251,13 @@ export async function pollRepo(
         })
       : [];
   const conflicts = await resolveConflicts(provider, repo, hydrated, vocabulary);
+  const pull = await syncPullRequests(
+    provider,
+    repo,
+    hydrated.map((record) => record.number),
+    sync,
+    vocabulary,
+  );
 
   // Changed issues that aged out of the window are dropped from the mirror.
   for (const number of pruned) mirror.deleteIssue(repo.id, number);
@@ -235,6 +280,8 @@ export async function pollRepo(
     hydrated: hydrated.length,
     pruned: pruned.length,
     conflicts,
+    pullRequests: pull.pullRequests,
+    transitions: pull.transitions,
     seenNumbers,
   };
 }
@@ -445,6 +492,7 @@ export async function refreshIssue(
     { actorUserId, vocabulary },
   );
   await resolveConflicts(provider, repoRow, records, vocabulary);
+  await syncPullRequests(provider, repoRow, [number], config.sync, vocabulary);
   publish({ type: "issues", repo: `${owner}/${repo}`, numbers: [number] });
 }
 

@@ -637,6 +637,8 @@ function writeSettingsSeed(): void {
       history_days: 90,
       poll_interval_active_seconds: 30,
       poll_interval_idle_seconds: 300,
+      pr_in_review: false,
+      pr_done: false,
     },
     board: { done_days: 14, wip_limits: {} },
     session: { idle_days: 30 },

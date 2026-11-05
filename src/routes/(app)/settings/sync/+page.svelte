@@ -4,6 +4,7 @@
 	import { untrack } from 'svelte';
 	import {
 		Button,
+		FormCheck,
 		FormGroup,
 		FormText,
 		Input,
@@ -23,6 +24,8 @@
 	let historyDays = $state<number | null>(initial.history_days);
 	let activeSeconds = $state<number | null>(initial.poll_interval_active_seconds);
 	let idleSeconds = $state<number | null>(initial.poll_interval_idle_seconds);
+	let prInReview = $state(initial.pr_in_review);
+	let prDone = $state(initial.pr_done);
 
 	const status = $derived(data.status);
 	const degraded = $derived(status.repos.filter((repo) => repo.degraded));
@@ -35,7 +38,9 @@
 			sync: {
 				history_days: historyDays,
 				poll_interval_active_seconds: activeSeconds,
-				poll_interval_idle_seconds: idleSeconds
+				poll_interval_idle_seconds: idleSeconds,
+				pr_in_review: prInReview,
+				pr_done: prDone
 			}
 		})
 	);
@@ -228,6 +233,45 @@
 						<FormText>Background cadence with no viewers.</FormText>
 					</FormGroup>
 				</div>
+			</div>
+		</Section>
+		<Section
+			title="Pull request transitions"
+			description="Optional automatic status changes from the pull requests linked to an issue. Both are off by default and only write when the issue actually needs to change."
+		>
+			<div class="d-flex align-items-start justify-content-between gap-3 py-2 border-bottom">
+				<div class="min-w-0">
+					<div class="fw-medium">Move to In Review when a PR opens</div>
+					<div class="small text-body-secondary">
+						An open issue with at least one open linked pull request gets the
+						configured In Review status label.
+					</div>
+				</div>
+				<FormCheck
+					id="sync-pr-in-review"
+					type="switch"
+					class="flex-shrink-0"
+					checked={prInReview}
+					on:change={() => (prInReview = !prInReview)}
+					aria-label="Move to In Review when a pull request opens"
+				/>
+			</div>
+			<div class="d-flex align-items-start justify-content-between gap-3 pt-2">
+				<div class="min-w-0">
+					<div class="fw-medium">Close when linked PRs finish</div>
+					<div class="small text-body-secondary">
+						When every linked pull request is merged or closed, close the open
+						issue as completed.
+					</div>
+				</div>
+				<FormCheck
+					id="sync-pr-done"
+					type="switch"
+					class="flex-shrink-0"
+					checked={prDone}
+					on:change={() => (prDone = !prDone)}
+					aria-label="Close the issue when every linked pull request is merged or closed"
+				/>
 			</div>
 		</Section>
 	</SettingsForm>

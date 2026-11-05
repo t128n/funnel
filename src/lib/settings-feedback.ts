@@ -52,6 +52,14 @@ const FIELD_TARGETS: Record<string, FieldTarget> = {
     label: "Idle poll interval",
     selector: "#sync-idle-seconds"
   },
+  "sync.pr_in_review": {
+    label: "Move to In Review when a PR opens",
+    selector: "#sync-pr-in-review"
+  },
+  "sync.pr_done": {
+    label: "Close when linked PRs finish",
+    selector: "#sync-pr-done"
+  },
   "board.done_days": { label: "Done retention", selector: "#board-done-days" },
   "board.wip_limits": { label: "Work-in-progress limit" },
   "intake.default_repo": { label: "Default repository", selector: "#intake-default-repo" },

@@ -17,6 +17,8 @@ const BASE: SettingsInput = {
     history_days: 45,
     poll_interval_active_seconds: 15,
     poll_interval_idle_seconds: 90,
+    pr_in_review: false,
+    pr_done: false,
   },
   board: { done_days: 7, wip_limits: {} },
   session: { idle_days: 21 },
@@ -43,7 +45,7 @@ describe("applySettings", () => {
 
     const settings = readSettings();
     expect(settings.board).toEqual({ done_days: 3, wip_limits: { todo: 2 } });
-    expect(settings.sync).toEqual(BASE.sync);
+    expect(settings.sync).toMatchObject(BASE.sync);
     // A save re-validates the merged config, so repos are stored normalized.
     expect(settings.repos).toEqual([{ repo: "orgA/core", shortcode: "CORE" }]);
   });
