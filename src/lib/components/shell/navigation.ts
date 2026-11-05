@@ -44,6 +44,7 @@ export const OVERFLOW_NAV: readonly NavDestination[] = [
 		context: 'mine'
 	},
 	{ href: '/attention', label: 'Attention', icon: 'bi-exclamation-triangle', match: '/attention' },
+	{ href: '/insights', label: 'Insights', icon: 'bi-graph-up-arrow', match: '/insights' },
 	{ href: '/epics', label: 'Epics', icon: 'bi-layers', match: '/epics' },
 	{ href: '/milestones', label: 'Milestones', icon: 'bi-flag', match: '/milestones' }
 ];

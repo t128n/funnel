@@ -66,6 +66,7 @@ The `C` shortcut and an empty board column's **New Issue** control open an in-ap
 | `/matrix` | Assessment summary and a selectable 3×3 impact × urgency matrix over the same filtered issue stream. | `read` | Defaults to `state=open` and includes triaged and untriaged issues. Search, scope, and filters drive the needs-assessment count, rated count, the nine cell totals, and the selected cell's issue list. `?cell=<impact>-<urgency>` selects a cell; without it, the highest-priority populated cell is selected. Writers can open the assessment queue for inline rating. |
 | `/matrix/{owner}/{repo}/{number}` | Inspector docked beside the matrix. | `read` | Malformed params return `404`. The selected cell is preserved when the Inspector closes. |
 | `/attention` | Blocked issues with a re-check date, grouped overdue, today and upcoming, plus a separate Waiting section. | `read` | Bucketing is computed in the browser's local timezone; upcoming is a seven-day window. Waiting rows show their reason, optional re-check date and a stale badge after seven days; writers can clear waiting in one click. |
+| `/insights` | Read-only triage dashboard: inbox age, time to first triage, time to close, throughput, WIP, stale waiting and backlog aging. | `read` | Optional `?repo=owner/name` and `?from=YYYY-MM-DD&to=YYYY-MM-DD` filters. Dates are UTC calendar days; invalid or reversed ranges fall back to the last 30 days and report the effective range. Snapshot metrics are labelled `now`, range metrics `range`. |
 | `/notifications` | The signed-in viewer's notification feed, unread rows before read rows. | `read` | Newest first, limited to 100 rows. Opening an unread row marks it read; per-row and mark-all controls persist read state. The page also offers the per-browser notification opt-in when `notifications.native` is on. |
 | `/milestones` | Every mirrored milestone, grouped by repository, with progress and due dates. | `read` | GitHub scopes a milestone to one repository, so equal titles in two repositories are separate entries. |
 | `/milestones/{owner}/{repo}/{number}` | The issues attached to one repo-scoped milestone. | `read` | Returns `404` for an unknown repository or milestone. |
@@ -219,6 +220,7 @@ API routes are not under the `(app)` layout and enforce their own guards. Detail
 | `/matrix` | Impact × urgency matrix. | `read` |
 | `/matrix/{owner}/{repo}/{number}` | Matrix Inspector. | `read` |
 | `/attention` | Blocked issues due for re-check. | `read` |
+| `/insights` | Triage analytics and backlog aging. | `read` |
 | `/notifications` | Personal notification feed. | `read` |
 | `/milestones` | Repo-scoped milestones and progress. | `read` |
 | `/milestones/{owner}/{repo}/{number}` | Issues attached to a milestone. | `read` |
