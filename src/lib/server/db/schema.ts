@@ -102,6 +102,40 @@ export const stateSnooze = sqliteTable(
 );
 
 // ---------------------------------------------------------------------------
+// State: issues waiting on someone else (issue #32).
+//
+// A "waiting" issue is not blocked: work is not in flight, it is parked until
+// the reporter, a vendor or an upstream project responds. The row is keyed by
+// `owner/name` + number rather than a mirror FK, so it survives mirror pruning
+// and a re-sync. Scanning `waiting_since` (not `updated_at`) lets Attention
+// mark stale waits without trusting a forge timestamp. This state is local and
+// never written to the issue body or labels.
+// ---------------------------------------------------------------------------
+export const stateIssueWaiting = sqliteTable(
+  "state_issue_waiting",
+  {
+    /** `owner/name` of the repository. */
+    repo: text("repo").notNull(),
+    number: integer("number").notNull(),
+    /** `needs-info` | `waiting-on-reporter` | `waiting-on-vendor` | `waiting-on-upstream` | `other`. */
+    reason: text("reason").notNull(),
+    /** Optional free-text detail (max 2000 characters). */
+    note: text("note"),
+    /** Unix ms when the wait began; preserved when the reason is revised. */
+    waitingSince: integer("waiting_since").notNull(),
+    /** Optional `YYYY-MM-DD` date to look at the issue again. */
+    recheckOn: text("recheck_on"),
+    /** `auth_user.id` of the person who marked it waiting, when known. */
+    actorUserId: text("actor_user_id"),
+  },
+  (t) => [
+    primaryKey({ columns: [t.repo, t.number] }),
+    index("idx_state_issue_waiting_since").on(t.waitingSince),
+    index("idx_state_issue_waiting_recheck").on(t.recheckOn),
+  ],
+);
+
+// ---------------------------------------------------------------------------
 // State: instance settings (SPEC §4, §10).
 // A normalized key/value store that replaces `funnel.config.yaml`. Keys are
 // dotted paths (`sync.history_days`, `intake.default_repo`, ...) and `value`
