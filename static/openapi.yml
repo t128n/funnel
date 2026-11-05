@@ -53,6 +53,9 @@ paths:
         Unknown properties are ignored rather than rejected, matching GitHub's
         leniency for forward compatibility.
 
+        Submissions are rate limited per client IP. A throttled request is not
+        staged and returns `429` with a `Retry-After` header.
+
         Every response carries the open CORS headers documented on the `204`
         preflight response below, plus `Cache-Control: no-store`.
       requestBody:
@@ -80,6 +83,20 @@ paths:
                 oneOf:
                   - $ref: '#/components/schemas/IntakeParseError'
                   - $ref: '#/components/schemas/IntakeValidationError'
+        '429':
+          description: |
+            Too many submissions from this client address. The request was not
+            staged; wait for the delay in `Retry-After` before trying again.
+          headers:
+            Retry-After:
+              description: Whole seconds to wait before retrying (at least 1).
+              schema:
+                type: integer
+                minimum: 1
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IntakeRateLimited'
     options:
       tags: [Intake]
       operationId: intakePreflight
@@ -164,3 +181,11 @@ components:
       required:
         - message
         - issues
+    IntakeRateLimited:
+      type: object
+      properties:
+        message:
+          type: string
+          const: Too many submissions; try again later.
+      required:
+        - message

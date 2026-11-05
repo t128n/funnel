@@ -1,9 +1,12 @@
-import { beforeEach, describe, expect, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
+import { eq } from "drizzle-orm";
 import { db } from "#lib/server/db/index";
-import { stateIntakeSubmission } from "#lib/server/db/schema";
+import { stateIntakeSubmission, stateSetting } from "#lib/server/db/schema";
+import { resetIntakeRateLimits } from "#lib/server/intake/rate-limit";
 import { getSubmission } from "#lib/server/intake/staging";
 import { resetEventBus, subscribe } from "#lib/server/sync/events";
+import { captureLog, type LogCapture } from "#tests/log-capture";
 import { actions as intakeFormActions } from "#/routes/intake/+page.server";
 import { OPTIONS, POST } from "#/routes/api/intake/+server";
 
@@ -19,9 +22,56 @@ function post(payload: unknown): Promise<Response> {
   return POST({ request: intakeReq(JSON.stringify(payload)) } as never);
 }
 
+const INTAKE_SETTING_KEYS = [
+  "intake.rate_limit_per_minute",
+  "intake.rate_limit_per_hour",
+  "intake.honeypot",
+];
+
+function clearIntakeSettings(): void {
+  for (const key of INTAKE_SETTING_KEYS) {
+    db.delete(stateSetting).where(eq(stateSetting.key, key)).run();
+  }
+}
+
+function setIntakeControls(
+  values: { minute?: number; hour?: number; honeypot?: boolean } = {},
+): void {
+  const rows: Array<[string, unknown]> = [
+    ["intake.rate_limit_per_minute", values.minute ?? 10],
+    ["intake.rate_limit_per_hour", values.hour ?? 60],
+    ["intake.honeypot", values.honeypot ?? true],
+  ];
+  for (const [key, value] of rows) {
+    const encoded = JSON.stringify(value);
+    db.insert(stateSetting)
+      .values({ key, value: encoded, updatedAt: Date.now() })
+      .onConflictDoUpdate({
+        target: stateSetting.key,
+        set: { value: encoded, updatedAt: Date.now() },
+      })
+      .run();
+  }
+}
+
+function stagedCount(): number {
+  return db.select().from(stateIntakeSubmission).all().length;
+}
+
+let logs: LogCapture;
+
 beforeEach(() => {
   db.delete(stateIntakeSubmission).run();
+  clearIntakeSettings();
+  resetIntakeRateLimits();
   resetEventBus();
+  logs = captureLog();
+});
+
+afterEach(() => {
+  clearIntakeSettings();
+  resetIntakeRateLimits();
+  logs.reset();
 });
 
 describe("POST /api/intake", () => {
@@ -110,6 +160,78 @@ describe("POST /api/intake", () => {
       expect.objectContaining({ type: "intake", action: "created", id }),
     );
   });
+
+  test("throttles repeated submissions with 429 and stages nothing", async () => {
+    setIntakeControls({ minute: 1, hour: 0 });
+
+    expect((await post({ title: "First" })).status).toBe(201);
+    const res = await post({ title: "Second" });
+
+    expect(res.status).toBe(429);
+    expect(res.headers.get("retry-after")).toBeString();
+    expect(Number(res.headers.get("retry-after"))).toBeGreaterThanOrEqual(1);
+    expect(res.headers.get("cache-control")).toBe("no-store");
+    expect(res.headers.get("access-control-allow-origin")).toBe("*");
+    expect(await res.json()).toEqual({
+      message: "Too many submissions; try again later.",
+    });
+    expect(stagedCount()).toBe(1);
+  });
+
+  test("malformed and invalid requests count toward the limit", async () => {
+    setIntakeControls({ minute: 1, hour: 0 });
+
+    const malformed = await POST({
+      request: new Request("http://x/api/intake", {
+        method: "POST",
+        body: "{not json",
+      }),
+    } as never);
+    expect(malformed.status).toBe(400);
+
+    const throttled = await post({ title: "Valid but late" });
+    expect(throttled.status).toBe(429);
+    expect(stagedCount()).toBe(0);
+  });
+
+  test("schema failures count toward the limit", async () => {
+    setIntakeControls({ minute: 1, hour: 0 });
+
+    expect((await post({ title: "   " })).status).toBe(400);
+    expect((await post({ title: "Valid but late" })).status).toBe(429);
+    expect(stagedCount()).toBe(0);
+  });
+
+  test("honeypot submissions look accepted but stage nothing and leak no content", async () => {
+    const res = await post({
+      title: "Cheap SEO services",
+      body: "Buy now",
+      company_website: "https://spam.example",
+    });
+
+    expect(res.status).toBe(202);
+    expect(await res.json()).toEqual({ message: "Submission received" });
+    expect(stagedCount()).toBe(0);
+
+    const serialized = JSON.stringify(logs.entries);
+    expect(serialized).not.toContain("Cheap SEO services");
+    expect(serialized).not.toContain("Buy now");
+    expect(logs.find("intake", "intake submission rejected")).toMatchObject({
+      reason: "honeypot",
+    });
+  });
+
+  test("ignores the honeypot field when the control is disabled", async () => {
+    setIntakeControls({ minute: 10, hour: 60, honeypot: false });
+
+    const res = await post({
+      title: "Real submission",
+      company_website: "https://example.com",
+    });
+
+    expect(res.status).toBe(201);
+    expect(stagedCount()).toBe(1);
+  });
 });
 
 describe("OPTIONS /api/intake", () => {
@@ -167,6 +289,51 @@ describe("POST /intake form action", () => {
     expect(result.submitted).toBe(true);
     expect(result.ref).toBeString();
     expect(getSubmission(result.ref ?? "")?.title).toBe("Crash on save");
+  });
+
+  test("throttles with 429 and preserves the draft", async () => {
+    setIntakeControls({ minute: 1, hour: 0 });
+
+    const first = (await submitForm({ title: "First" })) as {
+      submitted?: boolean;
+    };
+    expect(first.submitted).toBe(true);
+
+    const result = (await submitForm({
+      title: "Keep my draft",
+      body: "Do not lose this text",
+      source: "cli",
+    })) as {
+      status?: number;
+      data?: Record<string, unknown>;
+    };
+
+    expect(result.status).toBe(429);
+    expect(result.data).toMatchObject({
+      title: "Keep my draft",
+      body: "Do not lose this text",
+      source: "cli",
+      retryAfterSeconds: expect.any(Number),
+    });
+    expect(String(result.data?.error)).toContain("Try again");
+    expect(stagedCount()).toBe(1);
+  });
+
+  test("honeypot looks successful but stages nothing", async () => {
+    const result = (await submitForm({
+      title: "Spam",
+      company_website: "https://spam.example",
+    })) as { submitted?: boolean; ref?: string };
+
+    expect(result.submitted).toBe(true);
+    expect(result.ref).toBeUndefined();
+    expect(stagedCount()).toBe(0);
+
+    const serialized = JSON.stringify(logs.entries);
+    expect(serialized).not.toContain("Spam");
+    expect(logs.find("intake", "intake submission rejected")).toMatchObject({
+      reason: "honeypot",
+    });
   });
 
   test("the title is visibly required and linked to its help and error text", () => {

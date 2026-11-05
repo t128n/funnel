@@ -381,6 +381,19 @@
 				};
 			}}
 		>
+			<!-- Honeypot: a real user never sees or fills this field. -->
+			<div style="position: absolute; left: -9999px" aria-hidden="true">
+				<label for="company_website">Company website</label>
+				<input
+					id="company_website"
+					name="company_website"
+					type="text"
+					tabindex="-1"
+					autocomplete="off"
+					aria-hidden="true"
+				/>
+			</div>
+
 			{#if formError}
 				<InlineStatus tone="error" message={formError} />
 			{/if}

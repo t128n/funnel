@@ -142,7 +142,31 @@ describe("saveSettings", () => {
     const result = saveSettings({ intake: { default_repo: undefined } });
 
     expect(result).toEqual({ ok: true });
-    expect(readSettings().intake).toEqual({});
+    expect(readSettings().intake).toEqual({
+      rate_limit_per_minute: 10,
+      rate_limit_per_hour: 60,
+      honeypot: true,
+    });
+  });
+
+  test("applies intake abuse controls and persists disabled windows", () => {
+    writeSettings(BASE);
+
+    expect(
+      saveSettings({
+        intake: {
+          rate_limit_per_minute: 0,
+          rate_limit_per_hour: 120,
+          honeypot: false,
+        },
+      }),
+    ).toEqual({ ok: true });
+
+    expect(readSettings().intake).toMatchObject({
+      rate_limit_per_minute: 0,
+      rate_limit_per_hour: 120,
+      honeypot: false,
+    });
   });
 
   test("applies a planning patch and round-trips the section", () => {

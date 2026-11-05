@@ -6,6 +6,7 @@ import {
   resetConfigCache,
   setConfig,
 } from "./config";
+import { TEST_CONFIG } from "#tests/test-config";
 import {
   clearSettings,
   SettingsError,
@@ -79,7 +80,12 @@ describe("loadFunnelConfig", () => {
         { label: "project2", name: "project2" },
       ],
       labels: { prefix: "" },
-      intake: { default_repo: "orgA/core" },
+      intake: {
+        default_repo: "orgA/core",
+        rate_limit_per_minute: 10,
+        rate_limit_per_hour: 60,
+        honeypot: true,
+      },
       sync: {
         history_days: 30,
         poll_interval_active_seconds: 10,
@@ -129,7 +135,21 @@ describe("loadFunnelConfig", () => {
       native: true,
       new_intake: true,
     });
-    expect(config.intake).toEqual({});
+    expect(config.intake).toEqual({
+      rate_limit_per_minute: 10,
+      rate_limit_per_hour: 60,
+      honeypot: true,
+    });
+  });
+
+  test("resolves intake abuse-control defaults for an older section", async () => {
+    seed({ repos: [], intake: { default_repo: undefined } });
+
+    expect((await loadFunnelConfig()).intake).toEqual({
+      rate_limit_per_minute: 10,
+      rate_limit_per_hour: 60,
+      honeypot: true,
+    });
   });
 
   test("test_planning_defaults_from_empty_store", async () => {
@@ -343,6 +363,17 @@ describe("getConfig", () => {
       stale_open_days: 30,
       recheck_cadence_days: 7,
       waiting_days: 7,
+    });
+  });
+
+  test("setConfig resolves intake abuse defaults for older literals", async () => {
+    setConfig({ ...TEST_CONFIG, intake: { default_repo: "orgA/core" } });
+
+    expect((await getConfig()).intake).toEqual({
+      default_repo: "orgA/core",
+      rate_limit_per_minute: 10,
+      rate_limit_per_hour: 60,
+      honeypot: true,
     });
   });
 });

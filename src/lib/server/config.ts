@@ -22,6 +22,9 @@ import {
   attentionInput,
   count,
   DEFAULT_ATTENTION,
+  DEFAULT_HONEYPOT,
+  DEFAULT_RATE_LIMIT_PER_HOUR,
+  DEFAULT_RATE_LIMIT_PER_MINUTE,
   labelPrefix,
   planningInput,
   projectInput,
@@ -106,6 +109,21 @@ export const configSchema = v.pipe(
     labels: v.object({ prefix: labelPrefix }),
     intake: v.object({
       default_repo: v.optional(repoName),
+      // Optional at the schema boundary so stored settings and older
+      // `setConfig()` literals predate the abuse controls; a parse always
+      // resolves them to defaults.
+      rate_limit_per_minute: v.optional(
+        count("intake.rate_limit_per_minute"),
+        DEFAULT_RATE_LIMIT_PER_MINUTE,
+      ),
+      rate_limit_per_hour: v.optional(
+        count("intake.rate_limit_per_hour"),
+        DEFAULT_RATE_LIMIT_PER_HOUR,
+      ),
+      honeypot: v.optional(
+        v.boolean("intake.honeypot must be a boolean"),
+        DEFAULT_HONEYPOT,
+      ),
     }),
     sync: v.object({
       history_days: count("sync.history_days"),
@@ -167,12 +185,15 @@ export const configSchema = v.pipe(
 export type FunnelConfig = v.InferOutput<typeof configSchema>;
 
 /**
- * Input accepted by {@link setConfig}: the resolved config with an optional
- * attention section, so callers (and older tests) that predate issue #37 keep
- * type-checking. The stored value always has the resolved defaults.
+ * Input accepted by {@link setConfig}: the resolved config with optional
+ * attention and intake abuse-control fields, so callers (and older tests) that
+ * predate those sections keep type-checking. The stored value always has the
+ * resolved defaults.
  */
-export type FunnelConfigInput = Omit<FunnelConfig, "attention"> & {
+export type FunnelConfigInput = Omit<FunnelConfig, "attention" | "intake"> & {
   attention?: FunnelConfig["attention"];
+  /** Intake abuse-control fields are optional so older literals still fit. */
+  intake: Partial<FunnelConfig["intake"]>;
 };
 
 /** `owner/name` slugs for every configured repository. */
@@ -271,6 +292,14 @@ export function resetConfigCache(): void {
 export function setConfig(config: FunnelConfigInput): void {
   cached = Promise.resolve({
     ...config,
+    intake: {
+      default_repo: config.intake.default_repo,
+      rate_limit_per_minute:
+        config.intake.rate_limit_per_minute ?? DEFAULT_RATE_LIMIT_PER_MINUTE,
+      rate_limit_per_hour:
+        config.intake.rate_limit_per_hour ?? DEFAULT_RATE_LIMIT_PER_HOUR,
+      honeypot: config.intake.honeypot ?? DEFAULT_HONEYPOT,
+    },
     attention: config.attention ?? DEFAULT_ATTENTION,
   });
 }

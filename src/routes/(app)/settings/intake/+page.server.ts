@@ -7,6 +7,9 @@ export const load: PageServerLoad = async () => {
   return {
     repos: config.repos.map((entry) => entry.repo),
     defaultRepo: config.intake.default_repo ?? "",
+    rateLimitPerMinute: config.intake.rate_limit_per_minute,
+    rateLimitPerHour: config.intake.rate_limit_per_hour,
+    honeypot: config.intake.honeypot,
   };
 };
 

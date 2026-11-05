@@ -15,7 +15,12 @@ const BASE: SettingsInput = {
   repos: ["orgA/core"],
   projects: ["project1"],
   labels: { prefix: "" },
-  intake: { default_repo: "orgA/core" },
+  intake: {
+    default_repo: "orgA/core",
+    rate_limit_per_minute: 5,
+    rate_limit_per_hour: 30,
+    honeypot: false,
+  },
   sync: {
     history_days: 45,
     poll_interval_active_seconds: 15,
@@ -62,7 +67,11 @@ describe("settings store", () => {
     expect(settings.repos).toEqual([]);
     expect(settings.projects).toEqual([]);
     expect(settings.labels).toEqual({ prefix: "" });
-    expect(settings.intake).toEqual({});
+    expect(settings.intake).toEqual({
+      rate_limit_per_minute: 10,
+      rate_limit_per_hour: 60,
+      honeypot: true,
+    });
     expect(settings.sync).toEqual({
       history_days: 90,
       poll_interval_active_seconds: 30,
@@ -232,9 +241,54 @@ describe("settings store", () => {
     writeSettings(BASE);
     writeSettings({ ...BASE, intake: {} });
 
-    expect(readSettings().intake).toEqual({});
+    expect(readSettings().intake).toEqual({
+      rate_limit_per_minute: 10,
+      rate_limit_per_hour: 60,
+      honeypot: true,
+    });
     const rows = db.select().from(stateSetting).all();
     expect(rows.some((row) => row.key === "intake.default_repo")).toBe(false);
+  });
+
+  test("persists disabled rate limits and a disabled honeypot", () => {
+    writeSettings({
+      ...BASE,
+      intake: {
+        default_repo: "orgA/core",
+        rate_limit_per_minute: 0,
+        rate_limit_per_hour: 0,
+        honeypot: false,
+      },
+    });
+
+    expect(readSettings().intake).toEqual({
+      default_repo: "orgA/core",
+      rate_limit_per_minute: 0,
+      rate_limit_per_hour: 0,
+      honeypot: false,
+    });
+  });
+
+  test("applies defaults when an older intake payload omits the abuse controls", () => {
+    writeSettings({ ...BASE, intake: { default_repo: "orgA/core" } });
+
+    expect(readSettings().intake).toEqual({
+      default_repo: "orgA/core",
+      rate_limit_per_minute: 10,
+      rate_limit_per_hour: 60,
+      honeypot: true,
+    });
+  });
+
+  test("rejects negative or non-integer rate limits", () => {
+    for (const rate_limit_per_minute of [-1, 1.5]) {
+      expect(() =>
+        writeSettings({
+          ...BASE,
+          intake: { ...BASE.intake, rate_limit_per_minute },
+        }),
+      ).toThrow(SettingsError);
+    }
   });
 
   test("degrades a corrupt row to the default", () => {

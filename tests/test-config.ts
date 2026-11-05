@@ -15,7 +15,11 @@ export const TEST_CONFIG: FunnelConfig = {
   repos: [{ repo: "orgA/core", shortcode: "CORE" }],
   projects: [],
   labels: { prefix: "" },
-  intake: {},
+  intake: {
+    rate_limit_per_minute: 10,
+    rate_limit_per_hour: 60,
+    honeypot: true,
+  },
   sync: {
     history_days: 90,
     poll_interval_active_seconds: 30,
