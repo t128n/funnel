@@ -57,6 +57,46 @@ export interface MilestoneItem {
   closedAt: number | null;
 }
 
+/** Compact linked-PR state attached to a stream row or board card. */
+export interface IssuePullRequestSummary {
+  total: number;
+  /** Pull requests still open (draft included). */
+  open: number;
+  merged: number;
+  closed: number;
+  /** Worst check state across the linked pull requests. */
+  checksState: "pending" | "success" | "failure" | "unknown" | null;
+  checksFailed: number;
+}
+
+/** One linked pull request as the Inspector's Development panel renders it. */
+export interface LinkedPullRequest {
+  number: number;
+  title: string;
+  /** `open` | `closed` | `merged` | `unknown`. */
+  state: string;
+  isDraft: boolean;
+  merged: boolean;
+  /** `approved` | `changes_requested` | `review_required` | `pending` | null. */
+  reviewDecision: string | null;
+  approvedCount: number;
+  changesRequestedCount: number;
+  pendingReviewCount: number;
+  checks: {
+    state: string;
+    total: number | null;
+    failed: number | null;
+    url: string | null;
+  } | null;
+  url: string;
+  author: UserRef | null;
+  source: string;
+  createdAt: number;
+  updatedAt: number;
+  closedAt: number | null;
+  mergedAt: number | null;
+}
+
 /** One row in a dense issue stream (All Issues / My Issues / Inbox issues). */
 export interface IssueListItem {
   repoId: number;
@@ -95,6 +135,11 @@ export interface IssueListItem {
    * it is not planned. Plan state is Funnel-owned and never written to GitHub.
    */
   planWeek?: string | null;
+  /**
+   * Compact linked-PR indicator for the stream/board. Omitted when the issue
+   * has no linked pull requests, so the common payload stays unchanged.
+   */
+  pullRequest?: IssuePullRequestSummary;
 }
 
 /** Planning context the issue page needs to offer a week picker. */
@@ -255,6 +300,8 @@ export interface IssueDetail {
   workNotes: WorkNoteItem[];
   /** Files uploaded to the issue's dropbox, oldest first. */
   attachments: AttachmentItem[];
+  /** Linked pull requests with state, review decision and check rollup. */
+  pullRequests: LinkedPullRequest[];
   /** Every label defined on the issue's repo (reserved and non-reserved). */
   repoLabels: RepoLabelOption[];
   /** Users assignable on the issue's repo, plus current assignees (SPEC §9.2). */

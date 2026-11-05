@@ -35,7 +35,9 @@ import { configuredVocabulary } from "#lib/server/label-vocabulary";
 import { db } from "#lib/server/db/index";
 import {
   mirrorComment,
+  mirrorIssuePullRequest,
   mirrorMilestone,
+  mirrorPullRequest,
   mirrorRepo,
   mirrorRepoAssignee,
   mirrorRepoLabel,
@@ -60,7 +62,11 @@ import {
   listSubmissions,
 } from "#lib/server/intake/staging";
 import { activeSnoozes, issueSnoozeClause } from "#lib/server/snooze";
-import { getRepoByOrgName, listRepos } from "#lib/server/sync/mirror";
+import {
+  getIssuePullRequests,
+  getRepoByOrgName,
+  listRepos,
+} from "#lib/server/sync/mirror";
 import { mirrorRevision } from "#lib/server/sync/revision";
 import { listWorkNotes } from "#lib/server/work-notes";
 import { estimateMinutes } from "#lib/server/planning/capacity";
@@ -106,6 +112,8 @@ import type {
   IssueDetail,
   IssueListItem,
   IssueOption,
+  IssuePullRequestSummary,
+  LinkedPullRequest,
   MatrixBoard,
   MatrixCell,
   MilestoneItem,
@@ -536,6 +544,56 @@ function rowKey(repoId: number, number: number): string {
   return `${repoId}:${number}`;
 }
 
+interface PullRequestSummaryRow {
+  state: string;
+  checksState: string | null;
+  checksFailed: number | null;
+}
+
+/**
+ * Collapse a page's linked pull requests into the compact indicator. Failures
+ * dominate pending, which dominates success, so a red check is never hidden by
+ * a green one.
+ */
+export function summarizePullRequests(
+  rows: readonly PullRequestSummaryRow[],
+): IssuePullRequestSummary | undefined {
+  if (rows.length === 0) return undefined;
+  let open = 0;
+  let merged = 0;
+  let closed = 0;
+  let checksFailed = 0;
+  let failure = false;
+  let pending = false;
+  let success = false;
+  for (const row of rows) {
+    if (row.state === "open") open += 1;
+    else if (row.state === "merged") merged += 1;
+    else if (row.state === "closed") closed += 1;
+    checksFailed += row.checksFailed ?? 0;
+    if (row.checksState === "failure") failure = true;
+    else if (row.checksState === "pending") pending = true;
+    else if (row.checksState === "success") success = true;
+  }
+  const checksState = failure
+    ? "failure"
+    : pending
+      ? "pending"
+      : success
+        ? "success"
+        : rows.some((row) => row.checksState === "unknown")
+          ? "unknown"
+          : null;
+  return {
+    total: rows.length,
+    open,
+    merged,
+    closed,
+    checksState,
+    checksFailed,
+  };
+}
+
 /** Attach labels and assignees to raw issue rows in two batched queries. */
 function hydrate(rows: RawRow[]): IssueListItem[] {
   if (rows.length === 0) return [];
@@ -574,6 +632,29 @@ function hydrate(rows: RawRow[]): IssueListItem[] {
     )
     .all();
 
+  // Linked pull requests are a compact indicator only: one batched read over
+  // the page, collapsed per issue so a row without PRs keeps its slim payload.
+  const pullRequestRows = db
+    .select({
+      repoId: mirrorIssuePullRequest.repoId,
+      number: mirrorIssuePullRequest.issueNumber,
+      state: mirrorPullRequest.state,
+      checksState: mirrorPullRequest.checksState,
+      checksFailed: mirrorPullRequest.checksFailed,
+    })
+    .from(mirrorIssuePullRequest)
+    .innerJoin(
+      mirrorPullRequest,
+      and(
+        eq(mirrorPullRequest.repoId, mirrorIssuePullRequest.repoId),
+        eq(mirrorPullRequest.number, mirrorIssuePullRequest.prNumber),
+      ),
+    )
+    .where(
+      sql`(${mirrorIssuePullRequest.repoId}, ${mirrorIssuePullRequest.issueNumber}) IN (${tuple})`,
+    )
+    .all();
+
   const labels = new Map<string, string[]>();
   for (const row of labelRows) {
     const key = rowKey(row.repoId, row.number);
@@ -588,6 +669,21 @@ function hydrate(rows: RawRow[]): IssueListItem[] {
     const list = assignees.get(key) ?? [];
     list.push(userRef(row));
     assignees.set(key, list);
+  }
+
+  const pullRequests = new Map<
+    string,
+    Array<{
+      state: string;
+      checksState: string | null;
+      checksFailed: number | null;
+    }>
+  >();
+  for (const row of pullRequestRows) {
+    const key = rowKey(row.repoId, row.number);
+    const list = pullRequests.get(key) ?? [];
+    list.push(row);
+    pullRequests.set(key, list);
   }
 
   // Plan state is keyed by `owner/name` + number rather than the disposable
@@ -620,6 +716,7 @@ function hydrate(rows: RawRow[]): IssueListItem[] {
   return rows.map((row) => {
     const key = rowKey(row.repoId, row.number);
     const repo = `${row.org}/${row.name}`;
+    const pullRequest = summarizePullRequests(pullRequests.get(key) ?? []);
     return {
       repoId: row.repoId,
       repo,
@@ -659,8 +756,48 @@ function hydrate(rows: RawRow[]): IssueListItem[] {
       labels: labels.get(key) ?? [],
       planWeek:
         planWeeks.get(`${row.org}\u0000${row.name}\u0000${row.number}`) ?? null,
+      ...(pullRequest ? { pullRequest } : {}),
     } satisfies IssueListItem;
   });
+}
+
+/** Map mirrored PR rows to the Inspector's Development panel payload. */
+export function toLinkedPullRequests(
+  rows: ReturnType<typeof getIssuePullRequests>,
+): LinkedPullRequest[] {
+  return rows.map((row) => ({
+    number: row.number,
+    title: row.title,
+    state: row.state,
+    isDraft: row.isDraft === 1,
+    merged: row.merged === 1,
+    reviewDecision: row.reviewDecision,
+    approvedCount: row.approvedCount,
+    changesRequestedCount: row.changesRequestedCount,
+    pendingReviewCount: row.pendingReviewCount,
+    checks:
+      row.checksState === null
+        ? null
+        : {
+            state: row.checksState,
+            total: row.checksTotal,
+            failed: row.checksFailed,
+            url: row.checksUrl,
+          },
+    url: row.url,
+    author: nullableUserRef(
+      row.authorExternalId,
+      row.authorForge,
+      row.authorInstance,
+      row.authorLogin,
+      row.authorAvatar,
+    ),
+    source: row.source,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+    closedAt: row.closedAt,
+    mergedAt: row.mergedAt,
+  }));
 }
 
 /**
@@ -1613,6 +1750,7 @@ export function getIssueDetail(
     hasMoreComments: commentTotal > comments.length,
     workNotes: listWorkNotes(org, name, number),
     attachments: listAttachments(org, name, number),
+    pullRequests: toLinkedPullRequests(getIssuePullRequests(repoId, number)),
     repoLabels,
     assigneeOptions,
     milestoneOptions,

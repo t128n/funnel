@@ -22,6 +22,7 @@
 	import IssueActionDialog from '#lib/components/issue/IssueActionDialog.svelte';
 	import IssueDetailsCard from '#lib/components/issue/IssueDetailsCard.svelte';
 	import IssuePropertiesCard from '#lib/components/issue/IssuePropertiesCard.svelte';
+	import LinkedPullRequests from '#lib/components/issue/LinkedPullRequests.svelte';
 	import { delayReasonLabel } from '#lib/components/issue/inspector-format';
 	import { statusSelection } from '#lib/components/issue/status-control';
 	import { weekHeadline } from '#lib/components/plan/format';
@@ -1438,6 +1439,7 @@
 					onlabels={setLabels}
 					onplan={setPlan}
 				/>
+				<LinkedPullRequests pullRequests={detail.pullRequests} />
 				<IssueDetailsCard
 					{issue}
 					{detail}
