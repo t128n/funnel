@@ -11,9 +11,12 @@ import {
   addIssueLabels,
   createIssue,
   createMilestone,
+  deleteIssueComment,
   normalizeReserved,
   removeIssueLabel,
+  setCommentReaction,
   updateIssue,
+  updateIssueComment,
   withReserved,
 } from "./mutations";
 import { isIssueSnoozed, snoozeIssue } from "#lib/server/snooze";
@@ -106,6 +109,29 @@ function stubProvider(options: StubOptions = {}): {
           url: "https://github.com/orgA/core/issues/5#issuecomment-9",
           raw: {},
         };
+      },
+      updateComment: async (ref: unknown, body: string) => {
+        calls.push({ op: "updateComment", args: [ref, body] });
+        fail("updateComment");
+        return {
+          id: "9",
+          body,
+          url: "https://github.com/orgA/core/issues/5#issuecomment-9",
+          updatedAt: new Date(1_700_000_000_000),
+          raw: {},
+        };
+      },
+      deleteComment: async (ref: unknown) => {
+        calls.push({ op: "deleteComment", args: [ref] });
+        fail("deleteComment");
+      },
+      react: async (ref: unknown, content: string) => {
+        calls.push({ op: "react", args: [ref, content] });
+        fail("react");
+      },
+      unreact: async (ref: unknown, content: string) => {
+        calls.push({ op: "unreact", args: [ref, content] });
+        fail("unreact");
       },
     },
     request: async (method: string, path: string, init: unknown) => {
@@ -746,6 +772,131 @@ describe("addIssueComment", () => {
       status: 403,
       message: "Resource not accessible",
     });
+  });
+});
+
+describe("comment lifecycle", () => {
+  test("edits a comment through the provider with a comment ref", async () => {
+    const { provider, calls } = stubProvider();
+
+    const result = await updateIssueComment({
+      provider,
+      repo: "orgA/core",
+      number: 5,
+      commentId: 9,
+      body: "rewritten",
+    });
+
+    expect(result).toEqual({
+      ok: true,
+      value: {
+        id: 9,
+        htmlUrl: "https://github.com/orgA/core/issues/5#issuecomment-9",
+        updatedAt: 1_700_000_000_000,
+      },
+    });
+    expect(calls[0].op).toBe("updateComment");
+    expect(calls[0].args[1]).toBe("rewritten");
+    expect(calls[0].args[0]).toMatchObject({
+      id: "9",
+      thread: { kind: "issue", number: "5" },
+    });
+  });
+
+  test("maps a forbidden comment edit to a clear permission message", async () => {
+    const { provider } = stubProvider({
+      fail: {
+        op: "updateComment",
+        error: Object.assign(new Error("Resource not accessible by integration"), {
+          status: 403,
+        }),
+      },
+    });
+    const result = await updateIssueComment({
+      provider,
+      repo: "orgA/core",
+      number: 5,
+      commentId: 9,
+      body: "x",
+    });
+    expect(result.ok).toBe(false);
+    expect(result).toMatchObject({ status: 403 });
+    expect((result as { message: string }).message).toContain(
+      "GitHub denied permission to edit comment 9",
+    );
+  });
+
+  test("deletes a comment and rejects an invalid id without a call", async () => {
+    const { provider, calls } = stubProvider();
+    const result = await deleteIssueComment({
+      provider,
+      repo: "orgA/core",
+      number: 5,
+      commentId: 9,
+    });
+    expect(result).toEqual({ ok: true, value: { id: 9 } });
+    expect(calls[0].op).toBe("deleteComment");
+
+    const invalid = await deleteIssueComment({
+      provider,
+      repo: "orgA/core",
+      number: 5,
+      commentId: 0,
+    });
+    expect((invalid as { status: number }).status).toBe(400);
+    expect(calls).toHaveLength(1);
+  });
+
+  test("adds and removes a reaction by content", async () => {
+    const { provider, calls } = stubProvider();
+
+    const added = await setCommentReaction({
+      provider,
+      repo: "orgA/core",
+      number: 5,
+      commentId: 9,
+      content: "heart",
+      active: true,
+    });
+    const removed = await setCommentReaction({
+      provider,
+      repo: "orgA/core",
+      number: 5,
+      commentId: 9,
+      content: "heart",
+      active: false,
+    });
+
+    expect(added).toEqual({
+      ok: true,
+      value: { id: 9, content: "heart", reacted: true },
+    });
+    expect(removed).toEqual({
+      ok: true,
+      value: { id: 9, content: "heart", reacted: false },
+    });
+    expect(calls.map((call) => call.op)).toEqual(["react", "unreact"]);
+    expect(calls[0].args[1]).toBe("heart");
+  });
+
+  test("maps a forbidden reaction with the same permission hint", async () => {
+    const { provider } = stubProvider({
+      fail: {
+        op: "react",
+        error: Object.assign(new Error("Resource not accessible"), { status: 403 }),
+      },
+    });
+    const result = await setCommentReaction({
+      provider,
+      repo: "orgA/core",
+      number: 5,
+      commentId: 9,
+      content: "+1",
+      active: true,
+    });
+    expect((result as { message: string }).message).toContain(
+      "GitHub denied permission to react to comment 9",
+    );
   });
 });
 

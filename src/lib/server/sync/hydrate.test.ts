@@ -201,6 +201,37 @@ describe("normalizeNode", () => {
     expect(record?.updatedAt).toBe(Date.parse("2026-01-02T00:00:00Z"));
   });
 
+  test("maps comment reaction groups into the mirror summary", () => {
+    const record = normalizeNode(
+      {
+        ...ISSUE_NODE,
+        comments: {
+          nodes: [
+            {
+              databaseId: 500,
+              author: null,
+              body: "a comment",
+              createdAt: "2026-01-02T00:00:00Z",
+              updatedAt: "2026-01-02T01:00:00Z",
+              reactions: { totalCount: 4 },
+              reactionGroups: [
+                { content: "THUMBS_UP", users: { totalCount: 3 } },
+                { content: "HEART", users: { totalCount: 1 } },
+                { content: "UNKNOWN", users: { totalCount: 7 } },
+              ],
+            },
+          ],
+        },
+      },
+      repoId,
+    );
+    expect(record?.comments[0].reactions).toEqual({
+      total: 4,
+      counts: { "+1": 3, heart: 1 },
+      viewerReacted: [],
+    });
+  });
+
   test("lowercases GraphQL state enum values (Inbox/board predicates)", () => {
     const record = normalizeNode(
       {

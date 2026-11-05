@@ -1,7 +1,12 @@
 import { beforeEach, describe, expect, test } from "bun:test";
 import { setConfig } from "#lib/server/config";
 import { db } from "#lib/server/db/index";
-import { stateIntakeSubmission, stateIssueWaiting } from "#lib/server/db/schema";
+import {
+  stateCommentReaction,
+  stateIntakeSubmission,
+  stateIssueWaiting,
+} from "#lib/server/db/schema";
+import { rememberViewerReaction } from "./reaction-state";
 import { createSubmission } from "#lib/server/intake/staging";
 import {
   replaceRepoMilestones,
@@ -252,6 +257,7 @@ const rawNumbers = (items: { number: number }[]) =>
 beforeEach(() => {
   db.delete(stateIntakeSubmission).run();
   db.delete(stateIssueWaiting).run();
+  db.delete(stateCommentReaction).run();
   clearMirror();
   setConfig(TEST_CONFIG);
   seed();
@@ -301,6 +307,39 @@ describe("allIssues", () => {
     } finally {
       clearPlanItem("orgA", "core", 1);
     }
+  });
+
+  test("merges aggregate and viewer reaction state into comments", () => {
+    db.$client.run(
+      "UPDATE mirror_comment SET reactions = ? WHERE external_id = ?",
+      [
+        JSON.stringify({
+          total: 2,
+          counts: { heart: 2 },
+          viewerReacted: [],
+        }),
+        "1001",
+      ],
+    );
+    rememberViewerReaction(VIEWER, "orgA/core", "1001", "heart", true);
+
+    const mine = getIssueDetail(1, 1, { viewerUserId: VIEWER });
+    expect(mine?.comments[0]).toMatchObject({
+      externalId: "1001",
+      updatedAt: 11,
+      reactions: {
+        total: 2,
+        counts: { heart: 2 },
+        viewerReacted: ["heart"],
+      },
+    });
+
+    // A system read has no acting user, so it keeps the aggregate only.
+    expect(getIssueDetail(1, 1)?.comments[0].reactions).toEqual({
+      total: 2,
+      counts: { heart: 2 },
+      viewerReacted: [],
+    });
   });
 
   test("applies the repo dimension", () => {
