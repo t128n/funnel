@@ -201,6 +201,49 @@ describe("acceptSubmission", () => {
     expect(getSubmission(id)?.archivedAt).toBeNull();
   });
 
+  test("resolves status and size through the configured label prefix", async () => {
+    setConfig({
+      ...TEST_CONFIG,
+      labels: { prefix: "funnel" },
+      intake: { default_repo: "orgA/core" },
+    });
+    const { id } = createSubmission({ title: "Prefixed accept" });
+    const { provider, calls } = stubProvider();
+
+    const result = await acceptSubmission({
+      id,
+      actorUserId: ACTOR,
+      provider,
+      status: "todo",
+      size: "md",
+      labels: ["bug"],
+      assignees: ["octocat"],
+    });
+
+    expect(result.ok).toBe(true);
+    expect(calls[0].args[1]).toMatchObject({
+      labels: ["funnel-todo", "bug", "funnel-md"],
+      assignees: ["octocat"],
+    });
+  });
+
+  test("rejects an unknown size without a GitHub call", async () => {
+    setConfig({ ...TEST_CONFIG, intake: { default_repo: "orgA/core" } });
+    const { id } = createSubmission({ title: "Bad size" });
+    const { provider, calls } = stubProvider();
+
+    const result = await acceptSubmission({
+      id,
+      actorUserId: ACTOR,
+      provider,
+      size: "huge",
+    });
+
+    expect(result).toMatchObject({ ok: false, status: 400 });
+    expect(calls).toHaveLength(0);
+    expect(getSubmission(id)?.archivedAt).toBeNull();
+  });
+
   test("omits the source segment when none was given", async () => {
     setConfig({ ...TEST_CONFIG, intake: { default_repo: "orgA/core" } });
     const { id } = createSubmission({ title: "No source", body: "hello" });

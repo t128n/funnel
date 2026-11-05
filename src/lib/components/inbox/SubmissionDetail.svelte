@@ -339,8 +339,12 @@
 		<input type="hidden" name="repo" value={acceptRepo} />
 		<input type="hidden" name="status" value={status} />
 		<input type="hidden" name="size" value={size} />
-		<input type="hidden" name="labels" value={labels.join(',')} />
-		<input type="hidden" name="assignees" value={assignees.join(',')} />
+		{#each labels as label (label)}
+			<input type="hidden" name="labels" value={label} />
+		{/each}
+		{#each assignees as login (login)}
+			<input type="hidden" name="assignees" value={login} />
+		{/each}
 		<Button type="submit" color="primary" size="sm" disabled={pending !== null}>
 			{#if pending === 'accept'}
 				<span class="d-inline-flex align-items-center me-1">

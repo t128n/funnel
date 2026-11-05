@@ -54,9 +54,8 @@ export async function accept({ request, locals }: IntakeActionEvent) {
   const id = String(form.get("id") ?? "");
   const repo = String(form.get("repo") ?? "").trim();
   const status = String(form.get("status") ?? "").trim();
+  const size = String(form.get("size") ?? "").trim();
   if (!id) return fail(400, { message: "Missing submission id" });
-
-  const labels = [...formList(form, "size"), ...formList(form, "labels")];
 
   const result = await acceptSubmission({
     id,
@@ -64,7 +63,8 @@ export async function accept({ request, locals }: IntakeActionEvent) {
     provider: auth.provider,
     repo: repo || undefined,
     status: status || undefined,
-    labels,
+    size: size || undefined,
+    labels: formList(form, "labels"),
     assignees: formList(form, "assignees"),
   });
   if (!result.ok) return fail(result.status, { message: result.message });

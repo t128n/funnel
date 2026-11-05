@@ -64,6 +64,8 @@ export interface AcceptInput {
   repo?: string;
   /** Workflow status (logical key); defaults to {@link DEFAULT_ACCEPT_STATUS}. */
   status?: string;
+  /** Estimate size (logical key), added as its configured GitHub label. */
+  size?: string;
   /** Extra labels; the status label is added first. */
   labels?: readonly string[];
   assignees?: readonly string[];
@@ -163,15 +165,24 @@ export async function acceptSubmission(
   }
 
   const config = await getConfig();
-  const status = resolveAcceptStatus(
-    input.status,
-    vocabularyFor(config.labels.prefix),
-  );
+  const vocabulary = vocabularyFor(config.labels.prefix);
+  const status = resolveAcceptStatus(input.status, vocabulary);
   if (status === null) {
     return {
       ok: false,
       status: 400,
       message: `Invalid status value: ${input.status ?? ""}`,
+    };
+  }
+  const sizeKey = (input.size ?? "").trim().toLowerCase();
+  const sizeEntry = sizeKey
+    ? (vocabulary.byBase.get(sizeKey) ?? vocabulary.byName.get(sizeKey))
+    : undefined;
+  if (sizeKey.length > 0 && sizeEntry?.group !== "size") {
+    return {
+      ok: false,
+      status: 400,
+      message: `Invalid size value: ${input.size ?? ""}`,
     };
   }
   const target = input.repo ?? config.intake.default_repo;
@@ -194,6 +205,7 @@ export async function acceptSubmission(
     title: submission.title,
     body: composeBody(submission.body, submission.source),
     labels,
+    ...(sizeEntry ? { size: sizeEntry.base } : {}),
     assignees: input.assignees,
   });
   if (!created.ok) {
