@@ -825,6 +825,12 @@ export const mirrorThread = sqliteTable(
      */
     priorityRank: integer("priority_rank").notNull().default(3),
     size: text("size"),
+    /**
+     * GitHub issue type name (`Bug`, `Feature`, `Task`, …) when the host and
+     * repository support issue types. Nullable because github.com does not
+     * expose types everywhere and GHES may reject the query entirely.
+     */
+    issueType: text("issue_type"),
     blocked: integer("blocked").notNull().default(0),
     /** Derived cache of the `epic` label; children live in the issue body. */
     isEpic: integer("is_epic").notNull().default(0),

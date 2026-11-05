@@ -140,6 +140,11 @@ export interface IssueListItem {
   impact: number | null;
   urgency: number | null;
   size: string | null;
+  /**
+   * GitHub issue type name (`Bug`, `Feature`, `Task`, …), or `null` when the
+   * host/repo does not support types or the issue has none.
+   */
+  issueType: string | null;
   /** Orthogonal `blocked` flag (SPEC §5.1); not a workflow stage. */
   blocked: boolean;
   /** Whether the issue carries the `epic` type label (SPEC §5.1). */
@@ -434,6 +439,8 @@ export interface FilterOptions {
   repos: Array<{ id: number; slug: string }>;
   assignees: UserRef[];
   labels: string[];
+  /** Distinct mirrored GitHub issue type names, sorted alphabetically. */
+  types: string[];
   /** Repo-scoped milestones, for the milestone filter dimension. */
   milestones: Array<{ repo: string; number: number; title: string }>;
 }

@@ -75,6 +75,10 @@
 		...(filter.unassigned ? [NONE] : [])
 	]);
 	const labelOptions = $derived(options.labels.map((name) => ({ value: name, label: name })));
+	const typeOptions = $derived([
+		...options.types.map((name) => ({ value: name, label: name })),
+		{ value: NONE, label: 'No type' }
+	]);
 	const milestoneOptions = $derived([
 		...options.milestones.map((milestone) => ({
 			value: `${milestone.repo}#${milestone.number}`,
@@ -149,6 +153,7 @@
 		| 'assignees'
 		| 'priorities'
 		| 'sizes'
+		| 'types'
 		| 'labels'
 		| 'planned'
 		| 'milestones'
@@ -216,6 +221,9 @@
 		}
 		if (visible('size')) {
 			add('sizes', 'Size', filter.sizes, (value) => optionLabel(sizeOptions, value));
+		}
+		if (visible('type')) {
+			add('types', 'Type', filter.types, (value) => optionLabel(typeOptions, value));
 		}
 		if (visible('label')) {
 			add('labels', 'Label', filter.labels, (value) => value);
@@ -383,7 +391,7 @@
 			</section>
 		{/if}
 
-		{#if visible('status') || visible('priority') || visible('assignee') || visible('size') || visible('label') || visible('blocked') || visible('waiting')}
+		{#if visible('status') || visible('priority') || visible('assignee') || visible('size') || visible('type') || visible('label') || visible('blocked') || visible('waiting')}
 			<section>
 				<h3 class="h6 fw-semibold text-body-secondary mb-2">Classification</h3>
 				<div class="d-flex flex-wrap gap-2">
@@ -417,6 +425,14 @@
 							options={sizeOptions}
 							selected={filter.sizes}
 							onselect={(values) => set('sizes', values)}
+						/>
+					{/if}
+					{#if visible('type')}
+						<MultiSelect
+							label="Type"
+							options={typeOptions}
+							selected={filter.types}
+							onselect={(values) => set('types', values)}
 						/>
 					{/if}
 					{#if visible('label')}

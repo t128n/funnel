@@ -32,6 +32,12 @@ describe("issue detail page", () => {
 		expect(page).toContain('class="col-lg-4 order-1 order-md-2"');
 	});
 
+	test("shows the mirrored GitHub issue type when present", () => {
+		expect(details).toContain("issue.issueType");
+		expect(details).toContain(">Type<");
+		expect(details).not.toContain("No type");
+	});
+
 	test("test_mobile_orders_the_rail_first_and_tablet_restores_document_first", () => {
 		// Below md the metadata rail is shown before the conversation; from md
 		// up the document is first again, matching the approved 8/4 order.

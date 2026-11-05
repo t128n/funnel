@@ -20,6 +20,7 @@ function issue(overrides: Partial<IssueListItem> = {}): IssueListItem {
     impact: null,
     urgency: null,
     size: "md",
+    issueType: null,
     blocked: false,
     labelConflict: false,
     createdAt: Date.parse("2026-10-19T09:00:00Z"),

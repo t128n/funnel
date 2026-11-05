@@ -7,6 +7,7 @@ export type FilterDimension =
 	| 'assignee'
 	| 'priority'
 	| 'size'
+	| 'type'
 	| 'label'
 	| 'planned'
 	| 'milestone'
@@ -47,6 +48,7 @@ export function ownedFilterCount(filter: ClientFilter, scope: DrawerScope): numb
 		unassigned: ownsDimension('assignee', scope) ? filter.unassigned : false,
 		priorities: ownsDimension('priority', scope) ? filter.priorities : [],
 		sizes: ownsDimension('size', scope) ? filter.sizes : [],
+		types: ownsDimension('type', scope) ? filter.types : [],
 		labels: ownsDimension('label', scope) ? filter.labels : [],
 		planned: ownsDimension('planned', scope) ? filter.planned : [],
 		milestones: ownsDimension('milestone', scope) ? filter.milestones : [],
@@ -73,6 +75,7 @@ export function clearOwnedFilters(filter: ClientFilter, scope: DrawerScope): Cli
 		unassigned: ownsDimension('assignee', scope) ? false : filter.unassigned,
 		priorities: ownsDimension('priority', scope) ? [] : filter.priorities,
 		sizes: ownsDimension('size', scope) ? [] : filter.sizes,
+		types: ownsDimension('type', scope) ? [] : filter.types,
 		labels: ownsDimension('label', scope) ? [] : filter.labels,
 		planned: ownsDimension('planned', scope) ? [] : filter.planned,
 		milestones: ownsDimension('milestone', scope) ? [] : filter.milestones,

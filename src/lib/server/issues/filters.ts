@@ -127,6 +127,8 @@ export interface IssueFilter {
   priorities: string[];
   /** `sm`/`md`/`lg` and/or {@link NONE}. */
   sizes: string[];
+  /** GitHub issue type names and/or {@link NONE} for untyped issues. */
+  types: string[];
   /** Non-reserved label names (reserved names belong to their dimension). */
   labels: string[];
   /** Plan-state selection: scheduled, unscheduled, this-week, next-week. */
@@ -178,6 +180,7 @@ export const EMPTY_FILTER: IssueFilter = {
   unassigned: false,
   priorities: [],
   sizes: [],
+  types: [],
   labels: [],
   planned: [],
   milestones: [],
@@ -212,6 +215,25 @@ function vocab(values: readonly string[], allowed: Set<string>): string[] {
     const lower = value.toLowerCase();
     if (allowed.has(lower) && !out.includes(lower)) out.push(lower);
     else if (lower === NONE && !out.includes(NONE)) out.push(NONE);
+  }
+  return out;
+}
+
+/**
+ * Parse the issue-type dimension. Type names are free-form (GitHub defines
+ * them per account), so values are kept as given but de-duplicated
+ * case-insensitively; `none` (any case) becomes the untyped sentinel.
+ */
+function parseTypes(params: URLSearchParams): string[] {
+  const out: string[] = [];
+  for (const value of multi(params, "type")) {
+    if (value.toLowerCase() === NONE) {
+      if (!out.includes(NONE)) out.push(NONE);
+      continue;
+    }
+    if (!out.some((entry) => entry.toLowerCase() === value.toLowerCase())) {
+      out.push(value);
+    }
   }
   return out;
 }
@@ -317,6 +339,7 @@ export function parseIssueFilter(
     unassigned: assigneeValues.some((value) => value.toLowerCase() === NONE),
     priorities: vocab(multi(params, "priority"), PRIORITY_SET),
     sizes: vocab(multi(params, "size"), SIZE_SET),
+    types: parseTypes(params),
     labels: multi(params, "label").filter(
       (name) =>
         !vocabulary.byName.has(name.toLowerCase()) &&
@@ -495,6 +518,26 @@ export function buildIssueWhere(filter: IssueFilter): SQL | undefined {
       .map((value) => eq(mirrorThread.priority, value.toUpperCase()));
     if (filter.priorities.includes(NONE)) {
       parts.push(isNull(mirrorThread.priority));
+    }
+    if (parts.length === 1) conditions.push(parts[0]);
+    else if (parts.length > 1) conditions.push(or(...parts) as SQL);
+  }
+
+  if (filter.types.length > 0) {
+    const names = filter.types
+      .filter((value) => value.toLowerCase() !== NONE)
+      .map((value) => value.toLowerCase());
+    const parts: SQL[] = [];
+    if (names.length > 0) {
+      parts.push(inArray(sql`lower(${mirrorThread.issueType})`, names));
+    }
+    if (filter.types.some((value) => value.toLowerCase() === NONE)) {
+      parts.push(
+        or(
+          isNull(mirrorThread.issueType),
+          eq(mirrorThread.issueType, ""),
+        ) as SQL,
+      );
     }
     if (parts.length === 1) conditions.push(parts[0]);
     else if (parts.length > 1) conditions.push(or(...parts) as SQL);

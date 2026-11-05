@@ -4,8 +4,8 @@
  * Filter and search state is bidirectionally mirrored to the URL so any view is
  * bookmarkable and shareable. This module is pure and dependency-free: it reads
  * and writes the same query keys the server-side {@link import("./server/issues/filters").parseIssueFilter}
- * consumes (`repo`, `state`, `status`, `assignee`, `priority`, `size`, `label`,
- * `planned`, `milestone`, `blocked`, `waiting`, `q`, `sort`, `direction`).
+ * consumes (`repo`, `state`, `status`, `assignee`, `priority`, `size`, `type`,
+ * `label`, `planned`, `milestone`, `blocked`, `waiting`, `q`, `sort`, `direction`).
  *
  * Repos are held as `owner/name` slugs and assignees as logins (or the `me`
  * sentinel), which is exactly what the server resolves against the mirror.
@@ -38,6 +38,8 @@ export interface ClientFilter {
   priorities: string[];
   /** `sm`/`md`/`lg` and/or `none`. */
   sizes: string[];
+  /** GitHub issue type names and/or `none` for untyped issues. */
+  types: string[];
   /** Non-reserved label names. */
   labels: string[];
   /** Plan-state values: `scheduled`, `unscheduled`, `this-week`, `next-week`. */
@@ -64,6 +66,7 @@ export const EMPTY_CLIENT_FILTER: ClientFilter = {
   unassigned: false,
   priorities: [],
   sizes: [],
+  types: [],
   labels: [],
   planned: [],
   milestones: [],
@@ -85,6 +88,7 @@ export const FILTER_KEYS = [
   "assignee",
   "priority",
   "size",
+  "type",
   "label",
   "planned",
   "milestone",
@@ -117,6 +121,29 @@ function collect(params: FilterParams, key: string): string[] {
   return out;
 }
 
+/**
+ * Collect the issue-type dimension. Type names are free-form, so values are
+ * kept as given and de-duplicated case-insensitively; the `none` sentinel is
+ * canonicalised so it matches the Type picker's option.
+ */
+function collectTypes(params: FilterParams): string[] {
+  const out: string[] = [];
+  for (const raw of params.getAll("type")) {
+    for (const part of raw.split(",")) {
+      const value = part.trim();
+      if (value.length === 0) continue;
+      if (value.toLowerCase() === NONE) {
+        if (!out.includes(NONE)) out.push(NONE);
+        continue;
+      }
+      if (!out.some((entry) => entry.toLowerCase() === value.toLowerCase())) {
+        out.push(value);
+      }
+    }
+  }
+  return out;
+}
+
 /** Parse filter state out of a URL's query parameters. */
 export function parseFilterParams(params: FilterParams): ClientFilter {
   const assignees = collect(params, "assignee");
@@ -133,6 +160,7 @@ export function parseFilterParams(params: FilterParams): ClientFilter {
     unassigned,
     priorities: collect(params, "priority"),
     sizes: collect(params, "size"),
+    types: collectTypes(params),
     labels: collect(params, "label"),
     planned: collect(params, "planned"),
     milestones: collect(params, "milestone"),
@@ -160,6 +188,7 @@ export function toFilterParams(filter: ClientFilter): URLSearchParams {
     ["assignee", filter.assignees],
     ["priority", filter.priorities],
     ["size", filter.sizes],
+    ["type", filter.types],
     ["label", filter.labels],
     ["planned", filter.planned],
     ["milestone", filter.milestones],
@@ -215,6 +244,7 @@ export function activeFilterCount(filter: ClientFilter): number {
     (filter.assignees.length > 0 || filter.unassigned ? 1 : 0) +
     (filter.priorities.length > 0 ? 1 : 0) +
     (filter.sizes.length > 0 ? 1 : 0) +
+    (filter.types.length > 0 ? 1 : 0) +
     (filter.labels.length > 0 ? 1 : 0) +
     (filter.planned.length > 0 ? 1 : 0) +
     (filter.milestones.length > 0 ? 1 : 0) +

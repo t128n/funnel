@@ -15,6 +15,7 @@ function issue(overrides: Partial<IssueListItem> & { number: number }): IssueLis
     impact: null,
     urgency: null,
     size: null,
+    issueType: null,
     blocked: false,
     labelConflict: false,
     createdAt: 0,
@@ -136,5 +137,33 @@ describe("buildGroups / priority", () => {
       ["P3", "P3 · Low"],
       ["none", "No priority"]
     ]);
+  });
+});
+
+describe("buildGroups / type", () => {
+  test("sorts type sections alphabetically with No type last", () => {
+    const groups = buildGroups(
+      [
+        issue({ number: 1, issueType: "Task" }),
+        issue({ number: 2, issueType: null }),
+        issue({ number: 3, issueType: "Bug" }),
+        issue({ number: 4, issueType: "Feature" }),
+        issue({ number: 5, issueType: "  " }),
+      ],
+      "type"
+    );
+
+    expect(
+      groups.map((group) => [group.key, group.label, group.issues.map((entry) => entry.number)])
+    ).toEqual([
+      ["Bug", "Bug", [3]],
+      ["Feature", "Feature", [4]],
+      ["Task", "Task", [1]],
+      ["\u0000notype", "No type", [2, 5]],
+    ]);
+  });
+
+  test("returns no groups for an empty issue list", () => {
+    expect(buildGroups([], "type")).toEqual([]);
   });
 });

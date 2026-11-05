@@ -14,7 +14,11 @@
 	import InlineStatus from '#lib/components/common/InlineStatus.svelte';
 	import MultiSelect from '#lib/components/common/MultiSelect.svelte';
 	import Spinner from '#lib/components/common/Spinner.svelte';
-	import { createIssue } from '#lib/client/mutations';
+	import {
+		createIssue,
+		fetchIssueTypes,
+		type IssueTypeOption
+	} from '#lib/client/mutations';
 	import {
 		closeQuickCreate,
 		quickCreate,
@@ -61,6 +65,8 @@
 	let impact = $state('');
 	let urgency = $state('');
 	let size = $state('');
+	let issueType = $state('');
+	let issueTypes = $state<IssueTypeOption[]>([]);
 	let selectedAssignees = $state<string[]>([]);
 	let selectedLabels = $state<string[]>([]);
 	let busy = $state(false);
@@ -133,11 +139,39 @@
 			impact = '';
 			urgency = '';
 			size = '';
+			issueType = '';
+			issueTypes = [];
 			selectedAssignees = [];
 			selectedLabels = [];
 			busy = false;
 			error = null;
 		});
+	});
+
+	// Issue types are host/repo-specific, so load them for the selected repo
+	// whenever the dialog opens or the repo changes. An unsupported repo simply
+	// leaves the list empty and the Type select hidden.
+	$effect(() => {
+		if (!$quickCreate.open) {
+			issueTypes = [];
+			return;
+		}
+		const selectedRepo = repo;
+		if (!selectedRepo) {
+			issueTypes = [];
+			issueType = '';
+			return;
+		}
+		let cancelled = false;
+		issueType = '';
+		issueTypes = [];
+		void fetchIssueTypes(selectedRepo).then((result) => {
+			if (cancelled) return;
+			issueTypes = result.ok ? result.value.types : [];
+		});
+		return () => {
+			cancelled = true;
+		};
 	});
 
 	function close() {
@@ -155,6 +189,7 @@
 			...(impact ? { impact } : {}),
 			...(urgency ? { urgency } : {}),
 			...(size ? { size } : {}),
+			...(issueType ? { issueType } : {}),
 			assignees: selectedAssignees,
 			labels: selectedLabels
 		});
@@ -244,6 +279,24 @@
 				</FormGroup>
 
 				<div class="row g-3">
+					{#if issueTypes.length > 0}
+						<div class="col-sm-6">
+							<FormGroup class="mb-0">
+								<Label for="new-issue-type">Type</Label>
+								<select
+									id="new-issue-type"
+									class="form-select"
+									bind:value={issueType}
+									disabled={busy}
+								>
+									<option value="">No type</option>
+									{#each issueTypes as type (type.id)}
+										<option value={type.name}>{type.name}</option>
+									{/each}
+								</select>
+							</FormGroup>
+						</div>
+					{/if}
 					<div class="col-sm-6">
 						<FormGroup class="mb-0">
 							<Label for="new-issue-status">Status</Label>

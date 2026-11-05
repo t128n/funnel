@@ -95,6 +95,15 @@ function stubProvider(options: StubOptions = {}): {
         fail("setMilestone");
         return { id: "3", title: "v1", state: "open", raw: {} };
       },
+      setIssueType: async (ref: unknown, issueType: unknown) => {
+        calls.push({ op: "setIssueType", args: [ref, issueType] });
+        fail("setIssueType");
+        const name =
+          typeof issueType === "string"
+            ? issueType
+            : (issueType as { name?: string } | undefined)?.name;
+        return { id: "IT_1", name, raw: {} };
+      },
       removeLabels: async (ref: unknown, names: string[]) => {
         calls.push({ op: "removeLabels", args: [ref, names] });
         fail("removeLabels");
@@ -294,6 +303,46 @@ describe("createIssue", () => {
         numbers: [42],
       }),
     );
+  });
+
+  test("sets the issue type after the issue is created", async () => {
+    const { provider, calls } = stubProvider();
+
+    const result = await createIssue({
+      provider,
+      repo: "orgA/core",
+      title: "New feature",
+      issueType: "Feature",
+    });
+
+    expect(result).toEqual({
+      ok: true,
+      value: { number: 42, htmlUrl: "https://github.com/orgA/core/issues/42" },
+    });
+    expect(ops(calls)).toEqual(["create", "setIssueType"]);
+    expect(calls[1]?.args[1]).toBe("Feature");
+  });
+
+  test("keeps the successful create when the type write is rejected", async () => {
+    const { provider, calls } = stubProvider({
+      fail: {
+        op: "setIssueType",
+        error: new Error("issue types are not supported"),
+      },
+    });
+
+    const result = await createIssue({
+      provider,
+      repo: "orgA/core",
+      title: "New feature",
+      issueType: "Feature",
+    });
+
+    expect(result).toEqual({
+      ok: true,
+      value: { number: 42, htmlUrl: "https://github.com/orgA/core/issues/42" },
+    });
+    expect(ops(calls)).toEqual(["create", "setIssueType"]);
   });
 
   test("rejects an unconfigured repository without a forge call", async () => {

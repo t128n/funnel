@@ -125,7 +125,7 @@ Named URL presets for the Issues and Inbox views. The URL stays the runtime sour
 | `scope` | TEXT | Not null; `issues` or `inbox` and the path the view opens. |
 | `sort` | TEXT | Nullable; `priority`, `updated`, `created` or `title`. Null inherits the stream default. |
 | `direction` | TEXT | Nullable; `asc` or `desc`. Null inherits the stream default. |
-| `group` | TEXT | Nullable; `none`, `status`, `priority`, `project`, `repo` or `milestone`. Grouping is client preference state, not part of the URL. |
+| `group` | TEXT | Nullable; `none`, `status`, `priority`, `project`, `repo`, `milestone` or `type`. Grouping is client preference state, not part of the URL. |
 | `shared` | INTEGER | Not null, default `0`; `1` makes the view readable by every signed-in user. |
 | `pinned` | INTEGER | Not null, default `0`; pinned views sort first in the switcher. |
 | `created_at` | INTEGER | Not null, Unix ms. |
@@ -620,6 +620,7 @@ The issue cache. Pull requests never become rows here: their development context
 | `urgency` | INTEGER | Nullable; `1` High, `2` Mid or `3` Low. |
 | `priority` | TEXT | Nullable derived cache; `P1`, `P2` or `P3` (never a label). |
 | `size` | TEXT | Nullable; `sm`, `md` or `lg`. |
+| `issue_type` | TEXT | Nullable; GitHub issue type name (`Bug`, `Feature`, `Task`, …). Hydrated separately from the main query, so it stays unset on hosts/repos that do not support issue types. |
 | `blocked` | INTEGER | Not null, default `0`; 0/1 orthogonal flag. |
 | `label_conflict` | INTEGER | Not null, default `0`; 0/1 ambiguous reserved-label timeline or a retired p-label that disagrees with the derived priority. |
 | `is_epic` | INTEGER | Not null, default `0`; 0/1 cache of the orthogonal `epic` label. Parsed children live in the issue body, not here. |

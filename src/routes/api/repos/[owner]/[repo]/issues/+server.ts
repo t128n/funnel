@@ -61,6 +61,9 @@ const createSchema = v.object({
   impact: v.optional(v.picklist(IMPACT_LABEL_VALUES)),
   urgency: v.optional(v.picklist(URGENCY_LABEL_VALUES)),
   size: v.optional(v.picklist(SIZE_VALUES)),
+  issueType: v.optional(
+    v.pipe(v.string(), v.trim(), v.nonEmpty(), v.maxLength(100)),
+  ),
 });
 
 export const POST: RequestHandler = async ({ params, request, locals }) => {

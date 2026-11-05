@@ -43,6 +43,7 @@ import type {
 import { deriveMetadata } from "./conflicts";
 import * as mirror from "./mirror";
 import { syncIssueRelations } from "./relations";
+import { syncIssueTypes } from "./issue-types";
 import {
   recordIssueTransitions,
   type IssueTransitionSnapshot,
@@ -1012,6 +1013,11 @@ export async function hydrateAndStore(
   );
 
   if (!repo) return records;
+
+  // Issue types live in their own fail-soft query: the main query stays free
+  // of `issueType` so a GHES rejection cannot break every issue upsert. A
+  // rejected type query leaves prior values untouched.
+  await syncIssueTypes(gql, repo, nodeIds);
 
   // GitHub-native relationships are hydrated after the issue itself, in two
   // isolated queries. A host that rejects either field set leaves its prior

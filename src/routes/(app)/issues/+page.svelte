@@ -110,6 +110,9 @@
 	const groupOptions = $derived.by((): { value: GroupKey; label: string }[] => [
 		{ value: 'status', label: 'Status' },
 		{ value: 'priority', label: 'Priority' },
+		...(data.options.types.length > 0
+			? [{ value: 'type' as GroupKey, label: 'Type' }]
+			: []),
 		...(data.projects.length > 0
 			? [{ value: 'project' as GroupKey, label: 'Project' }]
 			: []),

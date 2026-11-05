@@ -79,6 +79,7 @@ export function filterSignature(filter: IssueFilter, extra?: string): string {
     assignees: [...filter.assignees].sort(),
     priorities: [...filter.priorities].sort(),
     sizes: [...filter.sizes].sort(),
+    types: [...filter.types].sort(),
     labels: [...filter.labels].sort(),
     planned: [...filter.planned].sort(),
     milestones: filter.milestones

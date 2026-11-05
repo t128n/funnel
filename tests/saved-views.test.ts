@@ -192,6 +192,14 @@ describe("saved-view storage", () => {
     expect(
       validateSavedViewInput({
         name: "x",
+        query: "type=Bug&type=none",
+        scope: "issues",
+        group: "type",
+      }).ok,
+    ).toBe(true);
+    expect(
+      validateSavedViewInput({
+        name: "x",
         query: "https://evil.example/path",
         scope: "issues",
       }).ok,

@@ -31,6 +31,7 @@ export const SAVED_VIEW_GROUPS = [
   "project",
   "repo",
   "milestone",
+  "type",
 ] as const;
 export type SavedViewGroup = (typeof SAVED_VIEW_GROUPS)[number];
 

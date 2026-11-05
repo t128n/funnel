@@ -157,6 +157,7 @@ const issueColumns = {
   impact: mirrorThread.impact,
   urgency: mirrorThread.urgency,
   size: mirrorThread.size,
+  issueType: mirrorThread.issueType,
   blocked: mirrorThread.blocked,
   isEpic: mirrorThread.isEpic,
   labelConflict: mirrorThread.labelConflict,
@@ -188,6 +189,7 @@ interface RawRow {
   impact: number | null;
   urgency: number | null;
   size: string | null;
+  issueType: string | null;
   blocked: number;
   isEpic: number;
   labelConflict: number;
@@ -742,6 +744,7 @@ function hydrate(rows: RawRow[]): IssueListItem[] {
       impact: parseImpact(row.impact),
       urgency: parseUrgency(row.urgency),
       size: row.size,
+      issueType: row.issueType,
       blocked: row.blocked === 1,
       isEpic: row.isEpic === 1,
       labelConflict: row.labelConflict === 1,
@@ -1508,6 +1511,18 @@ function computeFilterOptions(
     // locale-aware order the picker previously got from the in-memory sort.
     .sort((a, b) => a.localeCompare(b));
 
+  const typeRows = db
+    .selectDistinct({ name: mirrorThread.issueType })
+    .from(mirrorThread)
+    .all();
+  const types = typeRows
+    .map((row) => row.name)
+    .filter(
+      (name): name is string =>
+        typeof name === "string" && name.trim().length > 0,
+    )
+    .sort((a, b) => a.localeCompare(b));
+
   const milestoneRows = db
     .select({
       org: mirrorRepo.org,
@@ -1528,7 +1543,7 @@ function computeFilterOptions(
       a.title.localeCompare(b.title) || a.repo.localeCompare(b.repo),
     );
 
-  return { repos, assignees, labels, milestones };
+  return { repos, assignees, labels, types, milestones };
 }
 
 /**
