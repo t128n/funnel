@@ -14,6 +14,10 @@
 
 	interface Props {
 		label: string;
+		/** Id for the trigger button, so an external `<Label for>` can name it. */
+		id?: string;
+		/** Accessible name when the visible label sits outside the trigger. */
+		ariaLabel?: string;
 		options: MultiSelectOption[];
 		selected: string[];
 		onselect: (values: string[]) => void;
@@ -47,6 +51,8 @@
 
 	let {
 		label,
+		id,
+		ariaLabel,
 		options,
 		selected,
 		onselect,
@@ -106,6 +112,8 @@
 
 <Dropdown autoClose="outside">
 	<DropdownToggle
+		{id}
+		aria-label={ariaLabel}
 		color={variant === 'ghost' ? 'link' : 'secondary'}
 		outline={variant !== 'ghost'}
 		size={size === 'sm' ? 'sm' : undefined}
