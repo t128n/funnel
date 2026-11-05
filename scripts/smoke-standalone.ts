@@ -484,6 +484,10 @@ async function main(): Promise<void> {
 
 try {
   await main();
+  // Bun's fetch keep-alive sockets can hold the event loop open for seconds
+  // after the last request. All cleanup already ran in main's `finally` block,
+  // so exit explicitly instead of waiting for the pool to drain.
+  process.exit(0);
 } catch (error) {
   console.error(
     `[smoke] FAIL: ${error instanceof Error ? error.message : String(error)}`,
