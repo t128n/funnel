@@ -208,7 +208,8 @@ describe("withReserved", () => {
 
 describe("createIssue", () => {
   test("creates the issue with normalised labels and publishes", async () => {
-    const { provider, calls } = stubProvider();    const events: Array<Record<string, unknown>> = [];
+    const { provider, calls } = stubProvider();
+    const events: Array<Record<string, unknown>> = [];
     subscribe((event) => events.push(event as Record<string, unknown>));
 
     const result = await createIssue({
