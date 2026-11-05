@@ -2,7 +2,7 @@
 
 This page records the mise tasks and `package.json` scripts that build, check, test, package, and install Funnel.
 
-`mise.toml` is the single source of truth for the build, and pins Bun `1.4.3` and Go `1.27`. `.github/workflows/verify.yml` runs on every push to `main` and every pull request and installs the pinned tools with `jdx/mise-action`. On `ubuntu-latest` it runs `mise run bun:install` and then the full `mise run verify` gate. On `windows-latest` it runs `mise run bun:install` and `mise run exe`, then checks that `dist\funnel.exe` exists and prints its `--version`. The full unit suite on Windows is tracked separately because the current baseline has Windows-specific failures. No build flags are duplicated in the workflow. `mise run` with no task name runs the `default` task, which lists the available tasks.
+`mise.toml` is the single source of truth for the build, and pins Bun `1.4.3` and Go `1.27`. `.github/workflows/verify.yml` runs on every push to `main` and every pull request and installs the pinned tools with `jdx/mise-action`. On `ubuntu-latest` it runs `mise run bun:install` and then the full `mise run verify` gate. On `windows-latest` it runs `mise run bun:install`, `mise run exe`, and `mise run smoke`, then checks that `dist\funnel.exe` exists and prints its `--version`. The full unit suite on Windows is tracked separately because the current baseline has Windows-specific failures. No build flags are duplicated in the workflow. `mise run` with no task name runs the `default` task, which lists the available tasks.
 
 ## Mise tasks
 
