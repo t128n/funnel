@@ -1,7 +1,10 @@
 import { beforeEach, describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { db } from "#lib/server/db/index";
-import { stateIntakeSubmission } from "#lib/server/db/schema";
+import {
+  stateIntakeSubmission,
+  stateTriageEvent,
+} from "#lib/server/db/schema";
 import { createSubmission, getSubmission } from "#lib/server/intake/staging";
 import { actions } from "#/routes/(app)/inbox/+page.server";
 
@@ -40,29 +43,61 @@ function formRequest(path: string, fields: Record<string, string>): Request {
 }
 
 beforeEach(() => {
+  db.delete(stateTriageEvent).run();
   db.delete(stateIntakeSubmission).run();
 });
 
 describe("inbox route actions", () => {
-  test("owns both queue decisions so a post settles on /inbox", () => {
-    expect(Object.keys(actions).sort()).toEqual(["accept", "dismiss"]);
+  test("owns the queue decisions so a post settles on /inbox", () => {
+    expect(Object.keys(actions).sort()).toEqual(["accept", "dismiss", "undo"]);
   });
 
-  test("dismiss consumes the staged row from the inbox route", async () => {
+  test("dismiss archives the row with a reason and returns the undo event", async () => {
     const { id } = createSubmission({ title: "Webhook retries are silent" });
 
-    const result = await actions.dismiss({
-      request: formRequest("/inbox?/dismiss", { id }),
+    const result = (await actions.dismiss({
+      request: formRequest("/inbox?/dismiss", {
+        id,
+        reason: "Duplicate of #12",
+      }),
+      locals: writeLocals(),
+    } as never)) as { dismissed: true; id: string; eventId: string };
+
+    expect(result).toMatchObject({ dismissed: true, id });
+    expect(result.eventId).toBeString();
+    expect(getSubmission(id)?.archivedAt).toBeNumber();
+    expect(getSubmission(id)?.dismissReason).toBe("Duplicate of #12");
+  });
+
+  test("undo restores the dismissed row and appends an undone event", async () => {
+    const { id } = createSubmission({ title: "Restore me" });
+    const dismissed = (await actions.dismiss({
+      request: formRequest("/inbox?/dismiss", {
+        id,
+        reason: "Wrong report",
+      }),
+      locals: writeLocals(),
+    } as never)) as { eventId: string };
+
+    const result = await actions.undo({
+      request: formRequest("/inbox?/undo", { eventId: dismissed.eventId }),
       locals: writeLocals(),
     } as never);
 
-    expect(result).toEqual({ dismissed: true, id });
-    expect(getSubmission(id)).toBeUndefined();
+    expect(result).toEqual({ undone: true, id });
+    expect(getSubmission(id)?.archivedAt).toBeNull();
+    expect(
+      db
+        .select()
+        .from(stateTriageEvent)
+        .all()
+        .map((event) => event.action),
+    ).toEqual(["dismissed", "undone"]);
   });
 
   test("a failed decision returns a failure instead of navigating", async () => {
     const result = (await actions.dismiss({
-      request: formRequest("/inbox?/dismiss", { id: "missing" }),
+      request: formRequest("/inbox?/dismiss", { id: "missing", reason: "gone" }),
       locals: writeLocals(),
     } as never)) as { status: number; data: { message: string } };
 
@@ -85,8 +120,10 @@ describe("inbox queue wiring", () => {
   test("queue forms target the inbox route and preserve the active filter", () => {
     expect(tableSource).toContain("inboxActionUrl(page.url.search, 'accept')");
     expect(tableSource).toContain("inboxActionUrl(page.url.search, 'dismiss')");
+    expect(tableSource).toContain("inboxActionUrl(page.url.search, 'undo')");
     expect(tableSource).toContain("action={acceptAction}");
     expect(tableSource).toContain("action={dismissAction}");
+    expect(tableSource).toContain("action={undoAction}");
     expect(tableSource).not.toMatch(/submissionPath\([^)]*\)\}\?\/accept/);
     expect(tableSource).not.toMatch(/submissionPath\([^)]*\)\}\?\/dismiss/);
   });

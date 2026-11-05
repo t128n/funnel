@@ -41,6 +41,10 @@ describe("POST /api/intake", () => {
       body: "Steps to reproduce",
       source: "cli",
       createdAt: expect.any(Number),
+      archivedAt: null,
+      dismissReason: null,
+      duplicateRepo: null,
+      duplicateNumber: null,
     });
   });
 

@@ -1,6 +1,9 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { db } from "#lib/server/db/index";
-import { stateIntakeSubmission } from "#lib/server/db/schema";
+import {
+  stateIntakeSubmission,
+  stateTriageEvent,
+} from "#lib/server/db/schema";
 import {
   clearSettings,
   writeSettings,
@@ -9,10 +12,14 @@ import {
 import { TEST_CONFIG } from "#tests/test-config";
 import { captureLog, type LogCapture } from "#tests/log-capture";
 import {
+  archiveSubmission,
+  countPendingSubmissions,
   createSubmission,
   deleteSubmission,
   getSubmission,
+  listArchivedSubmissions,
   listSubmissions,
+  restoreSubmission,
 } from "./staging";
 
 const BASE_SETTINGS: SettingsInput = {
@@ -35,6 +42,7 @@ const BASE_SETTINGS: SettingsInput = {
 let logs: LogCapture;
 
 beforeEach(() => {
+  db.delete(stateTriageEvent).run();
   db.delete(stateIntakeSubmission).run();
   logs = captureLog();
 });
@@ -58,6 +66,10 @@ describe("intake staging store", () => {
       body: "Steps to reproduce",
       source: "cli",
       createdAt: expect.any(Number),
+      archivedAt: null,
+      dismissReason: null,
+      duplicateRepo: null,
+      duplicateNumber: null,
     });
     const staged = logs.find("intake", "intake submission staged");
     expect(staged).toMatchObject({
@@ -93,6 +105,50 @@ describe("intake staging store", () => {
     expect(deleteSubmission(id)).toBe(true);
     expect(getSubmission(id)).toBeUndefined();
     expect(deleteSubmission(id)).toBe(false);
+  });
+
+  test("archives pending rows and keeps them out of the queue", () => {
+    const { id } = createSubmission({ title: "dismiss me" });
+    expect(countPendingSubmissions()).toBe(1);
+    expect(archiveSubmission(id, { dismissReason: "duplicate report" })).toBe(true);
+    expect(archiveSubmission(id)).toBe(false);
+
+    const archived = getSubmission(id);
+    expect(archived?.archivedAt).toBeNumber();
+    expect(archived?.dismissReason).toBe("duplicate report");
+    expect(listSubmissions()).toEqual([]);
+    expect(listArchivedSubmissions().map((row) => row.id)).toEqual([id]);
+    expect(countPendingSubmissions()).toBe(0);
+  });
+
+  test("restores a dismissed submission and clears its archive reason", () => {
+    const { id } = createSubmission({ title: "bring me back" });
+    archiveSubmission(id, {
+      dismissReason: "wrong queue",
+      duplicateRepo: "orgA/core",
+      duplicateNumber: 5,
+    });
+
+    expect(restoreSubmission(id)).toBe(true);
+    expect(restoreSubmission(id)).toBe(false);
+
+    const row = getSubmission(id);
+    expect(row?.archivedAt).toBeNull();
+    expect(row?.dismissReason).toBeNull();
+    expect(row?.duplicateRepo).toBe("orgA/core");
+    expect(row?.duplicateNumber).toBe(5);
+    expect(listSubmissions().map((submission) => submission.id)).toEqual([id]);
+    expect(countPendingSubmissions()).toBe(1);
+  });
+
+  test("counts only pending rows matching the search", () => {
+    const first = createSubmission({ title: "Crash on save" });
+    createSubmission({ title: "Dark mode" });
+    archiveSubmission(first.id, { dismissReason: "already fixed" });
+
+    expect(countPendingSubmissions()).toBe(1);
+    expect(countPendingSubmissions("dark")).toBe(1);
+    expect(countPendingSubmissions("crash")).toBe(0);
   });
 
   test("notifies admins after a submission lands", () => {
