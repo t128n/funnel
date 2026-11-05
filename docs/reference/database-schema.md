@@ -143,7 +143,7 @@ Normalised instance settings as JSON-encoded key/value rows. Lists (`repos`, `pr
 
 Primary key: `key`. Foreign keys: none. Indexes: none.
 
-Known keys: `repos`, `projects`, `intake.default_repo`, `sync.history_days`, `sync.poll_interval_active_seconds`, `sync.poll_interval_idle_seconds`, `board.done_days`, `board.wip_limits`, `session.idle_days`, `notifications.enabled`, `notifications.native`, `notifications.new_intake`, `planning.size_minutes`, `planning.allocation_percent`, `planning.cycle_weeks`, `planning.cycle_anchor`, `planning.maintainers`. `github.url` and `github.api_url` are environment values and are not stored here. Missing, unparseable or invalid rows fall back to per-key defaults.
+Known keys: `repos`, `projects`, `intake.default_repo`, `sync.history_days`, `sync.poll_interval_active_seconds`, `sync.poll_interval_idle_seconds`, `sync.pr_in_review`, `sync.pr_done`, `board.done_days`, `board.wip_limits`, `session.idle_days`, `notifications.enabled`, `notifications.native`, `notifications.new_intake`, `planning.size_minutes`, `planning.allocation_percent`, `planning.cycle_weeks`, `planning.cycle_anchor`, `planning.maintainers`. `github.url` and `github.api_url` are environment values and are not stored here. Missing, unparseable or invalid rows fall back to per-key defaults.
 
 ### `state_plan_item`
 
@@ -517,7 +517,7 @@ Indexes: the composite primary key only.
 
 ### `mirror_thread`
 
-The thread cache (currently issues only). `status`, `impact`, `urgency`, `size` and `blocked` are derived caches of the active reserved-label groups, recomputed at sync time; `priority` is the derived P1–P3 cache. Done/Cancelled derive from `(state, state_reason)`.
+The issue cache. Pull requests never become rows here: their development context lives in `mirror_pull_request` and `mirror_issue_pull_request`. `status`, `impact`, `urgency`, `size` and `blocked` are derived caches of the active reserved-label groups, recomputed at sync time; `priority` is the derived P1–P3 cache. Done/Cancelled derive from `(state, state_reason)`.
 
 | Column | Type | Constraints / notes |
 | :--- | :--- | :--- |
@@ -557,6 +557,60 @@ Indexes:
 - `idx_mirror_thread_state` on `(state, state_reason)`.
 - `idx_mirror_thread_repo_updated` on `(repo_id, updated_at)`.
 - `idx_mirror_thread_milestone` on `(repo_id, milestone_number)`.
+
+### `mirror_pull_request`
+
+Development context for pull requests linked to mirrored issues (#28). A row is created only from GitHub's `closedByPullRequestsReferences` connection (closing keywords or manually linked PRs), never from the issue feed, so pull requests cannot leak into `mirror_thread`. The check rollup and review decision are cached so list rows and the issue detail can show failing checks without opening GitHub.
+
+| Column | Type | Constraints / notes |
+| :--- | :--- | :--- |
+| `repo_id` | INTEGER | Not null; FK to `mirror_repo.id`. |
+| `number` | INTEGER | Not null; per-repo pull request number. |
+| `external_id` | TEXT | Not null, default `''`; forge-native node id for batched refreshes. |
+| `title` | TEXT | Not null, default `''`. |
+| `state` | TEXT | Not null, default `'unknown'`; `open`, `closed`, `merged` or `unknown`. |
+| `is_draft` | INTEGER | Not null, default `0`; 0/1. |
+| `merged` | INTEGER | Not null, default `0`; 0/1; true for `merged` state. |
+| `review_decision` | TEXT | Nullable; `approved`, `changes_requested`, `review_required`, `pending` or null. Derived from each reviewer's latest submitted review. |
+| `approved_count` | INTEGER | Not null, default `0`; latest approvals. |
+| `changes_requested_count` | INTEGER | Not null, default `0`; latest change requests. |
+| `pending_review_count` | INTEGER | Not null, default `0`; outstanding review requests. |
+| `checks_state` | TEXT | Nullable; `pending`, `success`, `failure` or `unknown` for the head commit. |
+| `checks_total` | INTEGER | Nullable; total check runs and statuses. |
+| `checks_failed` | INTEGER | Nullable; failing check count. |
+| `checks_url` | TEXT | Nullable; the PR's checks page. |
+| `url` | TEXT | Not null, default `''`. |
+| `author_id` | INTEGER | Nullable; FK to `mirror_user.id`. |
+| `created_at` | INTEGER | Not null, Unix ms. |
+| `updated_at` | INTEGER | Not null, Unix ms; drives review re-reads. |
+| `closed_at` | INTEGER | Nullable, Unix ms. |
+| `merged_at` | INTEGER | Nullable, Unix ms. |
+
+Primary key: `(repo_id, number)`. Foreign keys:
+
+- `repo_id` → `mirror_repo.id` on delete `CASCADE`.
+- `author_id` → `mirror_user.id` on delete `SET NULL`.
+
+Indexes:
+
+- `idx_mirror_pull_request_repo_updated` on `(repo_id, updated_at)`.
+- `idx_mirror_pull_request_checks` on `(checks_state)`.
+
+### `mirror_issue_pull_request`
+
+The many-to-many link between a mirrored issue and its pull requests. `source` records how the link was surfaced: `closing` covers closing keywords and manually linked pull requests, while `cross-reference` is reserved for timeline-discovered references. Neither side carries a foreign key to the disposable thread/PR rows; the sync layer removes links with the issue and prunes pull requests no link references.
+
+| Column | Type | Constraints / notes |
+| :--- | :--- | :--- |
+| `repo_id` | INTEGER | Not null; FK to `mirror_repo.id`. |
+| `issue_number` | INTEGER | Not null; the linked issue number. |
+| `pr_number` | INTEGER | Not null; the linked pull request number. |
+| `source` | TEXT | Not null, default `'closing'`; `closing` or `cross-reference`. |
+
+Primary key: `(repo_id, issue_number, pr_number)`. Foreign keys: `repo_id` → `mirror_repo.id` on delete `CASCADE`. Indexes:
+
+- `idx_mirror_issue_pr_issue` on `(repo_id, issue_number)`.
+- `idx_mirror_issue_pr_pull` on `(repo_id, pr_number)`.
 
 ### `mirror_repo_label`
 
@@ -705,9 +759,12 @@ Foreign keys declared in the schema:
 | `mirror_thread_assignee.user_id` | `mirror_user.id` | `CASCADE` |
 | `mirror_repo_assignee.repo_id` | `mirror_repo.id` | `CASCADE` |
 | `mirror_repo_assignee.user_id` | `mirror_user.id` | `CASCADE` |
+| `mirror_pull_request.repo_id` | `mirror_repo.id` | `CASCADE` |
+| `mirror_pull_request.author_id` | `mirror_user.id` | `SET NULL` |
+| `mirror_issue_pull_request.repo_id` | `mirror_repo.id` | `CASCADE` |
 | `mirror_comment.author_id` | `mirror_user.id` | `SET NULL` |
 
-The composite child tables `mirror_thread_label` and `mirror_thread_assignee`, and the `repo_id`/`thread_number` columns on `mirror_comment`, carry no foreign key to `mirror_thread`. `mirror_thread.milestone_number` also has no foreign key to `mirror_milestone`: the milestone set is replaced wholesale on refresh, and a thread may briefly reference a number that has not been mirrored yet. The sync layer therefore deletes labels, assignees and comments explicitly before deleting a thread row (`deleteIssue` in `src/lib/server/sync/mirror.ts`). `state_work_note`, `state_attachment`, `state_notification`, `state_issue_watch`, `state_plan_item`, `state_issue_event`, `state_issue_delay`, `state_snooze`, `state_triage_event`, `state_work_hours`, `state_unavailable_window`, `state_day_block` and `state_calendar_feed` also carry no foreign key to the mirror: their author/uploader/recipient/actor identities are snapshots, and their issue identity is the durable `org/name` plus number. The four legacy day-planning tables reference `auth_user.id` directly with `ON DELETE CASCADE`; deleting an account removes any retained rows.
+The composite child tables `mirror_thread_label` and `mirror_thread_assignee`, the `repo_id`/`issue_number`/`pr_number` columns on `mirror_issue_pull_request`, and the `repo_id`/`thread_number` columns on `mirror_comment`, carry no foreign key to `mirror_thread` or `mirror_pull_request`. `mirror_thread.milestone_number` also has no foreign key to `mirror_milestone`: the milestone set is replaced wholesale on refresh, and a thread may briefly reference a number that has not been mirrored yet. The sync layer therefore deletes labels, assignees, links and comments explicitly before deleting a thread row (`deleteIssue` in `src/lib/server/sync/mirror.ts`) and prunes pull requests that no link refers to. `state_work_note`, `state_attachment`, `state_notification`, `state_issue_watch`, `state_plan_item`, `state_issue_event`, `state_issue_delay`, `state_snooze`, `state_triage_event`, `state_work_hours`, `state_unavailable_window`, `state_day_block` and `state_calendar_feed` also carry no foreign key to the mirror: their author/uploader/recipient/actor identities are snapshots, and their issue identity is the durable `org/name` plus number. The four legacy day-planning tables reference `auth_user.id` directly with `ON DELETE CASCADE`; deleting an account removes any retained rows.
 
 ## Storage, pragmas and migrations
 

@@ -109,6 +109,12 @@ export const configSchema = v.pipe(
       history_days: count("sync.history_days"),
       poll_interval_active_seconds: count("sync.poll_interval_active_seconds"),
       poll_interval_idle_seconds: count("sync.poll_interval_idle_seconds"),
+      /** Opt-in automatic transitions from linked pull request activity. */
+      pr_in_review: v.optional(
+        v.boolean("sync.pr_in_review must be a boolean"),
+        false,
+      ),
+      pr_done: v.optional(v.boolean("sync.pr_done must be a boolean"), false),
     }),
     board: v.object({
       done_days: count("board.done_days"),

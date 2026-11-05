@@ -20,6 +20,8 @@ export function clearMirror(): void {
   db.$client.query("DELETE FROM sqlite_sequence WHERE name LIKE 'mirror_%'").run();
   for (const table of [
     "mirror_thread_fts",
+    "mirror_issue_pull_request",
+    "mirror_pull_request",
     "mirror_thread_label",
     "mirror_thread_assignee",
     "mirror_comment",

@@ -11,6 +11,7 @@
 
 <script lang="ts">
 	import PriorityText from '#lib/components/common/PriorityText.svelte';
+	import PullRequestIndicator from '#lib/components/issue/PullRequestIndicator.svelte';
 	import RefText from '#lib/components/common/RefText.svelte';
 	import StatusText from '#lib/components/common/StatusText.svelte';
 	import { weekHeadline } from '#lib/components/plan/format';
@@ -131,6 +132,7 @@
 				aria-label="Conflicting reserved label or retired priority label on GitHub"
 			></i>
 		{/if}
+		<PullRequestIndicator summary={issue.pullRequest} />
 	</span>
 
 	<span class="issue-meta">

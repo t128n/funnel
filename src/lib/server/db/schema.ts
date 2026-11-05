@@ -767,6 +767,84 @@ export const mirrorRepoAssignee = sqliteTable(
   (t) => [primaryKey({ columns: [t.repoId, t.userId] })],
 );
 
+// ---------------------------------------------------------------------------
+// Mirror: linked pull requests (issue #28).
+//
+// GitHub issues expose the pull requests that close them or were linked to
+// them by hand. They are mirrored separately from `mirror_thread` so a PR can
+// never become an issue row: the poller keeps listing `kind = 'issue'`, and
+// this table only holds the compact development context the cockpit shows.
+//
+// Identity is `(repoId, number)` (GitHub scopes a pull request number to one
+// repository). Check columns cache the head commit's rollup so the UI can show
+// failing/pending checks without another network read.
+// ---------------------------------------------------------------------------
+export const mirrorPullRequest = sqliteTable(
+  "mirror_pull_request",
+  {
+    repoId: integer("repo_id")
+      .notNull()
+      .references(() => mirrorRepo.id, { onDelete: "cascade" }),
+    number: integer("number").notNull(),
+    /** Forge-native node id, used for batched GraphQL refreshes. */
+    externalId: text("external_id").notNull().default(""),
+    title: text("title").notNull().default(""),
+    /** `open` | `closed` | `merged` | `unknown`. */
+    state: text("state").notNull().default("unknown"),
+    isDraft: integer("is_draft").notNull().default(0),
+    merged: integer("merged").notNull().default(0),
+    /** `approved` | `changes_requested` | `review_required` | `pending` | null. */
+    reviewDecision: text("review_decision"),
+    approvedCount: integer("approved_count").notNull().default(0),
+    changesRequestedCount: integer("changes_requested_count")
+      .notNull()
+      .default(0),
+    pendingReviewCount: integer("pending_review_count").notNull().default(0),
+    /** `pending` | `success` | `failure` | `unknown` | null. */
+    checksState: text("checks_state"),
+    checksTotal: integer("checks_total"),
+    checksFailed: integer("checks_failed"),
+    checksUrl: text("checks_url"),
+    url: text("url").notNull().default(""),
+    authorId: integer("author_id").references(() => mirrorUser.id, {
+      onDelete: "set null",
+    }),
+    createdAt: integer("created_at").notNull(),
+    updatedAt: integer("updated_at").notNull(),
+    closedAt: integer("closed_at"),
+    mergedAt: integer("merged_at"),
+  },
+  (t) => [
+    primaryKey({ columns: [t.repoId, t.number] }),
+    index("idx_mirror_pull_request_repo_updated").on(t.repoId, t.updatedAt),
+    index("idx_mirror_pull_request_checks").on(t.checksState),
+  ],
+);
+
+// Mirror: which pull requests are linked to which issue. A PR can close or be
+// linked to several issues, and an issue can have several PRs. `source` records
+// how GitHub surfaced the link (`closing` covers closing keywords and manually
+// linked pull requests; `cross-reference` is reserved for timeline-discovered
+// links). There is no FK to `mirror_thread` or `mirror_pull_request`: both sides
+// are disposable and their rows are pruned together by the sync layer.
+export const mirrorIssuePullRequest = sqliteTable(
+  "mirror_issue_pull_request",
+  {
+    repoId: integer("repo_id")
+      .notNull()
+      .references(() => mirrorRepo.id, { onDelete: "cascade" }),
+    issueNumber: integer("issue_number").notNull(),
+    prNumber: integer("pr_number").notNull(),
+    /** `closing` | `cross-reference`. */
+    source: text("source").notNull().default("closing"),
+  },
+  (t) => [
+    primaryKey({ columns: [t.repoId, t.issueNumber, t.prNumber] }),
+    index("idx_mirror_issue_pr_issue").on(t.repoId, t.issueNumber),
+    index("idx_mirror_issue_pr_pull").on(t.repoId, t.prNumber),
+  ],
+);
+
 // Mirror: thread comments (SPEC 6.1). `(repoId, externalId)` is the forge
 // identity; the internal `id` is what the UI links to.
 export const mirrorComment = sqliteTable(

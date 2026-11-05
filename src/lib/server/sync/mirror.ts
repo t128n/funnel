@@ -15,12 +15,14 @@
  * `updated_at` mirrored for the repo (SPEC §7.2). Forge `since` is inclusive,
  * so re-sending that boundary thread is an idempotent upsert.
  */
-import { and, asc, eq, inArray, max, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, max, notInArray, sql } from "drizzle-orm";
 import { db } from "#lib/server/db/index";
 import { bumpRevision } from "./revision";
 import {
   mirrorComment,
+  mirrorIssuePullRequest,
   mirrorMilestone,
+  mirrorPullRequest,
   mirrorRepo,
   mirrorRepoAssignee,
   mirrorRepoLabel,
@@ -82,6 +84,47 @@ export interface IssueRecord {
   labels: string[];
   assignees: UserRecord[];
   comments: CommentRecord[];
+}
+
+export interface PullRequestChecks {
+  state: "pending" | "success" | "failure" | "unknown";
+  total: number | null;
+  failed: number | null;
+  url: string | null;
+}
+
+/** One linked pull request reduced to the development context the cockpit shows. */
+export interface PullRequestRecord {
+  repoId: number;
+  number: number;
+  externalId: string;
+  title: string;
+  state: "open" | "closed" | "merged" | "unknown";
+  isDraft: boolean;
+  merged: boolean;
+  reviewDecision:
+    | "approved"
+    | "changes_requested"
+    | "review_required"
+    | "pending"
+    | null;
+  approvedCount: number;
+  changesRequestedCount: number;
+  pendingReviewCount: number;
+  checks: PullRequestChecks | null;
+  url: string;
+  author: UserRecord | null;
+  createdAt: number;
+  updatedAt: number;
+  closedAt: number | null;
+  mergedAt: number | null;
+}
+
+export interface IssuePullRequestLink {
+  repoId: number;
+  issueNumber: number;
+  prNumber: number;
+  source: "closing" | "cross-reference";
 }
 
 /** Cached reserved-label derivation stored on the thread row (SPEC §5.2). */
@@ -1217,12 +1260,317 @@ export function getIssue(
     .get();
 }
 
+// ---------------------------------------------------------------------------
+// Linked pull requests (issue #28)
+// ---------------------------------------------------------------------------
+
+export type PullRequestRow = typeof mirrorPullRequest.$inferSelect;
+
+function collectPullRequestUsers(
+  pullRequests: readonly PullRequestRecord[],
+): UserRecord[] {
+  const users = new Map<string, UserRecord>();
+  for (const pr of pullRequests) {
+    if (pr.author) users.set(userKey(pr.author), pr.author);
+  }
+  return [...users.values()];
+}
+
+/**
+ * Upsert a batch of linked pull requests. Authors are FK targets, so they land
+ * first in the same transaction; the check/review columns are replaced whole so
+ * a merged or newly failing PR converges in one write.
+ */
+export function upsertPullRequests(
+  pullRequests: readonly PullRequestRecord[],
+): void {
+  if (pullRequests.length === 0) return;
+  db.transaction((tx) => {
+    const userIds = upsertUsersIn(tx, collectPullRequestUsers(pullRequests));
+    for (const pr of pullRequests) {
+      const values = {
+        repoId: pr.repoId,
+        number: pr.number,
+        externalId: pr.externalId,
+        title: pr.title,
+        state: pr.state,
+        isDraft: pr.isDraft ? 1 : 0,
+        merged: pr.merged ? 1 : 0,
+        reviewDecision: pr.reviewDecision,
+        approvedCount: pr.approvedCount,
+        changesRequestedCount: pr.changesRequestedCount,
+        pendingReviewCount: pr.pendingReviewCount,
+        checksState: pr.checks?.state ?? null,
+        checksTotal: pr.checks?.total ?? null,
+        checksFailed: pr.checks?.failed ?? null,
+        checksUrl: pr.checks?.url ?? null,
+        url: pr.url,
+        authorId: pr.author ? requireUserId(userIds, pr.author) : null,
+        createdAt: pr.createdAt,
+        updatedAt: pr.updatedAt,
+        closedAt: pr.closedAt,
+        mergedAt: pr.mergedAt,
+      };
+      tx.insert(mirrorPullRequest)
+        .values(values)
+        .onConflictDoUpdate({
+          target: [mirrorPullRequest.repoId, mirrorPullRequest.number],
+          set: {
+            externalId: values.externalId,
+            title: values.title,
+            state: values.state,
+            isDraft: values.isDraft,
+            merged: values.merged,
+            reviewDecision: values.reviewDecision,
+            approvedCount: values.approvedCount,
+            changesRequestedCount: values.changesRequestedCount,
+            pendingReviewCount: values.pendingReviewCount,
+            checksState: values.checksState,
+            checksTotal: values.checksTotal,
+            checksFailed: values.checksFailed,
+            checksUrl: values.checksUrl,
+            url: values.url,
+            authorId: values.authorId,
+            createdAt: values.createdAt,
+            updatedAt: values.updatedAt,
+            closedAt: values.closedAt,
+            mergedAt: values.mergedAt,
+          },
+        })
+        .run();
+    }
+  });
+  bumpRevision();
+}
+
+function linkKey(link: { prNumber: number; source: string }): string {
+  return `${link.prNumber}\u0000${link.source}`;
+}
+
+/**
+ * Replace every link for one issue with the discovered set. A no-op when the
+ * set is unchanged keeps hot polls from bumping the mirror revision.
+ */
+export function replaceIssuePullRequestLinks(
+  repoId: number,
+  issueNumber: number,
+  links: readonly Pick<IssuePullRequestLink, "prNumber" | "source">[],
+): void {
+  const existing = db
+    .select({
+      prNumber: mirrorIssuePullRequest.prNumber,
+      source: mirrorIssuePullRequest.source,
+    })
+    .from(mirrorIssuePullRequest)
+    .where(
+      and(
+        eq(mirrorIssuePullRequest.repoId, repoId),
+        eq(mirrorIssuePullRequest.issueNumber, issueNumber),
+      ),
+    )
+    .all();
+  const before = new Set(existing.map(linkKey));
+  const after = new Set(links.map(linkKey));
+  if (
+    before.size === after.size &&
+    [...after].every((key) => before.has(key))
+  ) {
+    return;
+  }
+
+  db.transaction((tx) => {
+    tx.delete(mirrorIssuePullRequest)
+      .where(
+        and(
+          eq(mirrorIssuePullRequest.repoId, repoId),
+          eq(mirrorIssuePullRequest.issueNumber, issueNumber),
+        ),
+      )
+      .run();
+    if (links.length > 0) {
+      tx.insert(mirrorIssuePullRequest)
+        .values(
+          links.map((link) => ({
+            repoId,
+            issueNumber,
+            prNumber: link.prNumber,
+            source: link.source,
+          })),
+        )
+        .run();
+    }
+  });
+  bumpRevision();
+}
+
+export interface IssuePullRequestRow {
+  number: number;
+  title: string;
+  state: string;
+  isDraft: number;
+  merged: number;
+  reviewDecision: string | null;
+  approvedCount: number;
+  changesRequestedCount: number;
+  pendingReviewCount: number;
+  checksState: string | null;
+  checksTotal: number | null;
+  checksFailed: number | null;
+  checksUrl: string | null;
+  url: string;
+  source: string;
+  createdAt: number;
+  updatedAt: number;
+  closedAt: number | null;
+  mergedAt: number | null;
+  authorExternalId: string | null;
+  authorForge: string | null;
+  authorInstance: string | null;
+  authorLogin: string | null;
+  authorAvatar: string | null;
+}
+
+/** Every linked pull request for one issue, newest activity first. */
+export function getIssuePullRequests(
+  repoId: number,
+  issueNumber: number,
+): IssuePullRequestRow[] {
+  return db
+    .select({
+      number: mirrorPullRequest.number,
+      title: mirrorPullRequest.title,
+      state: mirrorPullRequest.state,
+      isDraft: mirrorPullRequest.isDraft,
+      merged: mirrorPullRequest.merged,
+      reviewDecision: mirrorPullRequest.reviewDecision,
+      approvedCount: mirrorPullRequest.approvedCount,
+      changesRequestedCount: mirrorPullRequest.changesRequestedCount,
+      pendingReviewCount: mirrorPullRequest.pendingReviewCount,
+      checksState: mirrorPullRequest.checksState,
+      checksTotal: mirrorPullRequest.checksTotal,
+      checksFailed: mirrorPullRequest.checksFailed,
+      checksUrl: mirrorPullRequest.checksUrl,
+      url: mirrorPullRequest.url,
+      source: mirrorIssuePullRequest.source,
+      createdAt: mirrorPullRequest.createdAt,
+      updatedAt: mirrorPullRequest.updatedAt,
+      closedAt: mirrorPullRequest.closedAt,
+      mergedAt: mirrorPullRequest.mergedAt,
+      authorExternalId: mirrorUser.externalId,
+      authorForge: mirrorUser.forge,
+      authorInstance: mirrorUser.instance,
+      authorLogin: mirrorUser.login,
+      authorAvatar: mirrorUser.avatarUrl,
+    })
+    .from(mirrorIssuePullRequest)
+    .innerJoin(
+      mirrorPullRequest,
+      and(
+        eq(mirrorPullRequest.repoId, mirrorIssuePullRequest.repoId),
+        eq(mirrorPullRequest.number, mirrorIssuePullRequest.prNumber),
+      ),
+    )
+    .leftJoin(mirrorUser, eq(mirrorPullRequest.authorId, mirrorUser.id))
+    .where(
+      and(
+        eq(mirrorIssuePullRequest.repoId, repoId),
+        eq(mirrorIssuePullRequest.issueNumber, issueNumber),
+      ),
+    )
+    .orderBy(asc(mirrorPullRequest.number))
+    .all();
+}
+
+/** Every mirrored pull request for a repo (batched refresh input). */
+export function listPullRequests(repoId: number): PullRequestRow[] {
+  return db
+    .select()
+    .from(mirrorPullRequest)
+    .where(eq(mirrorPullRequest.repoId, repoId))
+    .orderBy(asc(mirrorPullRequest.number))
+    .all();
+}
+
+/** Issue numbers that currently have at least one linked pull request. */
+export function linkedIssueNumbers(repoId: number): number[] {
+  return db
+    .selectDistinct({ number: mirrorIssuePullRequest.issueNumber })
+    .from(mirrorIssuePullRequest)
+    .where(eq(mirrorIssuePullRequest.repoId, repoId))
+    .all()
+    .map((row) => row.number);
+}
+
+/** Drop pull requests that no linked issue references after a link refresh. */
+export function pruneOrphanPullRequests(repoId: number): number {
+  const keep = db
+    .select({ number: mirrorIssuePullRequest.prNumber })
+    .from(mirrorIssuePullRequest)
+    .where(eq(mirrorIssuePullRequest.repoId, repoId))
+    .all()
+    .map((row) => row.number);
+  const removed = keep.length
+    ? db
+        .delete(mirrorPullRequest)
+        .where(
+          and(
+            eq(mirrorPullRequest.repoId, repoId),
+            notInArray(mirrorPullRequest.number, keep),
+          ),
+        )
+        .run()
+    : db
+        .delete(mirrorPullRequest)
+        .where(eq(mirrorPullRequest.repoId, repoId))
+        .run();
+  if ((removed.changes ?? 0) > 0) bumpRevision();
+  return removed.changes ?? 0;
+}
+
+/** Update the cached status after an automatic label write. */
+export function setIssueStatus(
+  repoId: number,
+  number: number,
+  status: string,
+): void {
+  db.update(mirrorThread)
+    .set({ status })
+    .where(
+      and(eq(mirrorThread.repoId, repoId), eq(mirrorThread.number, number)),
+    )
+    .run();
+  bumpRevision();
+}
+
+/** Update the cached state after an automatic close. */
+export function markIssueClosed(
+  repoId: number,
+  number: number,
+  closedAt: number,
+): void {
+  db.update(mirrorThread)
+    .set({ state: "closed", stateReason: "completed", closedAt })
+    .where(
+      and(eq(mirrorThread.repoId, repoId), eq(mirrorThread.number, number)),
+    )
+    .run();
+  bumpRevision();
+}
+
 /** Delete a thread and its child rows (no FK cascade on the junctions). */
 export function deleteIssue(repoId: number, number: number): void {
   db.transaction((tx) => {
     tx.run(
       sql`DELETE FROM mirror_thread_fts WHERE repo_id = ${repoId} AND number = ${number}`,
     );
+    tx.delete(mirrorIssuePullRequest)
+      .where(
+        and(
+          eq(mirrorIssuePullRequest.repoId, repoId),
+          eq(mirrorIssuePullRequest.issueNumber, number),
+        ),
+      )
+      .run();
     tx.delete(mirrorThreadLabel)
       .where(
         and(

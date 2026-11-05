@@ -252,6 +252,14 @@ const defs = {
     schema: count("sync.poll_interval_idle_seconds"),
     default: 300,
   },
+  "sync.pr_in_review": {
+    schema: v.boolean("sync.pr_in_review must be a boolean"),
+    default: false,
+  },
+  "sync.pr_done": {
+    schema: v.boolean("sync.pr_done must be a boolean"),
+    default: false,
+  },
   "board.done_days": { schema: count("board.done_days"), default: 14 },
   "board.wip_limits": {
     schema: v.record(v.picklist(WIP_STAGES), count("board.wip_limits")),
@@ -299,6 +307,10 @@ export interface Settings {
     history_days: number;
     poll_interval_active_seconds: number;
     poll_interval_idle_seconds: number;
+    /** Opt-in: an open linked PR moves an open issue to In Review. */
+    pr_in_review: boolean;
+    /** Opt-in: all linked PRs merged/closed closes the issue as completed. */
+    pr_done: boolean;
   };
   board: { done_days: number; wip_limits: Record<string, number> };
   session: { idle_days: number };
@@ -341,6 +353,10 @@ export const settingsInputSchema = v.object({
     history_days: count("sync.history_days"),
     poll_interval_active_seconds: count("sync.poll_interval_active_seconds"),
     poll_interval_idle_seconds: count("sync.poll_interval_idle_seconds"),
+    // Optional so fixtures written before issue #28 keep validating; the
+    // compose step and write path apply the disabled default.
+    pr_in_review: v.optional(v.boolean("sync.pr_in_review must be a boolean")),
+    pr_done: v.optional(v.boolean("sync.pr_done must be a boolean")),
   }),
   board: v.object({
     done_days: count("board.done_days"),
@@ -426,6 +442,8 @@ export function readSettings(): Settings {
         rows,
         "sync.poll_interval_idle_seconds",
       ) as number,
+      pr_in_review: readKey(rows, "sync.pr_in_review") as boolean,
+      pr_done: readKey(rows, "sync.pr_done") as boolean,
     },
     board: {
       done_days: readKey(rows, "board.done_days") as number,
@@ -486,6 +504,8 @@ function toEntries(input: SettingsInput): [SettingKey, unknown][] {
       "sync.poll_interval_idle_seconds",
       input.sync.poll_interval_idle_seconds,
     ],
+    ["sync.pr_in_review", input.sync.pr_in_review ?? false],
+    ["sync.pr_done", input.sync.pr_done ?? false],
     ["board.done_days", input.board.done_days],
     ["board.wip_limits", input.board.wip_limits],
     ["session.idle_days", input.session.idle_days],

@@ -4,6 +4,7 @@
 	import { Badge, Button, Table } from '@sveltestrap/sveltestrap';
 	import InlineStatus from '#lib/components/common/InlineStatus.svelte';
 	import PriorityText from '#lib/components/common/PriorityText.svelte';
+	import PullRequestIndicator from '#lib/components/issue/PullRequestIndicator.svelte';
 	import StatusText from '#lib/components/common/StatusText.svelte';
 	import { timeAgo } from '#lib/client/clock.svelte';
 	import {
@@ -286,6 +287,7 @@
 										>
 											{titleOf(issue)}
 										</a>
+										<PullRequestIndicator summary={issue.pullRequest} />
 										{#if labels.shown.length > 0}
 											<span class="d-inline-flex align-items-center gap-1 flex-shrink-0">
 												{#each labels.shown as label (label)}

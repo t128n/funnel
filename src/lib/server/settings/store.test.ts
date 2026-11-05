@@ -7,6 +7,7 @@ import {
   readSettings,
   SettingsError,
   writeSettings,
+  type Settings,
   type SettingsInput,
 } from "./store";
 
@@ -19,6 +20,8 @@ const BASE: SettingsInput = {
     history_days: 45,
     poll_interval_active_seconds: 15,
     poll_interval_idle_seconds: 90,
+    pr_in_review: false,
+    pr_done: false,
   },
   board: { done_days: 7, wip_limits: { "in-progress": 2 } },
   session: { idle_days: 21 },
@@ -58,6 +61,8 @@ describe("settings store", () => {
       history_days: 90,
       poll_interval_active_seconds: 30,
       poll_interval_idle_seconds: 300,
+      pr_in_review: false,
+      pr_done: false,
     });
     expect(settings.board).toEqual({ done_days: 14, wip_limits: {} });
     expect(settings.session).toEqual({ idle_days: 30 });
@@ -144,7 +149,7 @@ describe("settings store", () => {
   test("round-trips a full payload", () => {
     writeSettings(BASE);
 
-    expect(readSettings()).toEqual(BASE);
+    expect(readSettings()).toEqual(BASE as Settings);
   });
 
   test("defaults the label prefix to empty", () => {

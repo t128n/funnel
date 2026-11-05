@@ -21,11 +21,21 @@ While no App credentials exist, every route redirects to `/onboarding`. The exce
 3. Under **Account**, choose **My personal account** or **An organization**.
    - For an organisation, enter its GitHub login. You must be allowed to create Apps for that organisation.
 4. Enter an **App name**. The form suggests `funnel-<hostname-label>` and allows up to 34 characters; GitHub requires the name to be unique across the host.
-5. Select **Create GitHub App**. Funnel posts a manifest to the configured GitHub host and GitHub opens a pre-filled registration page. Confirm it there. The manifest requests Issues write, Metadata read, and Contents read permissions, and subscribes to no webhook events because Funnel polls for changes.
+5. Select **Create GitHub App**. Funnel posts a manifest to the configured GitHub host and GitHub opens a pre-filled registration page. Confirm it there. The manifest requests Issues write, Metadata read, Contents read, Pull requests read, and Checks read permissions, and subscribes to no webhook events because Funnel polls for changes. Pull requests and checks are read-only: Funnel mirrors linked PR state, reviews and check rollups but never writes to a pull request or reruns checks.
 6. GitHub redirects back to Funnel, which exchanges the one-time code for the App credentials and stores them encrypted in the database. You land on **Install the app**.
 7. Select **Install on GitHub** and choose either all repositories or specific ones on GitHub's installation page. Creating an App grants no repository access until it is installed.
 8. GitHub returns you to **Choose repositories**. Select at least one repository, then select **Save and continue**. The selection is saved as the instance's repository list and you are sent to `/login`.
 9. Select **Continue with GitHub** and authorise the App. The first Funnel account to sign in is promoted to administrator; later accounts start with the `read` role. See [People and roles](people-and-roles.md).
+
+## Approve added permissions on an existing App
+
+Funnel added the `pull_requests: read` and `checks: read` scopes in issue #28. GitHub does not grant new permissions to an existing installation automatically. After upgrading:
+
+1. Open **Settings → GitHub App** and select the link to the App on GitHub (or open the installation from the organisation settings).
+2. On the App's **Permissions & events** page, review the new **Pull requests (read)** and **Checks (read)** permissions. Existing installations show a banner asking the owner to approve the update.
+3. Approve the update for each installation. Until it is approved, linked-PR discovery and check reads fail with a permissions error; issue mirroring continues, and the next poll repairs the development panel once access is granted.
+
+New installations created from the manifest already include the scopes, so no extra step is needed.
 
 ## GitHub Enterprise hosts
 

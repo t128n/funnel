@@ -28,10 +28,15 @@ describe("buildManifest", () => {
     });
   });
 
-  test("requests issues:write but no broader scopes", () => {
+  test("requests issues:write and read-only development context", () => {
     expect(MANIFEST_PERMISSIONS.issues).toBe("write");
     expect(MANIFEST_PERMISSIONS.metadata).toBe("read");
+    expect(MANIFEST_PERMISSIONS.pull_requests).toBe("read");
+    expect(MANIFEST_PERMISSIONS.checks).toBe("read");
     expect(MANIFEST_PERMISSIONS).not.toHaveProperty("administration");
+    // Development context is read-only: Funnel never writes a PR or check.
+    expect(MANIFEST_PERMISSIONS).not.toHaveProperty("actions");
+    expect(MANIFEST_PERMISSIONS).not.toHaveProperty("workflows");
   });
 });
 

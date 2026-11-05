@@ -19,6 +19,7 @@
 
 <script lang="ts">
 	import PriorityText from '#lib/components/common/PriorityText.svelte';
+	import PullRequestIndicator from '#lib/components/issue/PullRequestIndicator.svelte';
 	import RefText from '#lib/components/common/RefText.svelte';
 	import BlockedText from '#lib/components/common/BlockedText.svelte';
 	import {
@@ -227,6 +228,7 @@
 		<span class="d-inline-flex min-w-0 flex-shrink-0 link-primary">
 			<RefText value={ref} title={`${issue.repo}#${issue.number}`} class="text-reset" />
 		</span>
+		<PullRequestIndicator summary={issue.pullRequest} />
 
 		<button
 			bind:this={menuTrigger}
