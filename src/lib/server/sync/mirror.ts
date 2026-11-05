@@ -740,6 +740,64 @@ function storedPriorityRank(priority: Priority | null): number {
   return priority === null ? 3 : priorityRank(priority);
 }
 
+/**
+ * Replace the FTS row for one thread. The virtual table has no primary key, so
+ * delete-then-insert is the portable upsert. `comments` holds every mirrored
+ * comment body, which keeps searching an old comment working after edits.
+ */
+function writeSearchRow(
+  tx: MirrorTx,
+  repoId: number,
+  number: number,
+  title: string,
+  body: string,
+  comments: readonly string[],
+): void {
+  tx.run(
+    sql`DELETE FROM mirror_thread_fts WHERE repo_id = ${repoId} AND number = ${number}`,
+  );
+  tx.run(
+    sql`INSERT INTO mirror_thread_fts (title, body, comments, repo_id, number)
+        VALUES (${title}, ${body}, ${comments.join("\n")}, ${repoId}, ${number})`,
+  );
+}
+
+/**
+ * Rebuild the FTS row from the current mirror state. Used by write paths that
+ * update `mirror_thread`/`mirror_comment` directly (the demo provider) rather
+ * than through {@link upsertIssues}.
+ */
+export function refreshIssueSearchIndex(repoId: number, number: number): void {
+  const thread = db
+    .select({ title: mirrorThread.title, body: mirrorThread.body })
+    .from(mirrorThread)
+    .where(
+      and(eq(mirrorThread.repoId, repoId), eq(mirrorThread.number, number)),
+    )
+    .get();
+  db.transaction((tx) => {
+    if (!thread) {
+      tx.run(
+        sql`DELETE FROM mirror_thread_fts WHERE repo_id = ${repoId} AND number = ${number}`,
+      );
+      return;
+    }
+    const comments = tx
+      .select({ body: mirrorComment.body })
+      .from(mirrorComment)
+      .where(
+        and(
+          eq(mirrorComment.repoId, repoId),
+          eq(mirrorComment.threadNumber, number),
+        ),
+      )
+      .orderBy(asc(mirrorComment.createdAt), asc(mirrorComment.id))
+      .all()
+      .map((row) => row.body);
+    writeSearchRow(tx, repoId, number, thread.title, thread.body, comments);
+  });
+}
+
 /** Write one prepared issue and its children inside the caller's transaction. */
 function writeIssue(
   tx: MirrorTx,
@@ -941,6 +999,16 @@ function writeIssue(
       )
       .run();
   }
+
+  // Keep the FTS row in the same transaction as the content it indexes.
+  writeSearchRow(
+    tx,
+    issue.repoId,
+    issue.number,
+    issue.title,
+    issue.body,
+    comments.map((comment) => comment.body),
+  );
 }
 
 /**
@@ -1152,6 +1220,9 @@ export function getIssue(
 /** Delete a thread and its child rows (no FK cascade on the junctions). */
 export function deleteIssue(repoId: number, number: number): void {
   db.transaction((tx) => {
+    tx.run(
+      sql`DELETE FROM mirror_thread_fts WHERE repo_id = ${repoId} AND number = ${number}`,
+    );
     tx.delete(mirrorThreadLabel)
       .where(
         and(

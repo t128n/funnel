@@ -90,6 +90,10 @@ export function filterSignature(filter: IssueFilter, extra?: string): string {
     sort: filter.sort,
     direction: filter.direction,
     search: filter.search,
+    // The parsed form carries resolved identifiers and qualifiers; two URLs
+    // with the same raw `q` therefore share a signature, while a qualifier
+    // change cannot reuse a cursor from the broader result set.
+    searchQuery: filter.query ?? null,
     extra: extra ?? null,
   });
   return createHash("sha256").update(canonical).digest("base64url");

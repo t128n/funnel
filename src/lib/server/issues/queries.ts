@@ -80,6 +80,7 @@ import {
   type IssueFilterContext,
   STATUS_VALUES,
 } from "./filters";
+import { hasSearchConstraints, parseSearchQuery } from "./search";
 import {
   BOARD_PAGE_SIZE,
   decodeCursor,
@@ -375,6 +376,21 @@ export interface IssueDetailOptions {
   commentLimit?: number;
 }
 
+/**
+ * Configured `owner/name` → shortcode pairs. A repo without an explicit
+ * shortcode is absent here; search falls back to the shared
+ * `deriveRepoShortcode` so identifiers stay readable before settings are
+ * customised.
+ */
+function configuredShortcodes(): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const entry of readSettings().repos) {
+    if (typeof entry === "string") continue;
+    if (entry.shortcode) out[entry.repo] = entry.shortcode.toUpperCase();
+  }
+  return out;
+}
+
 /** Build the {@link IssueFilterContext} for parsing URL params. */
 export function filterContext(
   viewerExternalId?: string | null,
@@ -385,6 +401,7 @@ export function filterContext(
       org: repo.org,
       name: repo.name,
     })),
+    shortcodes: configuredShortcodes(),
     viewerExternalId: viewerExternalId ?? null,
     vocabulary: configuredVocabulary(),
     resolveLogin: (login) => {
@@ -744,11 +761,33 @@ export interface InboxResult extends ListPage<InboxEntry> {
   entries: InboxEntry[];
 }
 
+/**
+ * The parsed `q` for a hand-built filter, or `undefined` when the filter was
+ * produced by {@link parseIssueFilter}. Submissions carry no repo, label or
+ * assignee metadata, so any search constraint beyond free text excludes them.
+ */
+function submissionFreeText(filter: IssueFilter): string | null {
+  if (filter.search.length === 0) return null;
+  const query = filter.query ?? parseSearchQuery(filter.search, { repos: [] });
+  if (query.impossible || hasSearchConstraints(query)) return null;
+  return query.text;
+}
+
 /** Pending submissions matching the search term (submissions carry no metadata). */
 function pendingSubmissions(filter: IssueFilter) {
-  return listSubmissions().filter((submission) =>
-    matchesSearch(filter.search, submission.title, submission.body),
+  const submissions = listSubmissions();
+  const text = submissionFreeText(filter);
+  if (text === null) return filter.search.length > 0 ? [] : submissions;
+  return submissions.filter((submission) =>
+    matchesSearch(text, submission.title, submission.body),
   );
+}
+
+/** Pending submission count, mirroring {@link pendingSubmissions}. */
+function pendingSubmissionCount(filter: IssueFilter): number {
+  const text = submissionFreeText(filter);
+  if (text === null) return filter.search.length > 0 ? 0 : countPendingSubmissions();
+  return countPendingSubmissions(text);
 }
 
 /** The `WHERE` for untriaged open issues (SQL mirror of `isUntriaged`). */
@@ -804,7 +843,7 @@ export function inbox(
  */
 export function inboxCount(filter: IssueFilter): number {
   return (
-    countPendingSubmissions(filter.search) +
+    pendingSubmissionCount(filter) +
     cachedCount(untriagedWhere(filter), filterSignature(filter, "inbox"))
   );
 }

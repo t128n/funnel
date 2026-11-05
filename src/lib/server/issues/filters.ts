@@ -2,9 +2,11 @@
  * Filter + search evaluation for the local issue streams (SPEC §9.4).
  *
  * Seven multi-select dimensions (Repo, State, Status, Assignee, Priority, Size,
- * Labels) combine as **OR within a group, AND across groups**, plus a plain SQL
- * `LIKE` search over titles, bodies, and comments (FTS5 is deferred; INTERVIEW
- * Q16/Q17).
+ * Labels) combine as **OR within a group, AND across groups**, plus a search
+ * over titles, bodies, and comments backed by the FTS5 `mirror_thread_fts`
+ * index. `q` also accepts issue identifiers (`#123`, `FIT-123`,
+ * `owner/repo#123`) and GitHub-style qualifiers (`is:`, `label:`, `repo:`,
+ * `status:`, `assignee:`); see {@link import("./search")}.
  *
  * Parsing is pure over an injected {@link IssueFilterContext} so it is
  * unit-testable without a database; {@link buildIssueWhere} turns the parsed
@@ -24,7 +26,6 @@ import {
 } from "drizzle-orm";
 import { db } from "#lib/server/db/index";
 import {
-  mirrorComment,
   mirrorRepo,
   mirrorThread,
   mirrorThreadAssignee,
@@ -47,6 +48,11 @@ import {
 } from "#lib/url-filter";
 import { addWeeks, weekStartOf } from "#lib/server/planning/calendar";
 import { isRetiredPriorityLabel } from "#lib/priority";
+import {
+  ftsMatchExpression,
+  parseSearchQuery,
+  type SearchQuery,
+} from "./search";
 
 /** Canonical status label names; absence means "untriaged" (Inbox). */
 export const STATUS_VALUES = [
@@ -132,14 +138,22 @@ export interface IssueFilter {
   sort: IssueSort;
   /** Direction for {@link sort}. */
   direction: SortDirection;
-  /** Raw `LIKE` search term (may be empty). */
+  /** Raw `q` value (already trimmed and capped; may be empty). */
   search: string;
+  /**
+   * Parsed form of {@link search}: free text plus identifier and qualifier
+   * constraints. Absent on hand-built filters, where {@link buildIssueWhere}
+   * treats {@link search} as plain text.
+   */
+  query?: SearchQuery;
 }
 
 /** Everything parsing needs from the surrounding request. */
 export interface IssueFilterContext {
   /** Every mirrored repo, for `owner/name` -> internal id resolution. */
   repos: ReadonlyArray<{ id: number; org: string; name: string }>;
+  /** `owner/name` -> configured shortcode, for `FIT-123` resolution. */
+  shortcodes?: Readonly<Record<string, string>>;
   /** The signed-in viewer's forge-native id (`assignee=me`). */
   viewerExternalId?: string | null;
   /** Login -> external id resolver (case-insensitive) for assignee names. */
@@ -285,6 +299,7 @@ export function parseIssueFilter(
   const blocked = (params.get("blocked") ?? "").toLowerCase();
   const sort = (params.get("sort") ?? "").toLowerCase();
   const direction = (params.get("direction") ?? "").toLowerCase();
+  const search = (params.get("q") ?? "").trim().slice(0, 200);
   return {
     repos: resolveRepos(multi(params, "repo"), ctx.repos),
     states: vocab(multi(params, "state"), STATE_SET).filter(
@@ -310,7 +325,8 @@ export function parseIssueFilter(
     direction: (DIRECTION_VALUES as readonly string[]).includes(direction)
       ? (direction as SortDirection)
       : DEFAULT_DIRECTION,
-    search: (params.get("q") ?? "").trim().slice(0, 200),
+    search,
+    query: parseSearchQuery(search, ctx),
   };
 }
 
@@ -492,31 +508,79 @@ export function buildIssueWhere(filter: IssueFilter): SQL | undefined {
   }
 
   if (filter.search.length > 0) {
-    const pattern = `%${escapeLike(filter.search)}%`;
-    const like = (column: unknown) =>
-      sql`${column} LIKE ${pattern} ESCAPE '\\'`;
-    conditions.push(
-      or(
-        like(mirrorThread.title),
-        like(mirrorThread.body),
-        exists(
-          db
-            .select({ one: sql`1` })
-            .from(mirrorComment)
-            .where(
-              and(
-                eq(mirrorComment.repoId, mirrorThread.repoId),
-                eq(mirrorComment.threadNumber, mirrorThread.number),
-                like(mirrorComment.body),
-              ),
-            ),
-        ),
-      ) as SQL,
-    );
+    // A hand-built filter may not carry the parsed query; in that case the
+    // raw term is still plain free text.
+    const query = filter.query ?? parseSearchQuery(filter.search, { repos: [] });
+    conditions.push(...searchConditions(query));
   }
 
   if (conditions.length === 0) return undefined;
   return conditions.length === 1 ? conditions[0] : and(...conditions);
+}
+
+/**
+ * Translate a parsed {@link SearchQuery} into `WHERE` clauses. Every constraint
+ * is ANDed with the URL dimensions and with the other search groups, so a
+ * qualifier can only narrow a result set — never broaden it. Identifiers,
+ * repos, statuses and assignees OR inside their own group; labels AND one by
+ * one (`label:bug label:frontend` requires both).
+ */
+function searchConditions(query: SearchQuery): SQL[] {
+  const conditions: SQL[] = [];
+
+  if (query.impossible) {
+    conditions.push(sql`0`);
+    return conditions;
+  }
+
+  if (query.identifiers.length > 0) {
+    const parts: SQL[] = query.identifiers.map((identifier) =>
+      identifier.repoId === null
+        ? eq(mirrorThread.number, identifier.number)
+        : (and(
+            eq(mirrorThread.repoId, identifier.repoId),
+            eq(mirrorThread.number, identifier.number),
+          ) as SQL),
+    );
+    conditions.push(parts.length === 1 ? parts[0] : (or(...parts) as SQL));
+  }
+
+  if (query.repos.length > 0) {
+    conditions.push(inArray(mirrorThread.repoId, query.repos));
+  }
+
+  if (query.statuses.length > 0) {
+    const clause = dimension(mirrorThread.status, query.statuses);
+    if (clause) conditions.push(clause);
+  }
+
+  if (query.assignees.length > 0) {
+    conditions.push(assigneeExists(query.assignees));
+  }
+  if (query.unassigned) {
+    conditions.push(assigneeAbsent());
+  }
+  for (const label of query.labels) {
+    conditions.push(labelExists([label]));
+  }
+  if (query.blocked !== null) {
+    conditions.push(eq(mirrorThread.blocked, query.blocked ? 1 : 0));
+  }
+
+  if (query.text.length > 0) {
+    const match = ftsMatchExpression(query.text);
+    conditions.push(
+      match === null
+        ? sql`0`
+        : sql`(${mirrorThread.repoId}, ${mirrorThread.number}) IN (
+            SELECT repo_id, number
+            FROM mirror_thread_fts
+            WHERE mirror_thread_fts MATCH ${match}
+          )`,
+    );
+  }
+
+  return conditions;
 }
 
 /** Reserved-group membership of an actual label name, if any. */
