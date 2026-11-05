@@ -172,12 +172,13 @@ Once the repository's mirror row exists, a failed cycle is isolated: the schedul
 
 **Checks**
 
+- **Settings → Sync** shows a warning banner naming every degraded repository and lists its last successful poll and nightly reconciliation. The page does not persist the failure text; use the log for the cause.
 - The logs contain `repo poll failed` with a `repo` field, the original error under `err`, and a separate `status` field when GitHub returned one. Typical errors are `403 API rate limit exceeded`, `403 Resource not accessible by integration`, `404 Not Found`, or `401 Bad credentials`.
 - Look for the repo row and its timestamps (if the `sqlite3` CLI is available):
 
 ```sh
 sqlite3 /path/to/funnel.db \
-  "select org, name, degraded, last_polled_at, last_reconciled_at from mirror_github_repo;"
+  "select org, name, degraded, last_polled_at, last_reconciled_at from mirror_repo;"
 ```
 
 - Check whether there is more than one Funnel instance polling the same installation. Duplicate instances multiply requests and share a quota.
@@ -191,6 +192,7 @@ sqlite3 /path/to/funnel.db \
 - For a permission failure, grant the App Issues write, Metadata read and Contents read, add the repository to the installation, and approve any updated permissions on GitHub. Then let the next poll run.
 - For `404 Not Found`, add the repository to the installation and check the `owner/name` in **Settings → Repositories**.
 - For `401 Bad credentials`, the App credentials are invalid or belong to another host; reset and re-onboard if the secret is correct.
+- After fixing the cause, use **Sync now** under **Settings → Sync** to retry immediately and watch the row return to **Healthy**. This runs the normal cycle; it does not bypass rate limits or permissions.
 - Do not restart repeatedly to force a retry. The repo stays on its normal schedule; a success clears `degraded`.
 
 ## No issues appear in the cockpit

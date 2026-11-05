@@ -677,8 +677,13 @@ describe("syncAllRepos", () => {
     pages = [[thread({ number: 1, externalId: "n1" })]];
     nodes = [issueNode({ databaseId: 101, number: 1 })];
 
-    await syncAllRepos();
+    const result = await syncAllRepos();
 
+    expect(result).toMatchObject({
+      repos: 1,
+      failed: 0,
+      durationMs: expect.any(Number),
+    });
     expect(mirror.getIssue(repoId, 1)?.title).toBe("t");
     expect(logs.find("sync", "sync run finished")).toMatchObject({
       level: "info",
@@ -687,6 +692,19 @@ describe("syncAllRepos", () => {
       failed: 0,
       durationMs: expect.any(Number),
     });
+  });
+
+  test("summarises failed repositories without throwing", async () => {
+    setConfig({
+      ...TEST_CONFIG,
+      repos: [{ repo: "orgA/core", shortcode: "CORE" }],
+    });
+    failIssues = true;
+
+    const result = await syncAllRepos();
+
+    expect(result).toMatchObject({ repos: 1, failed: 1 });
+    expect(mirror.getRepo(repoId)?.degraded).toBe(1);
   });
 });
 

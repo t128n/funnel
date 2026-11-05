@@ -482,20 +482,31 @@ export function notifyConfigChanged(): void {
   if (running && !timer) void tick();
 }
 
+/** Outcome of one {@link syncAllRepos} pass; individual failures are isolated. */
+export interface SyncRunSummary {
+  /** Configured repositories the run attempted. */
+  repos: number;
+  /** Repositories whose cycle failed (already logged and flagged degraded). */
+  failed: number;
+  durationMs: number;
+}
+
 /** Run one cycle for every configured repo now (tests / manual trigger). */
-export async function syncAllRepos(): Promise<void> {
+export async function syncAllRepos(): Promise<SyncRunSummary> {
   const startedAt = Date.now();
   let repos: readonly string[];
   try {
     repos = configuredRepoSlugs(await getConfig());
   } catch (error) {
     log.warn(errorFields(error), "sync skipped: no config");
-    return;
+    return { repos: 0, failed: 0, durationMs: Date.now() - startedAt };
   }
   log.info({ repos: repos.length }, "sync run started");
   let failed = 0;
   for (const entry of repos) {
-    const [owner, repo] = entry.split("/");
+    const slash = entry.indexOf("/");
+    const owner = entry.slice(0, slash);
+    const repo = entry.slice(slash + 1);
     try {
       await runRepoCycle(owner, repo);
     } catch {
@@ -503,10 +514,12 @@ export async function syncAllRepos(): Promise<void> {
       failed += 1;
     }
   }
+  const durationMs = Date.now() - startedAt;
   log.info(
-    { repos: repos.length, failed, durationMs: Date.now() - startedAt },
+    { repos: repos.length, failed, durationMs },
     "sync run finished",
   );
+  return { repos: repos.length, failed, durationMs };
 }
 
 async function tick(): Promise<void> {
