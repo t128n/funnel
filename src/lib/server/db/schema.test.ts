@@ -53,6 +53,34 @@ test("test_snooze_columns", () => {
   );
 });
 
+test("test_saved_view_columns", () => {
+  expect(cols("state_saved_view")).toEqual(
+    expect.arrayContaining([
+      "id",
+      "owner_user_id",
+      "name",
+      "query",
+      "scope",
+      "sort",
+      "direction",
+      "group",
+      "shared",
+      "pinned",
+      "created_at",
+      "updated_at",
+    ]),
+  );
+  const indexes = db.$client
+    .query("pragma index_list(state_saved_view)")
+    .all() as Array<{ name: string; unique: number }>;
+  expect(
+    indexes.some(
+      (index) =>
+        index.name === "uq_state_saved_view_owner_name" && index.unique === 1,
+    ),
+  ).toBe(true);
+});
+
 test("test_triage_event_columns", () => {
   expect(cols("state_triage_event")).toEqual(
     expect.arrayContaining([
