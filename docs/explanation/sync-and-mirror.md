@@ -1,6 +1,6 @@
 # Sync and mirror
 
-Funnel's mirror is a rebuildable SQLite copy of GitHub issues, kept current by conditional polling, batched hydration and a nightly reconciliation sweep rather than by webhooks.
+Funnel's mirror is a rebuildable SQLite copy of GitHub issues, kept current by conditional polling, batched hydration and a nightly reconciliation sweep. An optional webhook receiver shortens the freshness gap for installs that expose an inbound HTTPS URL, but polling remains the repair path and the source of truth for convergence.
 
 ## The mirror is disposable
 
@@ -107,11 +107,15 @@ The mutation itself has already published an event and returned to the browser. 
 
 ### Eventual consistency
 
-The cockpit can be stale by up to one polling interval, or longer after a failure. The design accepts this because the work is issue triage, not trading. It mitigates the gap with SSE notifications, post-write refreshes and the nightly sweep, but it does not eliminate it. A user who edits an issue directly on GitHub may not see it in Funnel for 30 seconds while a tab is open, or five minutes while idle.
+The cockpit can be stale by up to one polling interval, or longer after a failure. The design accepts this because the work is issue triage, not trading. It mitigates the gap with SSE notifications, post-write refreshes, webhook-triggered single-issue refreshes and the nightly sweep, but it does not eliminate it. A user who edits an issue directly on GitHub may not see it in Funnel for 30 seconds while a tab is open, or five minutes while idle — unless the instance has webhooks and the delivery succeeds, in which case only the affected issue is refreshed immediately.
 
-### No webhooks
+### Webhooks with polling as repair
 
-Funnel does not receive GitHub webhooks. This removes an inbound endpoint, a public callback URL, signature verification and a class of security and delivery concerns. It also means the instance can sit behind NAT and still sync outbound. The cost is latency and the need for reconciliation: webhooks would make changes near-instant and make deletions visible immediately, while polling has to infer deletions from a full listing.
+The GitHub App can subscribe to `issues` (including `labeled` and `unlabeled` actions), `issue_comment`, `pull_request`, `pull_request_review`, `pull_request_review_comment`, `check_run` and `check_suite`. GitHub delivers those events to `POST /api/github/webhooks` on the public origin captured during onboarding. The receiver is unauthenticated by session because GitHub has no Funnel cookie; instead it verifies GitHub's HMAC-SHA-256 signature over the exact raw request bytes using the App's webhook secret. Payloads without a valid signature are rejected, and bodies above 5 MiB are refused before parsing.
+
+Deliveries are deduplicated by `x-github-delivery`. A delivery row is written only after the refresh succeeds, so GitHub's retry of a failed delivery can still repair the mirror, while a duplicate of an already accepted delivery is acknowledged without doing the work twice. The receiver extracts only the affected repository and issue or pull-request numbers and caps a single delivery at 20 issue refreshes. Each refresh is isolated, so one failing issue does not block the rest.
+
+Webhooks are an optimisation, not a second source of truth. They do not handle deletion or transfer, a missed delivery leaves no record to replay, and Funnel may be unreachable when GitHub sends an event. Polling stays enabled and unchanged, so the next conditional poll or the nightly full listing reconciles anything webhooks missed. The receiver can also be absent from an existing App's configuration without breaking sync: polling keeps working, and the settings page reports the missing secret.
 
 ### Rate limits
 

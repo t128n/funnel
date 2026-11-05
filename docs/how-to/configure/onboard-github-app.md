@@ -5,6 +5,7 @@ Create and install the GitHub App that lets Funnel authenticate users, mirror is
 ## Before you start
 
 - Funnel must be reachable at the public URL that GitHub will call back to. Set `FUNNEL_URL` to that origin (for example `https://funnel.example.com`); without it, Funnel uses the origin of the incoming request.
+- Webhooks additionally need inbound HTTPS to that origin, because GitHub delivers events to `{baseUrl}/api/github/webhooks`. Without inbound access, skip the webhook and keep polling; sync still works.
 - The GitHub host is deployment configuration. `GITHUB_URL` and `GITHUB_API_URL` default to `https://github.com` and `https://api.github.com`. For an enterprise instance, see [Use GitHub Enterprise Server](../deploy/github-enterprise-server.md).
 - If the instance is reachable before it has been claimed, set `FUNNEL_ONBOARDING_TOKEN`. Without it, anyone who can reach a fresh instance can complete onboarding.
 
@@ -21,8 +22,8 @@ While no App credentials exist, every route redirects to `/onboarding`. The exce
 3. Under **Account**, choose **My personal account** or **An organization**.
    - For an organisation, enter its GitHub login. You must be allowed to create Apps for that organisation.
 4. Enter an **App name**. The form suggests `funnel-<hostname-label>` and allows up to 34 characters; GitHub requires the name to be unique across the host.
-5. Select **Create GitHub App**. Funnel posts a manifest to the configured GitHub host and GitHub opens a pre-filled registration page. Confirm it there. The manifest requests Issues write, Metadata read, Contents read, Pull requests read, and Checks read permissions, and subscribes to no webhook events because Funnel polls for changes. Pull requests and checks are read-only: Funnel mirrors linked PR state, reviews and check rollups but never writes to a pull request or reruns checks.
-6. GitHub redirects back to Funnel, which exchanges the one-time code for the App credentials and stores them encrypted in the database. You land on **Install the app**.
+5. Select **Create GitHub App**. Funnel posts a manifest to the configured GitHub host and GitHub opens a pre-filled registration page. Confirm it there. The manifest requests Issues write, Metadata read, Contents read, Pull requests read, and Checks read permissions. It subscribes the App to `issues`, `issue_comment`, `pull_request`, `pull_request_review`, `pull_request_review_comment`, `check_run` and `check_suite`, and registers the webhook URL `{baseUrl}/api/github/webhooks` with an active hook so GitHub generates a webhook secret. Label changes arrive as `issues` actions, so there is no separate label event. Pull requests and checks are read-only: Funnel mirrors linked PR state, reviews and check rollups but never writes to a pull request or reruns checks.
+6. GitHub redirects back to Funnel, which exchanges the one-time code for the App credentials — including the generated webhook secret — and stores them encrypted in the database. You land on **Install the app**.
 7. Select **Install on GitHub** and choose either all repositories or specific ones on GitHub's installation page. Creating an App grants no repository access until it is installed.
 8. GitHub returns you to **Choose repositories**. Select at least one repository, then select **Save and continue**. The selection is saved as the instance's repository list and you are sent to `/login`.
 9. Select **Continue with GitHub** and authorise the App. The first Funnel account to sign in is promoted to administrator; later accounts start with the `read` role. See [People and roles](people-and-roles.md).
@@ -36,6 +37,15 @@ Funnel added the `pull_requests: read` and `checks: read` scopes in issue #28. G
 3. Approve the update for each installation. Until it is approved, linked-PR discovery and check reads fail with a permissions error; issue mirroring continues, and the next poll repairs the development panel once access is granted.
 
 New installations created from the manifest already include the scopes, so no extra step is needed.
+
+## Add webhooks to an existing App
+
+Apps created before webhook support have neither event subscriptions nor a webhook secret, so Funnel ignores inbound deliveries and continues to poll. To enable near-real-time updates, choose one of:
+
+- **Recreate the App through onboarding.** **Settings → GitHub App → Reset GitHub App**, then complete the wizard again. The new manifest registers the webhook URL and GitHub generates a secret during conversion; Funnel stores it encrypted with the other App credentials.
+- **Configure the hook on GitHub, then re-onboard the App.** On the App's **General** page, add the webhook URL `https://<funnel-origin>/api/github/webhooks`, generate a secret, and subscribe to the events listed above. Reset the App in Funnel and complete onboarding so the webhook secret is captured and stored. Until then, **Settings → GitHub App** reports **Webhook secret: Not configured**.
+
+Either path needs GitHub to reach the Funnel origin over HTTPS. If Funnel is behind NAT or has no inbound route, leave webhooks off: polling delivers the same eventual result, just less promptly.
 
 ## GitHub Enterprise hosts
 
@@ -51,7 +61,7 @@ Set both `GITHUB_URL` (the web host, for example `https://acme.ghe.com`) and `GI
 
 ## Manage or reset the App
 
-Administrators can open **Settings → GitHub App**. The page shows the App name, owner, App ID, slug, client ID, installation id, and a link to the App on GitHub. Secrets are not displayed. The action button opens GitHub's installation page, where you can install the App or change which repositories it can access.
+Administrators can open **Settings → GitHub App**. The page shows the App name, owner, App ID, slug, client ID, installation id, webhook secret state, webhook URL, and a link to the App on GitHub. Secrets are not displayed. The action button opens GitHub's installation page, where you can install the App or change which repositories it can access.
 
 **Reset GitHub App** forgets the stored credentials and resets the cached GitHub and authentication clients. This returns the whole instance to onboarding: every route is gated again until a new App is created, and repository access needs the new App to be installed. The App itself is **not** deleted on GitHub, and existing settings and mirrored issues are left in the database, but you will need to create and install an App again. The wizard's repository step replaces the configured repository list, so re-check **Settings → Repositories** afterwards. If you want to reuse the old name, delete the old App on GitHub first.
 

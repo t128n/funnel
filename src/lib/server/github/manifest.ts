@@ -26,10 +26,18 @@ export const MANIFEST_PERMISSIONS = {
 } as const;
 
 /**
- * Events Funnel would subscribe to. Funnel mirrors via polling and has no
- * webhook receiver, so it subscribes to nothing (and omits `hook_attributes`).
+ * Events the App subscribes to. Label changes arrive as `issues` actions
+ * (`labeled` / `unlabeled`), so there is no separate `label` event. Polling
+ * remains enabled and repairs anything a missed delivery leaves behind.
  */
-export const MANIFEST_EVENTS: readonly string[] = [];
+export const MANIFEST_EVENTS: readonly string[] = [
+  "issues",
+  "issue_comment",
+  "pull_request",
+  "pull_request_review",
+  "check_run",
+  "check_suite",
+];
 
 export interface ManifestUrls {
   /** Public homepage of the instance, e.g. `https://funnel.example.com`. */
@@ -51,6 +59,15 @@ export interface GithubAppManifest {
   public: false;
   default_permissions: Record<string, string>;
   default_events: string[];
+  hook_attributes: {
+    url: string;
+    active: true;
+  };
+}
+
+/** The inbound webhook receiver, derived from the captured public origin. */
+export function webhookUrl(baseUrl: string): string {
+  return `${baseUrl.replace(/\/$/, "")}/api/github/webhooks`;
 }
 
 /** Build the manifest JSON object for a new App. */
@@ -64,6 +81,10 @@ export function buildManifest(name: string, urls: ManifestUrls): GithubAppManife
     public: false,
     default_permissions: { ...MANIFEST_PERMISSIONS },
     default_events: [...MANIFEST_EVENTS],
+    hook_attributes: {
+      url: webhookUrl(urls.baseUrl),
+      active: true,
+    },
   };
 }
 

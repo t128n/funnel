@@ -1667,6 +1667,24 @@ export function linkedIssueNumbers(repoId: number): number[] {
     .map((row) => row.number);
 }
 
+/** Issue numbers linked to one pull request (reverse of the link table). */
+export function linkedIssueNumbersForPullRequest(
+  repoId: number,
+  prNumber: number,
+): number[] {
+  return db
+    .selectDistinct({ number: mirrorIssuePullRequest.issueNumber })
+    .from(mirrorIssuePullRequest)
+    .where(
+      and(
+        eq(mirrorIssuePullRequest.repoId, repoId),
+        eq(mirrorIssuePullRequest.prNumber, prNumber),
+      ),
+    )
+    .all()
+    .map((row) => row.number);
+}
+
 /** Drop pull requests that no linked issue references after a link refresh. */
 export function pruneOrphanPullRequests(repoId: number): number {
   const keep = db
