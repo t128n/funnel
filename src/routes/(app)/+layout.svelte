@@ -35,8 +35,9 @@
 	/** Repositories the quick-create dialog can pick from. */
 	const repoChoices = $derived(Object.keys(data.repoShortcodes).sort());
 
-	// The Attention badge counts overdue + due-today re-checks; blocked issues
-	// without a usable date are listed on the page but never raise the badge.
+	// The Attention badge counts blocked overdue + due-today re-checks only.
+	// Waiting has its own section and deliberately never raises this badge; it
+	// stays visible on /attention regardless of the count.
 	// Dates are compared in the browser's timezone and re-evaluated on the shared
 	// clock so the count is right after local midnight without a reload.
 	const dueCount = $derived.by(() => {

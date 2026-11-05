@@ -38,6 +38,7 @@
 		addIssueLabels,
 		addWorkNote,
 		blockIssue,
+		clearWaiting as clearIssueWaiting,
 		closeIssue,
 		deleteAttachment,
 		deleteWorkNote,
@@ -46,11 +47,13 @@
 		removeIssueLabel,
 		reopenIssue,
 		setIssueWatching,
+		setWaiting as setIssueWaiting,
 		unblockIssue,
 		updateIssue,
 		updateWorkNote,
 		uploadAttachment,
 		type CloseReason,
+		type SetWaitingInput,
 		type UpdateIssuePatch
 	} from '#lib/client/mutations';
 	import {
@@ -757,6 +760,28 @@
 	}
 
 	/**
+	 * Set, update or clear the issue's local waiting state. This is not an
+	 * issue write: the body, labels and comments are untouched, so there is no
+	 * optimistic issue overlay. Refetch after success to pick up the row.
+	 */
+	async function saveWaiting(input: SetWaitingInput | null) {
+		if (!detail) return;
+		writeStatus = null;
+		busy = 'waiting';
+		const result =
+			input === null
+				? await clearIssueWaiting(repo, number)
+				: await setIssueWaiting(repo, number, input);
+		busy = null;
+		if (!result.ok) {
+			setWriteError(`Could not update waiting state. ${result.error}`);
+			return;
+		}
+		setWriteSuccess(input === null ? 'Waiting state cleared.' : 'Waiting state saved.');
+		await load();
+	}
+
+	/**
 	 * Set or clear the issue's milestone. Milestones are repo-scoped, so the
 	 * picker (and the "New milestone…" form) only ever targets this issue's repo.
 	 */
@@ -1451,6 +1476,7 @@
 					{busy}
 					onblock={openBlockDialog}
 					onwatch={toggleWatch}
+					onwaiting={saveWaiting}
 				/>
 			</div>
 		</div>

@@ -8,6 +8,7 @@ import {
   attentionIssues,
   filterOptions,
   inboxCount,
+  waitingIssues,
 } from "#lib/server/issues/queries";
 import { unreadNotificationCount } from "#lib/server/notifications/service";
 import { getUser } from "#lib/server/sync/mirror";
@@ -41,6 +42,11 @@ export const load: LayoutServerLoad = async ({ locals, url, cookies }) => {
   // directly so the badge never hydrates the whole queue.
   const inboxTotal = inboxCount(EMPTY_FILTER);
 
+  // Waiting is loaded separately from blocked Attention items. The page renders
+  // it in its own section; the sidebar Attention badge intentionally counts
+  // only blocked overdue/today re-checks (see the app layout).
+  const waiting = waitingIssues();
+
   // The badge counts this viewer's unread rows only; reading them is always
   // scoped by `auth_user.id`, never by a client-supplied id.
   const unreadNotifications = unreadNotificationCount(user.id);
@@ -53,6 +59,7 @@ export const load: LayoutServerLoad = async ({ locals, url, cookies }) => {
     viewerGithub,
     options,
     attention: attentionIssues(),
+    waiting,
     inboxCount: inboxTotal,
     unreadNotifications,
     nativeNotifications,

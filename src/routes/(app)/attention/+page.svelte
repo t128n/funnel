@@ -3,6 +3,7 @@
 	import { page } from '$app/state';
 	import { Button } from '@sveltestrap/sveltestrap';
 	import AttentionRow from '#lib/components/attention/AttentionRow.svelte';
+	import WaitingRow from '#lib/components/attention/WaitingRow.svelte';
 	import PageHead from '#lib/components/common/PageHead.svelte';
 	import Breadcrumbs from '#lib/components/shell/Breadcrumbs.svelte';
 	import EmptyState from '#lib/components/common/EmptyState.svelte';
@@ -14,6 +15,7 @@
 	import { classifyAttention, toISODate, type AttentionBuckets } from '#lib/attention';
 	import { clockTick } from '#lib/client/clock.svelte';
 	import type { CloseReason } from '#lib/client/mutations';
+	import { canWrite } from '#lib/roles';
 	import {
 		cancelAction,
 		confirmBlock,
@@ -45,13 +47,11 @@
 	// `assignee=me` is owned by `ViewSegment`, matching the Issues view.
 	const mine = $derived(page.url.searchParams.getAll('assignee').includes('me'));
 	const viewer = $derived(data.viewerExternalId ?? null);
-	const items = $derived(
-		mine
-			? data.attention.filter((item) =>
-					item.issue.assignees.some((person) => person.externalId === viewer)
-				)
-			: data.attention
-	);
+	const assignedToViewer = (item: { issue: { assignees: { externalId: string }[] } }) =>
+		item.issue.assignees.some((person) => person.externalId === viewer);
+
+	const items = $derived(mine ? data.attention.filter(assignedToViewer) : data.attention);
+	const waitingItems = $derived(mine ? data.waiting.filter(assignedToViewer) : data.waiting);
 
 	const buckets: AttentionBuckets<AttentionItem> = $derived(classifyAttention(items, today, 7));
 
@@ -61,10 +61,16 @@
 		{ key: 'upcoming', label: 'Re-check upcoming', items: buckets.upcoming },
 		{ key: 'unscheduled', label: 'No re-check date', items: buckets.unscheduled }
 	]);
-	const total = $derived(groups.reduce((sum, group) => sum + group.items.length, 0));
+	const blockedTotal = $derived(groups.reduce((sum, group) => sum + group.items.length, 0));
+	const total = $derived(blockedTotal + waitingItems.length);
 	const countLabel = $derived(
-		total === 1 ? '1 blocked issue' : `${total} blocked issues`
+		[
+			blockedTotal === 1 ? '1 blocked issue' : `${blockedTotal} blocked issues`,
+			waitingItems.length === 1 ? '1 waiting' : `${waitingItems.length} waiting`
+		].join(' · ')
 	);
+	const mayWrite = $derived(canWrite(data.user?.role));
+	const staleWaiting = $derived(waitingItems.filter((item) => item.stale).length);
 
 	// One structured dialog set for the page; the row menus raise the action.
 	const pending = $derived(getPendingAction());
@@ -111,7 +117,7 @@
 
 <PageHead
 	title="Attention"
-	description="Blocked issues grouped by re-check date, including those without one."
+	description="Blocked issues grouped by re-check date, plus issues waiting on someone else."
 />
 
 <main class="container-xl py-4">
@@ -120,7 +126,7 @@
 	<PageHeader
 		title="Attention"
 		count={countLabel}
-		description="Blocked issues grouped by re-check date, including those without one."
+		description="Blocked issues grouped by re-check date, plus issues waiting on someone else."
 	/>
 
 	<Toolbar>
@@ -130,7 +136,7 @@
 	{#if total === 0}
 		<div class="border rounded bg-body-tertiary">
 			<EmptyState
-				title={mine ? 'No blocked issues assigned to you.' : 'No blocked issues need attention.'}
+				title={mine ? 'Nothing needs attention in your issues.' : 'Nothing needs attention.'}
 			>
 				{#snippet action()}
 					{#if mine}
@@ -167,6 +173,33 @@
 				</section>
 			{/if}
 		{/each}
+
+		{#if waitingItems.length > 0}
+			<section aria-labelledby="attention-waiting" class="mb-4">
+				<div class="d-flex align-items-center gap-2 border-bottom pb-1 mb-2">
+					<h2 id="attention-waiting" class="small text-body-secondary mb-0">
+						Waiting on others
+					</h2>
+					<span class="small text-body-tertiary tabular">{waitingItems.length}</span>
+					{#if staleWaiting > 0}
+						<span class="badge text-bg-warning">{staleWaiting} stale</span>
+					{/if}
+				</div>
+				<p class="small text-body-secondary mb-2">
+					Parked until the reporter, a vendor or an upstream project responds.
+					Clearing the state is immediate and never edits the issue body.
+				</p>
+				<div role="list" class="border rounded">
+					{#each waitingItems as item (`${item.issue.repoId}:${item.issue.number}`)}
+						<WaitingRow
+							{item}
+							repoShortcodes={data.repoShortcodes}
+							{mayWrite}
+						/>
+					{/each}
+				</div>
+			</section>
+		{/if}
 	{/if}
 </main>
 

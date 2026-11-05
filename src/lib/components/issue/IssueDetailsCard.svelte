@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Button, Card, CardBody } from '@sveltestrap/sveltestrap';
+	import { Button, Card, CardBody, Input } from '@sveltestrap/sveltestrap';
 	import Spinner from '#lib/components/common/Spinner.svelte';
 	import BlockedText from '#lib/components/common/BlockedText.svelte';
 	import { timeAgo } from '#lib/client/clock.svelte';
@@ -9,6 +9,15 @@
 	import IssueTimeCard from '#lib/components/issue/IssueTimeCard.svelte';
 	import RecordDelayDialog from '#lib/components/issue/RecordDelayDialog.svelte';
 	import { absoluteTime } from '#lib/time';
+	import { recheckDateLabel, toISODate } from '#lib/attention';
+	import {
+		isWaitingStale,
+		WAITING_REASON_LABELS,
+		WAITING_REASONS,
+		waitingDays,
+		waitingReasonLabel,
+		type WaitingReason
+	} from '#lib/waiting';
 	import type { IssueListItem, RenderedIssueDetail } from '#lib/server/issues/types';
 
 	/**
@@ -32,6 +41,14 @@
 		busy: string | null;
 		onblock: (mode: 'block' | 'unblock') => void;
 		onwatch: () => void;
+		/** Set/update the local waiting state, or clear it with `null`. */
+		onwaiting: (
+			input: {
+				reason: WaitingReason;
+				note: string | null;
+				recheckOn: string | null;
+			} | null
+		) => void;
 	}
 
 	let {
@@ -44,12 +61,39 @@
 		blocked,
 		busy,
 		onblock,
-		onwatch
+		onwatch,
+		onwaiting
 	}: Props = $props();
 
 	let delayDialogOpen = $state(false);
 
 	const reporter = $derived(issue.author?.login ?? '—');
+
+	// Waiting is Funnel-local state, so the form is seeded from `detail.waiting`
+	// and re-seeded after a reload; it never becomes part of `issue` overlays.
+	let waitingReason = $state<WaitingReason>('needs-info');
+	let waitingNote = $state('');
+	let waitingRecheck = $state('');
+	$effect(() => {
+		const waiting = detail.waiting;
+		waitingReason = waiting?.reason ?? 'needs-info';
+		waitingNote = waiting?.note ?? '';
+		waitingRecheck = waiting?.recheckOn ?? '';
+	});
+	const waitingStale = $derived(
+		detail.waiting ? isWaitingStale(detail.waiting) : false
+	);
+	const waitingAge = $derived(
+		detail.waiting ? waitingDays(detail.waiting) : 0
+	);
+
+	function submitWaiting() {
+		onwaiting({
+			reason: waitingReason,
+			note: waitingNote.trim() || null,
+			recheckOn: waitingRecheck || null
+		});
+	}
 </script>
 
 <Card>
@@ -147,6 +191,100 @@
 				{/if}
 			</dd>
 		</dl>
+
+		<div class="mt-3 border-top pt-3">
+			<div class="d-flex align-items-baseline justify-content-between gap-2 mb-2">
+				<h3 class="h6 mb-0">Waiting</h3>
+				{#if detail.waiting}
+					<span class="small text-body-secondary">
+						Since {recheckDateLabel(toISODate(new Date(detail.waiting.waitingSince)))}
+					</span>
+				{/if}
+			</div>
+
+			{#if detail.waiting}
+				<p class="small text-body-secondary mb-2">
+					<span class="d-inline-flex align-items-center gap-1 text-body">
+						<i class="bi bi-hourglass-split" aria-hidden="true"></i>
+						{waitingReasonLabel(detail.waiting.reason)}
+					</span>
+					{#if detail.waiting.recheckOn}
+						· Re-check {recheckDateLabel(detail.waiting.recheckOn)}
+					{/if}
+					{#if waitingStale}
+						<span class="badge text-bg-warning ms-1">Stale · {waitingAge}d</span>
+					{/if}
+				</p>
+				{#if detail.waiting.note}
+					<p class="small text-body-secondary mb-2">{detail.waiting.note}</p>
+				{/if}
+			{:else}
+				<p class="small text-body-secondary mb-2">Not waiting on anyone.</p>
+			{/if}
+
+			{#if mayWrite}
+				<label class="form-label small" for="issue-waiting-reason">Reason</label>
+				<Input
+					id="issue-waiting-reason"
+					type="select"
+					class="mb-2"
+					value={waitingReason}
+					disabled={busy === 'waiting' || !canEdit}
+					on:change={(event) =>
+						(waitingReason = event.currentTarget.value as WaitingReason)}
+				>
+					{#each WAITING_REASONS as reason (reason)}
+						<option value={reason}>{WAITING_REASON_LABELS[reason]}</option>
+					{/each}
+				</Input>
+
+				<label class="form-label small" for="issue-waiting-note">Note</label>
+				<Input
+					id="issue-waiting-note"
+					type="text"
+					class="mb-2"
+					placeholder="Optional detail"
+					value={waitingNote}
+					disabled={busy === 'waiting' || !canEdit}
+					on:input={(event) => (waitingNote = event.currentTarget.value)}
+				/>
+
+				<label class="form-label small" for="issue-waiting-recheck">Re-check date</label>
+				<Input
+					id="issue-waiting-recheck"
+					type="date"
+					class="mb-2"
+					value={waitingRecheck}
+					disabled={busy === 'waiting' || !canEdit}
+					on:change={(event) => (waitingRecheck = event.currentTarget.value)}
+				/>
+
+				<div class="d-flex flex-wrap align-items-center gap-2">
+					<Button
+						color="outline-secondary"
+						size="sm"
+						disabled={busy === 'waiting' || !canEdit}
+						onclick={submitWaiting}
+					>
+						{detail.waiting ? 'Update waiting' : 'Mark waiting'}
+					</Button>
+					{#if detail.waiting}
+						<Button
+							color="link"
+							size="sm"
+							class="text-decoration-none px-1"
+							disabled={busy === 'waiting' || !canEdit}
+							onclick={() => onwaiting(null)}
+						>
+							Clear waiting
+						</Button>
+					{/if}
+				</div>
+				<div class="form-text">
+					Local to Funnel. The issue body, labels and comments are not changed.
+				</div>
+			{/if}
+		</div>
 
 		<div class="mt-4">
 			<IssueTimeCard time={detail.time} />

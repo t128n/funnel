@@ -4,8 +4,8 @@
  * Filter and search state is bidirectionally mirrored to the URL so any view is
  * bookmarkable and shareable. This module is pure and dependency-free: it reads
  * and writes the same query keys the server-side {@link import("./server/issues/filters").parseIssueFilter}
- * consumes (`repo`, `status`, `assignee`, `priority`, `size`, `label`, `q`,
- * `blocked`, `sort`, `direction`).
+ * consumes (`repo`, `state`, `status`, `assignee`, `priority`, `size`, `label`,
+ * `planned`, `milestone`, `blocked`, `waiting`, `q`, `sort`, `direction`).
  *
  * Repos are held as `owner/name` slugs and assignees as logins (or the `me`
  * sentinel), which is exactly what the server resolves against the mirror.
@@ -46,6 +46,8 @@ export interface ClientFilter {
   milestones: string[];
   /** `blocked=true|false`; `null` means "any". */
   blocked: boolean | null;
+  /** `waiting=true|false` (local waiting state); `null` means "any". */
+  waiting: boolean | null;
   /** Selectable stream sort. */
   sort: IssueSort;
   /** Direction for {@link sort}. */
@@ -66,6 +68,7 @@ export const EMPTY_CLIENT_FILTER: ClientFilter = {
   planned: [],
   milestones: [],
   blocked: null,
+  waiting: null,
   sort: DEFAULT_SORT,
   direction: DEFAULT_DIRECTION,
   search: "",
@@ -86,6 +89,7 @@ export const FILTER_KEYS = [
   "planned",
   "milestone",
   "blocked",
+  "waiting",
   "sort",
   "direction",
   "q",
@@ -120,6 +124,7 @@ export function parseFilterParams(params: FilterParams): ClientFilter {
   const sort = params.get("sort")?.toLowerCase();
   const direction = params.get("direction")?.toLowerCase();
   const blocked = params.get("blocked")?.toLowerCase();
+  const waiting = params.get("waiting")?.toLowerCase();
   return {
     repos: collect(params, "repo"),
     states: collect(params, "state"),
@@ -132,6 +137,7 @@ export function parseFilterParams(params: FilterParams): ClientFilter {
     planned: collect(params, "planned"),
     milestones: collect(params, "milestone"),
     blocked: blocked === "true" ? true : blocked === "false" ? false : null,
+    waiting: waiting === "true" ? true : waiting === "false" ? false : null,
     sort: SORT_VALUES.includes(sort as IssueSort) ? (sort as IssueSort) : DEFAULT_SORT,
     direction: DIRECTION_VALUES.includes(direction as SortDirection)
       ? (direction as SortDirection)
@@ -163,6 +169,7 @@ export function toFilterParams(filter: ClientFilter): URLSearchParams {
   }
   if (filter.unassigned) params.append("assignee", NONE);
   if (filter.blocked !== null) params.set("blocked", String(filter.blocked));
+  if (filter.waiting !== null) params.set("waiting", String(filter.waiting));
   if (filter.sort !== DEFAULT_SORT) params.set("sort", filter.sort);
   if (filter.direction !== DEFAULT_DIRECTION) {
     params.set("direction", filter.direction);
@@ -212,6 +219,7 @@ export function activeFilterCount(filter: ClientFilter): number {
     (filter.planned.length > 0 ? 1 : 0) +
     (filter.milestones.length > 0 ? 1 : 0) +
     (filter.blocked !== null ? 1 : 0) +
+    (filter.waiting !== null ? 1 : 0) +
     (filter.search.trim().length > 0 ? 1 : 0)
   );
 }

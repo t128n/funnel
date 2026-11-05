@@ -62,6 +62,7 @@ import {
   listSubmissions,
 } from "#lib/server/intake/staging";
 import { activeSnoozes, issueSnoozeClause } from "#lib/server/snooze";
+import { getWaiting, listWaiting } from "#lib/server/waiting";
 import {
   getIssuePullRequests,
   getRepoByOrgName,
@@ -120,6 +121,7 @@ import type {
   RepoMilestoneRef,
   StatusKey,
   UserRef,
+  WaitingAttentionItem,
 } from "./types";
 
 export type { MatrixBoard, MatrixCell } from "./types";
@@ -1313,6 +1315,57 @@ export function attentionIssues(): AttentionItem[] {
 }
 
 /**
+ * Waiting issues for the Attention view (issue #32). These are deliberately a
+ * separate list from {@link attentionIssues}: being blocked and waiting on
+ * someone else are different states, and the page renders them in their own
+ * section. Only open, still-mirrored issues are returned; pruning never deletes
+ * the waiting row, so it reappears after a re-sync. `now` drives the stale flag
+ * and day count.
+ */
+export function waitingIssues(now = Date.now()): WaitingAttentionItem[] {
+  const waits = listWaiting(now);
+  if (waits.length === 0) return [];
+
+  const conditions = waits.map((wait) => {
+    const slash = wait.repo.indexOf("/");
+    return and(
+      eq(mirrorRepo.org, slash > 0 ? wait.repo.slice(0, slash) : wait.repo),
+      eq(mirrorRepo.name, slash > 0 ? wait.repo.slice(slash + 1) : ""),
+      eq(mirrorThread.number, wait.number),
+    ) as SQL;
+  });
+
+  const rows = db
+    .select(issueColumns)
+    .from(mirrorThread)
+    .innerJoin(mirrorRepo, eq(mirrorThread.repoId, mirrorRepo.id))
+    .leftJoin(mirrorUser, eq(mirrorThread.authorId, mirrorUser.id))
+    .leftJoin(
+      mirrorMilestone,
+      and(
+        eq(mirrorMilestone.repoId, mirrorThread.repoId),
+        eq(mirrorMilestone.number, mirrorThread.milestoneNumber),
+      ),
+    )
+    .where(
+      and(eq(mirrorThread.state, "open"), or(...conditions)),
+    )
+    .all();
+
+  const byRef = new Map<string, IssueListItem>();
+  for (const issue of hydrate(rows as unknown as RawRow[])) {
+    byRef.set(`${issue.repo}\u0000${issue.number}`, issue);
+  }
+
+  const items: WaitingAttentionItem[] = [];
+  for (const wait of waits) {
+    const issue = byRef.get(`${wait.repo}\u0000${wait.number}`);
+    if (issue) items.push({ ...wait, issue });
+  }
+  return items;
+}
+
+/**
  * Option lists for the filter bar and pickers: mirrored repos, users that are
  * assignable in at least one repo (union with anyone currently assigned, so a
  * historical assignee who lost collaborator access stays filterable), and every
@@ -1744,6 +1797,7 @@ export function getIssueDetail(
     body: bodyRow?.body ?? "",
     time,
     delays,
+    waiting: getWaiting(issue.repo, number) ?? null,
     epic: epicParent(org, name, number),
     comments,
     commentTotal,

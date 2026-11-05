@@ -11,6 +11,7 @@ export type FilterDimension =
 	| 'planned'
 	| 'milestone'
 	| 'blocked'
+	| 'waiting'
 	| 'state';
 
 /** Dimensions the drawer does not own, plus whether it offers the state switch. */
@@ -50,6 +51,7 @@ export function ownedFilterCount(filter: ClientFilter, scope: DrawerScope): numb
 		planned: ownsDimension('planned', scope) ? filter.planned : [],
 		milestones: ownsDimension('milestone', scope) ? filter.milestones : [],
 		blocked: ownsDimension('blocked', scope) ? filter.blocked : null,
+		waiting: ownsDimension('waiting', scope) ? filter.waiting : null,
 		search: ''
 	});
 }
@@ -74,6 +76,7 @@ export function clearOwnedFilters(filter: ClientFilter, scope: DrawerScope): Cli
 		labels: ownsDimension('label', scope) ? [] : filter.labels,
 		planned: ownsDimension('planned', scope) ? [] : filter.planned,
 		milestones: ownsDimension('milestone', scope) ? [] : filter.milestones,
-		blocked: ownsDimension('blocked', scope) ? null : filter.blocked
+		blocked: ownsDimension('blocked', scope) ? null : filter.blocked,
+		waiting: ownsDimension('waiting', scope) ? null : filter.waiting
 	};
 }
