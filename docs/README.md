@@ -43,6 +43,7 @@ Learning-oriented, with one path and expected results.
 ### Deploy
 
 - [Install Funnel](how-to/deploy/install.md) — run the cross-platform `funnel setup` wizard and manage the native service.
+- [Install Funnel on Linux with systemd](how-to/deploy/linux-systemd.md) — use the checked-in unit and environment template for bare-metal or config-managed hosts.
 - [Put Funnel behind a reverse proxy](how-to/deploy/reverse-proxy.md) — forward the proto and host headers and expose the health endpoints.
 - [Use GitHub Enterprise Server](how-to/deploy/github-enterprise-server.md) — point the web and API hosts at a GHES instance before onboarding.
 

@@ -61,6 +61,11 @@ Funnel is a single long-lived process that owns a SQLite database and an uploads
 | Native install | Release archive, then `./funnel setup` (Windows: `setup.cmd`) | Cross-platform wizard; installs a systemd, launchd, or WinSW service, or runs a portable process. |
 | Adapter-node build | `bun run build`, then `bun run release` and `bun run start` | `bun ./build/index.js`; still a long-lived process. Run the release step against the same `FUNNEL_DB` first — this path does not migrate on boot. |
 
+On Linux, `packaging/systemd/` adds a checked-in system unit, an environment
+template, and a root-only `install.sh` for bare-metal or configuration-managed
+hosts. The automated `funnel setup` wizard remains the recommended path; see
+[Install Funnel on Linux with systemd](docs/how-to/deploy/linux-systemd.md).
+
 The packaged executable applies pending migrations on boot. Health probes are `/healthz` (liveness) and `/readyz` (readiness; it reports `503` until every committed migration is applied). `funnel --help`, `--version`, `--migrate`, and `--healthcheck` cover the packaged binary's CLI.
 
 If you build with mise, run `mise trust` once per checkout so its tasks load.
