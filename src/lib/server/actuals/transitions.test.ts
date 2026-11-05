@@ -366,6 +366,15 @@ describe("local audit dimensions", () => {
 
     expect(events()).toEqual([]);
   });
+
+  test("older snapshots without the new dimensions keep working", () => {
+    record(
+      { status: "backlog", state: "open", blocked: false },
+      { status: "todo", state: "open", blocked: false },
+    );
+    expect(events()).toHaveLength(1);
+    expect(events()[0]).toMatchObject({ kind: "status", toValue: "todo" });
+  });
 });
 
 describe("hydrateAndStore wiring", () => {

@@ -22,12 +22,16 @@ export interface IssueTransitionSnapshot {
   status: string;
   state: string;
   blocked: boolean;
-  /** Derived P1–P3 (or null); only changes after the first sighting are logged. */
-  priority: string | null;
+  /**
+   * Derived P1–P3 (or null); only changes after the first sighting are logged.
+   * Optional so callers that only diff the original three dimensions keep
+   * working; an omitted value is treated as "no priority change".
+   */
+  priority?: string | null;
   /** Current label names; compared case-insensitively. */
-  labels: readonly string[];
+  labels?: readonly string[];
   /** Current assignee logins; compared case-insensitively. */
-  assignees: readonly string[];
+  assignees?: readonly string[];
 }
 
 export interface RecordIssueTransitionsInput {
@@ -166,7 +170,7 @@ export function recordIssueTransitions(
     );
   }
 
-  const labels = addedAndRemoved(previous.labels, next.labels);
+  const labels = addedAndRemoved(previous.labels ?? [], next.labels ?? []);
   for (const label of labels.added) {
     appendEvent(input, "label", null, label);
   }
@@ -174,7 +178,10 @@ export function recordIssueTransitions(
     appendEvent(input, "label", label, null);
   }
 
-  const assignees = addedAndRemoved(previous.assignees, next.assignees);
+  const assignees = addedAndRemoved(
+    previous.assignees ?? [],
+    next.assignees ?? [],
+  );
   for (const login of assignees.added) {
     appendEvent(input, "assignee", null, login);
   }
