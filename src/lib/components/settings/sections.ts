@@ -81,6 +81,13 @@ export const settingsGroups: SettingsGroup[] = [
 				minRole: 'admin'
 			},
 			{
+				id: 'labels',
+				label: 'Labels',
+				description: 'Namespace Funnel’s reserved labels with a global prefix.',
+				href: '/settings/labels',
+				minRole: 'admin'
+			},
+			{
 				id: 'intake',
 				label: 'Intake',
 				description: 'Where accepted submissions go by default.',
