@@ -28,6 +28,31 @@ test("durable state keeps external authors", () => {
   expect(cols("state_attachment")).toContain("uploaded_by_external_id");
 });
 
+test("test_intake_archive_columns", () => {
+  expect(cols("state_intake_submission")).toEqual(
+    expect.arrayContaining([
+      "archived_at",
+      "dismiss_reason",
+      "duplicate_repo",
+      "duplicate_number",
+    ]),
+  );
+});
+
+test("test_triage_event_columns", () => {
+  expect(cols("state_triage_event")).toEqual(
+    expect.arrayContaining([
+      "submission_id",
+      "action",
+      "actor_user_id",
+      "repo",
+      "number",
+      "reason",
+      "created_at",
+    ]),
+  );
+});
+
 test("test_event_columns", () => {
   expect(cols("state_issue_event")).toEqual(
     expect.arrayContaining([
