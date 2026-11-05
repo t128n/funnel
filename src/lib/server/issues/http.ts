@@ -20,7 +20,7 @@ import { refreshIssue } from "#lib/server/sync/worker";
 const log = createLogger({ component: "issues-api" });
 
 export type AuthResult =
-  | { ok: true; provider: GitHubProvider }
+  | { ok: true; userId: string; provider: GitHubProvider }
   | { ok: false; response: Response };
 
 function jsonError(message: string, status: number): Response {
@@ -40,7 +40,7 @@ export async function authenticate(
   }
   try {
     const token = await getUserAccessToken(userId);
-    return { ok: true, provider: forge.userProvider(token) };
+    return { ok: true, userId, provider: forge.userProvider(token) };
   } catch (error) {
     log.warn(errorFields(error), "user token unavailable");
     return { ok: false, response: jsonError(errorMessage(error), 502) };

@@ -36,6 +36,11 @@ import {
   mirrorThreadAssignee,
   mirrorUser,
 } from "#lib/server/db/schema";
+import {
+  emptyReactions,
+  type CommentReactions,
+  type ReactionContent,
+} from "#lib/reactions";
 import { deriveMetadata } from "#lib/server/sync/conflicts";
 import {
   getIssue,
@@ -453,6 +458,64 @@ function nextCommentId(repoId: number): number {
     .where(eq(mirrorComment.repoId, repoId))
     .all();
   return Number(nextExternalId(rows.map((row) => row.externalId)));
+}
+
+function requireComment(ref: CommentRef): {
+  repo: RepoRow;
+  number: number;
+  row: typeof mirrorComment.$inferSelect;
+} {
+  const { repo, number } = requireIssue(ref.thread);
+  const row = db
+    .select()
+    .from(mirrorComment)
+    .where(
+      and(
+        eq(mirrorComment.repoId, repo.id),
+        eq(mirrorComment.externalId, String(ref.id)),
+      ),
+    )
+    .get();
+  if (!row) {
+    throw notFound(
+      `Comment ${String(ref.id)} on ${repo.org}/${repo.name}#${number} not found`,
+    );
+  }
+  return { repo, number, row };
+}
+
+/** Mirror one reaction toggle into the demo comment's stored summary. */
+function writeReaction(
+  ref: CommentRef,
+  content: ReactionContent,
+  active: boolean,
+): void {
+  const { repo, number, row } = requireComment(ref);
+  const current = row.reactions ?? emptyReactions();
+  const counts = { ...current.counts };
+  const count = counts[content] ?? 0;
+  if (active) {
+    counts[content] = count + 1;
+  } else if (count <= 1) {
+    delete counts[content];
+  } else {
+    counts[content] = count - 1;
+  }
+  const reactions: CommentReactions = {
+    total: Math.max(0, current.total + (active ? 1 : -1)),
+    counts,
+    viewerReacted: [],
+  };
+  db.update(mirrorComment)
+    .set({ reactions })
+    .where(
+      and(
+        eq(mirrorComment.repoId, repo.id),
+        eq(mirrorComment.externalId, row.externalId),
+      ),
+    )
+    .run();
+  bumpRevision();
 }
 
 function nextMilestoneNumber(repoId: number): number {
@@ -997,6 +1060,65 @@ function buildProvider(): GitHubProvider {
           raw: null,
         };
         return comment as unknown as Comment;
+      },
+
+      async updateComment(ref: CommentRef, body: string): Promise<Comment> {
+        const { repo, number, row } = requireComment(ref);
+        const now = Date.now();
+        db.update(mirrorComment)
+          .set({ body, updatedAt: now })
+          .where(
+            and(
+              eq(mirrorComment.repoId, repo.id),
+              eq(mirrorComment.externalId, row.externalId),
+            ),
+          )
+          .run();
+        refreshIssueSearchIndex(repo.id, number);
+        bumpRevision();
+        const author = userById(row.authorId);
+        return {
+          ref: {
+            forge: FORGE,
+            instance: DEMO_INSTANCE,
+            thread: toThreadRef(repo, number),
+            id: row.externalId,
+          },
+          body,
+          author: author ? toActor(author) : undefined,
+          createdAt: new Date(row.createdAt),
+          updatedAt: new Date(now),
+          url: `${issueUrl(repo, number)}#issuecomment-${row.externalId}`,
+          raw: null,
+        } as unknown as Comment;
+      },
+
+      async deleteComment(ref: CommentRef): Promise<void> {
+        const { repo, number, row } = requireComment(ref);
+        db.delete(mirrorComment)
+          .where(
+            and(
+              eq(mirrorComment.repoId, repo.id),
+              eq(mirrorComment.externalId, row.externalId),
+            ),
+          )
+          .run();
+        refreshIssueSearchIndex(repo.id, number);
+        bumpRevision();
+      },
+
+      async react(
+        ref: CommentRef,
+        reaction: ReactionContent,
+      ): Promise<void> {
+        writeReaction(ref, reaction, true);
+      },
+
+      async unreact(
+        ref: CommentRef,
+        reaction: ReactionContent,
+      ): Promise<void> {
+        writeReaction(ref, reaction, false);
       },
 
       async create(repoRef: RepoRef, input: ThreadInput): Promise<Thread> {
