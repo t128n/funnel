@@ -106,7 +106,7 @@ Event payloads:
 | Event name | Payload | Published when |
 | :--- | :--- | :--- |
 | `issues` | `{ "type": "issues", "repo": "owner/name", "numbers": [12, 13] }` | A sync cycle, post-write refresh, issue mutation, work-note change, or attachment change affects issues. |
-| `intake` | `{ "type": "intake", "action": "created" \| "staged" \| "accepted" \| "dismissed" \| "duplicated", "id": "…", "repo"?: "owner/name", "number"?: 12 }` | A submission is staged or triaged. |
+| `intake` | `{ "type": "intake", "action": "created" \| "staged" \| "accepted" \| "dismissed" \| "duplicated" \| "undone", "id": "…", "repo"?: "owner/name", "number"?: 12 }` | A submission is staged, triaged or restored by undo. |
 | `settings` | `{ "type": "settings" }` | An instance-settings save is applied. |
 | `notifications` | `{ "type": "notifications" }` | At least one notification row was inserted. The signal carries no titles, people or user ids; each open tab fetches its own feed. |
 | `planning` | `{ "type": "planning" }` | A plan item was scheduled, moved or cleared. The payload carries no issue identity; open planners reload the affected horizons. |
