@@ -1,0 +1,63 @@
+name: verify
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+# Superseded pull request runs are cancelled; pushes to main are not.
+concurrency:
+  group: verify-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Verify (ubuntu-latest)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Setup mise
+        uses: jdx/mise-action@v5
+
+      - name: Install dependencies
+        run: mise run bun:install
+
+      - name: Verify
+        run: mise run verify
+
+  windows-package:
+    name: Windows package (windows-latest)
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Setup mise
+        uses: jdx/mise-action@v5
+
+      - name: Install dependencies
+        run: mise run bun:install
+
+      - name: Build executable
+        run: mise run exe
+
+      - name: Check packaged executable
+        shell: pwsh
+        run: |
+          if (-not (Test-Path dist/funnel.exe)) {
+            Write-Error "dist/funnel.exe was not built"
+            exit 1
+          }
+          ./dist/funnel.exe --version
