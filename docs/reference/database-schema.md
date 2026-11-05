@@ -12,7 +12,7 @@ Funnel stores all durable state, auth records and the disposable GitHub mirror i
 | `auth_*` | Better Auth | Durable authentication state. Columns use the library's camelCase names. |
 | `mirror_*` | Funnel sync | Disposable forge cache, rebuildable by a re-sync and prunable by the history window or reconciliation. |
 
-`state_intake_submission` is durable storage but an ephemeral queue by design: a triage decision hard-deletes the row.
+`state_intake_submission` is durable storage but a pending queue by design: a triage decision archives the row (`archived_at`), and the append-only `state_triage_event` table records the decision history.
 
 ### Timestamps
 
@@ -33,7 +33,7 @@ Funnel stores all durable state, auth records and the disposable GitHub mirror i
 
 ### `state_intake_submission`
 
-Staged public intake submissions, newest first in the Inbox. A triage decision deletes the row.
+Staged public intake submissions, newest first in the Inbox. A triage decision archives the row instead of deleting it; pending queries only read `archived_at IS NULL`.
 
 | Column | Type | Constraints / notes |
 | :--- | :--- | :--- |
@@ -42,8 +42,31 @@ Staged public intake submissions, newest first in the Inbox. A triage decision d
 | `body` | TEXT | Not null, default `''`. |
 | `source` | TEXT | Nullable provenance label. |
 | `created_at` | INTEGER | Not null, Unix ms. |
+| `archived_at` | INTEGER | Nullable, Unix ms; set when a decision removes the row from the pending queue. |
+| `dismiss_reason` | TEXT | Nullable; required free text captured by a dismiss decision (max 500 characters). Cleared when the dismissal is undone. |
+| `duplicate_repo` | TEXT | Nullable `owner/name` recorded by a duplicate decision. |
+| `duplicate_number` | INTEGER | Nullable issue number recorded by a duplicate decision. |
 
-Primary key: `id`. Foreign keys: none. Indexes: none; listing orders by `created_at DESC, rowid DESC` to break same-millisecond ties.
+Primary key: `id`. Foreign keys: none. Indexes: none; pending listing orders by `created_at DESC, rowid DESC` to break same-millisecond ties.
+
+### `state_triage_event`
+
+Append-only triage history for intake submissions. Rows are keyed by submission id rather than a foreign key, so the history survives the submission being archived or removed. There are no update/delete helpers: undo appends an `undone` event and restores the submission.
+
+| Column | Type | Constraints / notes |
+| :--- | :--- | :--- |
+| `id` | TEXT | Primary key; UUID. |
+| `submission_id` | TEXT | Not null; the staged submission id (no foreign key). |
+| `action` | TEXT | Not null; `accepted`, `dismissed`, `duplicated` or `undone`. |
+| `actor_user_id` | TEXT | Not null; `auth_user.id` of the triager. |
+| `repo` | TEXT | Nullable `owner/name` of the created issue or duplicate target. |
+| `number` | INTEGER | Nullable issue number of the created issue or duplicate target. |
+| `reason` | TEXT | Nullable dismiss reason; `undone` carries the original reason forward. |
+| `created_at` | INTEGER | Not null, Unix ms. |
+
+Primary key: `id`. Foreign keys: none. Indexes:
+
+- `idx_state_triage_event_submission` on `(submission_id, created_at)`.
 
 ### `state_notification`
 
@@ -647,7 +670,7 @@ Foreign keys declared in the schema:
 | `mirror_repo_assignee.user_id` | `mirror_user.id` | `CASCADE` |
 | `mirror_comment.author_id` | `mirror_user.id` | `SET NULL` |
 
-The composite child tables `mirror_thread_label` and `mirror_thread_assignee`, and the `repo_id`/`thread_number` columns on `mirror_comment`, carry no foreign key to `mirror_thread`. `mirror_thread.milestone_number` also has no foreign key to `mirror_milestone`: the milestone set is replaced wholesale on refresh, and a thread may briefly reference a number that has not been mirrored yet. The sync layer therefore deletes labels, assignees and comments explicitly before deleting a thread row (`deleteIssue` in `src/lib/server/sync/mirror.ts`). `state_work_note`, `state_attachment`, `state_notification`, `state_issue_watch`, `state_plan_item`, `state_issue_event`, `state_issue_delay`, `state_work_hours`, `state_unavailable_window`, `state_day_block` and `state_calendar_feed` also carry no foreign key to the mirror: their author/uploader/recipient/actor identities are snapshots, and their issue identity is the durable `org/name` plus number. The four legacy day-planning tables reference `auth_user.id` directly with `ON DELETE CASCADE`; deleting an account removes any retained rows.
+The composite child tables `mirror_thread_label` and `mirror_thread_assignee`, and the `repo_id`/`thread_number` columns on `mirror_comment`, carry no foreign key to `mirror_thread`. `mirror_thread.milestone_number` also has no foreign key to `mirror_milestone`: the milestone set is replaced wholesale on refresh, and a thread may briefly reference a number that has not been mirrored yet. The sync layer therefore deletes labels, assignees and comments explicitly before deleting a thread row (`deleteIssue` in `src/lib/server/sync/mirror.ts`). `state_work_note`, `state_attachment`, `state_notification`, `state_issue_watch`, `state_plan_item`, `state_issue_event`, `state_issue_delay`, `state_triage_event`, `state_work_hours`, `state_unavailable_window`, `state_day_block` and `state_calendar_feed` also carry no foreign key to the mirror: their author/uploader/recipient/actor identities are snapshots, and their issue identity is the durable `org/name` plus number. The four legacy day-planning tables reference `auth_user.id` directly with `ON DELETE CASCADE`; deleting an account removes any retained rows.
 
 ## Storage, pragmas and migrations
 

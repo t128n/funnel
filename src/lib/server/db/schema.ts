@@ -19,7 +19,10 @@ import {
 
 // ---------------------------------------------------------------------------
 // State: public intake submissions (SPEC 7, 10.1).
-// A triage decision deletes the row. Nothing is kept afterwards.
+// A triage decision archives the row instead of deleting it: the pending queue
+// only reads rows with `archived_at IS NULL`, while the archive keeps the
+// decision reason and duplicate target for display. Durable history lives in
+// `state_triage_event`.
 // ---------------------------------------------------------------------------
 export const stateIntakeSubmission = sqliteTable("state_intake_submission", {
   id: text("id").primaryKey(),
@@ -27,7 +30,42 @@ export const stateIntakeSubmission = sqliteTable("state_intake_submission", {
   body: text("body").notNull().default(""),
   source: text("source"),
   createdAt: integer("created_at").notNull(),
+  /** Unix ms when a triage decision removed the row from the pending queue. */
+  archivedAt: integer("archived_at"),
+  /** Free-text reason captured by a dismiss decision (max 500 characters). */
+  dismissReason: text("dismiss_reason"),
+  /** Duplicate target recorded by a duplicate decision. */
+  duplicateRepo: text("duplicate_repo"),
+  duplicateNumber: integer("duplicate_number"),
 });
+
+// ---------------------------------------------------------------------------
+// State: append-only triage history (SPEC 7, 10.1).
+// One row per decision, keyed by the submission id rather than a foreign key so
+// the history survives the submission row being archived or removed. There are
+// no update/delete helpers: an undo appends an `undone` event and restores the
+// submission instead of rewriting history.
+// ---------------------------------------------------------------------------
+export const stateTriageEvent = sqliteTable(
+  "state_triage_event",
+  {
+    id: text("id").primaryKey(),
+    submissionId: text("submission_id").notNull(),
+    /** `accepted` | `dismissed` | `duplicated` | `undone`. */
+    action: text("action").notNull(),
+    /** `auth_user.id` of the triager who made the decision. */
+    actorUserId: text("actor_user_id").notNull(),
+    /** `owner/name` of the created issue or duplicate target. */
+    repo: text("repo"),
+    number: integer("number"),
+    /** Dismiss reason, or null for other decisions. */
+    reason: text("reason"),
+    createdAt: integer("created_at").notNull(),
+  },
+  (t) => [
+    index("idx_state_triage_event_submission").on(t.submissionId, t.createdAt),
+  ],
+);
 
 // ---------------------------------------------------------------------------
 // State: instance settings (SPEC §4, §10).

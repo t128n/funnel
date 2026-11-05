@@ -8,6 +8,7 @@
 		Card,
 		CardBody,
 		FormGroup,
+		Input,
 		Label,
 		Modal,
 		ModalBody,
@@ -15,9 +16,10 @@
 		ModalHeader
 	} from '@sveltestrap/sveltestrap';
 	import Spinner from '#lib/components/common/Spinner.svelte';
+	import MultiSelect from '#lib/components/common/MultiSelect.svelte';
 	import SingleSelect from '#lib/components/common/SingleSelect.svelte';
 	import DuplicateDialog from '#lib/components/inbox/DuplicateDialog.svelte';
-	import { SIZE_OPTIONS, labelTint } from '#lib/labels';
+	import { SIZE_OPTIONS, STATUS_OPTIONS, labelTint } from '#lib/labels';
 	import { removeSubmission, restoreSubmission } from '#lib/client/optimistic.svelte';
 	import { clearSelection } from '#lib/client/selection.svelte';
 	import { timeAgo } from '#lib/client/clock.svelte';
@@ -39,9 +41,22 @@
 		submission: RenderedSubmission;
 		repos: string[];
 		defaultRepo: string;
+		/** Non-reserved labels in use, offered as extra accept labels. */
+		labelOptions: string[];
+		/** Assignable logins across the mirror, offered by the assignee picker. */
+		assigneeOptions: string[];
+		/** Latest dismissal event, so an archived row still offers Undo. */
+		undoEventId?: string | null;
 	}
 
-	let { submission, repos, defaultRepo }: Props = $props();
+	let {
+		submission,
+		repos,
+		defaultRepo,
+		labelOptions,
+		assigneeOptions,
+		undoEventId = null
+	}: Props = $props();
 
 	type Pending = 'accept' | 'dismiss' | null;
 	let pending = $state<Pending>(null);
@@ -49,8 +64,20 @@
 	let dismissForm: HTMLFormElement | undefined = $state();
 
 	let acceptRepo = $state(untrack(() => defaultRepo || repos[0] || ''));
+	let status = $state('backlog');
 	let size = $state('');
+	let labels = $state<string[]>([]);
+	let assignees = $state<string[]>([]);
+	let dismissReason = $state('');
+	let dismissedEventId = $state<string | null>(untrack(() => undoEventId));
 	let duplicating = $state(false);
+
+	const labelSelectOptions = $derived(
+		labelOptions.map((label) => ({ value: label, label }))
+	);
+	const assigneeSelectOptions = $derived(
+		assigneeOptions.map((login) => ({ value: login, label: login }))
+	);
 
 	const repoOptions = $derived(repos.map((slug) => ({ value: slug, label: slug })));
 	const title = $derived(submission.title.trim() || 'Untitled submission');
@@ -92,11 +119,6 @@
 		restoreSubmission(submission.id);
 	}
 
-	function confirmDismiss() {
-		confirmingDismiss = false;
-		dismissForm?.requestSubmit();
-	}
-
 	function closeDismiss() {
 		if (pending === null) confirmingDismiss = false;
 	}
@@ -129,10 +151,49 @@
 	</div>
 </header>
 
+{#if submission.archivedAt !== null && !dismissedEventId}
+	<Alert color="secondary" class="border d-flex flex-wrap align-items-center gap-2">
+		<i class="bi bi-archive" aria-hidden="true"></i>
+		<span>This submission is archived.</span>
+		{#if submission.dismissReason}
+			<span>Reason: {submission.dismissReason}</span>
+		{:else if submission.duplicateRepo && submission.duplicateNumber}
+			<span>
+				Duplicated to {submission.duplicateRepo}#{submission.duplicateNumber}.
+			</span>
+		{/if}
+	</Alert>
+{/if}
+
 {#if formError}
 	<Alert color="danger" class="border d-flex align-items-center gap-2">
 		<i class="bi bi-exclamation-circle" aria-hidden="true"></i>
 		<span>{formError}</span>
+	</Alert>
+{/if}
+
+{#if dismissedEventId}
+	<Alert color="warning" class="border d-flex flex-wrap align-items-center justify-content-between gap-2">
+		<span class="d-inline-flex align-items-center gap-2">
+			<i class="bi bi-archive" aria-hidden="true"></i>
+			<span>Submission dismissed and archived.</span>
+		</span>
+		<form
+			method="POST"
+			action="?/undo"
+			use:enhance={() => {
+				return async ({ result, update }) => {
+					await update({ reset: false, refreshAll: false });
+					if (result.type === 'success') {
+						dismissedEventId = null;
+						clearSelection({ invalidateAll: true });
+					}
+				};
+			}}
+		>
+			<input type="hidden" name="eventId" value={dismissedEventId} />
+			<Button type="submit" color="outline-secondary" size="sm">Undo dismiss</Button>
+		</form>
 	</Alert>
 {/if}
 
@@ -150,7 +211,7 @@
 		<CardBody>
 			<div class="row g-3">
 				{#if repoOptions.length > 0}
-					<div class="col-12 col-sm-6">
+					<div class="col-12 col-md-4">
 						<FormGroup class="mb-0">
 							<Label>Repository</Label>
 							<SingleSelect
@@ -168,7 +229,24 @@
 					</div>
 				{/if}
 
-				<div class="col-12 col-sm-6">
+				<div class="col-12 col-md-4">
+					<FormGroup class="mb-0">
+						<Label>Status</Label>
+						<SingleSelect
+							label="Backlog"
+							options={STATUS_OPTIONS}
+							value={status}
+							onselect={(value) => (status = value ?? 'backlog')}
+							disabled={pending !== null}
+						>
+							{#snippet icon()}
+								<i class="bi bi-circle-half fs-6" aria-hidden="true"></i>
+							{/snippet}
+						</SingleSelect>
+					</FormGroup>
+				</div>
+
+				<div class="col-6 col-md-4">
 					<FormGroup class="mb-0">
 						<Label>Size</Label>
 						<SingleSelect
@@ -185,6 +263,40 @@
 						</SingleSelect>
 					</FormGroup>
 				</div>
+
+				<div class="col-12 col-md-6">
+					<FormGroup class="mb-0">
+						<Label>Labels</Label>
+						<MultiSelect
+							label="Labels"
+							options={labelSelectOptions}
+							selected={labels}
+							onselect={(values) => (labels = values)}
+							display="selection"
+							placeholder="No extra labels"
+							size="md"
+							fullWidth
+							disabled={pending !== null}
+						/>
+					</FormGroup>
+				</div>
+
+				<div class="col-12 col-md-6">
+					<FormGroup class="mb-0">
+						<Label>Assignees</Label>
+						<MultiSelect
+							label="Assignees"
+							options={assigneeSelectOptions}
+							selected={assignees}
+							onselect={(values) => (assignees = values)}
+							display="selection"
+							placeholder="Unassigned"
+							size="md"
+							fullWidth
+							disabled={pending !== null}
+						/>
+					</FormGroup>
+				</div>
 			</div>
 		</CardBody>
 	</Card>
@@ -192,38 +304,15 @@
 
 <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 border-top mt-4 pt-4">
 	<div class="d-flex flex-wrap align-items-center gap-2">
-		<form
-			method="POST"
-			action="?/dismiss"
-			bind:this={dismissForm}
-			use:enhance={() => {
-				pending = 'dismiss';
-				begin();
-				return async ({ result, update }) => {
-					await settle(result, update);
-				};
-			}}
+		<Button
+			color="danger"
+			size="sm"
+			type="button"
+			disabled={pending !== null}
+			onclick={() => (confirmingDismiss = true)}
 		>
-			<input type="hidden" name="id" value={submission.id} />
-			<Button
-				color="danger"
-				size="sm"
-				type="submit"
-				disabled={pending !== null}
-				onclick={(event) => {
-					if (confirmingDismiss) return;
-					event.preventDefault();
-					confirmingDismiss = true;
-				}}
-			>
-				{#if pending === 'dismiss'}
-					<span class="d-inline-flex align-items-center me-1">
-						<Spinner size={12} />
-					</span>
-				{/if}
-				Dismiss submission
-			</Button>
-		</form>
+			Dismiss submission
+		</Button>
 
 		<Button
 			color="outline-secondary"
@@ -248,7 +337,14 @@
 	>
 		<input type="hidden" name="id" value={submission.id} />
 		<input type="hidden" name="repo" value={acceptRepo} />
+		<input type="hidden" name="status" value={status} />
 		<input type="hidden" name="size" value={size} />
+		{#each labels as label (label)}
+			<input type="hidden" name="labels" value={label} />
+		{/each}
+		{#each assignees as login (login)}
+			<input type="hidden" name="assignees" value={login} />
+		{/each}
 		<Button type="submit" color="primary" size="sm" disabled={pending !== null}>
 			{#if pending === 'accept'}
 				<span class="d-inline-flex align-items-center me-1">
@@ -276,15 +372,63 @@
 <Modal isOpen={confirmingDismiss} toggle={toggleDismiss}>
 	<ModalHeader toggle={closeDismiss}>Dismiss submission?</ModalHeader>
 	<ModalBody>
-		<p class="mb-0">
-			This removes “{title}” from the intake queue. The submission cannot be recovered.
+		<p>
+			This archives “{title}” with your reason. You can undo it from this page or
+			from the Inbox right after dismissing.
 		</p>
+		<form
+			id="dismiss-submission-form"
+			method="POST"
+			action="?/dismiss"
+			bind:this={dismissForm}
+			use:enhance={() => {
+				pending = 'dismiss';
+				begin();
+				return async ({ result, update }) => {
+					await update({ reset: false, refreshAll: false });
+					pending = null;
+					if (result.type === 'success') {
+						dismissedEventId =
+							typeof result.data?.eventId === 'string' ? result.data.eventId : null;
+						confirmingDismiss = false;
+						return;
+					}
+					restoreSubmission(submission.id);
+				};
+			}}
+		>
+			<input type="hidden" name="id" value={submission.id} />
+			<FormGroup class="mb-0">
+				<Label for="dismiss-reason">Reason</Label>
+				<Input
+					id="dismiss-reason"
+					name="reason"
+					type="textarea"
+					rows={3}
+					maxlength={500}
+					required
+					bind:value={dismissReason}
+					placeholder="Why is this submission being dismissed?"
+				/>
+				<div class="form-text">Required, up to 500 characters.</div>
+			</FormGroup>
+		</form>
 	</ModalBody>
 	<ModalFooter>
 		<Button color="outline-secondary" onclick={closeDismiss} disabled={pending !== null}>
 			Keep submission
 		</Button>
-		<Button color="danger" onclick={confirmDismiss} disabled={pending !== null}>
+		<Button
+			type="submit"
+			form="dismiss-submission-form"
+			color="danger"
+			disabled={pending !== null || dismissReason.trim().length === 0}
+		>
+			{#if pending === 'dismiss'}
+				<span class="d-inline-flex align-items-center me-1">
+					<Spinner size={12} />
+				</span>
+			{/if}
 			Dismiss submission
 		</Button>
 	</ModalFooter>

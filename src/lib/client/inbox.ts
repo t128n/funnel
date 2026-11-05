@@ -58,7 +58,10 @@ export function inboxEmptyState(queueTotal: number): InboxEmptyState {
  * action and leaves the rest in `url.searchParams`, so a no-JS post returns to
  * the same filtered queue rather than an action-only URL.
  */
-export function inboxActionUrl(search: string, action: "accept" | "dismiss"): string {
+export function inboxActionUrl(
+  search: string,
+  action: "accept" | "dismiss" | "undo",
+): string {
   const query = search.startsWith("?") ? search.slice(1) : search;
   return query ? `?${query}&/${action}` : `?/${action}`;
 }

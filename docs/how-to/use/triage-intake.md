@@ -57,27 +57,30 @@ The pane has three decisions: **Dismiss**, **Duplicate** and **Accept**.
 Accepting creates the GitHub issue and clears the staged row.
 
 1. Select the **Repository** pill. The options come from the repositories currently in the mirror; the server still rejects a target that is not in Settings → Repositories. The initial selection is `intake.default_repo`, falling back to the first configured repository, then to the first available option.
-2. Optionally choose a **size** (`S`, `M`, `L`). Priority is not set at intake: it is derived later in the Inspector from impact and urgency.
-3. Select **Accept**.
+2. Choose a **status** (Backlog, Todo, In Progress or In Review). Backlog is the default.
+3. Optionally choose a **size** (`S`, `M`, `L`), extra **labels** and one or more **assignees**. Priority is not set at intake: it is derived later in the Inspector from impact and urgency.
+4. Select **Accept**.
 
 What Funnel does:
 
 - Requires a `write` session and a resolvable GitHub user token.
 - Rejects a repository that is not in the instance settings. If no repository can be resolved, the request fails with “No target repository selected”.
 - Creates the issue with the submission's title and body, plus a provenance footer such as `_Submitted via Funnel intake (source: email)_`.
-- Applies the `backlog` status label first, followed by the selected size label. Retired `p1`–`p3` labels are never written.
-- Hard-deletes the staged row only after GitHub confirms the create.
+- Applies the selected status label first, followed by the selected size, extra labels and assignees. Retired `p1`–`p3` labels are never written.
+- Archives the staged row and appends an `accepted` triage event only after GitHub confirms the create.
 - Publishes an intake event so open cockpits remove the row from the queue.
-
-The Accept form does not offer labels or assignees. Set those after creation from the issue inspector; see [Create and edit issues](create-and-edit-issues.md).
 
 If the GitHub write fails, the submission stays staged and the Inbox shows the failure message above the queue. The detail pane remains open so you can correct the choice and retry.
 
 ## Dismiss a submission
 
 1. Select **Dismiss**.
+2. Enter why the submission is being dismissed. The reason is required free text, trimmed and limited to 500 characters.
+3. Confirm **Dismiss submission**.
 
-Dismissal requires a `write` session but no GitHub token, because it only touches local staging state. The row is hard-deleted immediately and no GitHub issue or comment is created. A failure restores the row and reports the error in the Inbox.
+Dismissal requires a `write` session but no GitHub token, because it only touches local staging state. Funnel archives the row with the reason and appends a `dismissed` event that records the actor and reason; no GitHub issue or comment is created. A failure restores the row and reports the error in the Inbox.
+
+After a dismiss, the queue and the submission page show an inline **Undo dismiss** action for the latest dismissal. Undo restores the submission to the pending queue and appends an `undone` event. Existing events are never edited or deleted, so the dismissal reason and actor remain in history.
 
 ## Duplicate a submission
 
@@ -88,21 +91,24 @@ Duplication records the report as a comment on an existing mirrored issue.
 3. Choose the **Existing issue**.
 4. Select **Duplicate**.
 
-Funnel requires a `write` session and a GitHub user token. The repository and issue must already be present in the mirror. It posts a comment containing the submission title in bold, the submission body and the provenance footer, then hard-deletes the staged row. There is no free-text comment field: the comment is generated from the submission. If the comment fails, the row is restored and the dialog shows the error.
+Funnel requires a `write` session and a GitHub user token. The repository and issue must already be present in the mirror. It posts a comment containing the submission title in bold, the submission body and the provenance footer, then archives the staged row with the duplicate target (`owner/name` and issue number) and appends a `duplicated` event. There is no free-text comment field: the comment is generated from the submission. If the comment fails, the row is restored and the dialog shows the error.
 
-## Hard-delete semantics
+## Archive and audit history
 
-Every triage decision removes the staged row. There is no trash, archive or local history.
+Triage decisions archive the staged row instead of deleting it. Pending Inbox queries and counts only see rows with `archived_at IS NULL`, so an archived row disappears from the queue while remaining available to local history. The archive also stores the dismiss reason and duplicate target for display. `deleteSubmission` remains an explicit cleanup/test helper; no triage decision calls it.
 
-| Decision | GitHub write | Staged row |
-| :--- | :--- | :--- |
-| Accept | Creates an issue | Deleted after GitHub confirms |
-| Dismiss | None | Deleted immediately |
-| Duplicate | Posts a comment on an existing issue | Deleted after GitHub confirms |
+| Decision | GitHub write | Staged row | Audit event |
+| :--- | :--- | :--- | :--- |
+| Accept | Creates an issue | Archived after GitHub confirms | `accepted`, with repo and issue number |
+| Dismiss | None | Archived immediately with the reason | `dismissed`, with actor and reason |
+| Duplicate | Posts a comment on an existing issue | Archived after GitHub confirms | `duplicated`, with target repo and number |
+| Undo dismiss | None | Restored to the pending queue | `undone`, with actor |
 
-The GitHub-backed decisions are pessimistic: Accept and Duplicate delete the row only after GitHub confirms. Dismiss deletes immediately because it has no upstream write. If Funnel crashes after GitHub accepts an issue but before the row is deleted, the row can remain staged; retrying Accept would create a second issue. Durable history lives on GitHub once the submission is accepted.
+Every event is an append-only `state_triage_event` row containing the submission id, action, actor (`auth_user.id`), repo/number where relevant, reason and timestamp. The table has no foreign key to the submission row, so the history survives the submission being archived or removed. Undo never updates or deletes an event; it appends `undone` and restores the submission.
 
-If a submission id is no longer present, the detail route returns a 404.
+The GitHub-backed decisions are pessimistic: Accept and Duplicate archive the row only after GitHub confirms. Dismiss archives immediately because it has no upstream write. If Funnel crashes after GitHub accepts an issue but before the row is archived, the row can remain staged; retrying Accept would create a second issue. GitHub remains the source of truth for accepted issues; the local event log is triage history, not a second issue store.
+
+An archived submission stays viewable by id and shows its decision (dismiss reason or duplicate target); a missing or hard-deleted id returns a 404.
 
 ## Related
 

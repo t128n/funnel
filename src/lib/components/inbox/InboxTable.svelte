@@ -90,10 +90,14 @@
 	// no-JS post too (SvelteKit strips only the leading `/<action>` parameter).
 	const acceptAction = $derived(inboxActionUrl(page.url.search, 'accept'));
 	const dismissAction = $derived(inboxActionUrl(page.url.search, 'dismiss'));
+	const undoAction = $derived(inboxActionUrl(page.url.search, 'undo'));
 
 	let busy = $state<Record<string, Busy>>({});
 	let error = $state<string | null>(null);
 	let declining = $state<SubmissionEntry | null>(null);
+	let dismissReason = $state('');
+	let undoEventId = $state<string | null>(null);
+	let undoSubmissionId = $state<string | null>(null);
 
 	function entryKey(entry: RenderedInboxEntry): string {
 		return entry.kind === 'submission'
@@ -128,6 +132,16 @@
 			// The fresh first page omits the consumed submission, but the loaded
 			// window keeps its tail; drop the row so it cannot stay interactive.
 			onremove?.(`submission:${id}`);
+			if (verb === 'dismissed') {
+				// The row is archived, not deleted: keep the appended event so the
+				// inline alert can offer Undo without leaving the queue.
+				undoEventId =
+					typeof result.data?.eventId === 'string' ? result.data.eventId : null;
+				undoSubmissionId = id;
+				dismissReason = '';
+				onnotice?.(null);
+				return;
+			}
 			onnotice?.(`Submission ${verb}. It is no longer in the queue.`);
 			return;
 		}
@@ -137,6 +151,12 @@
 				? result.data.message
 				: 'Could not complete the triage action. Try again.';
 		error = message;
+	}
+
+	function startDecline(entry: SubmissionEntry): void {
+		declining = entry;
+		dismissReason = '';
+		error = null;
 	}
 
 	async function triageIssue(issue: IssueListItem, status: string): Promise<void> {
@@ -165,6 +185,41 @@
 
 {#if error}
 	<Alert color="danger" class="border py-2 small mb-2">{error}</Alert>
+{/if}
+
+{#if undoEventId && undoSubmissionId}
+	<Alert
+		color="warning"
+		class="border py-2 small mb-2 d-flex flex-wrap align-items-center justify-content-between gap-2"
+	>
+		<span class="d-inline-flex align-items-center gap-2">
+			<i class="bi bi-archive" aria-hidden="true"></i>
+			<span>Submission dismissed and archived.</span>
+		</span>
+		<form
+			method="POST"
+			action={undoAction}
+			use:enhance={() => {
+				return async ({ result, update }) => {
+					await update({ reset: false, invalidateAll: true });
+					if (result.type === 'success') {
+						if (undoSubmissionId) restoreSubmission(undoSubmissionId);
+						undoEventId = null;
+						undoSubmissionId = null;
+						onnotice?.('Submission restored to the queue.');
+						return;
+					}
+					error =
+						result.type === 'failure' && typeof result.data?.message === 'string'
+							? result.data.message
+							: 'Could not undo the dismissal. Try again.';
+				};
+			}}
+		>
+			<input type="hidden" name="eventId" value={undoEventId} />
+			<Button type="submit" color="outline-secondary" size="sm">Undo dismiss</Button>
+		</form>
+	</Alert>
 {/if}
 
 <div class="table-responsive border rounded">
@@ -264,7 +319,7 @@
 									color="outline-secondary"
 									size="sm"
 									disabled={busy[submission.id] !== undefined}
-									onclick={() => (declining = entry)}
+									onclick={() => startDecline(entry)}
 									aria-label={`Decline submission: ${title}`}
 								>
 									Decline
@@ -331,10 +386,23 @@
 <Modal isOpen={declining !== null} toggle={closeDecline}>
 	<ModalHeader toggle={closeDecline}>Dismiss submission?</ModalHeader>
 	<ModalBody>
-		<p class="mb-0">
-			This removes “{declining ? submissionTitle(declining.submission.title) : ''}” from the intake
-			queue. The submission cannot be recovered.
+		<p>
+			This archives “{declining ? submissionTitle(declining.submission.title) : ''}” with your
+			reason. You can undo it from the queue right after dismissing.
 		</p>
+		<label class="form-label" for="inbox-dismiss-reason">Reason</label>
+		<textarea
+			id="inbox-dismiss-reason"
+			form="inbox-dismiss-form"
+			name="reason"
+			class="form-control"
+			rows="3"
+			maxlength="500"
+			required
+			placeholder="Why is this submission being dismissed?"
+			bind:value={dismissReason}
+		></textarea>
+		<div class="form-text">Required, up to 500 characters.</div>
 	</ModalBody>
 	<ModalFooter>
 		<Button
@@ -345,6 +413,7 @@
 			Keep submission
 		</Button>
 		<form
+			id="inbox-dismiss-form"
 			method="POST"
 			action={dismissAction}
 			use:enhance={() => {
@@ -363,7 +432,10 @@
 				type="submit"
 				color="danger"
 				size="sm"
-				disabled={declining !== null && busy[declining.submission.id] !== undefined}
+				disabled={
+					declining !== null &&
+					(busy[declining.submission.id] !== undefined || dismissReason.trim().length === 0)
+				}
 			>
 				{#if declining && busy[declining.submission.id] === 'dismiss'}
 					<span class="d-inline-flex align-items-center me-1">

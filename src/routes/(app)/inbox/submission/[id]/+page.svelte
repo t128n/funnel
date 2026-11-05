@@ -18,10 +18,14 @@
 				return entry.submission;
 			}
 		}
-		return null;
+		return data.archivedSubmission;
 	});
 
 	const repos = $derived(data.options.repos.map((repo) => repo.slug));
+	const labelOptions = $derived(data.options.labels);
+	const assigneeOptions = $derived(
+		data.options.assignees.map((assignee) => assignee.login)
+	);
 </script>
 
 <main class="container-xl py-4">
@@ -29,7 +33,14 @@
 
 	{#if submission}
 		<PageHead title={`${submission.title} · Inbox`} />
-		<SubmissionDetail {submission} {repos} defaultRepo={data.defaultRepo} />
+		<SubmissionDetail
+			{submission}
+			{repos}
+			{labelOptions}
+			{assigneeOptions}
+			defaultRepo={data.defaultRepo}
+			undoEventId={data.archivedUndoEventId}
+		/>
 	{:else}
 		<PageHead title="Submission · Inbox" />
 		<EmptyState

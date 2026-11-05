@@ -51,6 +51,10 @@ function submission(id: string): RenderedInboxEntry {
       bodyHtml: "",
       source: null,
       createdAt: 0,
+      archivedAt: null,
+      dismissReason: null,
+      duplicateRepo: null,
+      duplicateNumber: null,
     },
   };
 }

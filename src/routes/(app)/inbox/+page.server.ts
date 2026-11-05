@@ -1,4 +1,4 @@
-import { accept, dismiss } from "#lib/server/intake/route-actions";
+import { accept, dismiss, undo } from "#lib/server/intake/route-actions";
 import type { Actions } from "./$types";
 
 /**
@@ -6,4 +6,4 @@ import type { Actions } from "./$types";
  * decision posted from `/inbox` therefore settles on `/inbox` instead of
  * navigating to the just-consumed submission page (which returned 404).
  */
-export const actions: Actions = { accept, dismiss };
+export const actions: Actions = { accept, dismiss, undo };

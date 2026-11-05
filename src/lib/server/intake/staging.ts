@@ -2,16 +2,15 @@
  * Staging store for Funnel-first intake (SPEC §6).
  *
  * External submissions (`POST /api/intake`) land in `state_intake_submission`
- * and stay there until a triager decides. The queue is strictly ephemeral
- * (INTERVIEW Q8): Accept creates the GitHub issue, Dismiss drops the row,
- * Duplicate copies the text onto an existing issue — every decision hard-deletes
- * the row. There is no trash bin and no archive; durable history lives on
- * GitHub once accepted.
+ * and stay there until a triager decides. Every decision archives the row
+ * (`archived_at`): the pending queue only reads rows without it, while the
+ * archive keeps the dismiss reason and duplicate target. The append-only
+ * decision history lives in `state_triage_event` (`./events`).
  *
- * This module is deliberately thin: reads for the Inbox/filter layer land in
- * Milestone 5, so only the create/triage primitives live here.
+ * This module is deliberately thin: reads for the Inbox/filter layer live in
+ * `#lib/server/issues/queries`, so only staging primitives live here.
  */
-import { desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, isNull, sql } from "drizzle-orm";
 import { db } from "#lib/server/db/index";
 import { stateIntakeSubmission } from "#lib/server/db/schema";
 import { createLogger } from "#lib/server/log";
@@ -42,6 +41,10 @@ export interface StagedSubmission {
   body: string;
   source: string | null;
   createdAt: number;
+  archivedAt: number | null;
+  dismissReason: string | null;
+  duplicateRepo: string | null;
+  duplicateNumber: number | null;
 }
 
 export interface CreateSubmissionInput {
@@ -110,7 +113,18 @@ export function listSubmissions(): StagedSubmission[] {
   return db
     .select()
     .from(stateIntakeSubmission)
+    .where(isNull(stateIntakeSubmission.archivedAt))
     // `rowid` breaks same-millisecond ties so ordering is deterministic.
+    .orderBy(desc(stateIntakeSubmission.createdAt), sql`rowid desc`)
+    .all();
+}
+
+/** Archived submissions, newest first (local history; not the pending queue). */
+export function listArchivedSubmissions(): StagedSubmission[] {
+  return db
+    .select()
+    .from(stateIntakeSubmission)
+    .where(sql`${stateIntakeSubmission.archivedAt} IS NOT NULL`)
     .orderBy(desc(stateIntakeSubmission.createdAt), sql`rowid desc`)
     .all();
 }
@@ -123,11 +137,15 @@ export function listSubmissions(): StagedSubmission[] {
  */
 export function countPendingSubmissions(search = ""): number {
   const needle = search.toLowerCase();
+  const pending = isNull(stateIntakeSubmission.archivedAt);
   const where =
     needle.length === 0
-      ? undefined
-      : sql`instr(lower(${stateIntakeSubmission.title}), ${needle}) > 0
-          OR instr(lower(${stateIntakeSubmission.body}), ${needle}) > 0`;
+      ? pending
+      : and(
+          pending,
+          sql`(instr(lower(${stateIntakeSubmission.title}), ${needle}) > 0
+              OR instr(lower(${stateIntakeSubmission.body}), ${needle}) > 0)`,
+        );
   const row = db
     .select({ value: sql<number>`count(*)` })
     .from(stateIntakeSubmission)
@@ -136,7 +154,66 @@ export function countPendingSubmissions(search = ""): number {
   return Number(row?.value ?? 0);
 }
 
-/** Hard-delete a staged row. Returns whether a row was actually removed. */
+/** Fields a triage decision records on the archived submission row. */
+export interface ArchivePatch {
+  dismissReason?: string | null;
+  duplicateRepo?: string | null;
+  duplicateNumber?: number | null;
+}
+
+/**
+ * Archive a pending submission, recording the decision fields the archive
+ * shows. Returns whether a pending row was actually archived; an already
+ * archived row is left untouched.
+ */
+export function archiveSubmission(
+  id: string,
+  patch: ArchivePatch = {},
+  archivedAt = Date.now(),
+): boolean {
+  const result = db
+    .update(stateIntakeSubmission)
+    .set({
+      archivedAt,
+      ...(patch.dismissReason !== undefined
+        ? { dismissReason: patch.dismissReason }
+        : {}),
+      ...(patch.duplicateRepo !== undefined
+        ? { duplicateRepo: patch.duplicateRepo }
+        : {}),
+      ...(patch.duplicateNumber !== undefined
+        ? { duplicateNumber: patch.duplicateNumber }
+        : {}),
+    })
+    .where(
+      and(
+        eq(stateIntakeSubmission.id, id),
+        isNull(stateIntakeSubmission.archivedAt),
+      ),
+    )
+    .run();
+  return result.changes > 0;
+}
+
+/**
+ * Restore a dismissed submission to the pending queue. The dismiss reason is
+ * cleared from the row; the event history keeps the original reason.
+ */
+export function restoreSubmission(id: string): boolean {
+  const result = db
+    .update(stateIntakeSubmission)
+    .set({ archivedAt: null, dismissReason: null })
+    .where(
+      and(
+        eq(stateIntakeSubmission.id, id),
+        sql`${stateIntakeSubmission.archivedAt} IS NOT NULL`,
+      ),
+    )
+    .run();
+  return result.changes > 0;
+}
+
+/** Hard-delete a staged row. Reserved for explicit cleanup/tests, not triage. */
 export function deleteSubmission(id: string): boolean {
   const result = db
     .delete(stateIntakeSubmission)
