@@ -1,0 +1,41 @@
+name: verify
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+# Superseded pull request runs are cancelled; pushes to main are not.
+concurrency:
+  group: verify-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Verify (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest
+          - windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Setup mise
+        uses: jdx/mise-action@v5
+
+      - name: Install dependencies
+        run: mise run bun:install
+
+      - name: Verify
+        run: mise run verify
