@@ -56,9 +56,11 @@ import {
 import { listAttachments } from "#lib/server/attachments/store";
 import {
   countPendingSubmissions,
+  getSubmission,
   listSubmissions,
 } from "#lib/server/intake/staging";
-import { listRepos } from "#lib/server/sync/mirror";
+import { activeSnoozes, issueSnoozeClause } from "#lib/server/snooze";
+import { getRepoByOrgName, listRepos } from "#lib/server/sync/mirror";
 import { mirrorRevision } from "#lib/server/sync/revision";
 import { listWorkNotes } from "#lib/server/work-notes";
 import { estimateMinutes } from "#lib/server/planning/capacity";
@@ -774,8 +776,8 @@ function submissionFreeText(filter: IssueFilter): string | null {
 }
 
 /** Pending submissions matching the search term (submissions carry no metadata). */
-function pendingSubmissions(filter: IssueFilter) {
-  const submissions = listSubmissions();
+function pendingSubmissions(filter: IssueFilter, now: number) {
+  const submissions = listSubmissions(now);
   const text = submissionFreeText(filter);
   if (text === null) return filter.search.length > 0 ? [] : submissions;
   return submissions.filter((submission) =>
@@ -784,19 +786,26 @@ function pendingSubmissions(filter: IssueFilter) {
 }
 
 /** Pending submission count, mirroring {@link pendingSubmissions}. */
-function pendingSubmissionCount(filter: IssueFilter): number {
+function pendingSubmissionCount(filter: IssueFilter, now: number): number {
   const text = submissionFreeText(filter);
-  if (text === null) return filter.search.length > 0 ? 0 : countPendingSubmissions();
-  return countPendingSubmissions(text);
+  if (text === null) {
+    return filter.search.length > 0 ? 0 : countPendingSubmissions("", now);
+  }
+  return countPendingSubmissions(text, now);
 }
 
-/** The `WHERE` for untriaged open issues (SQL mirror of `isUntriaged`). */
-function untriagedWhere(filter: IssueFilter): SQL {
+/**
+ * The `WHERE` for untriaged open issues (SQL mirror of `isUntriaged`). Items
+ * with an active snooze stay in the mirror (All Issues, board and matrix still
+ * show them) but are omitted from the pending Inbox until they are due.
+ */
+function untriagedWhere(filter: IssueFilter, now: number): SQL {
   // Keep in step with `isUntriaged` (#lib/labels), which the client projects the
   // queue with.
   const untriaged = and(
     eq(mirrorThread.state, "open"),
     isNull(mirrorThread.status),
+    issueSnoozeClause(now),
   );
   const base = buildIssueWhere(filter);
   return (base ? and(untriaged, base) : untriaged) as SQL;
@@ -812,10 +821,11 @@ function untriagedWhere(filter: IssueFilter): SQL {
 export function inbox(
   filter: IssueFilter,
   opts: PageOptions = {},
+  now = Date.now(),
 ): InboxResult {
-  const submissions = pendingSubmissions(filter);
+  const submissions = pendingSubmissions(filter, now);
   const page = pageIssues(
-    untriagedWhere(filter),
+    untriagedWhere(filter, now),
     opts,
     // The `inbox` discriminator keeps this cursor from being replayed against
     // the disjoint All Issues feed, whose filter signature is otherwise equal.
@@ -839,13 +849,93 @@ export function inbox(
 
 /**
  * Inbox badge count: pending submissions plus untriaged open issues, without
- * materialising (or hydrating) the queue.
+ * materialising (or hydrating) the queue. Active snoozes are excluded, so the
+ * sidebar count matches the rows the queue actually shows.
  */
-export function inboxCount(filter: IssueFilter): number {
+export function inboxCount(filter: IssueFilter, now = Date.now()): number {
   return (
-    pendingSubmissionCount(filter) +
-    cachedCount(untriagedWhere(filter), filterSignature(filter, "inbox"))
+    pendingSubmissionCount(filter, now) +
+    cachedCount(
+      untriagedWhere(filter, now),
+      filterSignature(filter, "inbox"),
+    )
   );
+}
+
+/** One item in the Snoozed view. */
+export interface SnoozedInboxEntry {
+  kind: "submission" | "issue";
+  /** Stable `state_snooze.key`. */
+  key: string;
+  /** Submission id (submission entries only). */
+  submissionId: string | null;
+  /** `owner/name` (issue entries only). */
+  repo: string | null;
+  /** Issue number (issue entries only). */
+  number: number | null;
+  title: string;
+  /** Unix ms when the item returns to the Inbox. */
+  snoozedUntil: number;
+  /** Unix ms when the snooze was set. */
+  snoozedAt: number;
+  /**
+   * Whether the underlying row still exists (a pruned issue or a triaged
+   * submission may not). The view still offers Resurface so the snooze can be
+   * cleared.
+   */
+  available: boolean;
+}
+
+/**
+ * Active snoozes enriched for the Snoozed view. Submissions are read from the
+ * staging table and issues from the disposable mirror when present; a pruned
+ * issue keeps its snooze row and falls back to `owner/name#number`.
+ */
+export function snoozedInbox(now = Date.now()): SnoozedInboxEntry[] {
+  return snoozedEntries(activeSnoozes(now));
+}
+
+/** Enrich raw snooze rows without touching the database beyond lookups. */
+function snoozedEntries(
+  rows: ReturnType<typeof activeSnoozes>,
+): SnoozedInboxEntry[] {
+  return rows.map((row) => {
+    const base = {
+      key: row.key,
+      snoozedUntil: row.snoozedUntil,
+      snoozedAt: row.createdAt,
+    };
+    if (row.submissionId !== null) {
+      const submission = getSubmission(row.submissionId);
+      return {
+        ...base,
+        kind: "submission" as const,
+        submissionId: row.submissionId,
+        repo: null,
+        number: null,
+        title: submission?.title.trim() || "Untitled submission",
+        available: submission !== undefined && submission.archivedAt === null,
+      };
+    }
+
+    const repo = row.repo ?? "";
+    const number = row.number ?? 0;
+    const slash = repo.indexOf("/");
+    const mirrored =
+      slash > 0
+        ? getRepoByOrgName(repo.slice(0, slash), repo.slice(slash + 1))
+        : undefined;
+    const issue = mirrored ? getIssueListItem(mirrored.id, number) : undefined;
+    return {
+      ...base,
+      kind: "issue" as const,
+      submissionId: null,
+      repo,
+      number,
+      title: issue?.title.trim() || `${repo}#${number}`,
+      available: issue !== undefined,
+    };
+  });
 }
 
 /** Build the `WHERE` for one board lane (status columns or the Done window). */

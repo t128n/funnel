@@ -27,6 +27,7 @@ import {
 import { createLogger, errorFields } from "#lib/server/log";
 import { createRepoMilestone } from "#lib/server/github/milestones";
 import { publish } from "#lib/server/sync/events";
+import { clearIssueSnooze } from "#lib/server/snooze";
 import { isRetiredPriorityLabel } from "#lib/priority";
 import { groupOf } from "./filters";
 
@@ -442,6 +443,11 @@ export async function updateIssue(
     };
   }
 
+  // A triage/status write moves the issue out of the Inbox; its snooze has
+  // served its purpose and must not resurface it later.
+  if (input.status !== undefined) {
+    clearIssueSnooze(input.repo, input.number);
+  }
   publish({ type: "issues", repo: input.repo, numbers: [input.number] });
   return {
     ok: true,

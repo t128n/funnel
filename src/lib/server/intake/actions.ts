@@ -26,6 +26,7 @@ import { getIssue, getRepoByOrgName } from "#lib/server/sync/mirror";
 import { vocabularyFor } from "#lib/server/label-vocabulary";
 import { isRetiredPriorityLabel } from "#lib/priority";
 import { publish } from "#lib/server/sync/events";
+import { clearSubmissionSnooze } from "#lib/server/snooze";
 import {
   getTriageEvent,
   latestTriageEvent,
@@ -220,6 +221,7 @@ export async function acceptSubmission(
   // (SPEC §6.2). A crash between success and this archive can leave the row
   // staged; retrying would double-create, which the pessimistic model accepts.
   archiveSubmission(input.id);
+  clearSubmissionSnooze(input.id);
   recordTriageEvent({
     submissionId: input.id,
     action: "accepted",
@@ -265,6 +267,7 @@ export function dismissSubmission(input: DismissInput): Outcome<DismissResult> {
   if (!archiveSubmission(input.id, { dismissReason: reason })) {
     return { ok: false, status: 404, message: "Submission not found" };
   }
+  clearSubmissionSnooze(input.id);
   const eventId = recordTriageEvent({
     submissionId: input.id,
     action: "dismissed",
@@ -313,6 +316,7 @@ export function undoTriageEvent(
       message: "Submission is already in the queue",
     };
   }
+  clearSubmissionSnooze(event.submissionId);
 
   recordTriageEvent({
     submissionId: event.submissionId,
@@ -384,6 +388,7 @@ export async function duplicateSubmission(
     duplicateRepo: input.repo,
     duplicateNumber: input.number,
   });
+  clearSubmissionSnooze(input.id);
   recordTriageEvent({
     submissionId: input.id,
     action: "duplicated",

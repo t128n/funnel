@@ -35,9 +35,17 @@
 		Table
 	} from '@sveltestrap/sveltestrap';
 	import Spinner from '#lib/components/common/Spinner.svelte';
+	import SnoozeControl from '#lib/components/inbox/SnoozeControl.svelte';
 	import { timeAgo } from '#lib/client/clock.svelte';
 	import { inboxActionUrl } from '#lib/client/inbox';
-	import { mutate, overlayKey, removeSubmission, restoreSubmission } from '#lib/client/optimistic.svelte';
+	import {
+		mutate,
+		overlayKey,
+		removeSnoozedIssue,
+		removeSubmission,
+		restoreSnoozedIssue,
+		restoreSubmission
+	} from '#lib/client/optimistic.svelte';
 	import { updateIssue } from '#lib/client/mutations';
 	import { issuePath, submissionPath } from '#lib/issue-url';
 	import { issueRef } from '#lib/issue-ref';
@@ -181,6 +189,25 @@
 		if (busy[declining.submission.id] !== undefined) return;
 		declining = null;
 	}
+
+	/** Optimistically drop a snoozed submission; restored on failure. */
+	function hideSnoozedSubmission(entry: SubmissionEntry): void {
+		removeSubmission(entry.submission.id);
+	}
+
+	/** Optimistically drop a snoozed issue; restored on failure. */
+	function hideSnoozedIssue(issue: IssueListItem): void {
+		removeSnoozedIssue(issue.repo, issue.number);
+	}
+
+	function announceSnooze(label: string, until: number): void {
+		onnotice?.(`Snoozed ${label} until ${absoluteTime(until)}.`);
+	}
+
+	function snoozeFailed(message: string): void {
+		error = message;
+		onnotice?.(null);
+	}
 </script>
 
 {#if error}
@@ -314,6 +341,17 @@
 										Accept
 									</Button>
 								</form>
+								<SnoozeControl
+									target={{ kind: 'submission', id: submission.id }}
+									label={`submission ${title}`}
+									disabled={busy[submission.id] !== undefined}
+									onstart={() => hideSnoozedSubmission(entry)}
+									onsuccess={(until) => announceSnooze('submission', until)}
+									onfailure={(message) => {
+										restoreSubmission(submission.id);
+										snoozeFailed(message);
+									}}
+								/>
 								<Button
 									type="button"
 									color="outline-secondary"
@@ -361,20 +399,33 @@
 							</time>
 						</td>
 						<td class="text-end text-nowrap">
-							<Input
-								type="select"
-								bsSize="sm"
-								class="triage-select"
-								aria-label={`Triage ${ref}`}
-								value=""
-								disabled={busy[issueKey(issue)] !== undefined}
-								on:change={(event) => void triageIssue(issue, event.currentTarget.value)}
-							>
-								<option value="" disabled>Triage…</option>
-								{#each STATUS_OPTIONS as option (option.value)}
-									<option value={option.value}>{option.label}</option>
-								{/each}
-							</Input>
+							<div class="d-inline-flex align-items-center justify-content-end gap-1">
+								<SnoozeControl
+									target={{ kind: 'issue', repo: issue.repo, number: issue.number }}
+									label={ref}
+									disabled={busy[issueKey(issue)] !== undefined}
+									onstart={() => hideSnoozedIssue(issue)}
+									onsuccess={(until) => announceSnooze(ref, until)}
+									onfailure={(message) => {
+										restoreSnoozedIssue(issue.repo, issue.number);
+										snoozeFailed(message);
+									}}
+								/>
+								<Input
+									type="select"
+									bsSize="sm"
+									class="triage-select"
+									aria-label={`Triage ${ref}`}
+									value=""
+									disabled={busy[issueKey(issue)] !== undefined}
+									on:change={(event) => void triageIssue(issue, event.currentTarget.value)}
+								>
+									<option value="" disabled>Triage…</option>
+									{#each STATUS_OPTIONS as option (option.value)}
+										<option value={option.value}>{option.label}</option>
+									{/each}
+								</Input>
+							</div>
 						</td>
 					</tr>
 				{/if}
@@ -458,6 +509,6 @@
 	}
 
 	.inbox-col-triage {
-		width: 11rem;
+		width: 17rem;
 	}
 </style>
