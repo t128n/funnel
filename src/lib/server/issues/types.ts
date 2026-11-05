@@ -99,6 +99,30 @@ export interface LinkedPullRequest {
   mergedAt: number | null;
 }
 
+/** One issue linked to another by a GitHub parent/sub-issue or dependency. */
+export interface IssueRelationRef {
+  /** `owner/name` of the related issue (may be a different repository). */
+  repo: string;
+  number: number;
+  title: string;
+  /** `open` | `closed`. */
+  state: string;
+  url: string;
+}
+
+/**
+ * GitHub-native relationships mirrored for one issue. These are separate from
+ * Funnel's manual `blocked` flag: they report what GitHub itself links.
+ */
+export interface IssueRelations {
+  parent: IssueRelationRef | null;
+  children: IssueRelationRef[];
+  blockedBy: IssueRelationRef[];
+  blocking: IssueRelationRef[];
+  /** Derived from `children`; `null` when the issue has no sub-issues. */
+  progress: { total: number; completed: number; percent: number } | null;
+}
+
 /** One row in a dense issue stream (All Issues / My Issues / Inbox issues). */
 export interface IssueListItem {
   repoId: number;
@@ -369,6 +393,8 @@ export interface IssueDetail {
   attachments: AttachmentItem[];
   /** Linked pull requests with state, review decision and check rollup. */
   pullRequests: LinkedPullRequest[];
+  /** GitHub-native parent/sub-issue and dependency links (issue #34). */
+  relations: IssueRelations;
   /** Every label defined on the issue's repo (reserved and non-reserved). */
   repoLabels: RepoLabelOption[];
   /** Users assignable on the issue's repo, plus current assignees (SPEC §9.2). */

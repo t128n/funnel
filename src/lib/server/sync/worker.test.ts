@@ -16,6 +16,7 @@ import { TEST_CONFIG } from "#tests/test-config";
 import { clearMirror } from "#tests/mirror-helpers";
 import { captureLog, type LogCapture } from "#tests/log-capture";
 import { resetEventBus, subscribe } from "./events";
+import { HYDRATE_QUERY } from "./hydrate";
 import * as mirror from "./mirror";
 import {
   inHistoryWindow,
@@ -79,8 +80,8 @@ const fakeProvider = {
     }
     return { data: {} };
   },
-  graphql: async (_query: string, variables?: Record<string, unknown>) => {
-    graphqlCalls.push(variables ?? {});
+  graphql: async (query: string, variables?: Record<string, unknown>) => {
+    graphqlCalls.push({ query, ...variables });
     return { nodes };
   },
   repos: {
@@ -416,9 +417,12 @@ describe("pollRepo", () => {
 
     expect(result.changed).toBe(101);
     expect(listQueries).toHaveLength(2);
-    expect(graphqlCalls).toHaveLength(2);
-    expect((graphqlCalls[0].ids as string[]).length).toBe(100);
-    expect(graphqlCalls[1].ids).toEqual(["n101"]);
+    const hydrateCalls = graphqlCalls.filter(
+      (call) => call.query === HYDRATE_QUERY,
+    );
+    expect(hydrateCalls).toHaveLength(2);
+    expect((hydrateCalls[0].ids as string[]).length).toBe(100);
+    expect(hydrateCalls[1].ids).toEqual(["n101"]);
   });
 
   test("prunes changed issues that aged out of the window", async () => {

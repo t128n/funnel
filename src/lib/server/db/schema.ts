@@ -987,6 +987,52 @@ export const mirrorIssuePullRequest = sqliteTable(
   ],
 );
 
+// ---------------------------------------------------------------------------
+// Mirror: GitHub-native issue relationships (issue #34).
+//
+// Parent/sub-issue and blocked-by/blocking edges are read from separate
+// GraphQL queries and stored as disposable edges. The source issue is the row
+// the edge was hydrated for; `target_repo`/`target_number` identify the other
+// side and may point at another repository. There is no FK to
+// `mirror_thread`: both sides are disposable and a target may not be mirrored
+// yet. `deleteIssue` removes the source issue's rows explicitly.
+// ---------------------------------------------------------------------------
+export const mirrorIssueRelation = sqliteTable(
+  "mirror_issue_relation",
+  {
+    repoId: integer("repo_id")
+      .notNull()
+      .references(() => mirrorRepo.id, { onDelete: "cascade" }),
+    issueNumber: integer("issue_number").notNull(),
+    /** `parent` | `child` | `blocked_by` | `blocking`. */
+    kind: text("kind").notNull(),
+    /** `owner/name` of the related issue; may be a different repository. */
+    targetRepo: text("target_repo").notNull(),
+    targetNumber: integer("target_number").notNull(),
+    targetTitle: text("target_title").notNull().default(""),
+    /** `open` | `closed`. */
+    targetState: text("target_state").notNull().default("open"),
+    targetUrl: text("target_url").notNull().default(""),
+  },
+  (t) => [
+    primaryKey({
+      columns: [
+        t.repoId,
+        t.issueNumber,
+        t.kind,
+        t.targetRepo,
+        t.targetNumber,
+      ],
+    }),
+    index("idx_mirror_issue_relation_issue").on(
+      t.repoId,
+      t.issueNumber,
+      t.kind,
+    ),
+    index("idx_mirror_issue_relation_target").on(t.targetRepo, t.targetNumber),
+  ],
+);
+
 // Mirror: thread comments (SPEC 6.1). `(repoId, externalId)` is the forge
 // identity; the internal `id` is what the UI links to.
 export const mirrorComment = sqliteTable(

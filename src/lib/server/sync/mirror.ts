@@ -22,6 +22,7 @@ import {
   mirrorComment,
   mirrorIssueEvent,
   mirrorIssuePullRequest,
+  mirrorIssueRelation,
   mirrorMilestone,
   mirrorPullRequest,
   mirrorRepo,
@@ -1427,6 +1428,186 @@ export function getIssue(
 }
 
 // ---------------------------------------------------------------------------
+// Issue relationships: parent/sub-issue and blocked-by/blocking (issue #34)
+// ---------------------------------------------------------------------------
+
+/** GitHub-native relationship kinds mirrored for one issue. */
+export type IssueRelationKind = "parent" | "child" | "blocked_by" | "blocking";
+
+/** One relation edge as stored on the source issue's row. */
+export interface IssueRelationRecord {
+  kind: IssueRelationKind;
+  /** `owner/name` of the related issue (may be another repository). */
+  targetRepo: string;
+  targetNumber: number;
+  targetTitle: string;
+  /** `open` | `closed`. */
+  targetState: string;
+  targetUrl: string;
+}
+
+export type IssueRelationRow = IssueRelationRecord;
+
+/** A related issue as hydration normalises it (the source of a stored edge). */
+export interface IssueRelationRefInput {
+  /** `owner/name` of the related issue. */
+  repo: string;
+  number: number;
+  title: string;
+  state: string;
+  url: string;
+}
+
+function relationKey(relation: IssueRelationRecord): string {
+  return `${relation.kind}\u0000${relation.targetRepo}\u0000${relation.targetNumber}`;
+}
+
+function relationInput(
+  kind: IssueRelationKind,
+  ref: IssueRelationRefInput,
+): IssueRelationRecord {
+  return {
+    kind,
+    targetRepo: ref.repo,
+    targetNumber: ref.number,
+    targetTitle: ref.title,
+    targetState: ref.state,
+    targetUrl: ref.url,
+  };
+}
+
+/**
+ * Replace one source issue's edges for the given kinds. Kinds are partitioned
+ * by hydration query, so replacing sub-issues never touches dependency rows and
+ * a failed dependency query leaves the previously stored edges intact. An
+ * unchanged set is a no-op so a hot poll does not bump the mirror revision.
+ */
+export function replaceIssueRelations(
+  repoId: number,
+  issueNumber: number,
+  kinds: readonly IssueRelationKind[],
+  relations: readonly IssueRelationRecord[],
+): void {
+  if (kinds.length === 0) return;
+  const incoming = new Map<string, IssueRelationRecord>();
+  for (const relation of relations) {
+    if (!kinds.includes(relation.kind)) continue;
+    incoming.set(relationKey(relation), relation);
+  }
+
+  const existing = db
+    .select({
+      kind: mirrorIssueRelation.kind,
+      targetRepo: mirrorIssueRelation.targetRepo,
+      targetNumber: mirrorIssueRelation.targetNumber,
+    })
+    .from(mirrorIssueRelation)
+    .where(
+      and(
+        eq(mirrorIssueRelation.repoId, repoId),
+        eq(mirrorIssueRelation.issueNumber, issueNumber),
+        inArray(mirrorIssueRelation.kind, [...kinds]),
+      ),
+    )
+    .all();
+  const before = new Set(
+    existing.map(
+      (row) => `${row.kind}\u0000${row.targetRepo}\u0000${row.targetNumber}`,
+    ),
+  );
+  if (
+    before.size === incoming.size &&
+    [...incoming.keys()].every((key) => before.has(key))
+  ) {
+    return;
+  }
+
+  db.transaction((tx) => {
+    tx.delete(mirrorIssueRelation)
+      .where(
+        and(
+          eq(mirrorIssueRelation.repoId, repoId),
+          eq(mirrorIssueRelation.issueNumber, issueNumber),
+          inArray(mirrorIssueRelation.kind, [...kinds]),
+        ),
+      )
+      .run();
+    if (incoming.size > 0) {
+      tx.insert(mirrorIssueRelation)
+        .values(
+          [...incoming.values()].map((relation) => ({
+            repoId,
+            issueNumber,
+            kind: relation.kind,
+            targetRepo: relation.targetRepo,
+            targetNumber: relation.targetNumber,
+            targetTitle: relation.targetTitle,
+            targetState: relation.targetState,
+            targetUrl: relation.targetUrl,
+          })),
+        )
+        .run();
+    }
+  });
+  bumpRevision();
+}
+
+/** Replace the parent/child half of an issue's relationships. */
+export function replaceIssueSubIssueRelations(
+  repoId: number,
+  issueNumber: number,
+  parent: IssueRelationRefInput | null,
+  children: readonly IssueRelationRefInput[],
+): void {
+  replaceIssueRelations(repoId, issueNumber, ["parent", "child"], [
+    ...(parent ? [relationInput("parent", parent)] : []),
+    ...children.map((child) => relationInput("child", child)),
+  ]);
+}
+
+/** Replace the blocked-by/blocking half of an issue's relationships. */
+export function replaceIssueDependencyRelations(
+  repoId: number,
+  issueNumber: number,
+  blockedBy: readonly IssueRelationRefInput[],
+  blocking: readonly IssueRelationRefInput[],
+): void {
+  replaceIssueRelations(repoId, issueNumber, ["blocked_by", "blocking"], [
+    ...blockedBy.map((ref) => relationInput("blocked_by", ref)),
+    ...blocking.map((ref) => relationInput("blocking", ref)),
+  ]);
+}
+
+/** Every stored relationship edge for one source issue, stable order. */
+export function getIssueRelations(
+  repoId: number,
+  issueNumber: number,
+): IssueRelationRow[] {
+  return db
+    .select({
+      kind: mirrorIssueRelation.kind,
+      targetRepo: mirrorIssueRelation.targetRepo,
+      targetNumber: mirrorIssueRelation.targetNumber,
+      targetTitle: mirrorIssueRelation.targetTitle,
+      targetState: mirrorIssueRelation.targetState,
+      targetUrl: mirrorIssueRelation.targetUrl,
+    })
+    .from(mirrorIssueRelation)
+    .where(
+      and(
+        eq(mirrorIssueRelation.repoId, repoId),
+        eq(mirrorIssueRelation.issueNumber, issueNumber),
+      ),
+    )
+    .orderBy(
+      asc(mirrorIssueRelation.kind),
+      asc(mirrorIssueRelation.targetRepo),
+      asc(mirrorIssueRelation.targetNumber),
+    )
+    .all() as IssueRelationRow[];
+}
+
+// ---------------------------------------------------------------------------
 // Linked pull requests (issue #28)
 // ---------------------------------------------------------------------------
 
@@ -1752,6 +1933,14 @@ export function deleteIssue(repoId: number, number: number): void {
         and(
           eq(mirrorIssuePullRequest.repoId, repoId),
           eq(mirrorIssuePullRequest.issueNumber, number),
+        ),
+      )
+      .run();
+    tx.delete(mirrorIssueRelation)
+      .where(
+        and(
+          eq(mirrorIssueRelation.repoId, repoId),
+          eq(mirrorIssueRelation.issueNumber, number),
         ),
       )
       .run();

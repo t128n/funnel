@@ -42,6 +42,7 @@ import type {
 } from "#lib/server/notifications/types";
 import { deriveMetadata } from "./conflicts";
 import * as mirror from "./mirror";
+import { syncIssueRelations } from "./relations";
 import {
   recordIssueTransitions,
   type IssueTransitionSnapshot,
@@ -1011,6 +1012,11 @@ export async function hydrateAndStore(
   );
 
   if (!repo) return records;
+
+  // GitHub-native relationships are hydrated after the issue itself, in two
+  // isolated queries. A host that rejects either field set leaves its prior
+  // rows untouched and never fails the issue upsert above.
+  await syncIssueRelations(gql, repo, nodeIds);
 
   // Record observed transitions before notifying: the event log and automatic
   // delays must reflect the same observation, whether or not notifications

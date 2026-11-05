@@ -21,6 +21,7 @@ export function clearMirror(): void {
   for (const table of [
     "mirror_thread_fts",
     "mirror_issue_pull_request",
+    "mirror_issue_relation",
     "mirror_pull_request",
     "mirror_thread_label",
     "mirror_thread_assignee",
