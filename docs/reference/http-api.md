@@ -54,6 +54,48 @@ Every `POST` response carries `Cache-Control: no-store` and the open CORS header
 
 The preflight response carries the same CORS headers but no `Cache-Control`. The open CORS policy carries no credentials; the documented access boundary is the instance's network segmentation.
 
+### GitHub webhooks
+
+| Method | Path | Success | Purpose |
+| :--- | :--- | :--- | :--- |
+| `POST` | `/api/github/webhooks` | `200`, no body | Receive a GitHub App webhook and refresh only the affected issue(s). |
+
+This endpoint does not use a Funnel session; GitHub has none. Authentication is GitHub's `x-hub-signature-256` header: HMAC-SHA-256 over the exact raw request bytes, using the App's stored webhook secret. The parsed body is never trusted before that check. The body is capped at 5 MiB (checked against `content-length` when present and again against the bytes actually read), and a delivery refreshes at most 20 issues.
+
+Required headers:
+
+| Header | Purpose |
+| :--- | :--- |
+| `x-hub-signature-256` | `sha256=<hex>` signature over the raw body. |
+| `x-github-delivery` | Delivery id; accepted ids are deduplicated in `state_webhook_delivery`. |
+| `x-github-event` | Event name. |
+
+Handled events:
+
+| Event | Effect |
+| :--- | :--- |
+| `issues` | Refresh `payload.issue.number`. Label changes arrive as `labeled` / `unlabeled` actions. |
+| `issue_comment` | Refresh `payload.issue.number`. |
+| `pull_request` | Refresh the mirrored issues linked to `payload.pull_request.number`. |
+| `pull_request_review`, `pull_request_review_comment` | Refresh the linked issues. |
+| `check_run`, `check_suite` | Refresh the linked issues for every PR in `payload.check_run.pull_requests` / `payload.check_suite.pull_requests`. |
+| `ping` | Accepted without a refresh. |
+| Anything else | Accepted and recorded, with no refresh (`202`). |
+
+Responses:
+
+| Status | Meaning |
+| :--- | :--- |
+| `200` | Refreshed, ping, or duplicate delivery. |
+| `202` | Accepted but deliberately ignored: unknown event, installation event, or no usable repo/number. |
+| `400` | Missing `x-github-delivery` or `x-github-event`, or malformed JSON. |
+| `401` | Missing or invalid signature. |
+| `413` | Body above 5 MiB. |
+| `500` | Processing or a refresh failed. No delivery row is written, so GitHub's retry can repair it. |
+| `503` | The App has no webhook secret (typically an App created before webhook support). |
+
+An accepted delivery is recorded after a successful pass and pruned after seven days. Polling remains enabled and is unaffected; a missed, deleted or unhandled event is repaired by the next poll or the nightly reconciliation.
+
 ### Health and readiness
 
 | Method | Path | Success | Purpose |

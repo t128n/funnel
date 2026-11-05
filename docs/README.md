@@ -113,7 +113,7 @@ Learning-oriented, with one path and expected results.
 ## Explanation
 
 - [Architecture](explanation/architecture.md) — the SvelteKit process, SQLite mirror, background worker, and SSE bridge.
-- [Sync and mirror](explanation/sync-and-mirror.md) — polling, hydration, cursors, and what the mirror deliberately does not keep.
+- [Sync and mirror](explanation/sync-and-mirror.md) — polling with webhooks as a freshness path, hydration, cursors, and what the mirror deliberately does not keep.
 - [Workflow model](explanation/workflow-model.md) — status, derived priority, size, blocking, and Done as separate concepts.
 - [Why planning and actuals work this way](explanation/planning-and-actuals.md) — the three layers of state, the 60% buffer, observed actuals, interval delays and body-based epics.
 - [Intake lifecycle](explanation/intake-lifecycle.md) — staging, accepting, dismissing, duplicating, and where history lives.

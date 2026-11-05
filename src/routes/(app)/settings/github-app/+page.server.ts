@@ -8,6 +8,7 @@ import {
 import { forge } from "#lib/server/forge/providers.server";
 import { resetAuthCache } from "#lib/server/auth/index";
 import { installationUrl } from "#lib/server/github/manifest-flow.server";
+import { webhookUrl } from "#lib/server/github/manifest";
 import { createLogger } from "#lib/server/log";
 import type { Actions, PageServerLoad } from "./$types";
 
@@ -18,11 +19,19 @@ export const load: PageServerLoad = async ({ locals, url }) => {
   requireAdmin(locals, url);
   const credentials = getGithubCredentials();
   if (!credentials) {
-    return { configured: false, credentials: null, installUrl: null };
+    return {
+      configured: false,
+      credentials: null,
+      installUrl: null,
+      webhookConfigured: false,
+      webhookUrl: null,
+    };
   }
   return {
     configured: true,
     installUrl: await installationUrl(credentials.slug),
+    webhookConfigured: Boolean(credentials.webhookSecret),
+    webhookUrl: webhookUrl(credentials.baseUrl),
     credentials: {
       appId: credentials.appId,
       name: credentials.name,

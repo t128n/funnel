@@ -228,6 +228,29 @@ export const stateGithubApp = sqliteTable("state_github_app", {
 });
 
 // ---------------------------------------------------------------------------
+// State: accepted GitHub webhook deliveries.
+// One row per `x-github-delivery`, inserted only after a delivery has been
+// processed successfully. A duplicate id is acknowledged without refreshing
+// again, and rows older than a week are pruned so the table stays bounded.
+// `repo` is the `owner/name` slug when the payload carried a repository.
+// ---------------------------------------------------------------------------
+export const stateWebhookDelivery = sqliteTable(
+  "state_webhook_delivery",
+  {
+    /** GitHub's `x-github-delivery` id (UUID). */
+    id: text("id").primaryKey(),
+    /** `x-github-event`, e.g. `issues` or `pull_request`. */
+    event: text("event").notNull(),
+    /** Payload `action` when present. */
+    action: text("action"),
+    /** `owner/name` of the repository when the payload identifies one. */
+    repo: text("repo"),
+    receivedAt: integer("received_at").notNull(),
+  },
+  (t) => [index("idx_state_webhook_delivery_received").on(t.receivedAt)],
+);
+
+// ---------------------------------------------------------------------------
 // State: internal work notes (ITSM-style journal).
 // Funnel-owned and *never* posted to a forge unless a note is explicitly
 // published — and publishing *deletes* the note, turning it into a comment.

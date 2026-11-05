@@ -55,6 +55,16 @@
 				<dd><span class="font-monospace text-break">{data.credentials.clientId}</span></dd>
 				<dt>Installation</dt>
 				<dd><span class="font-monospace">{data.credentials.installationId ?? '—'}</span></dd>
+				<dt>Webhook secret</dt>
+				<dd>
+					{#if data.webhookConfigured}
+						<span class="text-success">Configured</span>
+					{:else}
+						<span class="text-warning">Not configured</span>
+					{/if}
+				</dd>
+				<dt>Webhook URL</dt>
+				<dd><span class="font-monospace text-break">{data.webhookUrl}</span></dd>
 				{#if data.credentials.htmlUrl}
 					<dt>On GitHub</dt>
 					<dd>
@@ -68,6 +78,14 @@
 					? 'Repositories are managed in Settings → Repositories.'
 					: 'Install the App to grant access to repositories.'}
 			</p>
+
+			{#if !data.webhookConfigured}
+				<p class="mb-0 text-body-secondary">
+					Apps created before webhook support have no secret. Recreate the App, or add
+					the webhook and secret on GitHub and re-onboard, to receive events. Polling
+					keeps issues up to date either way.
+				</p>
+			{/if}
 
 			{#if data.installUrl}
 				<div>

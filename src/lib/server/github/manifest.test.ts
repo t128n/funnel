@@ -3,7 +3,9 @@ import {
   buildManifest,
   buildManifestFormHtml,
   manifestFormAction,
+  MANIFEST_EVENTS,
   MANIFEST_PERMISSIONS,
+  webhookUrl,
 } from "./manifest";
 
 const URLS = {
@@ -24,8 +26,35 @@ describe("buildManifest", () => {
       setup_url: "https://funnel.example.com/onboarding/installed",
       public: false,
       default_permissions: { ...MANIFEST_PERMISSIONS },
-      default_events: [],
+      default_events: [...MANIFEST_EVENTS],
+      hook_attributes: {
+        url: "https://funnel.example.com/api/github/webhooks",
+        active: true,
+      },
     });
+  });
+
+  test("subscribes to the events the receiver handles", () => {
+    expect([...MANIFEST_EVENTS]).toEqual([
+      "issues",
+      "issue_comment",
+      "pull_request",
+      "pull_request_review",
+      "pull_request_review_comment",
+      "check_run",
+      "check_suite",
+    ]);
+    // Label changes arrive as `issues` actions, not a separate event.
+    expect(MANIFEST_EVENTS).not.toContain("label");
+  });
+
+  test("derives the webhook URL from the captured origin", () => {
+    expect(webhookUrl("https://funnel.example.com")).toBe(
+      "https://funnel.example.com/api/github/webhooks",
+    );
+    expect(webhookUrl("https://funnel.example.com/")).toBe(
+      "https://funnel.example.com/api/github/webhooks",
+    );
   });
 
   test("requests issues:write and read-only development context", () => {
