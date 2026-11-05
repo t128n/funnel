@@ -440,10 +440,6 @@ async function main(): Promise<void> {
       shutdown.clean,
       `server did not exit within ${SHUTDOWN_TIMEOUT_MS}ms of the termination signal\n${serverLogs}`,
     );
-    assert(
-      shutdown.exitCode !== null,
-      `server disappeared without reporting an exit code\n${serverLogs}`,
-    );
     if (!isWindows) {
       // adapter-node handles SIGTERM and closes the listener cleanly (0). A
       // runtime that is torn down by the signal reports 143; both are fine, a
@@ -453,7 +449,11 @@ async function main(): Promise<void> {
         `server crashed on SIGTERM (exit ${shutdown.exitCode}), expected 0 or 143\n${serverLogs}`,
       );
     }
-    console.log(`[smoke] shutdown cleanly (exit ${shutdown.exitCode})`);
+    // Windows has no POSIX signal: Bun's forced kill can report a null exit
+    // code even though the process is gone, so `clean` is the assertion there.
+    console.log(
+      `[smoke] shutdown cleanly (exitCode=${shutdown.exitCode ?? "null"}, signalCode=${server.proc.signalCode ?? "null"})`,
+    );
 
     // --healthcheck against a stopped instance -----------------------------
     const dead = await runCommand(
