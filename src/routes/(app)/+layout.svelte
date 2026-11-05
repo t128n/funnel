@@ -1,11 +1,12 @@
 <script lang="ts">
 	import { onMount, untrack } from 'svelte';
-	import { goto, refreshAll } from '$app/navigation';
+	import { afterNavigate, goto, refreshAll } from '$app/navigation';
 	import { createHotkeys, getAppHotkeys } from '@tanstack/svelte-hotkeys';
 	import { Button } from '@sveltestrap/sveltestrap';
 	import AppShell from '#lib/components/shell/AppShell.svelte';
 	import InlineStatus from '#lib/components/common/InlineStatus.svelte';
 	import NewIssueDialog from '#lib/components/issue/NewIssueDialog.svelte';
+	import { clearBulkSelection } from '#lib/client/bulk-selection.svelte';
 	import { openGlobalSearch } from '#lib/client/global-search.svelte';
 	import {
 		dismissQuickCreateSuccess,
@@ -34,6 +35,13 @@
 	const mayWrite = $derived(canWrite(data.user.role));
 	/** Repositories the quick-create dialog can pick from. */
 	const repoChoices = $derived(Object.keys(data.repoShortcodes).sort());
+
+	// A selection belongs to the view it was made in. SSE refreshes are not
+	// navigations, so `refreshAll` leaves checkboxes alone; any route/query
+	// change clears them.
+	afterNavigate(({ from }) => {
+		if (from) clearBulkSelection();
+	});
 
 	// The Attention badge counts blocked overdue + due-today re-checks only.
 	// Waiting has its own section and deliberately never raises this badge; it

@@ -123,6 +123,7 @@
 			{feed}
 			repoShortcodes={data.repoShortcodes}
 			projects={data.projects}
+			{mayWrite}
 		/>
 	{/if}
 </main>

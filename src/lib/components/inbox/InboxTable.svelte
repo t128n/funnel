@@ -35,8 +35,15 @@
 		Table
 	} from '@sveltestrap/sveltestrap';
 	import Spinner from '#lib/components/common/Spinner.svelte';
+	import BulkActionBar from '#lib/components/bulk/BulkActionBar.svelte';
 	import SnoozeControl from '#lib/components/inbox/SnoozeControl.svelte';
 	import { timeAgo } from '#lib/client/clock.svelte';
+	import {
+		bulkSelection,
+		issueBulkKey,
+		submissionBulkKey,
+		type BulkKey
+	} from '#lib/client/bulk-selection.svelte';
 	import { inboxActionUrl } from '#lib/client/inbox';
 	import {
 		mutate,
@@ -76,6 +83,12 @@
 		onremove?: (key: string) => void;
 		/** Brief success feedback owned by the page-level status region. */
 		onnotice?: (message: string | null) => void;
+		/** Writers get checkboxes and the bulk bar; readers keep the read table. */
+		mayWrite?: boolean;
+		/** Assignable logins offered by the issue bulk actions. */
+		assignees?: string[];
+		/** Label names offered by the issue bulk actions. */
+		labels?: string[];
 	}
 
 	let {
@@ -84,7 +97,10 @@
 		repos = [],
 		defaultRepo = '',
 		onremove,
-		onnotice
+		onnotice,
+		mayWrite = false,
+		assignees = [],
+		labels = []
 	}: Props = $props();
 
 	type SubmissionEntry = Extract<RenderedInboxEntry, { kind: 'submission' }>;
@@ -115,6 +131,58 @@
 
 	function issueKey(issue: IssueListItem): string {
 		return `issue:${issue.repoId}:${issue.number}`;
+	}
+
+	/** Durable selection key, independent of the mirror id in the feed key. */
+	function entryBulkKey(entry: RenderedInboxEntry): BulkKey {
+		return entry.kind === 'submission'
+			? submissionBulkKey(entry.submission.id)
+			: issueBulkKey(entry.issue.repo, entry.issue.number);
+	}
+
+	const selectableKeys = $derived(entries.map((entry) => entryBulkKey(entry)));
+	const selectedLoaded = $derived(
+		selectableKeys.filter((key) => bulkSelection.has(key)).length
+	);
+	const allLoadedSelected = $derived(
+		selectableKeys.length > 0 && selectedLoaded === selectableKeys.length
+	);
+	const someLoadedSelected = $derived(selectedLoaded > 0 && !allLoadedSelected);
+
+	function toggleEntry(entry: RenderedInboxEntry): void {
+		if (!mayWrite) return;
+		bulkSelection.toggle(entryBulkKey(entry));
+	}
+
+	function toggleAllLoaded(): void {
+		if (!mayWrite) return;
+		bulkSelection.toggleMany(selectableKeys);
+	}
+
+	/** `x` toggles the row containing the focused control; Space is native. */
+	function onTableKeydown(event: KeyboardEvent): void {
+		if (!mayWrite) return;
+		if (event.key !== 'x' && event.key !== 'X') return;
+		if (event.ctrlKey || event.metaKey || event.altKey) return;
+		const target = event.target;
+		if (!(target instanceof Element)) return;
+		if (target.closest('select, textarea, input:not([type="checkbox"]), [contenteditable="true"]')) {
+			return;
+		}
+		const row = target.closest('tr[data-bulk-key]');
+		const key = row?.getAttribute('data-bulk-key');
+		if (!key) return;
+		event.preventDefault();
+		bulkSelection.toggle(key as BulkKey);
+	}
+
+	function indeterminate(node: HTMLInputElement, value: boolean) {
+		node.indeterminate = value;
+		return {
+			update(next: boolean) {
+				node.indeterminate = next;
+			}
+		};
 	}
 
 	function setBusy(key: string, state: Busy): void {
@@ -249,11 +317,34 @@
 	</Alert>
 {/if}
 
-<div class="table-responsive border rounded">
+<BulkActionBar
+	kind="inbox"
+	{mayWrite}
+	{assignees}
+	{labels}
+	{onremove}
+	{onnotice}
+/>
+
+<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+<div class="table-responsive border rounded" role="group" aria-label="Inbox queue" onkeydown={onTableKeydown}>
 	<Table hover class="inbox-table align-middle mb-0">
 		<caption class="visually-hidden">Inbox triage queue</caption>
 		<thead class="table-light">
 			<tr>
+				{#if mayWrite}
+					<th scope="col" class="small text-body-secondary inbox-col-select">
+						<span class="visually-hidden">Select</span>
+						<input
+							type="checkbox"
+							class="form-check-input"
+							aria-label="Select all loaded Inbox rows"
+							checked={allLoadedSelected}
+							use:indeterminate={someLoadedSelected}
+							onchange={toggleAllLoaded}
+						/>
+					</th>
+				{/if}
 				<th scope="col" class="small text-body-secondary d-none d-md-table-cell inbox-col-issue">
 					Issue
 				</th>
@@ -276,7 +367,20 @@
 					{@const title = submissionTitle(submission.title)}
 					{@const source = submissionSource(submission.source)}
 					{@const repo = submissionRepoLabel(acceptRepo)}
-					<tr>
+					{@const bulkKey = entryBulkKey(entry)}
+					{@const selected = bulkSelection.has(bulkKey)}
+					<tr data-bulk-key={bulkKey} aria-selected={mayWrite ? selected : undefined}>
+						{#if mayWrite}
+							<td>
+								<input
+									type="checkbox"
+									class="form-check-input"
+									aria-label={`Select submission: ${title}`}
+									checked={selected}
+									onchange={() => toggleEntry(entry)}
+								/>
+							</td>
+						{/if}
 						<td class="font-monospace small text-body-secondary text-nowrap d-none d-md-table-cell">
 							—
 						</td>
@@ -369,7 +473,20 @@
 					{@const issue = entry.issue}
 					{@const ref = issueRef(issue.repo, issue.number, repoShortcodes)}
 					{@const title = issue.title.trim() || 'Untitled'}
-					<tr>
+					{@const bulkKey = entryBulkKey(entry)}
+					{@const selected = bulkSelection.has(bulkKey)}
+					<tr data-bulk-key={bulkKey} aria-selected={mayWrite ? selected : undefined}>
+						{#if mayWrite}
+							<td>
+								<input
+									type="checkbox"
+									class="form-check-input"
+									aria-label={`Select ${ref}: ${title}`}
+									checked={selected}
+									onchange={() => toggleEntry(entry)}
+								/>
+							</td>
+						{/if}
 						<td class="font-monospace small text-body-secondary text-nowrap d-none d-md-table-cell">
 							{ref}
 						</td>
@@ -500,6 +617,10 @@
 </Modal>
 
 <style>
+	.inbox-col-select {
+		width: 2.25rem;
+	}
+
 	.inbox-col-issue {
 		width: 7rem;
 	}
@@ -510,5 +631,10 @@
 
 	.inbox-col-triage {
 		width: 17rem;
+	}
+
+	tbody tr[aria-selected='true'] {
+		box-shadow: inset 2px 0 0 var(--bs-primary);
+		background: var(--bs-primary-bg-subtle);
 	}
 </style>
