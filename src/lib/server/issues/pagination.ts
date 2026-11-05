@@ -7,10 +7,12 @@
  * a cursor presented against a different filter is rejected rather than
  * silently applied.
  *
- * Sort order (fixed): priority rank ASC (`p1`..`p3`, unprioritized last), then
- * `updatedAt` DESC, then `repoId` DESC, then `number` DESC. That tuple is
- * total — `(repoId, number)` is the mirror's primary key — so page walking has
- * no gaps or duplicates.
+ * Sort order is selectable (priority, updated, created, title) but always
+ * total: the primary key is followed by `(repoId, number)` tie-breakers, which
+ * together are the mirror's primary key. Page walking therefore has no gaps or
+ * duplicates for any sort. The default remains priority rank ASC (`p1`..`p3`,
+ * unprioritized last), then `updatedAt` DESC, then `repoId` DESC, then
+ * `number` DESC.
  */
 import { createHash } from "node:crypto";
 import type { BoardColumn } from "./types";
@@ -26,10 +28,14 @@ export const BOARD_PAGE_SIZE = 50;
 export const MAX_PAGE_SIZE = 500;
 
 /**
- * The sort tuple a cursor resumes from:
- * `[priority rank, updatedAt, repoId, number]`.
+ * The sort tuple a cursor resumes from: a numeric rank/timestamp (or a title
+ * string for the title sort) followed by the `(repoId, number)` tie-breakers.
+ * Priority carries one extra secondary term (`updatedAt`).
  */
-export type CursorKey = [number, number, number, number];
+export type CursorKey = [number | string, ...number[]];
+
+/** Which value type the sort's primary key carries. */
+export type CursorPrimary = "number" | "text";
 
 /** One page of a feed. `total` always comes from the server. */
 export interface ListPage<T> {
@@ -79,6 +85,10 @@ export function filterSignature(filter: IssueFilter, extra?: string): string {
       .map((m) => `${m.repoId}#${m.number}`)
       .sort(),
     noMilestone: filter.noMilestone,
+    unassigned: filter.unassigned,
+    blocked: filter.blocked,
+    sort: filter.sort,
+    direction: filter.direction,
     search: filter.search,
     extra: extra ?? null,
   });
@@ -92,13 +102,15 @@ export function encodeCursor(signature: string, key: CursorKey): string {
 }
 
 /**
- * Decode a cursor, returning `null` when it is malformed or was produced for a
- * different filter (mismatched signature). Callers treat `null` as "first
- * page" rather than erroring, so a stale link never breaks navigation.
+ * Decode a cursor, returning `null` when it is malformed, carries the wrong
+ * primary value type for the sort, or was produced for a different filter
+ * (mismatched signature). Callers treat `null` as "first page" rather than
+ * erroring, so a stale link never breaks navigation.
  */
 export function decodeCursor(
   cursor: string,
   signature: string,
+  primary: CursorPrimary = "number",
 ): CursorKey | null {
   let parsed: unknown;
   try {
@@ -109,11 +121,17 @@ export function decodeCursor(
   if (typeof parsed !== "object" || parsed === null) return null;
   const { v, f, k } = parsed as { v?: unknown; f?: unknown; k?: unknown };
   if (v !== 1 || f !== signature) return null;
-  if (!Array.isArray(k) || k.length !== 4) return null;
-  if (!k.every((part) => typeof part === "number" && Number.isInteger(part))) {
+  if (!Array.isArray(k) || k.length < 3 || k.length > 4) return null;
+  const [lead, ...rest] = k;
+  const leadValid =
+    primary === "text"
+      ? typeof lead === "string"
+      : typeof lead === "number" && Number.isInteger(lead);
+  if (!leadValid) return null;
+  if (!rest.every((part) => typeof part === "number" && Number.isInteger(part))) {
     return null;
   }
-  return [k[0], k[1], k[2], k[3]];
+  return [lead as number | string, ...(rest as number[])];
 }
 
 /** Clamp a requested page size against a feed default and the hard cap. */

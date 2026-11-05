@@ -20,9 +20,11 @@ import {
   asc,
   desc,
   eq,
+  gt,
   gte,
   isNotNull,
   isNull,
+  lt,
   or,
   sql,
   type SQL,
@@ -86,10 +88,12 @@ import {
   ISSUE_PAGE_SIZE,
   pageLimit,
   type BoardColumnPage,
+  type CursorKey,
   type ListPage,
   type PageOptions,
   type PagedStatusBoard,
 } from "./pagination";
+import type { IssueSort, SortDirection } from "#lib/url-filter";
 import type {
   AttentionItem,
   CommentItem,
@@ -184,6 +188,131 @@ interface RawRow {
   milestoneDueOn: number | null;
 }
 
+/** One sort term: an expression, its direction, and its cursor value. */
+interface SortTerm {
+  expr: SQL;
+  direction: SortDirection;
+  /** Extract this term's value from a hydrated raw row for the cursor. */
+  value: (row: RawRow) => number | string;
+}
+
+/** Case-insensitive title ordering, matching the A–Z expectation in the UI. */
+const TITLE_ORDER = sql`${mirrorThread.title} COLLATE NOCASE`;
+
+/**
+ * The selectable sort plans. Every plan ends with the `(repoId, number)` pair
+ * so the tuple stays total and cursor walking cannot gap or duplicate rows.
+ * Priority keeps its original secondary order (most recently updated first);
+ * the other dimensions apply the direction to their tie-breakers too.
+ */
+function sortPlan(sort: IssueSort, direction: SortDirection): SortTerm[] {
+  switch (sort) {
+    case "updated":
+      return [
+        {
+          expr: sql`${mirrorThread.updatedAt}`,
+          direction,
+          value: (row) => row.updatedAt,
+        },
+        {
+          expr: sql`${mirrorThread.repoId}`,
+          direction,
+          value: (row) => row.repoId,
+        },
+        {
+          expr: sql`${mirrorThread.number}`,
+          direction,
+          value: (row) => row.number,
+        },
+      ];
+    case "created":
+      return [
+        {
+          expr: sql`${mirrorThread.createdAt}`,
+          direction,
+          value: (row) => row.createdAt,
+        },
+        {
+          expr: sql`${mirrorThread.repoId}`,
+          direction,
+          value: (row) => row.repoId,
+        },
+        {
+          expr: sql`${mirrorThread.number}`,
+          direction,
+          value: (row) => row.number,
+        },
+      ];
+    case "title":
+      return [
+        { expr: TITLE_ORDER, direction, value: (row) => row.title },
+        {
+          expr: sql`${mirrorThread.repoId}`,
+          direction,
+          value: (row) => row.repoId,
+        },
+        {
+          expr: sql`${mirrorThread.number}`,
+          direction,
+          value: (row) => row.number,
+        },
+      ];
+    case "priority":
+    default:
+      return [
+        {
+          expr: sql`${PRIORITY_RANK}`,
+          direction,
+          value: (row) => row.priorityRank,
+        },
+        {
+          expr: sql`${mirrorThread.updatedAt}`,
+          direction: "desc",
+          value: (row) => row.updatedAt,
+        },
+        {
+          expr: sql`${mirrorThread.repoId}`,
+          direction: "desc",
+          value: (row) => row.repoId,
+        },
+        {
+          expr: sql`${mirrorThread.number}`,
+          direction: "desc",
+          value: (row) => row.number,
+        },
+      ];
+  }
+}
+
+/** Build the ORDER BY list for a sort plan. */
+function orderTerms(terms: SortTerm[]): SQL[] {
+  return terms.map((term) =>
+    term.direction === "asc" ? asc(term.expr) : desc(term.expr),
+  );
+}
+
+/** The sort tuple a row contributes to the next cursor. */
+function rowCursor(terms: SortTerm[], row: RawRow): CursorKey {
+  return terms.map((term) => term.value(row)) as CursorKey;
+}
+
+/**
+ * Keyset predicate resuming strictly after `key` in the plan's order. Built
+ * term-by-term so the `ORDER BY` and the predicate cannot drift: the same
+ * expressions and directions drive both.
+ */
+function cursorWhere(terms: SortTerm[], key: CursorKey): SQL {
+  const build = (index: number): SQL => {
+    const term = terms[index];
+    const value = key[index];
+    const comparison =
+      term.direction === "asc" ? gt(term.expr, value) : lt(term.expr, value);
+    if (index === terms.length - 1) return comparison;
+    return sql`(${comparison} OR (${eq(term.expr, value)} AND ${build(index + 1)}))`;
+  };
+  return build(0);
+}
+
 /** Build a {@link UserRef} from inner-joined mirror user columns. */
 function userRef(row: {
   externalId: string;
@@ -269,7 +398,12 @@ export function filterContext(
   };
 }
 
-function rawQuery(where: SQL | undefined, opts: ListOptions): RawRow[] {
+function rawQuery(
+  where: SQL | undefined,
+  opts: ListOptions,
+  sort: IssueSort = "priority",
+  direction: SortDirection = "asc",
+): RawRow[] {
   const query = db
     .select(issueColumns)
     .from(mirrorThread)
@@ -283,35 +417,10 @@ function rawQuery(where: SQL | undefined, opts: ListOptions): RawRow[] {
       ),
     )
     .where(where)
-    .orderBy(
-      PRIORITY_RANK,
-      desc(mirrorThread.updatedAt),
-      desc(mirrorThread.repoId),
-      desc(mirrorThread.number),
-    );
+    .orderBy(...orderTerms(sortPlan(sort, direction)));
 
   const rows = opts.limit ? query.limit(opts.limit).all() : query.all();
   return rows as RawRow[];
-}
-
-/**
- * Keyset predicate resuming strictly after `key` in the fixed sort order
- * (rank ASC, updatedAt DESC, repoId DESC, number DESC). Uses the persisted
- * rank column, the same one the `ORDER BY` uses, so the two cannot drift.
- */
-function cursorWhere(key: [number, number, number, number]): SQL {
-  const [rank, updatedAt, repoId, number] = key;
-  return sql`(
-    ${PRIORITY_RANK} > ${rank}
-    OR (${PRIORITY_RANK} = ${rank} AND (
-      ${mirrorThread.updatedAt} < ${updatedAt}
-      OR (${mirrorThread.updatedAt} = ${updatedAt} AND (
-        ${mirrorThread.repoId} < ${repoId}
-        OR (${mirrorThread.repoId} = ${repoId}
-          AND ${mirrorThread.number} < ${number})
-      ))
-    ))
-  )`;
 }
 
 /** Count rows matching a `WHERE` without hydrating children (plan T1). */
@@ -365,21 +474,29 @@ function cachedCount(where: SQL | undefined, signature: string): number {
 /**
  * Fetch one page of issues plus the unpaged total. Fetches `limit + 1` rows to
  * learn whether a further page exists, then hydrates only `limit`. A cursor
- * that fails to decode (malformed or from another filter) falls back to the
- * first page.
+ * that fails to decode (malformed, wrong sort, or from another filter) falls
+ * back to the first page.
  */
 function pageIssues(
   where: SQL | undefined,
   opts: PageOptions,
   signature: string,
   defaultSize: number,
+  sort: IssueSort = "priority",
+  direction: SortDirection = "asc",
 ): ListPage<IssueListItem> {
   const limit = pageLimit(opts.limit, defaultSize);
-  const key = opts.cursor ? decodeCursor(opts.cursor, signature) : null;
-  const after = key ? cursorWhere(key) : undefined;
+  const terms = sortPlan(sort, direction);
+  const decoded = opts.cursor
+    ? decodeCursor(opts.cursor, signature, sort === "title" ? "text" : "number")
+    : null;
+  // Reject a tuple from a different sort even when its signature somehow
+  // matched (for example a hand-edited payload).
+  const key = decoded && decoded.length === terms.length ? decoded : null;
+  const after = key ? cursorWhere(terms, key) : undefined;
   const pageWhere = after ? (where ? and(where, after) : after) : where;
 
-  const rows = rawQuery(pageWhere, { limit: limit + 1 });
+  const rows = rawQuery(pageWhere, { limit: limit + 1 }, sort, direction);
   const hasMore = rows.length > limit;
   const pageRows = hasMore ? rows.slice(0, limit) : rows;
   const items = hydrate(pageRows);
@@ -390,12 +507,7 @@ function pageIssues(
     total: cachedCount(where, signature),
     nextCursor:
       hasMore && last
-        ? encodeCursor(signature, [
-            last.priorityRank,
-            last.updatedAt,
-            last.repoId,
-            last.number,
-          ])
+        ? encodeCursor(signature, rowCursor(terms, last))
         : null,
   };
 }
@@ -544,7 +656,14 @@ export function allIssues(
   const base = buildIssueWhere(filter);
   const triaged = isNotNull(mirrorThread.status);
   const where = base ? and(base, triaged) : triaged;
-  return pageIssues(where, opts, filterSignature(filter), ISSUE_PAGE_SIZE);
+  return pageIssues(
+    where,
+    opts,
+    filterSignature(filter),
+    ISSUE_PAGE_SIZE,
+    filter.sort,
+    filter.direction,
+  );
 }
 
 /**
@@ -563,14 +682,19 @@ export function myIssues(
   ) {
     return { items: [], total: 0, nextCursor: null };
   }
-  const base = buildIssueWhere({ ...filter, assignees: [] });
+  // "My Issues" means assigned to the viewer, so both the named-assignee
+  // dimension and the unassigned sentinel are cleared before applying it.
+  const scoped = { ...filter, assignees: [], unassigned: false };
+  const base = buildIssueWhere(scoped);
   const viewer = assigneeExists([viewerExternalId]);
   const where = base ? and(base, viewer) : viewer;
   return pageIssues(
     where,
     opts,
-    filterSignature({ ...filter, assignees: [] }, `viewer:${viewerExternalId}`),
+    filterSignature(scoped, `viewer:${viewerExternalId}`),
     ISSUE_PAGE_SIZE,
+    filter.sort,
+    filter.direction,
   );
 }
 
