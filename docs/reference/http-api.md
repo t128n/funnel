@@ -346,6 +346,25 @@ To attach or clear a milestone on an issue, use the `milestone` field on the iss
 
 These routes store Funnel-owned data in the durable `state_*` tables or edit Funnel-specific issue metadata. They require a session; only the epic children write and work-note publish use a GitHub token.
 
+### Saved views
+
+| Method | Path | Minimum role | Success |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/api/saved-views` | `read` | `200 { "views": SavedView[] }` (own + shared) |
+| `POST` | `/api/saved-views` | `write` | `201` `SavedView` |
+| `PATCH` | `/api/saved-views` | `write` | `200` `SavedView` |
+| `DELETE` | `/api/saved-views?id={id}` | `write` | `200 { "id": "…" }` |
+
+`SavedView` is `{ "id": string, "ownerUserId": string, "name": string, "query": string, "scope": "issues" | "inbox", "sort": string | null, "direction": "asc" | "desc" | null, "group": string | null, "shared": boolean, "pinned": boolean, "createdAt": number, "updatedAt": number }`.
+
+Create takes `{ name, query, scope, sort?, direction?, group?, shared?, pinned? }`. `PATCH` takes `{ id, …same fields }`; omitted fields keep their stored value and `null` clears a nullable field. `DELETE` requires `id`.
+
+- `query` is a URL query string without `?`. Only filter keys plus Inbox `snoozed=0|1` are accepted; unknown keys, fragments, newlines and over-long values are rejected with `400`. `sort`/`direction` in the query are promoted to their columns.
+- `name` is trimmed, non-empty and at most 120 characters. Names are unique per owner, case-insensitively (`409` on a duplicate).
+- `scope` must be `issues` or `inbox`; `sort`, `direction` and `group` must be from their documented vocabularies.
+- A non-owner may read a shared view but gets `403` on update/delete. An `admin` may update or delete a shared view; personal views remain owner-only.
+- These routes never touch the mirror: deleting a view cannot change an issue, label or sync row.
+
 ### Work notes
 
 | Method | Path | Minimum role | Success |
