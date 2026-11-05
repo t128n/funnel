@@ -1,0 +1,25 @@
+[Unit]
+Description=Funnel
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=funnel
+Group=funnel
+WorkingDirectory=/var/lib/funnel
+EnvironmentFile=-/etc/funnel/funnel.env
+Environment=FUNNEL_ENV_FILE=/etc/funnel/funnel.env
+Environment=FUNNEL_DATA_DIR=/var/lib/funnel
+ExecStart=/usr/local/bin/funnel
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=35
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/funnel /var/log/funnel
+
+[Install]
+WantedBy=multi-user.target

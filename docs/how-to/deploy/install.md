@@ -138,6 +138,12 @@ System mode creates a `funnel` system user and a systemd unit. User mode writes
 a user unit and enables lingering so it can start without an interactive login;
 if lingering is unavailable, the service starts at login instead.
 
+For a manual or configuration-managed install, `packaging/systemd/` contains a
+system unit, an environment template, and a root-only `install.sh` helper. See
+[Install Funnel on Linux with systemd](linux-systemd.md) for the bare-metal
+walkthrough, including service-account setup, hardening, health checks, and
+troubleshooting. The wizard remains the recommended path.
+
 ### macOS
 
 System mode writes a LaunchDaemon and runs as `_funnel`. User mode writes a
