@@ -31,11 +31,27 @@ export const appHotkeys = defineAppHotkeys({
   },
   'issue.status': {
     hotkey: 'S',
-    meta: { name: 'Change status of focused card', group: 'Issues' }
+    meta: { name: 'Change status of focused item', group: 'Issues' }
   },
   'issue.select': {
     hotkey: 'X',
-    meta: { name: 'Open focused card', group: 'Issues' }
+    meta: { name: 'Select or open the focused item', group: 'Issues' }
+  },
+  'list.next': {
+    hotkey: 'J',
+    meta: { name: 'Next row', group: 'Lists' }
+  },
+  'list.previous': {
+    hotkey: 'K',
+    meta: { name: 'Previous row', group: 'Lists' }
+  },
+  'list.open': {
+    hotkey: 'Enter',
+    meta: { name: 'Open focused row', group: 'Lists' }
+  },
+  'list.dismiss': {
+    hotkey: 'Escape',
+    meta: { name: 'Clear selection or close overlay', group: 'Lists' }
   }
 });
 

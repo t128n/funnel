@@ -24,8 +24,16 @@ describe('IssueTable keyboard model', () => {
 
 	test('x toggles the focused row and Space stays native on the checkbox', () => {
 		expect(source).toContain('onkeydown={onTableKeydown}');
-		expect(source).toContain("event.key !== 'x' && event.key !== 'X'");
-		expect(source).toContain('bulkSelection.toggle(key as BulkKey)');
+		expect(source).toContain('listKeyAction');
+		expect(source).toContain('bulkSelection.toggle(key)');
+		expect(source).toContain('type="checkbox"');
+	});
+
+	test('rows share one roving tab stop on the title link', () => {
+		expect(source).toContain('data-list-row');
+		expect(source).toContain('data-list-link');
+		expect(source).toContain('tabindex={selectionKey === effectiveActiveKey ? 0 : -1}');
+		expect(source).toContain('onfocusin={onRowFocus}');
 	});
 
 	test('select-all covers the loaded window with a mixed state', () => {

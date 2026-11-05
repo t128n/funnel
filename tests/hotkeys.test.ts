@@ -30,4 +30,13 @@ describe("app hotkey catalog", () => {
       }
     }
   });
+
+  test("the list and palette actions live in the same catalog", () => {
+    expect(appHotkeys["list.next"].hotkey).toBe("J");
+    expect(appHotkeys["list.previous"].hotkey).toBe("K");
+    expect(appHotkeys["list.open"].hotkey).toBe("Enter");
+    expect(appHotkeys["list.dismiss"].hotkey).toBe("Escape");
+    expect(appHotkeys["issue.status"].hotkey).toBe("S");
+    expect(appHotkeys["issue.select"].hotkey).toBe("X");
+  });
 });

@@ -9,9 +9,13 @@
 	import StatusText from '#lib/components/common/StatusText.svelte';
 	import {
 		bulkSelection,
+		clearBulkSelection,
 		issueBulkKey,
 		type BulkKey
 	} from '#lib/client/bulk-selection.svelte';
+	import { openQuickCreate } from '#lib/client/quick-create';
+	import { updateIssue } from '#lib/client/mutations';
+	import { mutate, overlayKey } from '#lib/client/optimistic.svelte';
 	import { timeAgo } from '#lib/client/clock.svelte';
 	import {
 		getGroupBy,
@@ -23,9 +27,14 @@
 	import { weekHeadline } from '#lib/components/plan/format';
 	import { issuePath } from '#lib/issue-url';
 	import { issueRef } from '#lib/issue-ref';
-	import { canonicalLabel } from '#lib/labels';
+	import { canonicalLabel, STATUS_OPTIONS } from '#lib/labels';
 	import { isRetiredPriorityLabel } from '#lib/priority';
 	import { inlineLabels } from '#lib/components/issue/labels-inline';
+	import {
+		listKeyAction,
+		listRowAnnouncement,
+		nextListIndex
+	} from '#lib/client/list-keyboard';
 	import type { IssueListItem } from '#lib/server/issues/types';
 
 	/**
@@ -173,24 +182,167 @@
 		bulkSelection.toggleMany(selectableKeys);
 	}
 
+	let table = $state<HTMLElement | null>(null);
+	let activeKey = $state<BulkKey | null>(null);
+	let announcement = $state('');
+
+	/** Rows that are actually rendered (collapsed sections drop out). */
+	const visibleIssues = $derived(
+		groups.flatMap((group) =>
+			isGroupCollapsed(`${groupBy}:${group.key}`) ? [] : group.issues
+		)
+	);
+	const visibleKeys = $derived(
+		visibleIssues.map((issue) => issueBulkKey(issue.repo, issue.number))
+	);
+
+	/** Roving tab stop: the focused row, or the first row by default. */
+	const effectiveActiveKey = $derived(
+		activeKey && visibleKeys.includes(activeKey) ? activeKey : (visibleKeys[0] ?? null)
+	);
+
+	function rowLinks(): HTMLAnchorElement[] {
+		return table
+			? Array.from(table.querySelectorAll<HTMLAnchorElement>('[data-list-link]'))
+			: [];
+	}
+
+	/** Index of the focused (or roving-active) row. */
+	function currentRowIndex(): number {
+		const focused = document.activeElement;
+		const row =
+			focused instanceof Element ? focused.closest<HTMLElement>('tr[data-list-row]') : null;
+		const focusedKey = row?.dataset.listRow as BulkKey | undefined;
+		const at = focusedKey ? visibleKeys.indexOf(focusedKey) : -1;
+		if (at >= 0) return at;
+		return effectiveActiveKey ? visibleKeys.indexOf(effectiveActiveKey) : -1;
+	}
+
+	function announceRow(index: number): void {
+		const issue = visibleIssues[index];
+		if (!issue) return;
+		announcement = listRowAnnouncement(
+			index,
+			visibleIssues.length,
+			`${refOf(issue)}: ${titleOf(issue)}`
+		);
+	}
+
+	function focusRow(index: number): void {
+		const link = rowLinks()[index];
+		if (!link) return;
+		link.scrollIntoView({ block: 'nearest' });
+		link.focus({ preventScroll: true });
+		announceRow(index);
+	}
+
+	function onRowFocus(event: FocusEvent): void {
+		const link =
+			event.target instanceof Element
+				? event.target.closest<HTMLElement>('[data-list-link]')
+				: null;
+		const key = link?.closest<HTMLElement>('tr[data-list-row]')?.dataset.listRow as
+			| BulkKey
+			| undefined;
+		if (!key) return;
+		activeKey = key;
+		announceRow(visibleKeys.indexOf(key));
+	}
+
+	/** Change an open issue's status through the same optimistic path as Inbox. */
+	async function changeStatus(issue: IssueListItem, status: string): Promise<void> {
+		const next = status || null;
+		if ((issue.status ?? null) === next) return;
+		await mutate({
+			key: overlayKey(issue.repo, issue.number),
+			patch: { status: next },
+			failure: 'Could not update status',
+			commit: () => updateIssue(issue.repo, issue.number, { status: next })
+		});
+	}
+
+	/** `s` moves focus into the row's status control; the picker opens on demand. */
+	function focusStatus(row: HTMLElement | null): void {
+		const control = row?.querySelector<HTMLSelectElement>('[data-list-status]');
+		if (!control) return;
+		control.focus();
+		try {
+			(control as HTMLSelectElement & { showPicker?: () => void }).showPicker?.();
+		} catch {
+			// Not every browser exposes the picker for a programmatic focus.
+		}
+	}
+
+	/** Whether the event already belongs to a nested control with its own Enter. */
+	function hasNativeEnter(target: EventTarget | null): boolean {
+		return target instanceof Element && target.closest('a, button, input, select, textarea') !== null;
+	}
+
 	/**
-	 * `x` toggles the row containing the focused control. Space remains the
-	 * checkbox's native toggle, so the table needs no second tab stop per row.
+	 * Roving row navigation plus the shared list shortcuts.
+	 *
+	 * `j`/`k` and the arrows clamp at the ends; `Enter` keeps native link
+	 * behaviour; `x` reuses the bulk selection; `s` focuses the status select;
+	 * `c` opens quick-create for writers; `Escape` clears selection and returns
+	 * focus to the row link. Typing targets are ignored by the helper.
 	 */
 	function onTableKeydown(event: KeyboardEvent): void {
-		if (!mayWrite) return;
-		if (event.key !== 'x' && event.key !== 'X') return;
-		if (event.ctrlKey || event.metaKey || event.altKey) return;
-		const target = event.target;
-		if (!(target instanceof Element)) return;
-		if (target.closest('select, textarea, input:not([type="checkbox"]), [contenteditable="true"]')) {
+		const action = listKeyAction(event, { mayWrite });
+		if (action === null) return;
+
+		if (action.type === 'move') {
+			const next = nextListIndex(action.to, currentRowIndex(), visibleIssues.length);
+			if (next === null) return;
+			event.preventDefault();
+			focusRow(next);
 			return;
 		}
-		const row = target.closest('tr[data-bulk-key]');
-		const key = row?.getAttribute('data-bulk-key');
-		if (!key) return;
+
+		if (action.type === 'open') {
+			if (hasNativeEnter(event.target)) return;
+			const index = currentRowIndex();
+			const issue = visibleIssues[index];
+			if (!issue) return;
+			event.preventDefault();
+			openIssue(issue);
+			return;
+		}
+
+		const index = currentRowIndex();
+		const issue = visibleIssues[index];
+		if (!issue) return;
+		const row =
+			event.target instanceof Element
+				? event.target.closest<HTMLElement>('tr[data-list-row]')
+				: null;
+
+		if (action.type === 'toggle') {
+			if (!row) return;
+			event.preventDefault();
+			const key = issueBulkKey(issue.repo, issue.number);
+			bulkSelection.toggle(key);
+			announcement = `${bulkSelection.has(key) ? 'Selected' : 'Deselected'} ${refOf(issue)}. ${bulkSelection.count} selected.`;
+			return;
+		}
+
+		if (action.type === 'status') {
+			if (!row) return;
+			event.preventDefault();
+			focusStatus(row);
+			return;
+		}
+
+		if (action.type === 'create') {
+			event.preventDefault();
+			openQuickCreate();
+			return;
+		}
+
+		// Escape clears the shared selection and returns focus to the row link.
 		event.preventDefault();
-		bulkSelection.toggle(key as BulkKey);
+		clearBulkSelection();
+		announcement = 'Selection cleared.';
+		if (row) focusRow(index);
 	}
 
 	/** Keep the select-all box's native mixed state in sync with the window. */
@@ -321,7 +473,15 @@
 		{labels}
 	/>
 	<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-	<div class="table-responsive border rounded" role="group" aria-label="Issues table" onkeydown={onTableKeydown}>
+	<div
+		bind:this={table}
+		class="table-responsive border rounded"
+		role="group"
+		aria-label="Issues table"
+		onkeydown={onTableKeydown}
+		onfocusin={onRowFocus}
+	>
+		<p class="visually-hidden mb-0" role="status" aria-live="polite">{announcement}</p>
 		<Table hover class="align-middle mb-0">
 			<thead class="table-light">
 				<tr>
@@ -376,6 +536,7 @@
 							<tr
 								class="issue-row"
 								data-bulk-key={selectionKey}
+								data-list-row={selectionKey}
 								aria-selected={mayWrite ? selected : undefined}
 								onclick={(event) => onRowClick(event, issue)}
 							>
@@ -399,6 +560,8 @@
 										<a
 											href={issuePath('issues', issue.repo, issue.number)}
 											class="min-w-0 text-primary text-decoration-none text-break"
+											data-list-link
+											tabindex={selectionKey === effectiveActiveKey ? 0 : -1}
 										>
 											{titleOf(issue)}
 										</a>
@@ -449,11 +612,26 @@
 									</div>
 								</td>
 								<td class="small d-none d-md-table-cell">
-									<StatusText
-										status={issue.status}
-										state={issue.state}
-										blocked={issue.blocked}
-									/>
+									{#if mayWrite && issue.state !== 'closed'}
+										<select
+											class="form-select form-select-sm list-status"
+											data-list-status
+											aria-label={`Status for ${refOf(issue)}`}
+											value={issue.status ?? ''}
+											onchange={(event) => void changeStatus(issue, event.currentTarget.value)}
+										>
+											<option value="">No status</option>
+											{#each STATUS_OPTIONS as option (option.value)}
+												<option value={option.value}>{option.label}</option>
+											{/each}
+										</select>
+									{:else}
+										<StatusText
+											status={issue.status}
+											state={issue.state}
+											blocked={issue.blocked}
+										/>
+									{/if}
 								</td>
 								<td class="small d-none d-md-table-cell">
 									{#if issue.priority}
@@ -525,6 +703,19 @@
 		outline: 2px solid var(--bs-primary);
 		outline-offset: 2px;
 		border-radius: 2px;
+	}
+
+	/* Keep the inline status control quiet until it is focused. */
+	.list-status {
+		min-width: 6.5rem;
+		padding-block: 0.1rem;
+		padding-inline: 0.4rem 1.5rem;
+		font-size: 0.8125rem;
+	}
+
+	.list-status:focus-visible {
+		outline: 2px solid var(--bs-primary);
+		outline-offset: 1px;
 	}
 
 	.skeleton {
