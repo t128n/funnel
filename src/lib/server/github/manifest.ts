@@ -19,6 +19,10 @@ export const MANIFEST_PERMISSIONS = {
   metadata: "read",
   // Read repository contents (issues reference code; keeps clone-based flows open).
   contents: "read",
+  // Read linked pull requests, reviews, and the issues they close (#28).
+  pull_requests: "read",
+  // Read the head commit's check runs and statuses (#28).
+  checks: "read",
 } as const;
 
 /**
