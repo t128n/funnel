@@ -47,7 +47,9 @@
 		repoShortcodes?: Record<string, string>;
 		/** Signed-in viewer for the card's quick assign action. */
 		viewer?: UserRef | null;
-		/** RBAC `read`: disables dragging and the column's new-issue link. */
+		/** Opens the in-app create dialog with this lane's status prefilled. */
+		onNewIssue?: () => void;
+		/** RBAC `read`: disables dragging and the column's new-issue control. */
 		readonly?: boolean;
 	}
 
@@ -67,6 +69,7 @@
 		doneDays,
 		repoShortcodes = {},
 		viewer = null,
+		onNewIssue,
 		readonly = false
 	}: Props = $props();
 
@@ -217,7 +220,12 @@
 			<div class="d-flex flex-column align-items-start gap-1 py-2">
 				<p class="small text-body-secondary mb-0">No issues</p>
 				{#if !readonly}
-					<Button href="/intake" color="link" size="sm" class="text-decoration-none px-0">
+					<Button
+						color="link"
+						size="sm"
+						class="text-decoration-none px-0"
+						onclick={onNewIssue}
+					>
 						New Issue
 					</Button>
 				{/if}

@@ -5,6 +5,7 @@
 	import { isCardDragData, type CardDragData } from './dnd';
 	import { moveToStatus } from '#lib/client/issue-actions.svelte';
 	import { createKeyboardMove } from '#lib/client/board-keyboard.svelte';
+	import { openQuickCreate } from '#lib/client/quick-create';
 	import type { BoardProjection } from '#lib/client/board-feed.svelte';
 	import type { IssueListItem, UserRef } from '#lib/server/issues/types';
 
@@ -282,6 +283,9 @@
 			error={column.error}
 			onLoadMore={column.loadMore}
 			onDrop={(issueKey, index) => handleDrop(issueKey, column.key, index)}
+			onNewIssue={() => {
+				if (!readonly) openQuickCreate({ status: column.key });
+			}}
 			limit={wipLimits[column.key]}
 			{doneDays}
 			{repoShortcodes}

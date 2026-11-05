@@ -11,7 +11,7 @@ This guide lists the keyboard shortcuts the cockpit actually binds and the extra
 | `Mod` + `K` | Focus the issue search | Cockpit views; works even while typing in a field |
 | `/` | Focus the issue search | Cockpit views; ignored while typing in a field |
 | `Mod` + `,` | Open Settings | Cockpit views |
-| `C` | Start a new issue by opening `/intake` | Cockpit views, for `write` users only; ignored while typing |
+| `C` | Open the in-app **New issue** dialog | Cockpit views, for `write` users only; ignored while typing |
 | `Mod` + `B` | Toggle the sidebar | Cockpit views |
 | `S` | Open the focused board card's status menu | Board only |
 | `X` | Open the focused board card's details | Board only |
@@ -19,7 +19,7 @@ This guide lists the keyboard shortcuts the cockpit actually binds and the extra
 Details and conditions:
 
 - **Search.** `Mod` + `K` and `/` both focus the search input. If the current view has no search field — Attention, for example — Funnel navigates to `/issues` first and then focuses the search there. `Mod` + `K` still fires inside an input; the bare `/` does not, so you can type a slash in a title or comment.
-- **New issue.** `C` is registered only for users with the `write` role. It opens the `/intake` composer rather than a modal create form. The sidebar's **New issue** button is disabled for `read` users.
+- **New issue.** `C` is registered only for users with the `write` role. It opens the in-app create dialog (repository, title, description, status, priority, size, assignees and labels) rather than navigating to `/intake`. The `/intake` form remains the external submission path. The board's per-column **New Issue** control opens the same dialog with that column's status prefilled.
 - **Settings.** `Mod` + `,` navigates to `/settings`.
 - **Sidebar.** `Mod` + `B` toggles the sidebar. On narrow screens the sidebar is presented as a sheet, also opened with the cockpit's menu trigger.
 - **Focus.** `S` and `X` act on the board card that currently has keyboard focus. With no focused card they do nothing.

@@ -2,8 +2,16 @@
 	import { onMount, untrack } from 'svelte';
 	import { goto, refreshAll } from '$app/navigation';
 	import { createHotkeys, getAppHotkeys } from '@tanstack/svelte-hotkeys';
+	import { Button } from '@sveltestrap/sveltestrap';
 	import AppShell from '#lib/components/shell/AppShell.svelte';
+	import InlineStatus from '#lib/components/common/InlineStatus.svelte';
+	import NewIssueDialog from '#lib/components/issue/NewIssueDialog.svelte';
 	import { openGlobalSearch } from '#lib/client/global-search.svelte';
+	import {
+		dismissQuickCreateSuccess,
+		openQuickCreate,
+		quickCreate
+	} from '#lib/client/quick-create';
 	import { actionableCount, classifyAttention, toISODate } from '#lib/attention';
 	import { connectEvents, type FunnelEvent } from '#lib/client/events';
 	import { startNativeNotifications } from '#lib/client/native-notifications';
@@ -24,6 +32,8 @@
 	});
 
 	const mayWrite = $derived(canWrite(data.user.role));
+	/** Repositories the quick-create dialog can pick from. */
+	const repoChoices = $derived(Object.keys(data.repoShortcodes).sort());
 
 	// The Attention badge counts overdue + due-today re-checks; blocked issues
 	// without a usable date are listed on the page but never raise the badge.
@@ -147,7 +157,7 @@
 	}
 
 	function openNew() {
-		void goto('/intake');
+		openQuickCreate();
 	}
 
 	// Global shortcuts come from the shared catalog, so labels, hints, and
@@ -174,5 +184,44 @@
 	unread={data.unreadNotifications}
 	onSearch={openSearch}
 >
+	{#if $quickCreate.success}
+		{@const success = $quickCreate.success}
+		<div class="container-fluid px-3 px-lg-4 pt-3" data-quick-create-success>
+			<InlineStatus tone="success" message={`Created ${success.repo}#${success.number}.`}>
+				{#snippet action()}
+					<span class="d-inline-flex align-items-center gap-3">
+						<a
+							href={success.htmlUrl}
+							target="_blank"
+							rel="noopener noreferrer"
+							class="text-nowrap"
+						>
+							Open on GitHub
+						</a>
+						<Button
+							color="link"
+							size="sm"
+							class="p-0 text-decoration-none"
+							onclick={dismissQuickCreateSuccess}
+						>
+							Dismiss
+						</Button>
+					</span>
+				{/snippet}
+			</InlineStatus>
+		</div>
+	{/if}
+
 	{@render children()}
 </AppShell>
+
+<!-- Only writers can create; the hotkey and board control are gated too, and
+     the server enforces the role on the POST. -->
+{#if mayWrite}
+	<NewIssueDialog
+		repos={repoChoices}
+		defaultRepo={data.defaultRepo}
+		assignees={data.options.assignees}
+		labelOptions={data.options.labels}
+	/>
+{/if}
