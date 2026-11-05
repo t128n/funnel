@@ -2,7 +2,6 @@ import { getViewerExternalId } from "#lib/server/auth/index";
 import { requireUser } from "#lib/server/auth/guard";
 import { FEATURES_COOKIE, parseFeatureOverrides } from "#lib/features";
 import { getConfig, repoShortcodeMap } from "#lib/server/config";
-import { attentionBreaches } from "#lib/server/attention/queries";
 import { COMMENT_BUBBLES_FLAG, resolveFeatures } from "#lib/server/flags";
 import { EMPTY_FILTER } from "#lib/server/issues/filters";
 import {
@@ -51,11 +50,6 @@ export const load: LayoutServerLoad = async ({ locals, url, cookies }) => {
   // Waiting section agree.
   const waiting = waitingIssues(Date.now(), config.attention.waiting_days);
 
-  // Rule breaches are evaluated server-side on every cockpit navigation. They
-  // are additive: the blocked `attention` feed and the sidebar badge keep their
-  // existing semantics.
-  const breaches = await attentionBreaches();
-
   // The badge counts this viewer's unread rows only; reading them is always
   // scoped by `auth_user.id`, never by a client-supplied id.
   const unreadNotifications = unreadNotificationCount(user.id);
@@ -71,7 +65,6 @@ export const load: LayoutServerLoad = async ({ locals, url, cookies }) => {
     viewerGithub,
     options,
     attention: attentionIssues(),
-    breaches,
     waiting,
     inboxCount: inboxTotal,
     unreadNotifications,

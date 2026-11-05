@@ -2,15 +2,15 @@
  * Read-only attention-rule data access (issue #37).
  *
  * Gathers the rows the pure {@link evaluateAttentionRules} evaluator needs in a
- * fixed number of queries: open issues, their assignees, their comments (with
- * comment authors) and local waiting rows. Nothing is per-issue, so a large
+ * fixed number of queries: open issues (with a SQL-computed response flag),
+ * their assignees and local waiting rows. Nothing is per-issue, so a large
  * backlog cannot turn this into N+1 reads.
  *
  * Only open, still-mirrored issues are selected. A waiting row for a closed or
  * pruned issue is passed through anyway; the evaluator drops it when it cannot
  * find the matching open issue.
  */
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { getConfig } from "#lib/server/config";
 import { db } from "#lib/server/db/index";
 import {
@@ -63,6 +63,15 @@ export async function attentionBreaches(
     waitingDays: config.attention.waiting_days,
   };
 
+  if (
+    thresholds.firstResponseDays === 0 &&
+    thresholds.staleOpenDays === 0 &&
+    thresholds.recheckCadenceDays === 0 &&
+    thresholds.waitingDays === 0
+  ) {
+    return [];
+  }
+
   const rows = db
     .select({
       repoId: mirrorThread.repoId,
@@ -74,11 +83,19 @@ export async function attentionBreaches(
       createdAt: mirrorThread.createdAt,
       updatedAt: mirrorThread.updatedAt,
       blocked: mirrorThread.blocked,
-      authorExternalId: mirrorUser.externalId,
+      hasResponse: sql<number>`EXISTS (
+        SELECT 1 FROM ${mirrorComment} c
+        WHERE c.repo_id = ${mirrorThread.repoId}
+          AND c.thread_number = ${mirrorThread.number}
+          AND (
+            ${mirrorThread.authorId} IS NULL
+            OR c.author_id IS NULL
+            OR c.author_id <> ${mirrorThread.authorId}
+          )
+      )`,
     })
     .from(mirrorThread)
     .innerJoin(mirrorRepo, eq(mirrorThread.repoId, mirrorRepo.id))
-    .leftJoin(mirrorUser, eq(mirrorThread.authorId, mirrorUser.id))
     .where(
       and(eq(mirrorThread.kind, "issue"), eq(mirrorThread.state, "open")),
     )
@@ -118,37 +135,6 @@ export async function attentionBreaches(
     assignees.set(key, list);
   }
 
-  const commentRows = db
-    .select({
-      repoId: mirrorComment.repoId,
-      number: mirrorComment.threadNumber,
-      authorExternalId: mirrorUser.externalId,
-    })
-    .from(mirrorComment)
-    .innerJoin(
-      mirrorThread,
-      and(
-        eq(mirrorThread.repoId, mirrorComment.repoId),
-        eq(mirrorThread.number, mirrorComment.threadNumber),
-      ),
-    )
-    .leftJoin(mirrorUser, eq(mirrorComment.authorId, mirrorUser.id))
-    .where(
-      and(eq(mirrorThread.kind, "issue"), eq(mirrorThread.state, "open")),
-    )
-    .all();
-
-  const comments = new Map<
-    string,
-    Array<{ authorExternalId: string | null }>
-  >();
-  for (const row of commentRows) {
-    const key = issueKey(`${row.repoId}`, row.number);
-    const list = comments.get(key) ?? [];
-    list.push({ authorExternalId: row.authorExternalId ?? null });
-    comments.set(key, list);
-  }
-
   const issues: RuleIssue[] = rows.map((row) => {
     const key = issueKey(`${row.repoId}`, row.number);
     return {
@@ -159,9 +145,8 @@ export async function attentionBreaches(
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
       blocked: row.blocked === 1,
-      authorExternalId: row.authorExternalId ?? null,
+      hasResponse: row.hasResponse === 1,
       assignees: assignees.get(key) ?? [],
-      comments: comments.get(key) ?? [],
     };
   });
 

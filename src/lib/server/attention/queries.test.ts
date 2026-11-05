@@ -137,6 +137,28 @@ describe("attentionBreaches", () => {
     ]);
   });
 
+  test("computes first-response semantics in SQL without loading comment rows", async () => {
+    // Author-only comments are not a response.
+    seedIssue(11, { comments: [comment("c1", user("1", "author"))] });
+    // Another person's comment, a null comment author, and a null issue author
+    // all count as a response.
+    seedIssue(12, { comments: [comment("c2", user("3", "reviewer"))] });
+    seedIssue(13, { comments: [comment("c3", null)] });
+    seedIssue(14, {
+      author: null,
+      comments: [comment("c4", user("3", "reviewer"))],
+    });
+    // A null issue author with no comments still breaches.
+    seedIssue(15, { author: null });
+
+    const numbers = (await attentionBreaches(NOW))
+      .filter((breach) => breach.rule === "first_response")
+      .map((breach) => breach.number)
+      .sort((a, b) => a - b);
+
+    expect(numbers).toEqual([11, 15]);
+  });
+
   test("includes waiting and re-check breaches only while the issue is open", async () => {
     const blockedBody = writeBlocked("desc", {
       blocker: "Upstream",

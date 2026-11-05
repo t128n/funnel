@@ -12,6 +12,8 @@ function source(relative: string): string {
 
 describe("attention page", () => {
   const page = source("src/routes/(app)/attention/+page.svelte");
+  const server = source("src/routes/(app)/attention/+page.server.ts");
+  const layout = source("src/routes/(app)/+layout.server.ts");
 
   test("renders a labelled rule-breach section grouped by rule", () => {
     expect(page).toContain("Rule breaches");
@@ -19,6 +21,13 @@ describe("attention page", () => {
     expect(page).toContain("ATTENTION_RULE_LABELS");
     expect(page).toContain("<BreachRow");
     expect(page).toContain("data.breaches");
+  });
+
+  test("evaluates breaches in the page load, not the shared layout", () => {
+    expect(server).toContain("attentionBreaches");
+    expect(server).toContain("breaches:");
+    expect(layout).not.toContain("attentionBreaches");
+    expect(layout).not.toContain("breaches,");
   });
 
   test("keeps the existing empty state and blocked/waiting sections", () => {

@@ -38,9 +38,8 @@ function issue(overrides: Partial<RuleIssue> = {}): RuleIssue {
     createdAt: NOW,
     updatedAt: NOW,
     blocked: false,
-    authorExternalId: "1",
+    hasResponse: false,
     assignees: [],
-    comments: [],
     ...overrides,
   };
 }
@@ -86,51 +85,30 @@ describe("first response rule", () => {
     expect(first?.daysOverdue).toBe(1);
   });
 
-  test("an author-only comment still breaches", () => {
+  test("an author-only response does not clear the breach", () => {
     expect(
       rules(
         evaluate([
           issue({
             createdAt: NOW - 4 * DAY_MS,
-            comments: [{ authorExternalId: "1" }],
+            hasResponse: false,
           }),
         ]),
       ),
     ).toContain("first_response");
   });
 
-  test("a comment by someone else clears the breach", () => {
+  test("a response from someone else clears the breach", () => {
     expect(
       rules(
         evaluate([
           issue({
             createdAt: NOW - 4 * DAY_MS,
-            comments: [{ authorExternalId: "2" }],
+            hasResponse: true,
           }),
         ]),
       ),
     ).not.toContain("first_response");
-  });
-
-  test("a null comment author counts as a response", () => {
-    expect(
-      rules(
-        evaluate([
-          issue({
-            createdAt: NOW - 4 * DAY_MS,
-            comments: [{ authorExternalId: null }],
-          }),
-        ]),
-      ),
-    ).not.toContain("first_response");
-  });
-
-  test("a null issue author means any comment counts", () => {
-    const base = { createdAt: NOW - 4 * DAY_MS, authorExternalId: null };
-    expect(
-      rules(evaluate([issue({ ...base, comments: [{ authorExternalId: "9" }] })])),
-    ).not.toContain("first_response");
-    expect(rules(evaluate([issue(base)]))).toContain("first_response");
   });
 
   test("zero disables the rule", () => {

@@ -536,7 +536,8 @@ export function notifyConfigChanged(): void {
 }
 
 /** Outcome of one {@link syncAllRepos} pass; individual failures are isolated. */
-export interface SyncRunSummary {  /** Configured repositories the run attempted. */
+export interface SyncRunSummary {
+  /** Configured repositories the run attempted. */
   repos: number;
   /** Repositories whose cycle failed (already logged and flagged degraded). */
   failed: number;

@@ -243,7 +243,7 @@ export interface AttentionSettings {
   waiting_days: number;
 }
 
-/** Defaults preserve Funnel's pre-#37 behaviour, except new rules start off. */
+/** Defaults preserve Funnel's pre-#37 behaviour; all four rules start enabled. */
 export const DEFAULT_ATTENTION: AttentionSettings = {
   first_response_days: 3,
   stale_open_days: 30,

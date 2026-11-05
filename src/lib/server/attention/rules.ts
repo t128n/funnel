@@ -55,11 +55,12 @@ export interface RuleIssue {
   updatedAt: number;
   /** The mirror's `blocked` flag (the label is the source of truth). */
   blocked: boolean;
-  /** The issue author's forge id, or `null` when unknown. */
-  authorExternalId: string | null;
+  /**
+   * Whether anyone other than the issue author has commented. Computed in SQL
+   * so the evaluator never has to load every comment row.
+   */
+  hasResponse: boolean;
   assignees: UserRef[];
-  /** One entry per comment; a null author counts as a response. */
-  comments: readonly { authorExternalId: string | null }[];
 }
 
 /** One local waiting row; only rows whose issue is in {@link RuleInput.issues} count. */
@@ -108,20 +109,6 @@ function days(value: number): string {
   return value === 1 ? "day" : "days";
 }
 
-/**
- * Whether anyone other than the author has commented. A null author on either
- * side counts as a response: Funnel cannot prove the comment came from the
- * author, and a missing issue author means any comment is evidence of a reply.
- */
-function hasResponse(issue: RuleIssue): boolean {
-  return issue.comments.some(
-    (comment) =>
-      issue.authorExternalId === null ||
-      comment.authorExternalId === null ||
-      comment.authorExternalId !== issue.authorExternalId,
-  );
-}
-
 function breach(
   rule: AttentionRule,
   issue: RuleIssue,
@@ -157,7 +144,7 @@ export function evaluateAttentionRules(
   );
 
   for (const issue of input.issues) {
-    if (thresholds.firstResponseDays > 0 && !hasResponse(issue)) {
+    if (thresholds.firstResponseDays > 0 && !issue.hasResponse) {
       const ageDays = Math.floor((now - issue.createdAt) / DAY_MS);
       if (now - issue.createdAt >= thresholds.firstResponseDays * DAY_MS) {
         breaches.push(
