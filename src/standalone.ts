@@ -127,6 +127,14 @@ export function cliArgs(argv = process.argv): string[] {
 
 export async function runStandalone(): Promise<void> {
   loadInstalledEnvFile();
+
+  // adapter-node closes the listener on SIGTERM/SIGINT and then emits this
+  // event, but the sync worker and reconciliation timers keep Bun's event loop
+  // alive, so the process would never actually exit. Exit here so a service
+  // manager or container runtime sees a prompt, clean stop after the listener
+  // has drained.
+  process.once("sveltekit:shutdown", () => process.exit(0));
+
   const args = cliArgs();
 
   const command = args[0];
