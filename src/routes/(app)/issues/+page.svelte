@@ -11,10 +11,11 @@
 	import SortControl from '#lib/components/issue/SortControl.svelte';
 	import type { GroupKey } from '#lib/components/issue/grouping';
 	import PageHeader from '#lib/components/shell/PageHeader.svelte';
+	import SavedViewsMenu from '#lib/components/views/SavedViewsMenu.svelte';
 	import { createFeed } from '#lib/client/feed.svelte';
 	import { getGroupBy, setGroupBy } from '#lib/client/list-prefs.svelte';
 	import { projectIssues, reconcileIssues } from '#lib/client/optimistic.svelte';
-	import { canWrite } from '#lib/roles';
+	import { canAdmin, canWrite } from '#lib/roles';
 	import { FEED_ENDPOINTS } from '#lib/feeds';
 	import {
 		activeFilterCount,
@@ -131,6 +132,7 @@
 	// Bulk writes are limited to `write` users; read-only viewers keep the same
 	// table without checkboxes or the action bar.
 	const mayWrite = $derived(canWrite(data.user?.role));
+	const mayAdmin = $derived(canAdmin(data.user?.role));
 	const bulkAssignees = $derived(data.options.assignees.map((person) => person.login));
 	const bulkLabels = $derived(data.options.labels);
 
@@ -279,6 +281,14 @@
 		</select>
 
 		<SortControl />
+
+		<SavedViewsMenu
+			views={data.savedViews}
+			scope="issues"
+			userId={data.user.id}
+			{mayWrite}
+			{mayAdmin}
+		/>
 
 		{#if filterCount > 0}
 			<Button

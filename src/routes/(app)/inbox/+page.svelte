@@ -17,10 +17,11 @@
 	import InboxTable from '#lib/components/inbox/InboxTable.svelte';
 	import Breadcrumbs from '#lib/components/shell/Breadcrumbs.svelte';
 	import PageHeader from '#lib/components/shell/PageHeader.svelte';
+	import SavedViewsMenu from '#lib/components/views/SavedViewsMenu.svelte';
 	import { createFeed } from '#lib/client/feed.svelte';
 	import { inboxEmptyState, inboxSummary } from '#lib/client/inbox';
 	import { resurface } from '#lib/client/mutations';
-	import { canWrite } from '#lib/roles';
+	import { canAdmin, canWrite } from '#lib/roles';
 	import {
 		projectInboxEntries,
 		reconcileIssues,
@@ -101,6 +102,7 @@
 	// Bulk selection is a writer affordance; read-only viewers keep the queue
 	// and its inline triage controls as-is.
 	const mayWrite = $derived(canWrite(data.user?.role));
+	const mayAdmin = $derived(canAdmin(data.user?.role));
 	const bulkAssignees = $derived(data.options.assignees.map((person) => person.login));
 	const bulkLabels = $derived(data.options.labels);
 
@@ -317,6 +319,14 @@
 				<span class="badge text-bg-secondary ms-1">{data.snoozedCount}</span>
 			{/if}
 		</Button>
+
+		<SavedViewsMenu
+			views={data.savedViews}
+			scope="inbox"
+			userId={data.user.id}
+			{mayWrite}
+			{mayAdmin}
+		/>
 
 		{#if !showSnoozed}
 			<div class="ms-auto d-flex align-items-center gap-2">
