@@ -692,6 +692,28 @@ Primary key: `(repo_id, issue_number, pr_number)`. Foreign keys: `repo_id` → `
 - `idx_mirror_issue_pr_issue` on `(repo_id, issue_number)`.
 - `idx_mirror_issue_pr_pull` on `(repo_id, pr_number)`.
 
+### `mirror_issue_relation`
+
+GitHub-native parent/sub-issue and dependency edges (issue #34). Each row belongs to the source issue it was hydrated for and points at the related issue, which may be in another repository. The manual `blocked` flag on `mirror_thread` is unrelated: this table records what GitHub itself links, never a Funnel-local blocker. Neither side carries a foreign key to `mirror_thread`, because both are disposable and a target may not be mirrored yet. Replacing one query's kinds deletes only that source issue's rows for those kinds, so a failed sub-issue query never removes dependency rows and vice versa.
+
+| Column | Type | Constraints / notes |
+| :--- | :--- | :--- |
+| `repo_id` | INTEGER | Not null; FK to `mirror_repo.id` of the source issue. |
+| `issue_number` | INTEGER | Not null; the source issue number. |
+| `kind` | TEXT | Not null; `parent`, `child`, `blocked_by` or `blocking`. |
+| `target_repo` | TEXT | Not null; `owner/name` of the related issue (may be another repository). |
+| `target_number` | INTEGER | Not null; the related issue number. |
+| `target_title` | TEXT | Not null, default `''`; empty when GitHub omitted it. |
+| `target_state` | TEXT | Not null, default `'open'`; lower-case `open` or `closed`. |
+| `target_url` | TEXT | Not null, default `''`. |
+
+Primary key: `(repo_id, issue_number, kind, target_repo, target_number)`. Foreign keys: `repo_id` → `mirror_repo.id` on delete `CASCADE`. Indexes:
+
+- `idx_mirror_issue_relation_issue` on `(repo_id, issue_number, kind)` for the Inspector read and per-kind replacement.
+- `idx_mirror_issue_relation_target` on `(target_repo, target_number)` for reverse lookups.
+
+Rows are replaced per source issue when a hydration query succeeds; a rejected query leaves the previous edge set intact. `deleteIssue` removes the deleted issue's rows as a source. Reverse rows owned by other issues are left to their own next hydration.
+
 ### `mirror_repo_label`
 
 The per-repo label set, refreshed during sync.
@@ -874,11 +896,12 @@ Foreign keys declared in the schema:
 | `mirror_pull_request.repo_id` | `mirror_repo.id` | `CASCADE` |
 | `mirror_pull_request.author_id` | `mirror_user.id` | `SET NULL` |
 | `mirror_issue_pull_request.repo_id` | `mirror_repo.id` | `CASCADE` |
+| `mirror_issue_relation.repo_id` | `mirror_repo.id` | `CASCADE` |
 | `mirror_issue_event.repo_id` | `mirror_repo.id` | `CASCADE` |
 | `mirror_issue_event.actor_id` | `mirror_user.id` | `SET NULL` |
 | `mirror_comment.author_id` | `mirror_user.id` | `SET NULL` |
 
-The composite child tables `mirror_thread_label` and `mirror_thread_assignee`, the `repo_id`/`issue_number`/`pr_number` columns on `mirror_issue_pull_request`, and the `repo_id`/`thread_number` columns on `mirror_comment` and `mirror_issue_event`, carry no foreign key to `mirror_thread` or `mirror_pull_request`. `mirror_thread.milestone_number` also has no foreign key to `mirror_milestone`: the milestone set is replaced wholesale on refresh, and a thread may briefly reference a number that has not been mirrored yet. The sync layer therefore deletes labels, assignees, links, comments and timeline events explicitly before deleting a thread row (`deleteIssue` in `src/lib/server/sync/mirror.ts`) and prunes pull requests that no link refers to. `state_work_note`, `state_attachment`, `state_notification`, `state_issue_watch`, `state_comment_reaction`, `state_plan_item`, `state_issue_event`, `state_issue_delay`, `state_issue_waiting`, `state_snooze`, `state_triage_event`, `state_work_hours`, `state_unavailable_window`, `state_day_block` and `state_calendar_feed` also carry no foreign key to the mirror: their author/uploader/recipient/actor identities are snapshots, and their issue identity is the durable `org/name` plus number. The four legacy day-planning tables reference `auth_user.id` directly with `ON DELETE CASCADE`; deleting an account removes any retained rows.
+The composite child tables `mirror_thread_label` and `mirror_thread_assignee`, the `repo_id`/`issue_number`/`pr_number` columns on `mirror_issue_pull_request`, the `repo_id`/`issue_number`/`target_repo`/`target_number` columns on `mirror_issue_relation`, and the `repo_id`/`thread_number` columns on `mirror_comment` and `mirror_issue_event`, carry no foreign key to `mirror_thread` or `mirror_pull_request`. `mirror_thread.milestone_number` also has no foreign key to `mirror_milestone`: the milestone set is replaced wholesale on refresh, and a thread may briefly reference a number that has not been mirrored yet. The sync layer therefore deletes labels, assignees, links, relations, comments and timeline events explicitly before deleting a thread row (`deleteIssue` in `src/lib/server/sync/mirror.ts`) and prunes pull requests that no link refers to. `state_work_note`, `state_attachment`, `state_notification`, `state_issue_watch`, `state_comment_reaction`, `state_plan_item`, `state_issue_event`, `state_issue_delay`, `state_issue_waiting`, `state_snooze`, `state_triage_event`, `state_work_hours`, `state_unavailable_window`, `state_day_block` and `state_calendar_feed` also carry no foreign key to the mirror: their author/uploader/recipient/actor identities are snapshots, and their issue identity is the durable `org/name` plus number. The four legacy day-planning tables reference `auth_user.id` directly with `ON DELETE CASCADE`; deleting an account removes any retained rows.
 
 ## Storage, pragmas and migrations
 

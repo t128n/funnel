@@ -49,6 +49,17 @@ Hydration writes users first because they are foreign-key targets, then upserts 
 
 Two bounds are intentional. Only the first 100 comments, labels and assignees are requested per issue. A very long comment thread is not fully mirrored; the cockpit is a working view, not an archival export. And a batch can return fewer records than ids because PR nodes and nodes missing identity are discarded. Neither case is treated as an error.
 
+## Issue relationships in two fail-soft queries
+
+Parent/sub-issue and blocked-by/blocking links are mirrored after the issue itself, in two separate GraphQL queries over the same `nodes(ids:)` batches. They deliberately do **not** widen the main hydration query: on a GitHub Enterprise host that predates sub-issues or dependencies, one rejected field would otherwise fail every issue upsert.
+
+- The sub-issues query asks for `parent` plus `subIssues(first: 100)`.
+- The dependencies query asks for `blockedBy(first: 100)` and `blocking(first: 100)`.
+
+Each query is isolated. When a query succeeds, the source issue's rows for its kinds are replaced; when it fails, the failure is logged and the previously stored rows for those kinds are left untouched. The other relation set and the issue upsert are unaffected. A host that rejects only dependencies therefore keeps parent/child progress, and a host that rejects both keeps the issue mirror and any older relationship rows. Polling continues normally either way.
+
+Edges are stored in `mirror_issue_relation` with a target `owner/name` and number, because GitHub may report a child or dependency in another repository. `OPEN`/`CLOSED` is normalised to lower case, refs without a number are dropped, and duplicates are collapsed and sorted by repo then number. Each connection is capped at 100 edges per issue, the size of one page. Sub-issue progress is computed from the mirrored child edges rather than `subIssuesSummary`, so the Inspector cannot show a percentage that disagrees with the list beneath it. These relationships are read-only in Funnel and are distinct from the manual `blocked` flag, which remains authoritative for Attention.
+
 ## Reserved-label conflicts
 
 Funnel's workflow vocabulary allows at most one label per active group: status, impact, urgency and size. A `flags` group carries orthogonal markers such as `blocked`. Retired priority labels are ignored; their conflicts are handled by the conflict flag, not timeline resolution. When GitHub ends up with two labels from the same group — because someone edited labels outside Funnel, or two clients raced — the sync worker resolves it with the App installation token.

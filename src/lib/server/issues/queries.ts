@@ -65,6 +65,7 @@ import { activeSnoozes, issueSnoozeClause } from "#lib/server/snooze";
 import { getWaiting, listWaiting, WAITING_STALE_DAYS } from "#lib/server/waiting";
 import {
   getIssuePullRequests,
+  getIssueRelations,
   getRepoByOrgName,
   listRepos,
 } from "#lib/server/sync/mirror";
@@ -117,6 +118,8 @@ import type {
   IssueListItem,
   IssueOption,
   IssuePullRequestSummary,
+  IssueRelationRef,
+  IssueRelations,
   LinkedPullRequest,
   MatrixBoard,
   MatrixCell,
@@ -808,6 +811,58 @@ export function toLinkedPullRequests(
     closedAt: row.closedAt,
     mergedAt: row.mergedAt,
   }));
+}
+
+/**
+ * Map mirrored relationship rows to the Inspector payload. Children and
+ * dependencies are ordered by repository then number; progress is computed
+ * from the child edges (`closed` counts as completed) and is `null` when the
+ * issue has no sub-issues.
+ */
+export function toIssueRelations(
+  rows: ReturnType<typeof getIssueRelations>,
+): IssueRelations {
+  const refs = (
+    kind: "child" | "blocked_by" | "blocking",
+  ): IssueRelationRef[] =>
+    rows
+      .filter((row) => row.kind === kind)
+      .map((row) => ({
+        repo: row.targetRepo,
+        number: row.targetNumber,
+        title: row.targetTitle,
+        state: row.targetState.toLowerCase(),
+        url: row.targetUrl,
+      }))
+      .sort((a, b) => a.repo.localeCompare(b.repo) || a.number - b.number);
+
+  const parentRow = rows.find((row) => row.kind === "parent");
+  const parent: IssueRelationRef | null = parentRow
+    ? {
+        repo: parentRow.targetRepo,
+        number: parentRow.targetNumber,
+        title: parentRow.targetTitle,
+        state: parentRow.targetState.toLowerCase(),
+        url: parentRow.targetUrl,
+      }
+    : null;
+  const children = refs("child");
+  const completed = children.filter((child) => child.state === "closed").length;
+
+  return {
+    parent,
+    children,
+    blockedBy: refs("blocked_by"),
+    blocking: refs("blocking"),
+    progress:
+      children.length === 0
+        ? null
+        : {
+            total: children.length,
+            completed,
+            percent: Math.round((completed / children.length) * 100),
+          },
+  };
 }
 
 /**
@@ -1840,6 +1895,7 @@ export function getIssueDetail(
     }),
     attachments: listAttachments(org, name, number),
     pullRequests: toLinkedPullRequests(getIssuePullRequests(repoId, number)),
+    relations: toIssueRelations(getIssueRelations(repoId, number)),
     repoLabels,
     assigneeOptions,
     milestoneOptions,
