@@ -334,6 +334,8 @@ export interface CreateIssueInput {
   impact?: string;
   urgency?: string;
   size?: string;
+  /** GitHub issue type name when the host/repo supports issue types. */
+  issueType?: string;
 }
 
 export function createIssue(
@@ -344,6 +346,24 @@ export function createIssue(
     method: "POST",
     body: JSON.stringify(input),
   });
+}
+
+/** One GitHub issue type offered by a repo (empty when unsupported). */
+export interface IssueTypeOption {
+  id: string;
+  name: string;
+  colour: string;
+}
+
+/**
+ * Load the issue types a repo offers. Unsupported hosts and repos return an
+ * empty list rather than an error, so the quick-create dialog simply hides its
+ * Type select.
+ */
+export function fetchIssueTypes(
+  repo: string,
+): Promise<MutationResult<{ types: IssueTypeOption[] }>> {
+  return request(`/api/repos/${repoPath(repo)}/issue-types`);
 }
 
 export interface CreateMilestoneInput {

@@ -103,6 +103,11 @@
 			<dt class="col-5 fw-normal text-body-secondary">Repository</dt>
 			<dd class="col-7 mb-2 text-break">{issue.repo}</dd>
 
+			{#if issue.issueType}
+				<dt class="col-5 fw-normal text-body-secondary">Type</dt>
+				<dd class="col-7 mb-2 text-break">{issue.issueType}</dd>
+			{/if}
+
 			<dt class="col-5 fw-normal text-body-secondary">Epic</dt>
 			<dd class="col-7 mb-2">
 				{#if detail.epic || detail.issue.isEpic || mayWrite}

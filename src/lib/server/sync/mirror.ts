@@ -1227,6 +1227,50 @@ export function setIssueMetadata(
   bumpRevision();
 }
 
+/**
+ * Apply hydrated GitHub issue types to existing mirror rows. Only issues in
+ * `types` are touched, so a partial or rejected issue-type query cannot clear
+ * values for issues it did not return. A row whose value is unchanged is a
+ * no-op, and the mirror revision advances only when at least one value changes.
+ */
+export function setIssueTypes(
+  repoId: number,
+  types: ReadonlyMap<number, string | null>,
+): void {
+  if (types.size === 0) return;
+  let changed = false;
+  db.transaction((tx) => {
+    for (const [number, value] of types) {
+      const row = tx
+        .select({ issueType: mirrorThread.issueType })
+        .from(mirrorThread)
+        .where(
+          and(
+            eq(mirrorThread.repoId, repoId),
+            eq(mirrorThread.number, number),
+          ),
+        )
+        .get();
+      // A node may be returned for an issue that was not mirrored (for example
+      // a PR that rode along with the batch); there is nothing to update.
+      if (!row) continue;
+      const next = typeof value === "string" ? value.trim() || null : null;
+      if (row.issueType === next) continue;
+      tx.update(mirrorThread)
+        .set({ issueType: next })
+        .where(
+          and(
+            eq(mirrorThread.repoId, repoId),
+            eq(mirrorThread.number, number),
+          ),
+        )
+        .run();
+      changed = true;
+    }
+  });
+  if (changed) bumpRevision();
+}
+
 export function replaceIssueLabels(
   repoId: number,
   number: number,

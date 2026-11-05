@@ -66,6 +66,7 @@ describe("toFilterParams", () => {
 			unassigned: false,
 			priorities: ["p1"],
 			sizes: ["sm", "md"],
+			types: ["Bug", "Feature"],
 			labels: ["bug", "frontend"],
 			planned: ["this-week"],
 			milestones: ["orgA/core#3", NONE],
@@ -76,6 +77,13 @@ describe("toFilterParams", () => {
 			search: "crash on boot",
 		};
 		expect(parseFilterParams(toFilterParams(filter))).toEqual(filter);
+	});
+
+	test("parses issue types case-insensitively with the untyped sentinel", () => {
+		const filter = parseFilterParams(
+			new URLSearchParams("type=Bug,feature&type=bug&type=NONE"),
+		);
+		expect(filter.types).toEqual(["Bug", "feature", "none"]);
 	});
 
 	test("maps assignee=none to unassigned and ORs it with named assignees", () => {

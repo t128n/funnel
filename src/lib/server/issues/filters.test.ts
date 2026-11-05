@@ -1,11 +1,20 @@
-import { describe, expect, test } from "bun:test";
+import { beforeEach, describe, expect, test } from "bun:test";
 import { buildVocabulary } from "#lib/labels";
+import { db } from "#lib/server/db/index";
+import { mirrorThread } from "#lib/server/db/schema";
+import {
+  setIssueTypes,
+  upsertIssue,
+  upsertRepo,
+} from "#lib/server/sync/mirror";
+import { clearMirror } from "#tests/mirror-helpers";
 import {
   buildIssueWhere,
   EMPTY_FILTER,
   escapeLike,
   groupOf,
   parseIssueFilter,
+  type IssueFilter,
   type IssueFilterContext,
 } from "./filters";
 
@@ -197,6 +206,24 @@ describe("parseIssueFilter", () => {
     expect(filter.noMilestone).toBe(false);
   });
 
+  test("parses repeated and comma-joined issue types case-insensitively", () => {
+    const filter = parseIssueFilter(
+      new URLSearchParams("type=Bug,Feature&type=bug&type= task "),
+      ctx,
+    );
+    expect(filter.types).toEqual(["Bug", "Feature", "task"]);
+  });
+
+  test("parses the untyped sentinel and keeps unknown names", () => {
+    expect(
+      parseIssueFilter(
+        new URLSearchParams("type=NONE&type=none&type=Ghost"),
+        ctx,
+      ).types,
+    ).toEqual(["none", "Ghost"]);
+    expect(parseIssueFilter(new URLSearchParams(""), ctx).types).toEqual([]);
+  });
+
   test("trims and caps the search term", () => {
     const long = "x".repeat(300);
     expect(parseIssueFilter(new URLSearchParams(`q=  hi  `), ctx).search).toBe(
@@ -247,5 +274,93 @@ describe("buildIssueWhere", () => {
     expect(buildIssueWhere({ ...EMPTY_FILTER, waiting: true })).toBeDefined();
     expect(buildIssueWhere({ ...EMPTY_FILTER, waiting: false })).toBeDefined();
     expect(buildIssueWhere({ ...EMPTY_FILTER, waiting: null })).toBeUndefined();
+  });
+});
+
+describe("buildIssueWhere issue types", () => {
+  let repoId = 0;
+
+  function seedIssue(number: number, issueType: string | null): void {
+    upsertIssue(
+      {
+        externalId: `I_${number}`,
+        repoId,
+        number,
+        kind: "issue",
+        title: `Issue ${number}`,
+        body: "",
+        state: "open",
+        stateReason: null,
+        author: null,
+        milestoneNumber: null,
+        url: `https://github.com/orgA/core/issues/${number}`,
+        createdAt: 1,
+        updatedAt: 2,
+        closedAt: null,
+        labels: [],
+        assignees: [],
+        comments: [],
+      },
+      {
+        status: "todo",
+        impact: null,
+        urgency: null,
+        priority: null,
+        size: null,
+        blocked: false,
+        labelConflict: false,
+      },
+    );
+    setIssueTypes(repoId, new Map([[number, issueType]]));
+  }
+
+  function numbers(filter: IssueFilter): number[] {
+    return db
+      .select({ number: mirrorThread.number })
+      .from(mirrorThread)
+      .where(buildIssueWhere(filter))
+      .orderBy(mirrorThread.number)
+      .all()
+      .map((row) => row.number);
+  }
+
+  beforeEach(() => {
+    clearMirror();
+    repoId = upsertRepo({
+      externalId: "1",
+      forge: "github",
+      instance: "github.com",
+      org: "orgA",
+      name: "core",
+      url: "https://github.com/orgA/core",
+      archived: false,
+    }).id;
+    seedIssue(1, "Bug");
+    seedIssue(2, "Feature");
+    seedIssue(3, null);
+  });
+
+  test("matches a typed name case-insensitively", () => {
+    expect(numbers({ ...EMPTY_FILTER, types: ["bug"] })).toEqual([1]);
+  });
+
+  test("ORs several type names", () => {
+    expect(numbers({ ...EMPTY_FILTER, types: ["Bug", "Feature"] })).toEqual([
+      1, 2,
+    ]);
+  });
+
+  test("treats none as untyped (NULL or empty)", () => {
+    expect(numbers({ ...EMPTY_FILTER, types: ["none"] })).toEqual([3]);
+  });
+
+  test("ORs named types with the untyped sentinel", () => {
+    expect(numbers({ ...EMPTY_FILTER, types: ["Bug", "none"] })).toEqual([
+      1, 3,
+    ]);
+  });
+
+  test("an unknown type matches nothing", () => {
+    expect(numbers({ ...EMPTY_FILTER, types: ["Ghost"] })).toEqual([]);
   });
 });

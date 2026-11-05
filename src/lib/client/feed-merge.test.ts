@@ -28,6 +28,7 @@ function issue(overrides: Partial<IssueListItem> & { number: number }): IssueLis
     impact: null,
     urgency: null,
     size: null,
+    issueType: null,
     blocked: false,
     labelConflict: false,
     createdAt: 0,

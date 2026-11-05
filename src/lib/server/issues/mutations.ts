@@ -70,6 +70,8 @@ export interface CreateIssueInput {
   impact?: string;
   urgency?: string;
   size?: string;
+  /** GitHub issue type name, when the host/repo supports issue types. */
+  issueType?: string;
 }
 
 export interface UpdateIssueInput {
@@ -343,6 +345,22 @@ export async function createIssue(
   }
 
   const number = Number(created.ref.number);
+
+  // GitHub's REST create path ignores `ThreadInput.issueType`, so set it in a
+  // follow-up write. The issue already exists at this point: a rejected type
+  // write is logged and leaves the successful create intact.
+  const issueType = input.issueType?.trim();
+  if (issueType) {
+    try {
+      await input.provider.threads.setIssueType(created.ref, issueType);
+    } catch (error) {
+      log.warn(
+        { repo: input.repo, number, issueType, ...errorFields(error) },
+        "create issue type write failed",
+      );
+    }
+  }
+
   publish({ type: "issues", repo: input.repo, numbers: [number] });
   return { ok: true, value: { number, htmlUrl: created.url ?? "" } };
 }

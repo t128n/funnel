@@ -6,6 +6,7 @@ import { db } from "#/lib/server/db/index";
 import { authAccount, authUser } from "#/lib/server/db/schema";
 import { forge } from "#/lib/server/forge/providers.server";
 import { POST as createIssue } from "#/routes/api/repos/[owner]/[repo]/issues/+server";
+import { GET as getIssueTypes } from "#/routes/api/repos/[owner]/[repo]/issue-types/+server";
 import { PATCH as patchIssue } from "#/routes/api/repos/[owner]/[repo]/issues/[number]/+server";
 import { POST as addComment } from "#/routes/api/repos/[owner]/[repo]/issues/[number]/comments/+server";
 import { POST as createMilestone } from "#/routes/api/repos/[owner]/[repo]/milestones/+server";
@@ -21,6 +22,8 @@ const REPO_SLUG = `${OWNER}/${REPO}`;
 
 const realFetch = globalThis.fetch;
 const calls: string[] = [];
+/** Toggle the issue-types endpoint between a supported and unsupported host. */
+let issueTypesStatus: 200 | 404 = 200;
 
 function json(data: unknown, status = 200): Response {
   return Response.json(data, { status });
@@ -48,8 +51,16 @@ async function stubFetch(
   const numberUrl = new RegExp(`/repos/${OWNER}/${REPO}/issues/42$`);
   const commentUrl = new RegExp(`/repos/${OWNER}/${REPO}/issues/42/comments$`);
   const milestoneUrl = new RegExp(`/repos/${OWNER}/${REPO}/milestones$`);
+  const issueTypesUrl = new RegExp(`/repos/${OWNER}/${REPO}/issue-types$`);
   const repoUrl = new RegExp(`/repos/${OWNER}/${REPO}$`);
 
+  if (method === "GET" && issueTypesUrl.test(path)) {
+    if (issueTypesStatus === 404) return json({ message: "Not Found" }, 404);
+    return json([
+      { id: 1, node_id: "IT_1", name: "Bug", color: "red", is_enabled: true },
+      { id: 2, node_id: "IT_2", name: "Feature", color: "blue", is_enabled: true },
+    ]);
+  }
   if (method === "POST" && issueUrl.test(path)) {
     return json({ number: 42, html_url: `https://github.com/${REPO_SLUG}/issues/42` }, 201);
   }
@@ -130,6 +141,7 @@ const repoParams = () => ({ owner: OWNER, repo: REPO });
 
 beforeEach(async () => {
   calls.length = 0;
+  issueTypesStatus = 200;
   setConfig({
     ...TEST_CONFIG,
     repos: [{ repo: REPO_SLUG, shortcode: "CORE" }],
@@ -219,6 +231,49 @@ describe("POST /api/repos/{owner}/{repo}/issues", () => {
     expect(await res.json()).toEqual({
       message: `Repository ${REPO_SLUG} is not configured`,
     });
+  });
+});
+
+describe("GET /api/repos/{owner}/{repo}/issue-types", () => {
+  test("returns the repo's issue types with the user token", async () => {
+    const res = await getIssueTypes({
+      params: repoParams(),
+      request: new Request(`http://x/api/repos/${REPO_SLUG}/issue-types`),
+      locals: viewer(),
+    } as never);
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({
+      types: [
+        { id: "IT_1", name: "Bug", colour: "red" },
+        { id: "IT_2", name: "Feature", colour: "blue" },
+      ],
+    });
+    expect(calls).toContain(`GET /repos/${REPO_SLUG}/issue-types`);
+  });
+
+  test("returns an empty list when the host does not support types", async () => {
+    issueTypesStatus = 404;
+
+    const res = await getIssueTypes({
+      params: repoParams(),
+      request: new Request(`http://x/api/repos/${REPO_SLUG}/issue-types`),
+      locals: viewer(),
+    } as never);
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ types: [] });
+  });
+
+  test("requires authentication", async () => {
+    const res = await getIssueTypes({
+      params: repoParams(),
+      request: new Request(`http://x/api/repos/${REPO_SLUG}/issue-types`),
+      locals: { user: null, session: null },
+    } as never);
+
+    expect(res.status).toBe(401);
+    expect(calls).toHaveLength(0);
   });
 });
 

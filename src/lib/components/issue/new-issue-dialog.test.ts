@@ -58,6 +58,15 @@ describe("new issue dialog fields", () => {
     expect(dialog).toContain("Reserved status, impact, urgency, size and flag labels");
   });
 
+  test("offers the repo's issue types only when the host supports them", () => {
+    expect(dialog).toContain("fetchIssueTypes");
+    expect(dialog).toContain("issueTypes.length > 0");
+    expect(dialog).toContain('id="new-issue-type"');
+    expect(dialog).toContain('for="new-issue-type"');
+    expect(dialog).toContain("issueType = ''");
+    expect(dialog).toContain("...(issueType ? { issueType } : {})");
+  });
+
   test("creates through the existing helper and refreshes the feeds", () => {
     expect(dialog).toContain("createIssue(");
     expect(dialog).toContain("invalidateAll()");

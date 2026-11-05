@@ -1,0 +1,1 @@
+ALTER TABLE `mirror_thread` ADD `issue_type` text;

@@ -60,6 +60,12 @@ Each query is isolated. When a query succeeds, the source issue's rows for its k
 
 Edges are stored in `mirror_issue_relation` with a target `owner/name` and number, because GitHub may report a child or dependency in another repository. `OPEN`/`CLOSED` is normalised to lower case, refs without a number are dropped, and duplicates are collapsed and sorted by repo then number. Each connection is capped at 100 edges per issue, the size of one page. Sub-issue progress is computed from the mirrored child edges rather than `subIssuesSummary`, so the Inspector cannot show a percentage that disagrees with the list beneath it. These relationships are read-only in Funnel and are distinct from the manual `blocked` flag, which remains authoritative for Attention.
 
+## Issue types in a separate fail-soft query
+
+GitHub issue types (Bug/Feature/Task, where the account and repository offer them) are mirrored into `mirror_thread.issue_type`. Like relationships, they are fetched after the issue upsert in their own `nodes(ids:)` query, in batches of 100, rather than widening the main hydration query. A GitHub Enterprise host or repository that does not support issue types rejects only this query: the failure is logged, every previously stored type is left untouched, and issue hydration continues normally. Polling and post-write refreshes use the same hydration path, so they pick the feature up automatically when it becomes available.
+
+The mirrored value is the type's trimmed `name`; a `null`/absent `issueType` stores SQL `NULL`, and a malformed name is skipped so it cannot overwrite a good value. When the type query succeeds, each returned issue is updated by number and the mirror revision advances only when a value actually changed. The main issue upsert never writes this column, which is why an unsupported host cannot clear a type or break sync. Creation follows the same rule: GitHub's REST create path ignores the type field, so Funnel sets it in a follow-up write and keeps the successful issue when that write is unsupported or rejected.
+
 ## Reserved-label conflicts
 
 Funnel's workflow vocabulary allows at most one label per active group: status, impact, urgency and size. A `flags` group carries orthogonal markers such as `blocked`. Retired priority labels are ignored; their conflicts are handled by the conflict flag, not timeline resolution. When GitHub ends up with two labels from the same group — because someone edited labels outside Funnel, or two clients raced — the sync worker resolves it with the App installation token.

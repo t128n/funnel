@@ -10,6 +10,7 @@ import { rememberViewerReaction } from "./reaction-state";
 import { createSubmission } from "#lib/server/intake/staging";
 import {
   replaceRepoMilestones,
+  setIssueTypes,
   upsertIssue,
   upsertIssues,
   upsertRepo,
@@ -34,6 +35,7 @@ import {
   attentionIssues,
   boardColumnPage,
   filterContext,
+  filterOptions,
   getIssueDetail,
   getIssueListItem,
   getMilestone,
@@ -197,6 +199,22 @@ function seed(): void {
       assignees: [user("7", "octocat"), user("8", "alice")],
     },
     { status: "backlog", impact: null, urgency: null, priority: "P3", size: "lg", blocked: false, labelConflict: false },
+  );
+
+  setIssueTypes(
+    1,
+    new Map([
+      [1, "Task"],
+      [2, "Feature"],
+      [6, "Bug"],
+    ]),
+  );
+  setIssueTypes(
+    2,
+    new Map([
+      [3, "Bug"],
+      [4, "Feature"],
+    ]),
   );
 }
 
@@ -923,6 +941,20 @@ describe("getIssueListItem", () => {
   test("returns one hydrated row", () => {
     expect(getIssueListItem(1, 1)?.title).toBe("Alpha crash");
     expect(getIssueListItem(1, 999)).toBeUndefined();
+  });
+});
+
+describe("issue types", () => {
+  test("hydrates list and detail rows and lists distinct sorted options", () => {
+    expect(getIssueListItem(1, 1)?.issueType).toBe("Task");
+    expect(getIssueDetail(2, 4)?.issue.issueType).toBe("Feature");
+    expect(filterOptions().types).toEqual(["Bug", "Feature", "Task"]);
+  });
+
+  test("filters typed and untyped issues through the stream", () => {
+    expect(numbers(allIssues(parse("type=Bug")))).toEqual([3, 6]);
+    expect(numbers(allIssues(parse("type=Task,Bug")))).toEqual([1, 3, 6]);
+    expect(numbers(allIssues(parse("type=Ghost")))).toEqual([]);
   });
 });
 

@@ -92,7 +92,9 @@ The `C` shortcut and an empty board column's **New Issue** control open an in-ap
 
 ### Issue filters and sorting
 
-The issue lists share one URL filter model: `repo`, `state`, `status`, `assignee`, `priority`, `size`, `label`, `planned` and `milestone` repeat (or comma-join) to OR values inside a dimension, while dimensions AND together. `q` carries the search term. Unknown values are ignored. `blocked=true` and `blocked=false` filter on the mirrored blocked cache, so they work with any configured reserved-label prefix. `waiting=true` and `waiting=false` filter on Funnel's local waiting table (`state_issue_waiting`), independent of the blocked flag and any label prefix.
+The issue lists share one URL filter model: `repo`, `state`, `status`, `assignee`, `priority`, `size`, `type`, `label`, `planned` and `milestone` repeat (or comma-join) to OR values inside a dimension, while dimensions AND together. `q` carries the search term. Unknown values are ignored.
+
+`type=Bug,Feature` filters on the mirrored GitHub issue type name, case-insensitively. `type=none` selects issues with no type and can be ORed with named types. Issues can also be grouped by Type; sections are alphabetical with a trailing **No type** section. The Type filter and grouping only offer values mirrored from a host/repo that supports issue types. `blocked=true` and `blocked=false` filter on the mirrored blocked cache, so they work with any configured reserved-label prefix. `waiting=true` and `waiting=false` filter on Funnel's local waiting table (`state_issue_waiting`), independent of the blocked flag and any label prefix.
 
 `assignee=none` selects issues with no assignees. It may be combined with named assignees (`?assignee=none&assignee=octocat`), in which case either condition matches. `assignee=me` resolves to the signed-in viewer.
 
@@ -176,7 +178,8 @@ API routes are not under the `(app)` layout and enforce their own guards. Detail
 | `/api/mirror/issues/{owner}/{repo}/{number}/watch` | GET, PUT, DELETE | `read` | Whether the viewer watches an issue; start or stop watching. |
 | `/api/mirror/issues/{owner}/{repo}` | GET | `read` | Mirrored issue options. |
 | `/api/mirror/issues/{owner}/{repo}/{number}` | GET | `read` | Rendered Inspector payload, including the additive `history` array (local audit, intake, and non-duplicated GitHub timeline entries) and `relations` (GitHub parent/sub-issue progress plus blocked-by/blocking links). |
-| `/api/repos/{owner}/{repo}/issues` | GET, POST | `read` / `write` | GitHub issue list and creation. |
+| `/api/repos/{owner}/{repo}/issues` | GET, POST | `read` / `write` | GitHub issue list and creation. Creation accepts an optional `issueType`, written after the issue exists. |
+| `/api/repos/{owner}/{repo}/issue-types` | GET | `read` | GitHub issue types for the repo as `{ types: [{ id, name, colour }] }`; `{ types: [] }` when the host/repo does not support types. |
 | `/api/repos/{owner}/{repo}/issues/{number}` | GET, PATCH | `read` / `write` | GitHub issue read and update. |
 | `/api/repos/{owner}/{repo}/issues/{number}/comments` | GET, POST | `read` / `write` | GitHub comments. |
 | `/api/repos/{owner}/{repo}/issues/{number}/comments/{commentId}` | PATCH, DELETE | `write` | Edit or delete one GitHub comment; GitHub decides authorship. |

@@ -7,7 +7,7 @@ import type { IssueListItem } from '#lib/server/issues/types';
  * returns one filtered list; the cockpit is free to group it without another
  * round-trip, so grouping stays a pure, dependency-free projection.
  */
-export type GroupKey = 'none' | 'status' | 'priority' | 'project' | 'repo' | 'milestone';
+export type GroupKey = 'none' | 'status' | 'priority' | 'project' | 'repo' | 'milestone' | 'type';
 
 export interface IssueGroup {
   /** Stable identity for keys and collapse state. */
@@ -29,6 +29,9 @@ const NO_PROJECT = '\u0000none';
 
 /** Sentinel key for issues with no milestone (milestones are repo-scoped). */
 const NO_MILESTONE = '\u0000nomilestone';
+
+/** Sentinel key for issues without a GitHub issue type. */
+const NO_TYPE = '\u0000notype';
 
 /** Stable section key for a repo-scoped milestone. */
 function milestoneKey(milestone: NonNullable<IssueListItem['milestone']>): string {
@@ -66,6 +69,7 @@ function groupKeys(
   if (groupBy === 'priority') return [issue.priority ?? 'none'];
   if (groupBy === 'repo') return [issue.repo];
   if (groupBy === 'milestone') return [issue.milestone ? milestoneKey(issue.milestone) : NO_MILESTONE];
+  if (groupBy === 'type') return [issue.issueType?.trim() || NO_TYPE];
   if (groupBy === 'project') return projectKeys(issue, projects);
   return [statusKey(issue)];
 }
@@ -91,6 +95,7 @@ function groupLabel(
   projects: readonly ProjectOption[]
 ): string {
   if (groupBy === 'priority') return priorityLabel(key);
+  if (groupBy === 'type') return key === NO_TYPE ? 'No type' : key;
   if (groupBy === 'repo') return repoShortcodes[key] ?? key;
   if (groupBy === 'project') {
     if (key === NO_PROJECT) return 'No project';
@@ -137,6 +142,12 @@ export function buildGroups(
     )
     .concat(buckets.has(NO_MILESTONE) ? [NO_MILESTONE] : []);
 
+  // Type sections are alphabetical, with untyped issues last.
+  const typeOrder = [...buckets.keys()]
+    .filter((key) => key !== NO_TYPE)
+    .sort((a, b) => a.localeCompare(b))
+    .concat(buckets.has(NO_TYPE) ? [NO_TYPE] : []);
+
   const order =
     groupBy === 'status'
       ? STATUS_ORDER
@@ -146,11 +157,13 @@ export function buildGroups(
           ? [...projects.map((project) => project.label), NO_PROJECT]
           : groupBy === 'milestone'
             ? milestoneOrder
-            : [...buckets.keys()].sort((a, b) =>
-                groupLabel(a, groupBy, repoShortcodes, projects).localeCompare(
-                  groupLabel(b, groupBy, repoShortcodes, projects)
-                )
-              );
+            : groupBy === 'type'
+              ? typeOrder
+              : [...buckets.keys()].sort((a, b) =>
+                  groupLabel(a, groupBy, repoShortcodes, projects).localeCompare(
+                    groupLabel(b, groupBy, repoShortcodes, projects)
+                  )
+                );
 
   return order
     .filter((key) => buckets.has(key))
