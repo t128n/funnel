@@ -10,6 +10,7 @@ export type FilterDimension =
 	| 'label'
 	| 'planned'
 	| 'milestone'
+	| 'blocked'
 	| 'state';
 
 /** Dimensions the drawer does not own, plus whether it offers the state switch. */
@@ -42,11 +43,13 @@ export function ownedFilterCount(filter: ClientFilter, scope: DrawerScope): numb
 		assignees: ownsDimension('assignee', scope)
 			? filter.assignees.filter((value) => value !== ME)
 			: [],
+		unassigned: ownsDimension('assignee', scope) ? filter.unassigned : false,
 		priorities: ownsDimension('priority', scope) ? filter.priorities : [],
 		sizes: ownsDimension('size', scope) ? filter.sizes : [],
 		labels: ownsDimension('label', scope) ? filter.labels : [],
 		planned: ownsDimension('planned', scope) ? filter.planned : [],
 		milestones: ownsDimension('milestone', scope) ? filter.milestones : [],
+		blocked: ownsDimension('blocked', scope) ? filter.blocked : null,
 		search: ''
 	});
 }
@@ -65,10 +68,12 @@ export function clearOwnedFilters(filter: ClientFilter, scope: DrawerScope): Cli
 		assignees: ownsDimension('assignee', scope)
 			? filter.assignees.filter((value) => value === ME)
 			: filter.assignees,
+		unassigned: ownsDimension('assignee', scope) ? false : filter.unassigned,
 		priorities: ownsDimension('priority', scope) ? [] : filter.priorities,
 		sizes: ownsDimension('size', scope) ? [] : filter.sizes,
 		labels: ownsDimension('label', scope) ? [] : filter.labels,
 		planned: ownsDimension('planned', scope) ? [] : filter.planned,
-		milestones: ownsDimension('milestone', scope) ? [] : filter.milestones
+		milestones: ownsDimension('milestone', scope) ? [] : filter.milestones,
+		blocked: ownsDimension('blocked', scope) ? null : filter.blocked
 	};
 }

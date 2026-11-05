@@ -38,6 +38,7 @@ async function boardPage(
   requireCursor(
     opts.cursor ?? null,
     filterSignature({ ...filter, statuses: [] }, `board:${column}`),
+    "number",
   );
   return boardColumnPage(filter, column, opts);
 }

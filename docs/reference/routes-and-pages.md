@@ -87,6 +87,14 @@ The `C` shortcut and an empty board column's **New Issue** control open an in-ap
 | `/settings/session` | Session idle lifetime in days. | `admin` | Shared settings `save` action. |
 | `/settings/planning` | Size-to-time estimates, allocation percentage and the maintainer roster. | `admin` | Shared settings `save` action; `planning` payload with hours converted to minutes. Cycle keys remain in the stored config for compatibility but are not exposed. |
 
+### Issue filters and sorting
+
+The issue lists share one URL filter model: `repo`, `state`, `status`, `assignee`, `priority`, `size`, `label`, `planned` and `milestone` repeat (or comma-join) to OR values inside a dimension, while dimensions AND together. `q` carries the search term. Unknown values are ignored. `blocked=true` and `blocked=false` filter on the mirrored blocked cache, so they work with any configured reserved-label prefix.
+
+`assignee=none` selects issues with no assignees. It may be combined with named assignees (`?assignee=none&assignee=octocat`), in which case either condition matches. `assignee=me` resolves to the signed-in viewer.
+
+`/issues` also accepts `sort=priority|updated|created|title` and `direction=asc|desc`. The default is `sort=priority&direction=asc`, which keeps priority rank ascending (P1 first, unprioritized last) and resolves ties by most recently updated. Title sorting is case-insensitive. Both parameters live in the URL, so the chosen sort survives reloads and shared links. Sort is a view preference: it does not count towards the active-filter badge. Board lanes keep their fixed priority order regardless of these parameters.
+
 ### Inbox triage actions
 
 The submission detail route defines three SvelteKit form actions:

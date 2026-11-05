@@ -51,6 +51,54 @@ describe("parseIssueFilter", () => {
     ).toEqual([]);
   });
 
+  test("keeps unassigned separate and ORs it with named assignees", () => {
+    const filter = parseIssueFilter(
+      new URLSearchParams("assignee=octocat&assignee=none"),
+      ctx,
+    );
+    expect(filter.assignees).toEqual(["7"]);
+    expect(filter.unassigned).toBe(true);
+    expect(parseIssueFilter(new URLSearchParams("assignee=none"), ctx).unassigned).toBe(
+      true,
+    );
+    expect(parseIssueFilter(new URLSearchParams(""), ctx).unassigned).toBe(false);
+  });
+
+  test("parses the blocked dimension and ignores unknown values", () => {
+    expect(
+      parseIssueFilter(new URLSearchParams("blocked=true"), ctx).blocked,
+    ).toBe(true);
+    expect(
+      parseIssueFilter(new URLSearchParams("blocked=false"), ctx).blocked,
+    ).toBe(false);
+    expect(
+      parseIssueFilter(new URLSearchParams("blocked=yes"), ctx).blocked,
+    ).toBeNull();
+    expect(parseIssueFilter(new URLSearchParams(""), ctx).blocked).toBeNull();
+  });
+
+  test("parses sort and direction with safe defaults", () => {
+    expect(parseIssueFilter(new URLSearchParams(""), ctx)).toMatchObject({
+      sort: "priority",
+      direction: "asc",
+    });
+    expect(
+      parseIssueFilter(
+        new URLSearchParams("sort=updated&direction=DESC"),
+        ctx,
+      ),
+    ).toMatchObject({ sort: "updated", direction: "desc" });
+    expect(
+      parseIssueFilter(
+        new URLSearchParams("sort=title&direction=bogus"),
+        ctx,
+      ),
+    ).toMatchObject({ sort: "title", direction: "asc" });
+    expect(
+      parseIssueFilter(new URLSearchParams("sort=bogus"), ctx).sort,
+    ).toBe("priority");
+  });
+
   test("drops me when no viewer external id is present", () => {
     expect(
       parseIssueFilter(new URLSearchParams("assignee=me"), {
@@ -173,5 +221,15 @@ describe("buildIssueWhere", () => {
       buildIssueWhere({ ...EMPTY_FILTER, milestones: [{ repoId: 1, number: 3 }] }),
     ).toBeDefined();
     expect(buildIssueWhere({ ...EMPTY_FILTER, noMilestone: true })).toBeDefined();
+  });
+
+  test("builds clauses for unassigned and blocked", () => {
+    expect(buildIssueWhere({ ...EMPTY_FILTER, unassigned: true })).toBeDefined();
+    expect(
+      buildIssueWhere({ ...EMPTY_FILTER, assignees: ["7"], unassigned: true }),
+    ).toBeDefined();
+    expect(buildIssueWhere({ ...EMPTY_FILTER, blocked: true })).toBeDefined();
+    expect(buildIssueWhere({ ...EMPTY_FILTER, blocked: false })).toBeDefined();
+    expect(buildIssueWhere({ ...EMPTY_FILTER, blocked: null })).toBeUndefined();
   });
 });

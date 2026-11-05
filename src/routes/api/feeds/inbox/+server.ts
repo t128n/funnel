@@ -44,7 +44,7 @@ function inboxPage(
   const filter = parseIssueFilter(search, filterContext(viewerExternalId));
   const opts = pageOptions(search);
   // Must match `inbox()`'s signature, including its `inbox` discriminator.
-  requireCursor(opts.cursor ?? null, filterSignature(filter, "inbox"));
+  requireCursor(opts.cursor ?? null, filterSignature(filter, "inbox"), "number");
   const page = inbox(filter, opts);
   return { ...page, items: page.items.map(renderEntry) };
 }

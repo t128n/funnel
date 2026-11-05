@@ -37,6 +37,14 @@ import {
   type LabelGroup,
   type ReservedVocabulary,
 } from "#lib/labels";
+import {
+  DEFAULT_DIRECTION,
+  DEFAULT_SORT,
+  DIRECTION_VALUES,
+  SORT_VALUES,
+  type IssueSort,
+  type SortDirection,
+} from "#lib/url-filter";
 import { addWeeks, weekStartOf } from "#lib/server/planning/calendar";
 import { isRetiredPriorityLabel } from "#lib/priority";
 
@@ -104,6 +112,8 @@ export interface IssueFilter {
   statuses: string[];
   /** Forge-native `mirror_user.external_id` values. */
   assignees: string[];
+  /** `assignee=none`: issues with no assignees, ORed with {@link assignees}. */
+  unassigned: boolean;
   /** `p1`-`p3` and/or {@link NONE}. */
   priorities: string[];
   /** `sm`/`md`/`lg` and/or {@link NONE}. */
@@ -116,6 +126,12 @@ export interface IssueFilter {
   milestones: MilestoneFilterRef[];
   /** The {@link NONE} sentinel: unmilestoned issues. */
   noMilestone: boolean;
+  /** Mirror cache of the `blocked` label; `null` means any. */
+  blocked: boolean | null;
+  /** Selectable stream sort. */
+  sort: IssueSort;
+  /** Direction for {@link sort}. */
+  direction: SortDirection;
   /** Raw `LIKE` search term (may be empty). */
   search: string;
 }
@@ -140,12 +156,16 @@ export const EMPTY_FILTER: IssueFilter = {
   states: [],
   statuses: [],
   assignees: [],
+  unassigned: false,
   priorities: [],
   sizes: [],
   labels: [],
   planned: [],
   milestones: [],
   noMilestone: false,
+  blocked: null,
+  sort: DEFAULT_SORT,
+  direction: DEFAULT_DIRECTION,
   search: "",
 };
 
@@ -204,6 +224,7 @@ function resolveAssignees(
     if (id !== undefined && id.length > 0 && !out.includes(id)) out.push(id);
   };
   for (const value of values) {
+    if (value.toLowerCase() === NONE) continue;
     if (value.toLowerCase() === "me") {
       push(ctx.viewerExternalId ?? undefined);
       continue;
@@ -260,13 +281,18 @@ export function parseIssueFilter(
 ): IssueFilter {
   const vocabulary = ctx.vocabulary ?? DEFAULT_VOCABULARY;
   const milestones = resolveMilestones(multi(params, "milestone"), ctx.repos);
+  const assigneeValues = multi(params, "assignee");
+  const blocked = (params.get("blocked") ?? "").toLowerCase();
+  const sort = (params.get("sort") ?? "").toLowerCase();
+  const direction = (params.get("direction") ?? "").toLowerCase();
   return {
     repos: resolveRepos(multi(params, "repo"), ctx.repos),
     states: vocab(multi(params, "state"), STATE_SET).filter(
       (value) => value !== NONE,
     ),
     statuses: vocab(multi(params, "status"), STATUS_SET),
-    assignees: resolveAssignees(multi(params, "assignee"), ctx),
+    assignees: resolveAssignees(assigneeValues, ctx),
+    unassigned: assigneeValues.some((value) => value.toLowerCase() === NONE),
     priorities: vocab(multi(params, "priority"), PRIORITY_SET),
     sizes: vocab(multi(params, "size"), SIZE_SET),
     labels: multi(params, "label").filter(
@@ -277,6 +303,13 @@ export function parseIssueFilter(
     planned: vocab(multi(params, "planned"), PLANNED_SET),
     milestones: milestones.refs,
     noMilestone: milestones.none,
+    blocked: blocked === "true" ? true : blocked === "false" ? false : null,
+    sort: (SORT_VALUES as readonly string[]).includes(sort)
+      ? (sort as IssueSort)
+      : DEFAULT_SORT,
+    direction: (DIRECTION_VALUES as readonly string[]).includes(direction)
+      ? (direction as SortDirection)
+      : DEFAULT_DIRECTION,
     search: (params.get("q") ?? "").trim().slice(0, 200),
   };
 }
@@ -287,24 +320,36 @@ export function escapeLike(value: string): string {
 }
 
 /**
+ * The correlated subquery for "carries any of these forge users". Omitting
+ * `externalIds` matches any assignee, which the "unassigned" filter inverts.
+ */
+function assigneeQuery(externalIds?: readonly string[]) {
+  const clauses = [
+    eq(mirrorThreadAssignee.repoId, mirrorThread.repoId),
+    eq(mirrorThreadAssignee.threadNumber, mirrorThread.number),
+  ];
+  if (externalIds !== undefined) {
+    clauses.push(inArray(mirrorUser.externalId, [...externalIds]));
+  }
+  return db
+    .select({ one: sql`1` })
+    .from(mirrorThreadAssignee)
+    .innerJoin(mirrorUser, eq(mirrorThreadAssignee.userId, mirrorUser.id))
+    .where(and(...clauses));
+}
+
+/**
  * `EXISTS` clause for "assigned to any of these forge users" (OR within
  * group). Assignee identity is the forge-native external id, so the junction
  * row joins `mirror_user` on the internal id.
  */
 export function assigneeExists(externalIds: readonly string[]): SQL {
-  return exists(
-    db
-      .select({ one: sql`1` })
-      .from(mirrorThreadAssignee)
-      .innerJoin(mirrorUser, eq(mirrorThreadAssignee.userId, mirrorUser.id))
-      .where(
-        and(
-          eq(mirrorThreadAssignee.repoId, mirrorThread.repoId),
-          eq(mirrorThreadAssignee.threadNumber, mirrorThread.number),
-          inArray(mirrorUser.externalId, [...externalIds]),
-        ),
-      ),
-  );
+  return exists(assigneeQuery(externalIds));
+}
+
+/** `EXISTS` clause for "has no assignee at all". */
+export function assigneeAbsent(): SQL {
+  return notExists(assigneeQuery());
 }
 
 /** `EXISTS` clause for "carries any of these labels" (OR within group). */
@@ -402,11 +447,20 @@ export function buildIssueWhere(filter: IssueFilter): SQL | undefined {
     else if (parts.length > 1) conditions.push(or(...parts) as SQL);
   }
 
-  if (filter.assignees.length > 0) {
-    conditions.push(assigneeExists(filter.assignees));
+  if (filter.assignees.length > 0 || filter.unassigned) {
+    const parts: SQL[] = [];
+    if (filter.assignees.length > 0) {
+      parts.push(assigneeExists(filter.assignees));
+    }
+    if (filter.unassigned) parts.push(assigneeAbsent());
+    conditions.push(parts.length === 1 ? parts[0] : (or(...parts) as SQL));
   }
   if (filter.labels.length > 0) {
     conditions.push(labelExists(filter.labels));
+  }
+
+  if (filter.blocked !== null) {
+    conditions.push(eq(mirrorThread.blocked, filter.blocked ? 1 : 0));
   }
 
   if (filter.planned.length > 0) {

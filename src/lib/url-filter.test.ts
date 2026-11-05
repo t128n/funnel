@@ -63,14 +63,54 @@ describe("toFilterParams", () => {
 			states: ["open"],
 			statuses: ["todo", "blocked"],
 			assignees: ["me", "octocat"],
+			unassigned: false,
 			priorities: ["p1"],
 			sizes: ["sm", "md"],
 			labels: ["bug", "frontend"],
 			planned: ["this-week"],
 			milestones: ["orgA/core#3", NONE],
+			blocked: true,
+			sort: "updated",
+			direction: "desc",
 			search: "crash on boot",
 		};
 		expect(parseFilterParams(toFilterParams(filter))).toEqual(filter);
+	});
+
+	test("maps assignee=none to unassigned and ORs it with named assignees", () => {
+		const filter = parseFilterParams(
+			new URLSearchParams("assignee=me&assignee=none"),
+		);
+		expect(filter.assignees).toEqual(["me"]);
+		expect(filter.unassigned).toBe(true);
+		expect(toFilterParams(filter).getAll("assignee")).toEqual(["me", "none"]);
+	});
+
+	test("parses blocked, sort and direction; unknown values fall back", () => {
+		expect(parseFilterParams(new URLSearchParams("blocked=true")).blocked).toBe(true);
+		expect(parseFilterParams(new URLSearchParams("blocked=false")).blocked).toBe(false);
+		expect(parseFilterParams(new URLSearchParams("blocked=maybe")).blocked).toBeNull();
+		expect(parseFilterParams(new URLSearchParams("sort=title")).sort).toBe("title");
+		expect(parseFilterParams(new URLSearchParams("sort=nope")).sort).toBe("priority");
+		expect(parseFilterParams(new URLSearchParams("direction=DESC")).direction).toBe(
+			"desc",
+		);
+		expect(parseFilterParams(new URLSearchParams("direction=sideways")).direction).toBe(
+			"asc",
+		);
+	});
+
+	test("omits the default sort and direction from generated URLs", () => {
+		const params = toFilterParams(EMPTY_CLIENT_FILTER);
+		expect(params.has("sort")).toBe(false);
+		expect(params.has("direction")).toBe(false);
+		const sorted = toFilterParams({
+			...EMPTY_CLIENT_FILTER,
+			sort: "title",
+			direction: "desc",
+		});
+		expect(sorted.get("sort")).toBe("title");
+		expect(sorted.get("direction")).toBe("desc");
 	});
 });
 
@@ -127,5 +167,24 @@ describe("activeFilterCount / isEmptyFilter", () => {
 		expect(activeFilterCount(filter)).toBe(2);
 		expect(isEmptyFilter(filter)).toBe(false);
 		expect(isEmptyFilter(EMPTY_CLIENT_FILTER)).toBe(true);
+	});
+
+	test("counts unassigned and blocked, but not sort", () => {
+		expect(
+			activeFilterCount({ ...EMPTY_CLIENT_FILTER, unassigned: true }),
+		).toBe(1);
+		expect(
+			activeFilterCount({ ...EMPTY_CLIENT_FILTER, blocked: false }),
+		).toBe(1);
+		expect(
+			activeFilterCount({ ...EMPTY_CLIENT_FILTER, assignees: ["me"], unassigned: true }),
+		).toBe(1);
+		expect(
+			activeFilterCount({
+				...EMPTY_CLIENT_FILTER,
+				sort: "title",
+				direction: "desc",
+			}),
+		).toBe(0);
 	});
 });

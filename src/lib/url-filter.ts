@@ -4,11 +4,24 @@
  * Filter and search state is bidirectionally mirrored to the URL so any view is
  * bookmarkable and shareable. This module is pure and dependency-free: it reads
  * and writes the same query keys the server-side {@link import("./server/issues/filters").parseIssueFilter}
- * consumes (`repo`, `status`, `assignee`, `priority`, `size`, `label`, `q`).
+ * consumes (`repo`, `status`, `assignee`, `priority`, `size`, `label`, `q`,
+ * `blocked`, `sort`, `direction`).
  *
  * Repos are held as `owner/name` slugs and assignees as logins (or the `me`
  * sentinel), which is exactly what the server resolves against the mirror.
  */
+
+/** The issue stream's selectable sort dimensions. */
+export const SORT_VALUES = ["priority", "updated", "created", "title"] as const;
+export type IssueSort = (typeof SORT_VALUES)[number];
+
+/** Sort directions. The default is ascending for every dimension. */
+export const DIRECTION_VALUES = ["asc", "desc"] as const;
+export type SortDirection = (typeof DIRECTION_VALUES)[number];
+
+/** Defaults preserve the original stream order: priority rank, then updated. */
+export const DEFAULT_SORT: IssueSort = "priority";
+export const DEFAULT_DIRECTION: SortDirection = "asc";
 
 export interface ClientFilter {
   /** `owner/name` slugs. */
@@ -19,6 +32,8 @@ export interface ClientFilter {
   statuses: string[];
   /** GitHub logins, numeric ids, or `me`. */
   assignees: string[];
+  /** `assignee=none`: issues with no assignees, ORed with {@link assignees}. */
+  unassigned: boolean;
   /** `p1`-`p3` and/or `none`. */
   priorities: string[];
   /** `sm`/`md`/`lg` and/or `none`. */
@@ -29,6 +44,12 @@ export interface ClientFilter {
   planned: string[];
   /** Repo-scoped milestone slugs (`owner/name#number`) and/or `none`. */
   milestones: string[];
+  /** `blocked=true|false`; `null` means "any". */
+  blocked: boolean | null;
+  /** Selectable stream sort. */
+  sort: IssueSort;
+  /** Direction for {@link sort}. */
+  direction: SortDirection;
   /** Free-text search term. */
   search: string;
 }
@@ -38,11 +59,15 @@ export const EMPTY_CLIENT_FILTER: ClientFilter = {
   states: [],
   statuses: [],
   assignees: [],
+  unassigned: false,
   priorities: [],
   sizes: [],
   labels: [],
   planned: [],
   milestones: [],
+  blocked: null,
+  sort: DEFAULT_SORT,
+  direction: DEFAULT_DIRECTION,
   search: "",
 };
 
@@ -60,6 +85,9 @@ export const FILTER_KEYS = [
   "label",
   "planned",
   "milestone",
+  "blocked",
+  "sort",
+  "direction",
   "q",
 ] as const;
 
@@ -87,23 +115,35 @@ function collect(params: FilterParams, key: string): string[] {
 
 /** Parse filter state out of a URL's query parameters. */
 export function parseFilterParams(params: FilterParams): ClientFilter {
+  const assignees = collect(params, "assignee");
+  const unassigned = assignees.some((value) => value.toLowerCase() === NONE);
+  const sort = params.get("sort")?.toLowerCase();
+  const direction = params.get("direction")?.toLowerCase();
+  const blocked = params.get("blocked")?.toLowerCase();
   return {
     repos: collect(params, "repo"),
     states: collect(params, "state"),
     statuses: collect(params, "status"),
-    assignees: collect(params, "assignee"),
+    assignees: assignees.filter((value) => value.toLowerCase() !== NONE),
+    unassigned,
     priorities: collect(params, "priority"),
     sizes: collect(params, "size"),
     labels: collect(params, "label"),
     planned: collect(params, "planned"),
     milestones: collect(params, "milestone"),
+    blocked: blocked === "true" ? true : blocked === "false" ? false : null,
+    sort: SORT_VALUES.includes(sort as IssueSort) ? (sort as IssueSort) : DEFAULT_SORT,
+    direction: DIRECTION_VALUES.includes(direction as SortDirection)
+      ? (direction as SortDirection)
+      : DEFAULT_DIRECTION,
     search: (params.get("q") ?? "").trim(),
   };
 }
 
 /**
- * Serialize filter state into query parameters. Empty dimensions are omitted;
- * populated ones use repeated keys for stable, human-readable URLs.
+ * Serialize filter state into query parameters. Empty dimensions and the
+ * default sort are omitted; populated ones use repeated keys for stable,
+ * human-readable URLs.
  */
 export function toFilterParams(filter: ClientFilter): URLSearchParams {
   const params = new URLSearchParams();
@@ -120,6 +160,12 @@ export function toFilterParams(filter: ClientFilter): URLSearchParams {
   ];
   for (const [key, values] of groups) {
     for (const value of values) if (value) params.append(key, value);
+  }
+  if (filter.unassigned) params.append("assignee", NONE);
+  if (filter.blocked !== null) params.set("blocked", String(filter.blocked));
+  if (filter.sort !== DEFAULT_SORT) params.set("sort", filter.sort);
+  if (filter.direction !== DEFAULT_DIRECTION) {
+    params.set("direction", filter.direction);
   }
   if (filter.search.trim()) params.set("q", filter.search.trim());
   return params;
@@ -159,12 +205,13 @@ export function activeFilterCount(filter: ClientFilter): number {
     (filter.repos.length > 0 ? 1 : 0) +
     (filter.states.length > 0 ? 1 : 0) +
     (filter.statuses.length > 0 ? 1 : 0) +
-    (filter.assignees.length > 0 ? 1 : 0) +
+    (filter.assignees.length > 0 || filter.unassigned ? 1 : 0) +
     (filter.priorities.length > 0 ? 1 : 0) +
     (filter.sizes.length > 0 ? 1 : 0) +
     (filter.labels.length > 0 ? 1 : 0) +
     (filter.planned.length > 0 ? 1 : 0) +
     (filter.milestones.length > 0 ? 1 : 0) +
+    (filter.blocked !== null ? 1 : 0) +
     (filter.search.trim().length > 0 ? 1 : 0)
   );
 }

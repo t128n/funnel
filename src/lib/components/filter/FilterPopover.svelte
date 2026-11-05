@@ -66,9 +66,14 @@
 	const repoOptions = $derived(
 		options.repos.map((repo) => ({ value: repo.slug, label: repo.slug }))
 	);
-	const assigneeOptions = $derived(
-		options.assignees.map((user) => ({ value: user.login, label: user.login }))
-	);
+	const assigneeOptions = $derived([
+		...options.assignees.map((user) => ({ value: user.login, label: user.login })),
+		{ value: NONE, label: 'Unassigned' }
+	]);
+	const selectedAssignees = $derived([
+		...scopedAssignees,
+		...(filter.unassigned ? [NONE] : [])
+	]);
 	const labelOptions = $derived(options.labels.map((name) => ({ value: name, label: name })));
 	const milestoneOptions = $derived([
 		...options.milestones.map((milestone) => ({
@@ -102,6 +107,14 @@
 		{ value: 'scheduled', label: 'Planned' },
 		{ value: 'unscheduled', label: 'Not planned' }
 	];
+	const blockedOptions = [
+		{ value: 'any', label: 'Any' },
+		{ value: 'true', label: 'Blocked' },
+		{ value: 'false', label: 'Not blocked' }
+	];
+	const currentBlocked = $derived(
+		filter.blocked === true ? 'true' : filter.blocked === false ? 'false' : 'any'
+	);
 
 	type StateView = 'open' | 'closed' | 'all';
 	const currentState = $derived.by((): StateView => {
@@ -130,7 +143,8 @@
 		| 'sizes'
 		| 'labels'
 		| 'planned'
-		| 'milestones';
+		| 'milestones'
+		| 'blocked';
 
 	interface ActiveChip {
 		key: ChipKey;
@@ -178,6 +192,13 @@
 			add('assignees', 'Assignee', scopedAssignees, (value) =>
 				optionLabel(assigneeOptions, value)
 			);
+			if (filter.unassigned) {
+				chips.push({
+					key: 'assignees',
+					value: NONE,
+					label: 'Assignee: Unassigned'
+				});
+			}
 		}
 		if (visible('priority')) {
 			add('priorities', 'Priority', filter.priorities, (value) =>
@@ -200,10 +221,25 @@
 				optionLabel(milestoneOptions, value)
 			);
 		}
+		if (visible('blocked') && filter.blocked !== null) {
+			chips.push({
+				key: 'blocked',
+				value: String(filter.blocked),
+				label: `Blocked: ${filter.blocked ? 'Blocked' : 'Not blocked'}`
+			});
+		}
 		return chips;
 	});
 
 	function removeChip(key: ChipKey, value: string) {
+		if (key === 'assignees' && value === NONE) {
+			apply({ ...filter, unassigned: false });
+			return;
+		}
+		if (key === 'blocked') {
+			apply({ ...filter, blocked: null });
+			return;
+		}
 		set(key, filter[key].filter((entry) => entry !== value));
 	}
 
@@ -217,6 +253,18 @@
 
 	function setState(next: StateView) {
 		set('states', next === 'all' ? ['open', 'closed'] : next === 'closed' ? ['closed'] : []);
+	}
+
+	function setAssignees(values: string[]) {
+		apply({
+			...filter,
+			assignees: values.filter((value) => value !== NONE),
+			unassigned: values.includes(NONE)
+		});
+	}
+
+	function setBlocked(next: string) {
+		apply({ ...filter, blocked: next === 'true' ? true : next === 'false' ? false : null });
 	}
 
 	function clearAll() {
@@ -311,7 +359,7 @@
 			</section>
 		{/if}
 
-		{#if visible('status') || visible('priority') || visible('assignee') || visible('size') || visible('label')}
+		{#if visible('status') || visible('priority') || visible('assignee') || visible('size') || visible('label') || visible('blocked')}
 			<section>
 				<h3 class="h6 fw-semibold text-body-secondary mb-2">Classification</h3>
 				<div class="d-flex flex-wrap gap-2">
@@ -335,8 +383,8 @@
 						<MultiSelect
 							label="Assignee"
 							options={assigneeOptions}
-							selected={scopedAssignees}
-							onselect={(values) => set('assignees', values)}
+							selected={selectedAssignees}
+							onselect={setAssignees}
 						/>
 					{/if}
 					{#if visible('size')}
@@ -356,6 +404,24 @@
 						/>
 					{/if}
 				</div>
+				{#if visible('blocked')}
+					<div class="d-flex align-items-center gap-2 mt-2">
+						<span class="small text-body-secondary">Blocked</span>
+						<ButtonGroup size="sm">
+							{#each blockedOptions as option (option.value)}
+								<Button
+									color="outline-secondary"
+									size="sm"
+									active={currentBlocked === option.value}
+									aria-pressed={currentBlocked === option.value}
+									onclick={() => setBlocked(option.value)}
+								>
+									{option.label}
+								</Button>
+							{/each}
+						</ButtonGroup>
+					</div>
+				{/if}
 			</section>
 		{/if}
 
