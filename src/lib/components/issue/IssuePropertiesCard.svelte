@@ -12,6 +12,7 @@
 		planWeekOptions
 	} from '#lib/components/plan/plan-week';
 	import { SIZE_OPTIONS, STATUS_OPTIONS, canonicalLabel } from '#lib/labels';
+	import { milestonePropertyLabel } from '#lib/milestone-format';
 	import {
 		IMPACT_SCALE,
 		URGENCY_SCALE,
@@ -72,12 +73,16 @@
 		onplan
 	}: Props = $props();
 
+	/** One render-time instant keeps the derived label and its tone aligned. */
+	const now = Date.now();
+
 	/** Done is the closed state; the picker surfaces it beside the open stages. */
 	const statusOptions = [
 		...STATUS_OPTIONS,
 		{ value: 'done', label: 'Done', color: 'var(--bs-success)' }
 	];
 	const statusValue = $derived(displayedStatus(issue));
+	const milestoneLabel = $derived(milestonePropertyLabel(issue.milestone, now));
 
 	const assigneeLogins = $derived(issue.assignees.map((assignee) => assignee.login));
 	const assigneeOptions = $derived(detail.assigneeOptions ?? []);
@@ -292,7 +297,11 @@
 
 				<dt class="col-5 fw-normal text-body-secondary">Milestone</dt>
 				<dd class="col-7 mb-2 text-break">
-					{issue.milestone?.title ?? 'No milestone'}
+					{#if milestoneLabel.title === null}
+						—
+					{:else}
+						{milestoneLabel.title}{#if milestoneLabel.detail}<span class="text-body-secondary"> — <span class={milestoneLabel.tone === 'danger' ? 'text-danger' : ''} title={milestoneLabel.detailTitle ?? undefined}>{milestoneLabel.detail}</span></span>{/if}
+					{/if}
 				</dd>
 
 				<dt class="col-5 fw-normal text-body-secondary">Planned</dt>
