@@ -145,7 +145,11 @@ describe("properties card", () => {
 		expect(properties).toContain("{:else}");
 		expect(properties).toContain("<StatusText");
 		expect(properties).toContain("Unassigned");
-		expect(properties).toContain("No milestone");
+		// The read-only milestone row uses the formatter and the requested
+		// empty value rather than the old "No milestone" placeholder.
+		expect(properties).toContain("milestonePropertyLabel(issue.milestone, now)");
+		expect(properties).toContain("{#if milestoneLabel.title === null}");
+		expect(properties).not.toContain("No milestone");
 	});
 });
 
