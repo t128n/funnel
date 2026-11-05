@@ -4,9 +4,11 @@
  * Seven multi-select dimensions (Repo, State, Status, Assignee, Priority, Size,
  * Labels) combine as **OR within a group, AND across groups**, plus a search
  * over titles, bodies, and comments backed by the FTS5 `mirror_thread_fts`
- * index. `q` also accepts issue identifiers (`#123`, `FIT-123`,
- * `owner/repo#123`) and GitHub-style qualifiers (`is:`, `label:`, `repo:`,
- * `status:`, `assignee:`); see {@link import("./search")}.
+ * index. Plan, milestone, blocked and waiting are additional single/multi
+ * dimensions over Funnel-owned state. `q` also accepts issue identifiers
+ * (`#123`, `FIT-123`, `owner/repo#123`) and GitHub-style qualifiers (`is:`,
+ * `label:`, `repo:`, `status:`, `assignee:`); see
+ * {@link import("./search")}.
  *
  * Parsing is pure over an injected {@link IssueFilterContext} so it is
  * unit-testable without a database; {@link buildIssueWhere} turns the parsed
@@ -31,6 +33,7 @@ import {
   mirrorThreadAssignee,
   mirrorThreadLabel,
   mirrorUser,
+  stateIssueWaiting,
   statePlanItem,
 } from "#lib/server/db/schema";
 import {
@@ -134,6 +137,8 @@ export interface IssueFilter {
   noMilestone: boolean;
   /** Mirror cache of the `blocked` label; `null` means any. */
   blocked: boolean | null;
+  /** Whether a durable waiting row exists (`state_issue_waiting`); `null` means any. */
+  waiting: boolean | null;
   /** Selectable stream sort. */
   sort: IssueSort;
   /** Direction for {@link sort}. */
@@ -178,6 +183,7 @@ export const EMPTY_FILTER: IssueFilter = {
   milestones: [],
   noMilestone: false,
   blocked: null,
+  waiting: null,
   sort: DEFAULT_SORT,
   direction: DEFAULT_DIRECTION,
   search: "",
@@ -297,6 +303,7 @@ export function parseIssueFilter(
   const milestones = resolveMilestones(multi(params, "milestone"), ctx.repos);
   const assigneeValues = multi(params, "assignee");
   const blocked = (params.get("blocked") ?? "").toLowerCase();
+  const waiting = (params.get("waiting") ?? "").toLowerCase();
   const sort = (params.get("sort") ?? "").toLowerCase();
   const direction = (params.get("direction") ?? "").toLowerCase();
   const search = (params.get("q") ?? "").trim().slice(0, 200);
@@ -319,6 +326,7 @@ export function parseIssueFilter(
     milestones: milestones.refs,
     noMilestone: milestones.none,
     blocked: blocked === "true" ? true : blocked === "false" ? false : null,
+    waiting: waiting === "true" ? true : waiting === "false" ? false : null,
     sort: (SORT_VALUES as readonly string[]).includes(sort)
       ? (sort as IssueSort)
       : DEFAULT_SORT,
@@ -420,6 +428,35 @@ function planItemAbsent(): SQL {
   return notExists(planItemQuery());
 }
 
+/**
+ * The waiting-state subquery for the current thread. `state_issue_waiting` is
+ * keyed by `owner/name` + number rather than the disposable mirror id, so the
+ * subquery joins `mirror_repo` to build the slug from the current repo row.
+ */
+function waitingQuery() {
+  return db
+    .select({ one: sql`1` })
+    .from(stateIssueWaiting)
+    .innerJoin(
+      mirrorRepo,
+      and(
+        eq(mirrorRepo.id, mirrorThread.repoId),
+        sql`${stateIssueWaiting.repo} = ${mirrorRepo.org} || '/' || ${mirrorRepo.name}`,
+      ),
+    )
+    .where(eq(stateIssueWaiting.number, mirrorThread.number));
+}
+
+/** `EXISTS` for "currently waiting on someone else". */
+function waitingExists(): SQL {
+  return exists(waitingQuery());
+}
+
+/** `EXISTS` for "not waiting". */
+function waitingAbsent(): SQL {
+  return notExists(waitingQuery());
+}
+
 /** One dimension: OR of equality plus an optional "is null" for `none`. */
 function dimension(column: AnyColumn, values: readonly string[]): SQL | undefined {
   if (values.length === 0) return undefined;
@@ -477,6 +514,10 @@ export function buildIssueWhere(filter: IssueFilter): SQL | undefined {
 
   if (filter.blocked !== null) {
     conditions.push(eq(mirrorThread.blocked, filter.blocked ? 1 : 0));
+  }
+
+  if (filter.waiting !== null) {
+    conditions.push(filter.waiting ? waitingExists() : waitingAbsent());
   }
 
   if (filter.planned.length > 0) {

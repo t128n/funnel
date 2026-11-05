@@ -115,6 +115,14 @@
 	const currentBlocked = $derived(
 		filter.blocked === true ? 'true' : filter.blocked === false ? 'false' : 'any'
 	);
+	const waitingOptions = [
+		{ value: 'any', label: 'Any' },
+		{ value: 'true', label: 'Waiting' },
+		{ value: 'false', label: 'Not waiting' }
+	];
+	const currentWaiting = $derived(
+		filter.waiting === true ? 'true' : filter.waiting === false ? 'false' : 'any'
+	);
 
 	type StateView = 'open' | 'closed' | 'all';
 	const currentState = $derived.by((): StateView => {
@@ -144,7 +152,8 @@
 		| 'labels'
 		| 'planned'
 		| 'milestones'
-		| 'blocked';
+		| 'blocked'
+		| 'waiting';
 
 	interface ActiveChip {
 		key: ChipKey;
@@ -228,6 +237,13 @@
 				label: `Blocked: ${filter.blocked ? 'Blocked' : 'Not blocked'}`
 			});
 		}
+		if (visible('waiting') && filter.waiting !== null) {
+			chips.push({
+				key: 'waiting',
+				value: String(filter.waiting),
+				label: `Waiting: ${filter.waiting ? 'Waiting' : 'Not waiting'}`
+			});
+		}
 		return chips;
 	});
 
@@ -238,6 +254,10 @@
 		}
 		if (key === 'blocked') {
 			apply({ ...filter, blocked: null });
+			return;
+		}
+		if (key === 'waiting') {
+			apply({ ...filter, waiting: null });
 			return;
 		}
 		set(key, filter[key].filter((entry) => entry !== value));
@@ -265,6 +285,10 @@
 
 	function setBlocked(next: string) {
 		apply({ ...filter, blocked: next === 'true' ? true : next === 'false' ? false : null });
+	}
+
+	function setWaiting(next: string) {
+		apply({ ...filter, waiting: next === 'true' ? true : next === 'false' ? false : null });
 	}
 
 	function clearAll() {
@@ -359,7 +383,7 @@
 			</section>
 		{/if}
 
-		{#if visible('status') || visible('priority') || visible('assignee') || visible('size') || visible('label') || visible('blocked')}
+		{#if visible('status') || visible('priority') || visible('assignee') || visible('size') || visible('label') || visible('blocked') || visible('waiting')}
 			<section>
 				<h3 class="h6 fw-semibold text-body-secondary mb-2">Classification</h3>
 				<div class="d-flex flex-wrap gap-2">
@@ -415,6 +439,24 @@
 									active={currentBlocked === option.value}
 									aria-pressed={currentBlocked === option.value}
 									onclick={() => setBlocked(option.value)}
+								>
+									{option.label}
+								</Button>
+							{/each}
+						</ButtonGroup>
+					</div>
+				{/if}
+				{#if visible('waiting')}
+					<div class="d-flex align-items-center gap-2 mt-2">
+						<span class="small text-body-secondary">Waiting</span>
+						<ButtonGroup size="sm">
+							{#each waitingOptions as option (option.value)}
+								<Button
+									color="outline-secondary"
+									size="sm"
+									active={currentWaiting === option.value}
+									aria-pressed={currentWaiting === option.value}
+									onclick={() => setWaiting(option.value)}
 								>
 									{option.label}
 								</Button>

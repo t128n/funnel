@@ -70,6 +70,7 @@ describe("toFilterParams", () => {
 			planned: ["this-week"],
 			milestones: ["orgA/core#3", NONE],
 			blocked: true,
+			waiting: false,
 			sort: "updated",
 			direction: "desc",
 			search: "crash on boot",
@@ -90,6 +91,9 @@ describe("toFilterParams", () => {
 		expect(parseFilterParams(new URLSearchParams("blocked=true")).blocked).toBe(true);
 		expect(parseFilterParams(new URLSearchParams("blocked=false")).blocked).toBe(false);
 		expect(parseFilterParams(new URLSearchParams("blocked=maybe")).blocked).toBeNull();
+		expect(parseFilterParams(new URLSearchParams("waiting=true")).waiting).toBe(true);
+		expect(parseFilterParams(new URLSearchParams("waiting=false")).waiting).toBe(false);
+		expect(parseFilterParams(new URLSearchParams("waiting=maybe")).waiting).toBeNull();
 		expect(parseFilterParams(new URLSearchParams("sort=title")).sort).toBe("title");
 		expect(parseFilterParams(new URLSearchParams("sort=nope")).sort).toBe("priority");
 		expect(parseFilterParams(new URLSearchParams("direction=DESC")).direction).toBe(
@@ -175,6 +179,9 @@ describe("activeFilterCount / isEmptyFilter", () => {
 		).toBe(1);
 		expect(
 			activeFilterCount({ ...EMPTY_CLIENT_FILTER, blocked: false }),
+		).toBe(1);
+		expect(
+			activeFilterCount({ ...EMPTY_CLIENT_FILTER, waiting: true }),
 		).toBe(1);
 		expect(
 			activeFilterCount({ ...EMPTY_CLIENT_FILTER, assignees: ["me"], unassigned: true }),

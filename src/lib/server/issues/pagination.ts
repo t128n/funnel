@@ -87,6 +87,7 @@ export function filterSignature(filter: IssueFilter, extra?: string): string {
     noMilestone: filter.noMilestone,
     unassigned: filter.unassigned,
     blocked: filter.blocked,
+    waiting: filter.waiting,
     sort: filter.sort,
     direction: filter.direction,
     search: filter.search,

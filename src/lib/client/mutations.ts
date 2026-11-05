@@ -18,6 +18,7 @@ import {
   writeBlocked,
   type BlockInfo,
 } from "#lib/funnel-metadata";
+import type { WaitingReason } from "#lib/waiting";
 
 export type MutationResult<T> =
   | { ok: true; value: T }
@@ -346,6 +347,55 @@ export function resurface(
     params.set("number", String(target.number));
   }
   return request(`/api/snooze?${params.toString()}`, { method: "DELETE" });
+}
+
+// ---------------------------------------------------------------------------
+// Waiting state (Funnel-local, issue #32)
+// ---------------------------------------------------------------------------
+
+/** One stored waiting row returned by the API. */
+export interface WaitingResultRow {
+  repo: string;
+  number: number;
+  reason: WaitingReason;
+  note: string | null;
+  waitingSince: number;
+  recheckOn: string | null;
+  actorUserId: string | null;
+}
+
+export interface SetWaitingInput {
+  reason: WaitingReason;
+  note?: string | null;
+  /** `YYYY-MM-DD`, or `null`/omitted for no re-check date. */
+  recheckOn?: string | null;
+}
+
+/**
+ * Mark an issue as waiting on someone else, or revise its reason/date. This is
+ * Funnel-local state: it never edits the issue body, labels or comments.
+ */
+export function setWaiting(
+  repo: string,
+  number: number,
+  input: SetWaitingInput,
+): Promise<MutationResult<WaitingResultRow>> {
+  return request("/api/waiting", {
+    method: "POST",
+    body: JSON.stringify({ repo, number, ...input }),
+  });
+}
+
+/** Clear an issue's waiting state immediately. */
+export function clearWaiting(
+  repo: string,
+  number: number,
+): Promise<MutationResult<{ cleared: boolean }>> {
+  const params = new URLSearchParams({
+    repo,
+    number: String(number),
+  });
+  return request(`/api/waiting?${params.toString()}`, { method: "DELETE" });
 }
 
 // ---------------------------------------------------------------------------

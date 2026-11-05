@@ -4,8 +4,10 @@ import { db } from "#lib/server/db/index";
 import {
 	stateIssueDelay,
 	stateIssueEvent,
+	stateIssueWaiting,
 } from "#lib/server/db/schema";
 import { writeEpicChildren } from "#lib/funnel-metadata";
+import { setWaiting } from "#lib/server/waiting";
 import {
 	replaceRepoAssignees,
 	replaceRepoLabels,
@@ -143,6 +145,7 @@ beforeEach(() => {
 	clearMirror();
 	db.delete(stateIssueEvent).run();
 	db.delete(stateIssueDelay).run();
+	db.delete(stateIssueWaiting).run();
 	setConfig(TEST_CONFIG);
 	seed();
 });
@@ -173,6 +176,26 @@ describe("getIssueDetail", () => {
 			"collaborator",
 			"me",
 		]);
+	});
+
+	test("test_detail_waiting", () => {
+		expect(getIssueDetail(coreId, 1)?.waiting).toBeNull();
+		expect(
+			setWaiting("orgA/core", 1, {
+				reason: "waiting-on-reporter",
+				note: "Need a repro",
+				recheckOn: "2026-10-25",
+			}).ok,
+		).toBe(true);
+
+		const detail = getIssueDetail(coreId, 1);
+		expect(detail?.waiting).toMatchObject({
+			repo: "orgA/core",
+			number: 1,
+			reason: "waiting-on-reporter",
+			note: "Need a repro",
+			recheckOn: "2026-10-25",
+		});
 	});
 
 	test("test_detail_time", () => {

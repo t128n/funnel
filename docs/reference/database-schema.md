@@ -91,6 +91,27 @@ Primary key: `key`. Foreign keys: none; the issue identity is the durable `org/n
 
 Triage or a status change clears the matching row: accepting, dismissing or duplicating a submission, and writing an issue status, both remove it.
 
+### `state_issue_waiting`
+
+Funnel-local "waiting on someone else" state. A waiting issue is parked until the reporter, a vendor or an upstream project responds; it is deliberately separate from the GitHub `blocked` flag, which records work that is in flight but held up. Rows are keyed by `owner/name` plus issue number rather than a mirror foreign key, so they survive mirror pruning and a re-sync. Funnel never writes this state to GitHub: the issue body, labels and comments are untouched, and the `funnel_metadata` envelope is not used.
+
+| Column | Type | Constraints / notes |
+| :--- | :--- | :--- |
+| `repo` | TEXT | Not null; `owner/name`, part of the key. |
+| `number` | INTEGER | Not null; issue number, part of the key. |
+| `reason` | TEXT | Not null; `needs-info`, `waiting-on-reporter`, `waiting-on-vendor`, `waiting-on-upstream` or `other`. |
+| `note` | TEXT | Nullable free text, at most 2000 characters; an empty note is stored as `NULL`. |
+| `waiting_since` | INTEGER | Not null, Unix ms when the wait began. Preserved when the reason or re-check date is revised; reset only by clearing and setting the state again. |
+| `recheck_on` | TEXT | Nullable `YYYY-MM-DD` re-check date; validated as a real calendar date. |
+| `actor_user_id` | TEXT | Nullable `auth_user.id` of the person who marked it waiting. |
+
+Primary key: `(repo, number)`. Foreign keys: none; the mirror is disposable. Indexes:
+
+- `idx_state_issue_waiting_since` on `(waiting_since)` for the oldest-first Attention feed and stale checks.
+- `idx_state_issue_waiting_recheck` on `(recheck_on)`.
+
+A wait older than seven calendar days is **stale** (`WAITING_STALE_DAYS` in `src/lib/waiting.ts`); exactly seven days is not stale, the next day is. Staleness is derived at read time, so changing the threshold needs no migration. Clearing the row is immediate and is the only thing that resets `waiting_since`.
+
 ### `state_notification`
 
 Per-user notification rows. Each row snapshots everything the notification center renders, including the title, body and actor, so reading the feed never depends on the disposable mirror. Rows are durable; read state is tracked and there is no automatic expiry.
@@ -728,6 +749,7 @@ Tokenizer: `porter unicode61`. Each `upsertIssues` write replaces the row, `dele
 | Funnel account | `auth_user.id` | Text id; `email` is unique. |
 | GitHub account link | `auth_account.accountId` | Forge account id stored as text for `providerId = 'github'`; compared with `mirror_user.external_id`. |
 | Funnel-local issue state | `(org, name, issue_number)` | Work notes, attachments and issue watches; durable across mirror pruning. |
+| Waiting state | `(repo, number)` | `state_issue_waiting`; local-only, keyed by `owner/name` + number so it survives mirror pruning. |
 | Plan item | `(org, name, issue_number)` | One scheduled week per issue in `state_plan_item`; never written to GitHub and durable across mirror pruning. |
 | Working hours (legacy) | `user_id` | Retained `state_work_hours` row from the removed daily planner. |
 | Unavailable window (legacy) | `id` | Retained `state_unavailable_window` row from the removed daily planner. |
@@ -764,7 +786,7 @@ Foreign keys declared in the schema:
 | `mirror_issue_pull_request.repo_id` | `mirror_repo.id` | `CASCADE` |
 | `mirror_comment.author_id` | `mirror_user.id` | `SET NULL` |
 
-The composite child tables `mirror_thread_label` and `mirror_thread_assignee`, the `repo_id`/`issue_number`/`pr_number` columns on `mirror_issue_pull_request`, and the `repo_id`/`thread_number` columns on `mirror_comment`, carry no foreign key to `mirror_thread` or `mirror_pull_request`. `mirror_thread.milestone_number` also has no foreign key to `mirror_milestone`: the milestone set is replaced wholesale on refresh, and a thread may briefly reference a number that has not been mirrored yet. The sync layer therefore deletes labels, assignees, links and comments explicitly before deleting a thread row (`deleteIssue` in `src/lib/server/sync/mirror.ts`) and prunes pull requests that no link refers to. `state_work_note`, `state_attachment`, `state_notification`, `state_issue_watch`, `state_plan_item`, `state_issue_event`, `state_issue_delay`, `state_snooze`, `state_triage_event`, `state_work_hours`, `state_unavailable_window`, `state_day_block` and `state_calendar_feed` also carry no foreign key to the mirror: their author/uploader/recipient/actor identities are snapshots, and their issue identity is the durable `org/name` plus number. The four legacy day-planning tables reference `auth_user.id` directly with `ON DELETE CASCADE`; deleting an account removes any retained rows.
+The composite child tables `mirror_thread_label` and `mirror_thread_assignee`, the `repo_id`/`issue_number`/`pr_number` columns on `mirror_issue_pull_request`, and the `repo_id`/`thread_number` columns on `mirror_comment`, carry no foreign key to `mirror_thread` or `mirror_pull_request`. `mirror_thread.milestone_number` also has no foreign key to `mirror_milestone`: the milestone set is replaced wholesale on refresh, and a thread may briefly reference a number that has not been mirrored yet. The sync layer therefore deletes labels, assignees, links and comments explicitly before deleting a thread row (`deleteIssue` in `src/lib/server/sync/mirror.ts`) and prunes pull requests that no link refers to. `state_work_note`, `state_attachment`, `state_notification`, `state_issue_watch`, `state_plan_item`, `state_issue_event`, `state_issue_delay`, `state_issue_waiting`, `state_snooze`, `state_triage_event`, `state_work_hours`, `state_unavailable_window`, `state_day_block` and `state_calendar_feed` also carry no foreign key to the mirror: their author/uploader/recipient/actor identities are snapshots, and their issue identity is the durable `org/name` plus number. The four legacy day-planning tables reference `auth_user.id` directly with `ON DELETE CASCADE`; deleting an account removes any retained rows.
 
 ## Storage, pragmas and migrations
 

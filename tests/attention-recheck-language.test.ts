@@ -17,7 +17,7 @@ const row = source("src/lib/components/attention/AttentionRow.svelte");
 describe("Attention re-check language", () => {
 	test("the page states what the buckets mean", () => {
 		expect(page).toContain(
-			'description="Blocked issues grouped by re-check date, including those without one."',
+			'description="Blocked issues grouped by re-check date, plus issues waiting on someone else."',
 		);
 	});
 
@@ -39,5 +39,11 @@ describe("Attention re-check language", () => {
 		expect(row).toContain("urgency !== 'unscheduled'");
 		expect(row).not.toContain("'No date'");
 		expect(row).toContain("'No re-check date'");
+	});
+
+	test("waiting has its own section, separate from blocked groups", () => {
+		expect(page).toContain("<WaitingRow");
+		expect(page).toContain("Waiting on others");
+		expect(page).toContain("staleWaiting");
 	});
 });

@@ -6,6 +6,7 @@
  * mixed submission/issue queue, and the six-column status board.
  */
 import type { Impact, Urgency } from "#lib/priority";
+import type { WaitingReason } from "#lib/waiting";
 import type { StagedSubmission } from "#lib/server/intake/staging";
 import type { DelayReason } from "#lib/server/actuals/reasons";
 import type { DelayItem } from "#lib/server/actuals/store";
@@ -182,6 +183,33 @@ export interface AttentionItem {
   reason: DelayReason;
 }
 
+/**
+ * Funnel-local waiting state for one issue (issue #32). Keyed by the durable
+ * `owner/name` plus number and never written to the GitHub body.
+ */
+export interface IssueWaiting {
+  repo: string;
+  number: number;
+  reason: WaitingReason;
+  note: string | null;
+  /** Unix ms when the wait began. */
+  waitingSince: number;
+  /** `YYYY-MM-DD`, or `null` for no re-check date. */
+  recheckOn: string | null;
+  actorUserId: string | null;
+}
+
+/**
+ * A waiting issue surfaced by Attention in its own section, separate from
+ * blocked issues. `stale` and `days` are derived from `waitingSince`.
+ */
+export interface WaitingAttentionItem extends IssueWaiting {
+  issue: IssueListItem;
+  stale: boolean;
+  /** Whole calendar days waited. */
+  days: number;
+}
+
 /** Canonical board column keys; `done` is the closed-completed window. */
 export type StatusKey =
   | "backlog"
@@ -289,6 +317,8 @@ export interface IssueDetail {
   time: IssueTime;
   /** Delay intervals, oldest first (SPEC §2). */
   delays: DelayItem[];
+  /** Funnel-local waiting state, or `null` when the issue is not waiting. */
+  waiting: IssueWaiting | null;
   /** The epic that lists this issue as a child, or `null` when none does. */
   epic: EpicRef | null;
   comments: CommentItem[];

@@ -175,6 +175,17 @@
 		);
 	}
 
+	/** Filter the Inbox issue half by Funnel's local waiting state. */
+	function setWaitingFilter(next: boolean | null): void {
+		void goto(
+			buildFilterUrl(page.url.pathname, page.url.searchParams, {
+				...filter,
+				waiting: next
+			}),
+			{ reset: false }
+		);
+	}
+
 	// Pagination walks the keyset cursor when a sentinel below the table comes
 	// into view. The effect re-runs after each page lands, so a short page keeps
 	// filling until the viewport is covered or the cursor runs out.
@@ -299,6 +310,41 @@
 				<span class="badge text-bg-secondary ms-1">{data.snoozedCount}</span>
 			{/if}
 		</Button>
+
+		{#if !showSnoozed}
+			<div class="ms-auto d-flex align-items-center gap-2">
+				<span class="small text-body-secondary">Waiting</span>
+				<div class="btn-group btn-group-sm" role="group" aria-label="Waiting filter">
+					<Button
+						color="outline-secondary"
+						size="sm"
+						active={filter.waiting === null}
+						aria-pressed={filter.waiting === null}
+						onclick={() => setWaitingFilter(null)}
+					>
+						Any
+					</Button>
+					<Button
+						color="outline-secondary"
+						size="sm"
+						active={filter.waiting === true}
+						aria-pressed={filter.waiting === true}
+						onclick={() => setWaitingFilter(true)}
+					>
+						Waiting
+					</Button>
+					<Button
+						color="outline-secondary"
+						size="sm"
+						active={filter.waiting === false}
+						aria-pressed={filter.waiting === false}
+						onclick={() => setWaitingFilter(false)}
+					>
+						Not waiting
+					</Button>
+				</div>
+			</div>
+		{/if}
 	</div>
 
 	{#if formError}

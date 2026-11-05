@@ -127,6 +127,8 @@ Dates are compared in the browser's local timezone, and the shared clock re-eval
 
 The sidebar Attention badge counts only overdue and due-today items, so **No re-check date** rows are listed without raising it. The **All/Mine** switch filters the whole list, including unscheduled rows, to issues assigned to you, using the same `assignee=me` scope as the Issues view.
 
+Below the blocked groups, Attention has a separate **Waiting on others** section for issues marked with the local waiting state. These are not blocked: the issue is parked until the reporter, a vendor or an upstream project responds. Each row shows its reason, note, when the wait began and its optional re-check date. Waits older than seven calendar days are marked **Stale** with a badge and an emphasised row; a wait without a re-check date is still listed. Writers can **Clear waiting** in one click, which is the quickest way to resume when a reply arrives. The waiting state never touches the issue body, labels or comments, so the blocked metadata envelope is unaffected. The sidebar badge deliberately remains blocked-only; waiting rows are always visible on the page.
+
 Each Attention row links to the issue in the Issues view and offers these actions on hover:
 
 - **Reschedule re-check** — quick dates, or a custom date through the prefilled block dialog. Undated rows label this **Set re-check date**.
