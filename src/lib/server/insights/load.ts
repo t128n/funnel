@@ -148,5 +148,11 @@ export async function loadInsights(
     openIssues,
     waiting,
   };
-  return computeInsights(input, range, now, repo);
+  return computeInsights(
+    input,
+    range,
+    now,
+    repo,
+    config.attention.waiting_days,
+  );
 }

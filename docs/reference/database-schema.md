@@ -161,8 +161,8 @@ Per-user notification rows. Each row snapshots everything the notification cente
 | :--- | :--- | :--- |
 | `id` | TEXT | Primary key; UUID. |
 | `user_id` | TEXT | Not null; the recipient's `auth_user.id`, not a foreign key. |
-| `kind` | TEXT | Not null; `assigned`, `mentioned`, `comment`, `status`, `priority`, `state` or `new_intake`. |
-| `dedupe_key` | TEXT | Not null; names the GitHub event or intake submission that produced the row, for example `status:org/name#7:<userId>:<event>`. Unique across all users. |
+| `kind` | TEXT | Not null; `assigned`, `mentioned`, `comment`, `status`, `priority`, `state`, `new_intake` or `sla`. |
+| `dedupe_key` | TEXT | Not null; names the GitHub event, intake submission or attention-rule day that produced the row, for example `status:org/name#7:<userId>:<event>` or `sla:<rule>:org/name#7:<userId>:<UTC date>`. Unique across all users. |
 | `title` | TEXT | Not null, default `''`. |
 | `body` | TEXT | Not null, default `''`; a 140-character excerpt for comments and mentions. |
 | `url` | TEXT | Not null, default `''`; `/issues/{owner}/{repo}/{number}` or `/inbox/submission/{id}`. |
@@ -205,7 +205,7 @@ Normalised instance settings as JSON-encoded key/value rows. Lists (`repos`, `pr
 
 Primary key: `key`. Foreign keys: none. Indexes: none.
 
-Known keys: `repos`, `projects`, `intake.default_repo`, `sync.history_days`, `sync.poll_interval_active_seconds`, `sync.poll_interval_idle_seconds`, `sync.pr_in_review`, `sync.pr_done`, `board.done_days`, `board.wip_limits`, `session.idle_days`, `notifications.enabled`, `notifications.native`, `notifications.new_intake`, `planning.size_minutes`, `planning.allocation_percent`, `planning.cycle_weeks`, `planning.cycle_anchor`, `planning.maintainers`. `github.url` and `github.api_url` are environment values and are not stored here. Missing, unparseable or invalid rows fall back to per-key defaults.
+Known keys: `repos`, `projects`, `intake.default_repo`, `sync.history_days`, `sync.poll_interval_active_seconds`, `sync.poll_interval_idle_seconds`, `sync.pr_in_review`, `sync.pr_done`, `board.done_days`, `board.wip_limits`, `session.idle_days`, `notifications.enabled`, `notifications.native`, `notifications.new_intake`, `planning.size_minutes`, `planning.allocation_percent`, `planning.cycle_weeks`, `planning.cycle_anchor`, `planning.maintainers`, `attention.first_response_days`, `attention.stale_open_days`, `attention.recheck_cadence_days`, `attention.waiting_days`. `github.url` and `github.api_url` are environment values and are not stored here. Missing, unparseable or invalid rows fall back to per-key defaults.
 
 ### `state_plan_item`
 

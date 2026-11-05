@@ -4,6 +4,7 @@ import {
   getConfig,
   loadFunnelConfig,
   resetConfigCache,
+  setConfig,
 } from "./config";
 import {
   clearSettings,
@@ -96,6 +97,12 @@ describe("loadFunnelConfig", () => {
         cycle_anchor: "2024-01-01",
         maintainers: [],
       },
+      attention: {
+        first_response_days: 3,
+        stale_open_days: 30,
+        recheck_cadence_days: 7,
+        waiting_days: 7,
+      },
     });
   });
 
@@ -135,6 +142,35 @@ describe("loadFunnelConfig", () => {
       cycle_weeks: 2,
       cycle_anchor: "2024-01-01",
       maintainers: [],
+    });
+  });
+
+  test("resolves attention defaults when the section is omitted", async () => {
+    seed({});
+
+    expect((await loadFunnelConfig()).attention).toEqual({
+      first_response_days: 3,
+      stale_open_days: 30,
+      recheck_cadence_days: 7,
+      waiting_days: 7,
+    });
+  });
+
+  test("loads configured attention thresholds", async () => {
+    seed({
+      attention: {
+        first_response_days: 0,
+        stale_open_days: 14,
+        recheck_cadence_days: 2,
+        waiting_days: 10,
+      },
+    });
+
+    expect((await loadFunnelConfig()).attention).toEqual({
+      first_response_days: 0,
+      stale_open_days: 14,
+      recheck_cadence_days: 2,
+      waiting_days: 10,
     });
   });
 
@@ -293,5 +329,20 @@ describe("getConfig", () => {
     // A corrected write must take effect without an explicit cache reset.
     seed({ repos: ["orgA/core"], intake: {} });
     await expect(getConfig()).resolves.toBeDefined();
+  });
+
+  test("setConfig resolves attention defaults for older literals", async () => {
+    seed({ repos: ["orgA/core"] });
+    const { attention: _attention, ...withoutAttention } =
+      await loadFunnelConfig();
+
+    setConfig(withoutAttention);
+
+    expect((await getConfig()).attention).toEqual({
+      first_response_days: 3,
+      stale_open_days: 30,
+      recheck_cadence_days: 7,
+      waiting_days: 7,
+    });
   });
 });

@@ -11,6 +11,25 @@
 const RECHECK_RE = /^\d{4}-\d{2}-\d{2}$/;
 const DAY_MS = 86_400_000;
 
+/** The configurable triage rules that can raise an Attention breach. */
+export const ATTENTION_RULES = [
+  "first_response",
+  "stale_open",
+  "waiting",
+  "recheck",
+] as const;
+
+export type AttentionRule = (typeof ATTENTION_RULES)[number];
+
+/** Human labels shared by the Attention view, notifications and settings. */
+export const ATTENTION_RULE_LABELS: Record<AttentionRule, string> = {
+  first_response: "First response",
+  stale_open: "Stale open",
+  waiting: "Waiting",
+  recheck: "Re-check",
+};
+
+
 /** True for a real `YYYY-MM-DD` calendar date, not just a matching shape. */
 export function isValidISODate(value: string): boolean {
   if (!RECHECK_RE.test(value)) return false;

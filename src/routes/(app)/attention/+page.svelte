@@ -3,6 +3,7 @@
 	import { page } from '$app/state';
 	import { Button } from '@sveltestrap/sveltestrap';
 	import AttentionRow from '#lib/components/attention/AttentionRow.svelte';
+	import BreachRow from '#lib/components/attention/BreachRow.svelte';
 	import WaitingRow from '#lib/components/attention/WaitingRow.svelte';
 	import PageHead from '#lib/components/common/PageHead.svelte';
 	import Breadcrumbs from '#lib/components/shell/Breadcrumbs.svelte';
@@ -12,7 +13,13 @@
 	import IssueActionDialog from '#lib/components/issue/IssueActionDialog.svelte';
 	import PageHeader from '#lib/components/shell/PageHeader.svelte';
 	import Toolbar from '#lib/components/shell/Toolbar.svelte';
-	import { classifyAttention, toISODate, type AttentionBuckets } from '#lib/attention';
+	import {
+		ATTENTION_RULES,
+		ATTENTION_RULE_LABELS,
+		classifyAttention,
+		toISODate,
+		type AttentionBuckets
+	} from '#lib/attention';
 	import { clockTick } from '#lib/client/clock.svelte';
 	import type { CloseReason } from '#lib/client/mutations';
 	import { canWrite } from '#lib/roles';
@@ -26,6 +33,7 @@
 		type BlockPayload
 	} from '#lib/client/issue-actions.svelte';
 	import type { AttentionItem } from '#lib/server/issues/types';
+	import type { AttentionBreach } from '#lib/server/attention/rules';
 	import type { PageProps } from './$types';
 
 	/**
@@ -53,6 +61,19 @@
 	const items = $derived(mine ? data.attention.filter(assignedToViewer) : data.attention);
 	const waitingItems = $derived(mine ? data.waiting.filter(assignedToViewer) : data.waiting);
 
+	const assignedBreach = (breach: AttentionBreach) =>
+		breach.assignees.some((person) => person.externalId === viewer);
+	const breachItems = $derived(
+		mine ? data.breaches.filter(assignedBreach) : data.breaches
+	);
+	const breachGroups = $derived(
+		ATTENTION_RULES.map((rule) => ({
+			key: rule,
+			label: ATTENTION_RULE_LABELS[rule],
+			items: breachItems.filter((breach) => breach.rule === rule)
+		})).filter((group) => group.items.length > 0)
+	);
+
 	const buckets: AttentionBuckets<AttentionItem> = $derived(classifyAttention(items, today, 7));
 
 	const groups = $derived([
@@ -62,11 +83,13 @@
 		{ key: 'unscheduled', label: 'No re-check date', items: buckets.unscheduled }
 	]);
 	const blockedTotal = $derived(groups.reduce((sum, group) => sum + group.items.length, 0));
-	const total = $derived(blockedTotal + waitingItems.length);
+	const breachTotal = $derived(breachItems.length);
+	const total = $derived(blockedTotal + waitingItems.length + breachTotal);
 	const countLabel = $derived(
 		[
 			blockedTotal === 1 ? '1 blocked issue' : `${blockedTotal} blocked issues`,
-			waitingItems.length === 1 ? '1 waiting' : `${waitingItems.length} waiting`
+			waitingItems.length === 1 ? '1 waiting' : `${waitingItems.length} waiting`,
+			breachTotal === 1 ? '1 rule breach' : `${breachTotal} rule breaches`
 		].join(' · ')
 	);
 	const mayWrite = $derived(canWrite(data.user?.role));
@@ -117,7 +140,7 @@
 
 <PageHead
 	title="Attention"
-	description="Blocked issues grouped by re-check date, plus issues waiting on someone else."
+	description="Blocked issues grouped by re-check date, issues waiting on someone else, and configured rule breaches."
 />
 
 <main class="container-xl py-4">
@@ -126,7 +149,7 @@
 	<PageHeader
 		title="Attention"
 		count={countLabel}
-		description="Blocked issues grouped by re-check date, plus issues waiting on someone else."
+		description="Blocked issues grouped by re-check date, issues waiting on someone else, and configured rule breaches."
 	/>
 
 	<Toolbar>
@@ -198,6 +221,37 @@
 						/>
 					{/each}
 				</div>
+			</section>
+		{/if}
+
+		{#if breachGroups.length > 0}
+			<section aria-labelledby="attention-rule-breaches" class="mb-4">
+				<div class="d-flex align-items-center gap-2 border-bottom pb-1 mb-2">
+					<h2 id="attention-rule-breaches" class="small text-body-secondary mb-0">
+						Rule breaches
+					</h2>
+					<span class="small text-body-tertiary tabular">{breachTotal}</span>
+				</div>
+				<p class="small text-body-secondary mb-2">
+					Issues past the thresholds configured under Settings → Attention rules.
+					Rule evaluation uses server UTC dates; the blocked groups above use your
+					browser's timezone.
+				</p>
+				{#each breachGroups as group (group.key)}
+					<section aria-labelledby={`attention-breach-${group.key}`} class="mb-3">
+						<div class="d-flex align-items-center gap-2 pb-1 mb-2">
+							<h3 id={`attention-breach-${group.key}`} class="small fw-semibold mb-0">
+								{group.label}
+							</h3>
+							<span class="small text-body-tertiary tabular">{group.items.length}</span>
+						</div>
+						<div role="list" class="border rounded">
+							{#each group.items as breach (breach.id)}
+								<BreachRow {breach} repoShortcodes={data.repoShortcodes} />
+							{/each}
+						</div>
+					</section>
+				{/each}
 			</section>
 		{/if}
 	{/if}

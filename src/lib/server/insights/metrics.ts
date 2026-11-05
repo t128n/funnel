@@ -451,11 +451,14 @@ export function staleWaitingCount(
   waiting: readonly WaitingRow[],
   openKeys: ReadonlySet<string>,
   now = Date.now(),
+  thresholdDays = WAITING_STALE_DAYS,
 ): number {
   let count = 0;
   for (const row of waiting) {
     if (!openKeys.has(issueKey(row.repo, row.number))) continue;
-    if (isWaitingStale({ waitingSince: row.waitingSince }, now)) count += 1;
+    if (isWaitingStale({ waitingSince: row.waitingSince }, now, thresholdDays)) {
+      count += 1;
+    }
   }
   return count;
 }
@@ -501,6 +504,7 @@ export function computeInsights(
   range: ResolvedRange,
   now = Date.now(),
   repo: string | null = null,
+  waitingThresholdDays = WAITING_STALE_DAYS,
 ): InsightsMetrics {
   const openKeys = new Set(
     input.openIssues.map((issue) => issueKey(issue.repo, issue.number)),
@@ -520,8 +524,13 @@ export function computeInsights(
     throughput: throughput(input.decisions, input.closedIssues, range, repo),
     wip: wip(input.openIssues),
     stale: {
-      count: staleWaitingCount(input.waiting, openKeys, now),
-      thresholdDays: WAITING_STALE_DAYS,
+      count: staleWaitingCount(
+        input.waiting,
+        openKeys,
+        now,
+        waitingThresholdDays,
+      ),
+      thresholdDays: waitingThresholdDays,
     },
     backlog: backlogAging(input.openIssues, now),
   };
@@ -532,6 +541,7 @@ export function emptyInsights(
   range: ResolvedRange,
   now = Date.now(),
   repo: string | null = null,
+  waitingThresholdDays = WAITING_STALE_DAYS,
 ): InsightsMetrics {
   return computeInsights(
     {
@@ -545,5 +555,6 @@ export function emptyInsights(
     range,
     now,
     repo,
+    waitingThresholdDays,
   );
 }

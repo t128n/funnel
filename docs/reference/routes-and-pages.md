@@ -65,7 +65,7 @@ The `C` shortcut and an empty board column's **New Issue** control open an in-ap
 | `/board/{owner}/{repo}/{number}` | Inspector docked beside the board. | `read` | Malformed params return `404`. |
 | `/matrix` | Assessment summary and a selectable 3×3 impact × urgency matrix over the same filtered issue stream. | `read` | Defaults to `state=open` and includes triaged and untriaged issues. Search, scope, and filters drive the needs-assessment count, rated count, the nine cell totals, and the selected cell's issue list. `?cell=<impact>-<urgency>` selects a cell; without it, the highest-priority populated cell is selected. Writers can open the assessment queue for inline rating. |
 | `/matrix/{owner}/{repo}/{number}` | Inspector docked beside the matrix. | `read` | Malformed params return `404`. The selected cell is preserved when the Inspector closes. |
-| `/attention` | Blocked issues with a re-check date, grouped overdue, today and upcoming, plus a separate Waiting section. | `read` | Bucketing is computed in the browser's local timezone; upcoming is a seven-day window. Waiting rows show their reason, optional re-check date and a stale badge after seven days; writers can clear waiting in one click. |
+| `/attention` | Blocked issues with a re-check date, grouped overdue, today and upcoming; issues waiting on someone else; and configured rule breaches grouped by first response, stale open, waiting and re-check. | `read` | Blocked bucketing is computed in the browser's local timezone; upcoming is a seven-day window. Waiting rows show their reason, optional re-check date and a stale badge after `attention.waiting_days`; writers can clear waiting in one click. Rule breaches are evaluated against the server's UTC clock and render only for enabled rules. |
 | `/insights` | Read-only triage dashboard: inbox age, time to first triage, time to close, throughput, WIP, stale waiting and backlog aging. | `read` | Optional `?repo=owner/name` and `?from=YYYY-MM-DD&to=YYYY-MM-DD` filters. Dates are UTC calendar days; invalid or reversed ranges fall back to the last 30 days and report the effective range. Snapshot metrics are labelled `now`, range metrics `range`. |
 | `/notifications` | The signed-in viewer's notification feed, unread rows before read rows. | `read` | Newest first, limited to 100 rows. Opening an unread row marks it read; per-row and mark-all controls persist read state. The page also offers the per-browser notification opt-in when `notifications.native` is on. |
 | `/milestones` | Every mirrored milestone, grouped by repository, with progress and due dates. | `read` | GitHub scopes a milestone to one repository, so equal titles in two repositories are separate entries. |
@@ -87,6 +87,7 @@ The `C` shortcut and an empty board column's **New Issue** control open an in-ap
 | `/settings/sync` | History window, active/idle polling intervals, per-repository health, and a manual sync trigger. | `admin` | Shared settings `save` action plus a `sync` action that runs one cycle for every configured repository. |
 | `/settings/session` | Session idle lifetime in days. | `admin` | Shared settings `save` action. |
 | `/settings/planning` | Size-to-time estimates, allocation percentage and the maintainer roster. | `admin` | Shared settings `save` action; `planning` payload with hours converted to minutes. Cycle keys remain in the stored config for compatibility but are not exposed. |
+| `/settings/attention` | First-response, stale-open, re-check and waiting thresholds. | `admin` | Shared settings `save` action; `attention` payload. Each value is a non-negative integer and `0` disables that rule. |
 
 ### Issue filters and sorting
 
@@ -139,7 +140,7 @@ All three require `write`. Accept and duplicate fail with `401` when no user tok
 
 ### Settings actions
 
-`/settings/repositories`, `/settings/projects`, `/settings/intake`, `/settings/board`, `/settings/notifications`, `/settings/sync`, `/settings/session` and `/settings/planning` all use `saveSettingsAction`: a JSON `payload` form field is merged onto current settings, validated as one configuration, persisted in a transaction, and propagated through the `settings` SSE event and a sync-scheduler wake-up. Errors return `400` with a `message` and, for per-key validation failures, an `issues` array.
+`/settings/repositories`, `/settings/projects`, `/settings/intake`, `/settings/board`, `/settings/notifications`, `/settings/sync`, `/settings/session`, `/settings/planning` and `/settings/attention` all use `saveSettingsAction`: a JSON `payload` form field is merged onto current settings, validated as one configuration, persisted in a transaction, and propagated through the `settings` SSE event and a sync-scheduler wake-up. Errors return `400` with a `message` and, for per-key validation failures, an `issues` array.
 
 `/settings/sync` also defines a `sync` action. It re-checks the admin role, awaits one `syncAllRepos` pass, and returns `{ synced, repos }` on success or `502` with a `syncError` when one or more repositories failed. The page invalidates its load after either outcome so the health table reflects the cycle's timestamps and degraded flags.
 
@@ -241,6 +242,7 @@ API routes are not under the `(app)` layout and enforce their own guards. Detail
 | `/settings/sync` | Sync cadence and repository health. | `admin` |
 | `/settings/session` | Session lifetime. | `admin` |
 | `/settings/planning` | Estimates, allocation and maintainers. | `admin` |
+| `/settings/attention` | Triage rule thresholds. | `admin` |
 
 ## Error handling
 

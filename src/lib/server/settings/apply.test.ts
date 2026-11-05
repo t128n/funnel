@@ -30,6 +30,12 @@ const BASE: SettingsInput = {
     cycle_anchor: "2024-01-01",
     maintainers: [],
   },
+  attention: {
+    first_response_days: 3,
+    stale_open_days: 30,
+    recheck_cadence_days: 7,
+    waiting_days: 7,
+  },
 };
 
 afterEach(() => {
@@ -56,6 +62,26 @@ describe("applySettings", () => {
     applySettings({ labels: { prefix: " funnel- " } });
 
     expect(readSettings().labels).toEqual({ prefix: "funnel" });
+  });
+
+  test("applies an attention patch and disables a rule with zero", () => {
+    writeSettings(BASE);
+
+    applySettings({
+      attention: {
+        first_response_days: 0,
+        stale_open_days: 45,
+        recheck_cadence_days: 3,
+        waiting_days: 7,
+      },
+    });
+
+    expect(readSettings().attention).toEqual({
+      first_response_days: 0,
+      stale_open_days: 45,
+      recheck_cadence_days: 3,
+      waiting_days: 7,
+    });
   });
 
   test("invalidates the cached config after a save", async () => {

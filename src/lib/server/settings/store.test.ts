@@ -43,6 +43,12 @@ const BASE: SettingsInput = {
       },
     ],
   },
+  attention: {
+    first_response_days: 3,
+    stale_open_days: 30,
+    recheck_cadence_days: 7,
+    waiting_days: 7,
+  },
 };
 
 afterEach(() => {
@@ -67,6 +73,12 @@ describe("settings store", () => {
     expect(settings.board).toEqual({ done_days: 14, wip_limits: {} });
     expect(settings.session).toEqual({ idle_days: 30 });
     expect(settings.notifications).toEqual({ enabled: true, native: true, new_intake: true });
+    expect(settings.attention).toEqual({
+      first_response_days: 3,
+      stale_open_days: 30,
+      recheck_cadence_days: 7,
+      waiting_days: 7,
+    });
   });
 
   test("test_planning_defaults", () => {
@@ -142,6 +154,46 @@ describe("settings store", () => {
       writeSettings({
         ...BASE,
         notifications: { ...BASE.notifications, native: "yes" as unknown as boolean },
+      })
+    ).toThrow(SettingsError);
+  });
+
+  test("persists attention thresholds including zero to disable", () => {
+    writeSettings({
+      ...BASE,
+      attention: {
+        first_response_days: 0,
+        stale_open_days: 14,
+        recheck_cadence_days: 0,
+        waiting_days: 10,
+      },
+    });
+
+    expect(readSettings().attention).toEqual({
+      first_response_days: 0,
+      stale_open_days: 14,
+      recheck_cadence_days: 0,
+      waiting_days: 10,
+    });
+  });
+
+  test("treats an omitted attention section as defaults on write", () => {
+    const { attention: _attention, ...withoutAttention } = BASE;
+    writeSettings(withoutAttention);
+
+    expect(readSettings().attention).toEqual({
+      first_response_days: 3,
+      stale_open_days: 30,
+      recheck_cadence_days: 7,
+      waiting_days: 7,
+    });
+  });
+
+  test("rejects negative attention thresholds", () => {
+    expect(() =>
+      writeSettings({
+        ...BASE,
+        attention: { ...BASE.attention!, waiting_days: -1 },
       })
     ).toThrow(SettingsError);
   });

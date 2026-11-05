@@ -228,6 +228,38 @@ export const planningInput = v.object({
 export type PlanningInput = v.InferOutput<typeof planningInput>;
 
 // ---------------------------------------------------------------------------
+// Attention rules (issue #37)
+// ---------------------------------------------------------------------------
+
+/** The four configurable triage thresholds, in days; `0` disables a rule. */
+export interface AttentionSettings {
+  /** Days before an unanswered issue breaches the first-response rule. */
+  first_response_days: number;
+  /** Days without an update before an open issue is stale. */
+  stale_open_days: number;
+  /** Days past a blocked issue's re-check date before it breaches. */
+  recheck_cadence_days: number;
+  /** Calendar days an issue may wait on someone else. */
+  waiting_days: number;
+}
+
+/** Defaults preserve Funnel's pre-#37 behaviour, except new rules start off. */
+export const DEFAULT_ATTENTION: AttentionSettings = {
+  first_response_days: 3,
+  stale_open_days: 30,
+  recheck_cadence_days: 7,
+  waiting_days: 7,
+};
+
+/** Validation for the attention section, shared with `configSchema`. */
+export const attentionInput = v.object({
+  first_response_days: count("attention.first_response_days"),
+  stale_open_days: count("attention.stale_open_days"),
+  recheck_cadence_days: count("attention.recheck_cadence_days"),
+  waiting_days: count("attention.waiting_days"),
+});
+
+// ---------------------------------------------------------------------------
 // Key registry
 // ---------------------------------------------------------------------------
 
@@ -292,6 +324,22 @@ const defs = {
     schema: v.array(maintainerInput),
     default: [] as MaintainerInput[],
   },
+  "attention.first_response_days": {
+    schema: count("attention.first_response_days"),
+    default: DEFAULT_ATTENTION.first_response_days,
+  },
+  "attention.stale_open_days": {
+    schema: count("attention.stale_open_days"),
+    default: DEFAULT_ATTENTION.stale_open_days,
+  },
+  "attention.recheck_cadence_days": {
+    schema: count("attention.recheck_cadence_days"),
+    default: DEFAULT_ATTENTION.recheck_cadence_days,
+  },
+  "attention.waiting_days": {
+    schema: count("attention.waiting_days"),
+    default: DEFAULT_ATTENTION.waiting_days,
+  },
 } as const;
 
 /** A persisted setting key, e.g. `sync.history_days`. */
@@ -322,6 +370,7 @@ export interface Settings {
     cycle_anchor: string;
     maintainers: MaintainerInput[];
   };
+  attention: AttentionSettings;
 }
 
 /** Raised when a write carries a value its key's schema rejects. */
@@ -369,6 +418,9 @@ export const settingsInputSchema = v.object({
     new_intake: v.boolean("notifications.new_intake must be a boolean"),
   }),
   planning: planningInput,
+  // Optional so settings patches and test fixtures written before issue #37
+  // keep validating; `toEntries` fills in the defaults.
+  attention: v.optional(attentionInput),
 });
 
 export type SettingsInput = v.InferOutput<typeof settingsInputSchema>;
@@ -471,6 +523,18 @@ export function readSettings(): Settings {
         readKey(rows, "planning.maintainers") as MaintainerInput[]
       ).map((maintainer) => ({ ...maintainer })),
     },
+    attention: {
+      first_response_days: readKey(
+        rows,
+        "attention.first_response_days",
+      ) as number,
+      stale_open_days: readKey(rows, "attention.stale_open_days") as number,
+      recheck_cadence_days: readKey(
+        rows,
+        "attention.recheck_cadence_days",
+      ) as number,
+      waiting_days: readKey(rows, "attention.waiting_days") as number,
+    },
   };
 }
 
@@ -490,6 +554,7 @@ function toEntries(input: SettingsInput): [SettingKey, unknown][] {
     maintainers: [] as MaintainerInput[],
   };
   const labels = input.labels ?? { prefix: "" };
+  const attention = input.attention ?? DEFAULT_ATTENTION;
   return [
     ["repos", input.repos],
     ["projects", input.projects],
@@ -517,6 +582,10 @@ function toEntries(input: SettingsInput): [SettingKey, unknown][] {
     ["planning.cycle_weeks", planning.cycle_weeks],
     ["planning.cycle_anchor", planning.cycle_anchor],
     ["planning.maintainers", planning.maintainers],
+    ["attention.first_response_days", attention.first_response_days],
+    ["attention.stale_open_days", attention.stale_open_days],
+    ["attention.recheck_cadence_days", attention.recheck_cadence_days],
+    ["attention.waiting_days", attention.waiting_days],
   ];
 }
 

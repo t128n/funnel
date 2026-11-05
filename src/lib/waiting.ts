@@ -64,13 +64,15 @@ export function waitingDays(
 }
 
 /**
- * Stale waits are older than {@link WAITING_STALE_DAYS} calendar days. Exactly
- * seven days is not stale; the next local day is. Calendar-day comparison
- * keeps the boundary stable across DST changes.
+ * Stale waits are older than `thresholdDays` local calendar days. Exactly the
+ * threshold is not stale; the next local day is. Calendar-day comparison keeps
+ * the boundary stable across DST changes. The threshold defaults to
+ * {@link WAITING_STALE_DAYS} so older callers keep the original seven-day rule.
  */
 export function isWaitingStale(
   row: { waitingSince: number },
   now = Date.now(),
+  thresholdDays = WAITING_STALE_DAYS,
 ): boolean {
-  return waitingDays(row, now) > WAITING_STALE_DAYS;
+  return waitingDays(row, now) > thresholdDays;
 }

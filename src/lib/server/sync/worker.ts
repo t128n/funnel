@@ -17,8 +17,10 @@
  * startup: `startSyncWorker` returns immediately.
  */
 import type { Thread, ThreadQuery } from "forges";
+import { attentionBreaches } from "#/lib/server/attention/queries";
 import { configuredRepoSlugs, getConfig } from "#/lib/server/config";
 import { createLogger, errorFields } from "#/lib/server/log";
+import { notifyAttentionBreaches } from "#/lib/server/notifications/attention";
 import {
   forge,
   type GitHubProvider,
@@ -41,6 +43,8 @@ const PER_PAGE = 100;
 const DAY_MS = 86_400_000;
 /** How often the scheduler wakes to check which repos are due. */
 const TICK_MS = 5_000;
+/** Attention-rule evaluation/notification cadence, independent of repo polls. */
+export const ATTENTION_NOTIFY_INTERVAL_MS = 5 * 60_000;
 
 /** The subset of a provider thread the poller needs (times in epoch ms). */
 export interface HistoryThread {
@@ -518,6 +522,7 @@ export function stopSyncWorker(): void {
   if (timer) clearTimeout(timer);
   timer = undefined;
   nextDue.clear();
+  lastAttentionNotifyAt = 0;
 }
 
 /**
@@ -531,8 +536,7 @@ export function notifyConfigChanged(): void {
 }
 
 /** Outcome of one {@link syncAllRepos} pass; individual failures are isolated. */
-export interface SyncRunSummary {
-  /** Configured repositories the run attempted. */
+export interface SyncRunSummary {  /** Configured repositories the run attempted. */
   repos: number;
   /** Repositories whose cycle failed (already logged and flagged degraded). */
   failed: number;
@@ -568,6 +572,38 @@ export async function syncAllRepos(): Promise<SyncRunSummary> {
     "sync run finished",
   );
   return { repos: repos.length, failed, durationMs };
+}
+
+/**
+ * Evaluate attention rules and create `sla` notifications. Exported so tests
+ * can drive one pass directly without the scheduler timer. When notifications
+ * are disabled, this writes nothing but still does no work; rule evaluation is
+ * otherwise a read-only query.
+ */
+export async function runAttentionNotifications(
+  now = Date.now(),
+): Promise<number> {
+  const config = await getConfig();
+  if (!config.notifications.enabled) return 0;
+  const breaches = await attentionBreaches(now);
+  if (breaches.length === 0) return 0;
+  return notifyAttentionBreaches(breaches, now);
+}
+
+let lastAttentionNotifyAt = 0;
+
+/** Throttled scheduler hook: at most one pass per {@link ATTENTION_NOTIFY_INTERVAL_MS}. */
+async function maybeRunAttentionNotifications(now: number): Promise<void> {
+  if (now - lastAttentionNotifyAt < ATTENTION_NOTIFY_INTERVAL_MS) return;
+  lastAttentionNotifyAt = now;
+  try {
+    const created = await runAttentionNotifications(now);
+    if (created > 0) {
+      log.info({ created }, "attention notifications created");
+    }
+  } catch (error) {
+    log.warn(errorFields(error), "attention notification pass failed");
+  }
 }
 
 async function tick(): Promise<void> {
@@ -610,6 +646,10 @@ async function tick(): Promise<void> {
       }
       nextDue.set(entry, Date.now() + intervalMs);
     }
+
+    // Rule notifications run on their own slow cadence; the repo loop above
+    // stays the hot path and a failed pass never stops polling.
+    await maybeRunAttentionNotifications(now);
 
     log.debug(
       { repos: repos.length, polled, failed, durationMs: Date.now() - startedAt },

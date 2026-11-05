@@ -98,6 +98,7 @@ Learning-oriented, with one path and expected results.
 - [CLI](reference/cli.md) — the packaged executable's flags and the Bun scripts it maps to.
 - [Build tasks](reference/build-tasks.md) — the `mise` tasks and what each one produces.
 - [Settings](reference/settings.md) — the instance settings stored in SQLite, with defaults and validation rules.
+- [Attention rules](reference/attention-rules.md) — first-response, stale-open, re-check and waiting thresholds, boundary semantics, UTC vs local clocks, and notification cadence.
 - [Planning and time](reference/planning-and-time.md) — estimates, capacity, weeks, actual-time and delay rules, epic metadata, tables and endpoints.
 - [Reserved labels](reference/reserved-labels.md) — the canonical status, impact, urgency, size, flag, and epic vocabulary plus the retired priority labels.
 - [Impact, urgency, and priority](reference/priority.md) — the three-point input labels, the P1–P3 lookup matrix, the 3×3 matrix view, the rating criteria, and the retired priority labels.

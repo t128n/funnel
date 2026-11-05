@@ -350,4 +350,25 @@ describe("insights loader", () => {
     expect(metrics.stale.count).toBe(1);
     expect(metrics.wip.total).toBe(0);
   });
+
+  test("stale waiting follows attention.waiting_days", async () => {
+    const now = new Date(2026, 0, 15, 12, 0, 0).getTime();
+    const repoA = seedRepo("orgA", "core", "1");
+    seedIssue(repoA, 1, { createdAt: at("2025-01-01T00:00:00Z") });
+    seedWaiting(REPO_A, 1, now - 5 * DAY_MS);
+
+    setConfig({
+      ...TEST_CONFIG,
+      repos: [{ repo: REPO_A, shortcode: "CORE" }],
+      attention: { ...TEST_CONFIG.attention, waiting_days: 3 },
+    });
+
+    const metrics = await loadInsights({
+      repo: REPO_A,
+      from: "2026-01-01",
+      to: "2026-01-15",
+      now,
+    });
+    expect(metrics.stale).toEqual({ count: 1, thresholdDays: 3 });
+  });
 });

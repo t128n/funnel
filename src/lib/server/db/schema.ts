@@ -313,7 +313,7 @@ export const stateNotification = sqliteTable(
   {
     id: text("id").primaryKey(),
     userId: text("user_id").notNull(),
-    /** `assigned` | `mentioned` | `comment` | `status` | `priority` | `state` | `new_intake`. */
+    /** `assigned` | `mentioned` | `comment` | `status` | `priority` | `state` | `new_intake` | `sla`. */
     kind: text("kind").notNull(),
     dedupeKey: text("dedupe_key").notNull(),
     title: text("title").notNull().default(""),
