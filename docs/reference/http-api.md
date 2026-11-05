@@ -35,13 +35,23 @@ Request body:
 
 Unknown properties are ignored. A submission is stored in `state_intake_submission`; nothing is created on GitHub until a triager accepts it.
 
+Abuse controls (issue #42) apply before validation:
+
+- **Per-client-IP rate limit.** Both `POST /api/intake` and the `/intake` form action share fixed minute and hour counters configured by `intake.rate_limit_per_minute` (default `10`) and `intake.rate_limit_per_hour` (default `60`). Every request that reaches the limiter counts, including malformed JSON, schema failures and honeypot hits; `0` disables a window. A throttled request returns `429` with `Retry-After` set to the longer remaining wait and is never staged.
+- **Honeypot.** A hidden form field that a real user never fills. When it is non-empty, the endpoint returns a generic `202` accepted-looking body and stages nothing; the response does not identify the field or the rejection. The field is deliberately absent from the published OpenAPI schema.
+- **No content logging.** Throttled and honeypot submissions log only the client address, reason and retry delay — never the title, body or source.
+
+The client address comes from SvelteKit's `getClientAddress()`. Behind a reverse proxy the limiter can only distinguish callers when adapter-node's `ADDRESS_HEADER` is configured for the header your proxy overwrites, plus `XFF_DEPTH` for a chain of proxies. Without that configuration every request shares the proxy's address, and a spoofable forwarded header must not be trusted.
+
 Responses:
 
 | Status | Body |
 | :--- | :--- |
 | `201` | `{ "id": "<uuid>" }` — an opaque handle for the staged row. |
+| `202` | `{ "message": "Submission received" }` — a honeypot hit; nothing is staged. |
 | `400` | `{ "message": "Request body must be valid JSON" }` for a non-JSON body. |
 | `400` | `{ "message": "Invalid intake submission", "issues": ["…"] }` for schema failures. |
+| `429` | `{ "message": "Too many submissions; try again later." }` with a `Retry-After` header in whole seconds (at least `1`). |
 
 Every `POST` response carries `Cache-Control: no-store` and the open CORS headers:
 

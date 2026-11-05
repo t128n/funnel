@@ -17,6 +17,16 @@ There are two entry points, sharing the same staging primitive and the same vali
 
 The schema lives in its own module rather than in the route because SvelteKit's build-time export check rejects non-endpoint exports from `+server.ts`, and because the OpenAPI test compares it against `static/openapi.yml` so the two cannot drift. See the [HTTP API reference](../reference/http-api.md) for the exact field contract.
 
+## Abuse controls
+
+Because both entry points are anonymous, each one passes through the same three gates before a row is staged:
+
+1. **Per-IP rate limit.** `src/lib/server/intake/rate-limit.ts` keeps fixed minute and hour counters keyed by client address. Both windows are incremented before the decision, so probing with malformed JSON, invalid fields or honeypot hits burns the same budget as real work. When a cap is exceeded the caller gets `429` (or a form `fail(429, …)` that keeps the draft) with `Retry-After` set to the longer remaining wait. The caps default to 10 per minute and 60 per hour; `0` disables a window.
+2. **Honeypot.** The form carries a visually hidden `company_website` field that a real user never fills. The handlers read it from the raw form/JSON before schema validation, so it stays out of the published OpenAPI schema. A filled field produces the normal accepted-looking response but calls neither `createSubmission` nor `publish`.
+3. **Validation and staging.** Only a request that clears both gates reaches the existing title/body checks and `createSubmission`.
+
+Rejected requests log the client address and a reason, never the submitted title, body or source. The counters live in the adapter-node process, so a restart resets them and a multi-process deployment would give each process its own budget. The address comes from `getClientAddress()`; behind a reverse proxy the operator must configure adapter-node's trusted `ADDRESS_HEADER` (and `XFF_DEPTH`), because trusting a spoofable forwarded header would let a client choose its own bucket — or collapse everyone into the proxy's single bucket.
+
 ## The staging row
 
 A submission lands in `state_intake_submission` with an opaque UUID `id`, the `title`, the `body` (empty string if omitted), a nullable `source`, and a unix-millisecond `createdAt`. `createSubmission` generates the id and writes the row synchronously; `listSubmissions` reads newest first, using `rowid` to break same-millisecond ties so ordering is deterministic. The id returned to the submitter is the only handle they receive, and it is never used as an authorisation token — the Inbox is a signed-in surface.

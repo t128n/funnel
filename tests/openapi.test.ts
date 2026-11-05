@@ -64,6 +64,10 @@ describe("static/openapi.yml", () => {
     expect(schema).toEqual(generated);
   });
 
+  test("does not publish the intake honeypot field", () => {
+    expect(JSON.stringify(spec)).not.toContain("company_website");
+  });
+
   test("every local $ref resolves", () => {
     const refs: string[] = [];
     const walk = (node: unknown): void => {

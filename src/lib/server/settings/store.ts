@@ -260,6 +260,21 @@ export const attentionInput = v.object({
 });
 
 // ---------------------------------------------------------------------------
+// Intake abuse controls
+// ---------------------------------------------------------------------------
+
+/**
+ * Per-IP submission caps enforced by `#lib/server/intake/rate-limit`. Both
+ * windows are fixed: a request counts in the current minute and/or hour
+ * bucket. `0` disables that window.
+ */
+export const DEFAULT_RATE_LIMIT_PER_MINUTE = 10;
+export const DEFAULT_RATE_LIMIT_PER_HOUR = 60;
+
+/** Whether the hidden `company_website` honeypot is checked. */
+export const DEFAULT_HONEYPOT = true;
+
+// ---------------------------------------------------------------------------
 // Key registry
 // ---------------------------------------------------------------------------
 
@@ -274,6 +289,18 @@ const defs = {
   "intake.default_repo": {
     schema: v.optional(repoName),
     default: undefined as string | undefined,
+  },
+  "intake.rate_limit_per_minute": {
+    schema: count("intake.rate_limit_per_minute"),
+    default: DEFAULT_RATE_LIMIT_PER_MINUTE,
+  },
+  "intake.rate_limit_per_hour": {
+    schema: count("intake.rate_limit_per_hour"),
+    default: DEFAULT_RATE_LIMIT_PER_HOUR,
+  },
+  "intake.honeypot": {
+    schema: v.boolean("intake.honeypot must be a boolean"),
+    default: DEFAULT_HONEYPOT,
   },
   "sync.history_days": { schema: count("sync.history_days"), default: 90 },
   "sync.poll_interval_active_seconds": {
@@ -350,7 +377,15 @@ export interface Settings {
   repos: RepoInput[];
   projects: ProjectInput[];
   labels: { prefix: string };
-  intake: { default_repo?: string };
+  intake: {
+    default_repo?: string;
+    /** Per-IP submissions allowed per fixed minute window; `0` disables it. */
+    rate_limit_per_minute: number;
+    /** Per-IP submissions allowed per fixed hour window; `0` disables it. */
+    rate_limit_per_hour: number;
+    /** Check the hidden form honeypot. */
+    honeypot: boolean;
+  };
   sync: {
     history_days: number;
     poll_interval_active_seconds: number;
@@ -397,7 +432,16 @@ export const settingsInputSchema = v.object({
   // Optional so settings written before this section (and patches from older
   // test fixtures) default to the unprefixed vocabulary instead of failing.
   labels: v.optional(v.object({ prefix: labelPrefix }), { prefix: "" }),
-  intake: v.object({ default_repo: v.optional(repoName) }),
+  intake: v.object({
+    default_repo: v.optional(repoName),
+    // Optional so patches and fixtures written before the abuse controls keep
+    // validating; `toEntries` fills in the defaults.
+    rate_limit_per_minute: v.optional(
+      count("intake.rate_limit_per_minute"),
+    ),
+    rate_limit_per_hour: v.optional(count("intake.rate_limit_per_hour")),
+    honeypot: v.optional(v.boolean("intake.honeypot must be a boolean")),
+  }),
   sync: v.object({
     history_days: count("sync.history_days"),
     poll_interval_active_seconds: count("sync.poll_interval_active_seconds"),
@@ -483,6 +527,15 @@ export function readSettings(): Settings {
     },
     intake: {
       default_repo: readKey(rows, "intake.default_repo") as string | undefined,
+      rate_limit_per_minute: readKey(
+        rows,
+        "intake.rate_limit_per_minute",
+      ) as number,
+      rate_limit_per_hour: readKey(
+        rows,
+        "intake.rate_limit_per_hour",
+      ) as number,
+      honeypot: readKey(rows, "intake.honeypot") as boolean,
     },
     sync: {
       history_days: readKey(rows, "sync.history_days") as number,
@@ -555,11 +608,21 @@ function toEntries(input: SettingsInput): [SettingKey, unknown][] {
   };
   const labels = input.labels ?? { prefix: "" };
   const attention = input.attention ?? DEFAULT_ATTENTION;
+  const intake = input.intake;
   return [
     ["repos", input.repos],
     ["projects", input.projects],
     ["labels.prefix", labels.prefix],
-    ["intake.default_repo", input.intake.default_repo],
+    ["intake.default_repo", intake.default_repo],
+    [
+      "intake.rate_limit_per_minute",
+      intake.rate_limit_per_minute ?? DEFAULT_RATE_LIMIT_PER_MINUTE,
+    ],
+    [
+      "intake.rate_limit_per_hour",
+      intake.rate_limit_per_hour ?? DEFAULT_RATE_LIMIT_PER_HOUR,
+    ],
+    ["intake.honeypot", intake.honeypot ?? DEFAULT_HONEYPOT],
     ["sync.history_days", input.sync.history_days],
     [
       "sync.poll_interval_active_seconds",
