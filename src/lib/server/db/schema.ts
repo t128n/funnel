@@ -136,6 +136,53 @@ export const stateIssueWaiting = sqliteTable(
 );
 
 // ---------------------------------------------------------------------------
+// State: named saved views (issue #26).
+//
+// A saved view is a named preset over the issue/inbox URL model, not a second
+// source of truth: the URL stays authoritative and a view only remembers the
+// query string, sort, direction and grouping needed to reopen it. Rows are
+// owned by `auth_user.id` and may be shared with the whole instance; shared
+// views are readable by everyone and editable by their owner (or an admin).
+// Query is stored without a leading `?` and never contains a path, so opening a
+// view cannot escape the cockpit or smuggle another route.
+// ---------------------------------------------------------------------------
+export const stateSavedView = sqliteTable(
+  "state_saved_view",
+  {
+    id: text("id").primaryKey(),
+    /** `auth_user.id` of the view's owner (no foreign key, as with other state). */
+    ownerUserId: text("owner_user_id").notNull(),
+    name: text("name").notNull(),
+    /** URL query string without `?`; filter dimensions plus inbox `snoozed`. */
+    query: text("query").notNull().default(""),
+    /** `issues` or `inbox`; decides the path a view opens. */
+    scope: text("scope").notNull(),
+    /** Selected sort, or null to inherit the stream default. */
+    sort: text("sort"),
+    /** `asc` or `desc`, or null to inherit the stream default. */
+    direction: text("direction"),
+    /** Grouping dimension (`none`, `status`, `priority`, `project`, `repo`, `milestone`). */
+    group: text("group"),
+    /** `1` when every signed-in user may open the view. */
+    shared: integer("shared").notNull().default(0),
+    /** `1` when the view is pinned to the top of the switcher. */
+    pinned: integer("pinned").notNull().default(0),
+    createdAt: integer("created_at").notNull(),
+    updatedAt: integer("updated_at").notNull(),
+  },
+  (t) => [
+    // One name per owner, case-insensitively. The expression index matches the
+    // service's duplicate check so two tabs cannot create "Mine" and "mine".
+    uniqueIndex("uq_state_saved_view_owner_name").on(
+      t.ownerUserId,
+      sql`lower(${t.name})`,
+    ),
+    index("idx_state_saved_view_owner").on(t.ownerUserId),
+    index("idx_state_saved_view_scope_shared").on(t.scope, t.shared),
+  ],
+);
+
+// ---------------------------------------------------------------------------
 // State: instance settings (SPEC §4, §10).
 // A normalized key/value store that replaces `funnel.config.yaml`. Keys are
 // dotted paths (`sync.history_days`, `intake.default_repo`, ...) and `value`

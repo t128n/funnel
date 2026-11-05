@@ -19,6 +19,11 @@ import {
   type BlockInfo,
 } from "#lib/funnel-metadata";
 import type { WaitingReason } from "#lib/waiting";
+import type {
+  SavedView,
+  SavedViewInput,
+  SavedViewPatch,
+} from "#lib/saved-views";
 
 export type MutationResult<T> =
   | { ok: true; value: T }
@@ -529,5 +534,44 @@ export function markNotificationsRead(
   return request("/api/notifications", {
     method: "POST",
     body: JSON.stringify(input),
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Saved views
+// ---------------------------------------------------------------------------
+
+/** Visible saved views for the signed-in user (own + shared). */
+export function fetchSavedViews(): Promise<MutationResult<{ views: SavedView[] }>> {
+  return request("/api/saved-views");
+}
+
+/** Save the current URL/sort/group as a named view. */
+export function createSavedView(
+  input: SavedViewInput,
+): Promise<MutationResult<SavedView>> {
+  return request("/api/saved-views", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+/** Rename, repin, change sharing or update the query of an owned view. */
+export function updateSavedView(
+  id: string,
+  patch: SavedViewPatch,
+): Promise<MutationResult<SavedView>> {
+  return request("/api/saved-views", {
+    method: "PATCH",
+    body: JSON.stringify({ id, ...patch }),
+  });
+}
+
+/** Delete an owned (or, for admins, shared) view. */
+export function deleteSavedView(
+  id: string,
+): Promise<MutationResult<{ id: string }>> {
+  return request(`/api/saved-views?id=${encodeURIComponent(id)}`, {
+    method: "DELETE",
   });
 }

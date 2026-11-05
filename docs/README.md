@@ -66,6 +66,7 @@ Learning-oriented, with one path and expected results.
 ### Use
 
 - [Triage intake](how-to/use/triage-intake.md) — accept, dismiss, or duplicate a staged submission.
+- [Save and reuse views](how-to/use/saved-views.md) — store the current filters, sort and grouping as a personal or shared preset.
 - [Create and edit issues](how-to/use/create-and-edit-issues.md) — create an issue, then edit its title, description, properties, assignees, and labels.
 - [Close, reopen, and block](how-to/use/close-reopen-block.md) — record resolutions, reopen notes, and structured blockers with re-check dates.
 - [Plan a week](how-to/use/plan-work.md) — commit sized issues from their Properties panel and handle the 60% capacity cap.

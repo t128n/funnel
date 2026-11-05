@@ -112,6 +112,33 @@ Primary key: `(repo, number)`. Foreign keys: none; the mirror is disposable. Ind
 
 A wait older than seven calendar days is **stale** (`WAITING_STALE_DAYS` in `src/lib/waiting.ts`); exactly seven days is not stale, the next day is. Staleness is derived at read time, so changing the threshold needs no migration. Clearing the row is immediate and is the only thing that resets `waiting_since`.
 
+### `state_saved_view`
+
+Named URL presets for the Issues and Inbox views. The URL stays the runtime source of truth: a saved view stores the query string, sort/direction and grouping needed to reopen a view, but later filter edits are not auto-saved. Rows are owned by `auth_user.id` and may be shared with every signed-in user. Shared views are readable by all and editable only by their owner (or an admin); personal views are visible only to their owner.
+
+| Column | Type | Constraints / notes |
+| :--- | :--- | :--- |
+| `id` | TEXT | Primary key; UUID. |
+| `owner_user_id` | TEXT | Not null; the owner's `auth_user.id`, not a foreign key. |
+| `name` | TEXT | Not null; trimmed, 1–120 characters. Unique per owner, case-insensitively. |
+| `query` | TEXT | Not null, default `''`; URL query string without `?`, limited to filter keys plus Inbox `snoozed=0|1`. Sort and direction are stored in their own columns. |
+| `scope` | TEXT | Not null; `issues` or `inbox` and the path the view opens. |
+| `sort` | TEXT | Nullable; `priority`, `updated`, `created` or `title`. Null inherits the stream default. |
+| `direction` | TEXT | Nullable; `asc` or `desc`. Null inherits the stream default. |
+| `group` | TEXT | Nullable; `none`, `status`, `priority`, `project`, `repo` or `milestone`. Grouping is client preference state, not part of the URL. |
+| `shared` | INTEGER | Not null, default `0`; `1` makes the view readable by every signed-in user. |
+| `pinned` | INTEGER | Not null, default `0`; pinned views sort first in the switcher. |
+| `created_at` | INTEGER | Not null, Unix ms. |
+| `updated_at` | INTEGER | Not null, Unix ms; advanced by rename, pin, sharing or filter refresh. |
+
+Primary key: `id`. Foreign keys: none; the owner is the durable `auth_user.id`. Indexes:
+
+- `uq_state_saved_view_owner_name` unique on `(owner_user_id, lower(name))`, so one owner cannot store `Mine` and `mine`.
+- `idx_state_saved_view_owner` on `(owner_user_id)`.
+- `idx_state_saved_view_scope_shared` on `(scope, shared)`.
+
+Opening a view never mutates an issue or the mirror; create, update and delete only touch this table.
+
 ### `state_notification`
 
 Per-user notification rows. Each row snapshots everything the notification center renders, including the title, body and actor, so reading the feed never depends on the disposable mirror. Rows are durable; read state is tracked and there is no automatic expiry.

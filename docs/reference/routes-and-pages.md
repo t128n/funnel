@@ -115,6 +115,15 @@ Qualifiers are constraining: they AND with the URL dimensions and with each othe
 
 `/issues` also accepts `sort=priority|updated|created|title` and `direction=asc|desc`. The default is `sort=priority&direction=asc`, which keeps priority rank ascending (P1 first, unprioritized last) and resolves ties by most recently updated. Title sorting is case-insensitive. Both parameters live in the URL, so the chosen sort survives reloads and shared links. Sort is a view preference: it does not count towards the active-filter badge. Board lanes keep their fixed priority order regardless of these parameters.
 
+### Saved views
+
+Issues and Inbox share one saved-view API and a compact **Views** switcher in each toolbar. A saved view is a named preset for the current scope: it stores the URL query string, sort, direction and client grouping, and clicking it navigates to `/{scope}?{query}` and applies the group. The URL remains the runtime source of truth; changing a filter does not update a saved view unless the reader explicitly refreshes it.
+
+- **Personal** views are visible only to their owner. **Shared** views are readable by every signed-in user but editable only by their owner (or an admin, for shared rows).
+- Owners can rename, change sharing, pin, refresh a view from the current filters, or delete it. Read-only (`read`) users can open views but get no create/edit/delete controls; the API also rejects their mutations.
+- Issues, Inbox and every other cockpit page receive the visible view list from the `(app)` layout. The switcher filters it by the current scope, so Issues never offers an Inbox preset (and vice versa).
+- The stored query is constrained to filter keys plus Inbox `snoozed`; it cannot contain a path, fragment or unknown parameter. `sort`/`direction` live in their own columns so reopening a view applies the saved order even when the previous URL had a different one.
+
 ### Inbox triage actions
 
 The submission detail route defines three SvelteKit form actions:
@@ -159,6 +168,7 @@ API routes are not under the `(app)` layout and enforce their own guards. Detail
 | `/api/auth/*` | GET, POST | Better Auth rules | Sign-in, OAuth callback, session, sign-out and admin endpoints. |
 | `/api/events` | GET | `read` | Server-Sent Events stream. |
 | `/api/notifications` | GET, POST | `read` | The viewer's notification feed and read-state updates. |
+| `/api/saved-views` | GET, POST, PATCH, DELETE | `read` / `write` | Visible saved views and their create/update/delete operations. |
 | `/api/mirror/issues/{owner}/{repo}/{number}/watch` | GET, PUT, DELETE | `read` | Whether the viewer watches an issue; start or stop watching. |
 | `/api/mirror/issues/{owner}/{repo}` | GET | `read` | Mirrored issue options. |
 | `/api/mirror/issues/{owner}/{repo}/{number}` | GET | `read` | Rendered Inspector payload. |
