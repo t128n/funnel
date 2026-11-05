@@ -2,7 +2,7 @@
 
 This page records the mise tasks and `package.json` scripts that build, check, test, package, and install Funnel.
 
-`mise.toml` is the single source of truth for the build, and pins Bun `1.4.3` and Go `1.27`. CI is expected to call the same tasks as local builds. `mise run` with no task name runs the `default` task, which lists the available tasks.
+`mise.toml` is the single source of truth for the build, and pins Bun `1.4.3` and Go `1.27`. `.github/workflows/verify.yml` runs on every push to `main` and every pull request, on both `ubuntu-latest` and `windows-latest`: it installs the pinned tools with `jdx/mise-action`, then runs `mise run bun:install` and `mise run verify`. No build flags are duplicated in the workflow. `mise run` with no task name runs the `default` task, which lists the available tasks.
 
 ## Mise tasks
 
