@@ -17,6 +17,7 @@ import {
   decodeCursor,
   encodeCursor,
   filterSignature,
+  requireCursor,
   type CursorKey,
   type ListPage,
 } from "./pagination";
@@ -762,6 +763,16 @@ describe("cursor pagination", () => {
     expect(decodeCursor(cursor, signature, "number")).toBeNull();
     const numeric = encodeCursor(signature, [0, 1, 1]);
     expect(decodeCursor(numeric, signature, "text")).toBeNull();
+  });
+
+  test("the feed cursor check accepts a title cursor for title sort", () => {
+    const signature = filterSignature(parse("sort=title"));
+    const cursor = encodeCursor(signature, ["Alpha", 1, 1]);
+
+    expect(() => requireCursor(cursor, signature, "text")).not.toThrow();
+    expect(() => requireCursor(cursor, signature, "number")).toThrow(
+      "Invalid cursor",
+    );
   });
 
   test("a cursor from a different sort is rejected", () => {

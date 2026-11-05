@@ -29,7 +29,11 @@ function issuesPage(
   const filter = parseIssueFilter(search, filterContext(viewerExternalId));
   if (filter.states.length === 0) filter.states = ["open"];
   const opts = pageOptions(search);
-  requireCursor(opts.cursor ?? null, filterSignature(filter));
+  requireCursor(
+    opts.cursor ?? null,
+    filterSignature(filter),
+    filter.sort === "title" ? "text" : "number",
+  );
   return allIssues(filter, opts);
 }
 

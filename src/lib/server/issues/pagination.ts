@@ -35,7 +35,7 @@ export const MAX_PAGE_SIZE = 500;
 export type CursorKey = [number | string, ...number[]];
 
 /** Which value type the sort's primary key carries. */
-export type CursorPrimary = "number" | "text";
+export type CursorPrimary = "number" | "text" | "any";
 
 /** One page of a feed. `total` always comes from the server. */
 export interface ListPage<T> {
@@ -110,7 +110,7 @@ export function encodeCursor(signature: string, key: CursorKey): string {
 export function decodeCursor(
   cursor: string,
   signature: string,
-  primary: CursorPrimary = "number",
+  primary: CursorPrimary = "any",
 ): CursorKey | null {
   let parsed: unknown;
   try {
@@ -126,7 +126,10 @@ export function decodeCursor(
   const leadValid =
     primary === "text"
       ? typeof lead === "string"
-      : typeof lead === "number" && Number.isInteger(lead);
+      : primary === "any"
+        ? typeof lead === "string" ||
+          (typeof lead === "number" && Number.isInteger(lead))
+        : typeof lead === "number" && Number.isInteger(lead);
   if (!leadValid) return null;
   if (!rest.every((part) => typeof part === "number" && Number.isInteger(part))) {
     return null;
@@ -164,8 +167,9 @@ export function pageOptions(search: URLSearchParams): PageOptions {
 export function requireCursor(
   cursor: string | null,
   signature: string,
+  primary: CursorPrimary = "any",
 ): void {
-  if (cursor && decodeCursor(cursor, signature) === null) {
+  if (cursor && decodeCursor(cursor, signature, primary) === null) {
     throw new FeedRequestError("Invalid cursor");
   }
 }
