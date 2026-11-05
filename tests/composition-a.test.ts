@@ -113,7 +113,7 @@ describe('Composition A pages', () => {
 			expect(table).toContain(column);
 		}
 		expect(table).toContain('table-responsive border rounded');
-		expect(table).toContain('colspan="7"');
+		expect(table).toContain('colspan={mayWrite ? 8 : 7}');
 		expect(table).toContain('issuePath(\'issues\'');
 		expect(table).toContain('d-md-none');
 	});
