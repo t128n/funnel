@@ -132,6 +132,8 @@
 	let loading = $state(false);
 	/** Newest comments requested; grown when the thread has earlier comments. */
 	let commentLimit = $state(DEFAULT_COMMENT_LIMIT);
+	/** Activity timeline channel: comments plus history, or either alone. */
+	let activityFilter = $state<'all' | 'comments' | 'history'>('all');
 	let error = $state<string | null>(null);
 	/** HTTP status behind `error`; null means the request never reached the server. */
 	let errorStatus = $state<number | null>(null);
@@ -241,7 +243,7 @@
 			: null
 	);
 	const contentKey = $derived(
-		`${detail?.bodyHtml ?? ''}:${detail?.comments.length ?? 0}:${detail?.workNotes.length ?? 0}`
+		`${detail?.bodyHtml ?? ''}:${detail?.comments.length ?? 0}:${detail?.workNotes.length ?? 0}:${detail?.history.length ?? 0}`
 	);
 
 	const impactValue = $derived(issue?.impact ?? null);
@@ -1479,12 +1481,43 @@
 					class="d-flex flex-column gap-2 border-top pt-4 mt-4"
 					aria-label="Activity"
 				>
-					<div class="d-flex align-items-baseline justify-content-between gap-3">
+					<div class="d-flex align-items-baseline justify-content-between gap-3 flex-wrap">
 						<h2 class="h6 mb-0">Activity</h2>
-						<span class="small text-body-secondary metric-number">
-							{detail.commentTotal}
-							{detail.commentTotal === 1 ? 'comment' : 'comments'}
-						</span>
+						<div class="d-flex align-items-center gap-2">
+							<div class="btn-group btn-group-sm" role="group" aria-label="Activity filter">
+								<button
+									type="button"
+									class="btn btn-outline-secondary"
+									class:active={activityFilter === 'all'}
+									aria-pressed={activityFilter === 'all'}
+									onclick={() => (activityFilter = 'all')}
+								>
+									All
+								</button>
+								<button
+									type="button"
+									class="btn btn-outline-secondary"
+									class:active={activityFilter === 'comments'}
+									aria-pressed={activityFilter === 'comments'}
+									onclick={() => (activityFilter = 'comments')}
+								>
+									Comments
+								</button>
+								<button
+									type="button"
+									class="btn btn-outline-secondary"
+									class:active={activityFilter === 'history'}
+									aria-pressed={activityFilter === 'history'}
+									onclick={() => (activityFilter = 'history')}
+								>
+									History
+								</button>
+							</div>
+							<span class="small text-body-secondary metric-number">
+								{detail.commentTotal}
+								{detail.commentTotal === 1 ? 'comment' : 'comments'}
+							</span>
+						</div>
 					</div>
 					{#if detail.hasMoreComments && commentLimit < MAX_COMMENT_LIMIT}
 						<div class="d-flex justify-content-center">
@@ -1499,13 +1532,18 @@
 							</Button>
 						</div>
 					{/if}
-					{#if detail.comments.length === 0}
+					{#if activityFilter === 'comments' && detail.comments.length === 0}
 						<p class="text-body-secondary mb-0">No comments yet.</p>
+					{:else if activityFilter === 'history' && detail.history.length === 0}
+						<p class="text-body-secondary mb-0">No history yet.</p>
+					{:else if detail.comments.length === 0 && detail.history.length === 0}
+						<p class="text-body-secondary mb-0">No comments or history yet.</p>
 					{:else}
 						<ActivityTimeline
-							comments={detail.comments}
+							comments={activityFilter === 'history' ? [] : detail.comments}
 							workNotes={[]}
-							filter="comments"
+							history={detail.history}
+							filter={activityFilter}
 							bubbles={commentBubbles}
 							viewerLogin={viewerLogin}
 							reporterLogin={detail.issue.author?.login ?? null}

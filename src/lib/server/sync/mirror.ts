@@ -20,6 +20,7 @@ import { db } from "#lib/server/db/index";
 import { bumpRevision } from "./revision";
 import {
   mirrorComment,
+  mirrorIssueEvent,
   mirrorIssuePullRequest,
   mirrorMilestone,
   mirrorPullRequest,
@@ -30,6 +31,7 @@ import {
   mirrorThreadAssignee,
   mirrorThreadLabel,
   mirrorUser,
+  type MirrorIssueEventDetail,
 } from "#lib/server/db/schema";
 import {
   DEFAULT_VOCABULARY,
@@ -67,6 +69,18 @@ export interface CommentRecord {
   updatedAt: number;
 }
 
+/** One normalized GitHub timeline item (comments are never included). */
+export interface TimelineEventRecord {
+  externalId: string;
+  /** `label` | `assignment` | `state_change` | `referenced` | `mention` | `other`. */
+  kind: string;
+  action: string;
+  summary: string;
+  actor: UserRecord | null;
+  occurredAt: number;
+  detail: MirrorIssueEventDetail | null;
+}
+
 export interface IssueRecord {
   externalId: string;
   /** Internal repository id, not a forge id. */
@@ -87,6 +101,11 @@ export interface IssueRecord {
   labels: string[];
   assignees: UserRecord[];
   comments: CommentRecord[];
+  /**
+   * Hydrated GitHub timeline items. Optional because several callers (demo
+   * seeding, conflict rewrites) build issue records without a timeline.
+   */
+  events?: TimelineEventRecord[];
 }
 
 export interface PullRequestChecks {
@@ -734,12 +753,23 @@ interface PreparedComment {
   updatedAt: number;
 }
 
+interface PreparedEvent {
+  externalId: string;
+  kind: string;
+  action: string;
+  summary: string;
+  actorId: number | null;
+  occurredAt: number;
+  detail: MirrorIssueEventDetail | null;
+}
+
 interface PreparedIssue {
   issue: IssueRecord;
   metadata: StoredMetadata;
   authorId: number | null;
   assigneeIds: number[];
   comments: PreparedComment[];
+  events: PreparedEvent[];
 }
 
 /** Every distinct person referenced by a batch of issues. */
@@ -752,6 +782,7 @@ function collectIssueUsers(issues: readonly IssueRecord[]): UserRecord[] {
     add(issue.author);
     for (const assignee of issue.assignees) add(assignee);
     for (const comment of issue.comments) add(comment.author);
+    for (const event of issue.events ?? []) add(event.actor);
   }
   return [...users.values()];
 }
@@ -779,6 +810,15 @@ function prepareIssue(
       reactions: comment.reactions ?? null,
       createdAt: comment.createdAt,
       updatedAt: comment.updatedAt,
+    })),
+    events: (issue.events ?? []).map((event) => ({
+      externalId: event.externalId,
+      kind: event.kind,
+      action: event.action,
+      summary: event.summary,
+      actorId: event.actor ? requireUserId(userIds, event.actor) : null,
+      occurredAt: event.occurredAt,
+      detail: event.detail,
     })),
   };
 }
@@ -852,7 +892,8 @@ function writeIssue(
   prepared: PreparedIssue,
   vocabulary: ReservedVocabulary,
 ): void {
-  const { issue, metadata, authorId, assigneeIds, comments } = prepared;
+  const { issue, metadata, authorId, assigneeIds, comments, events } =
+    prepared;
 
   // A matching retired p-label is just stale; a mismatching one is a conflict
   // the UI should surface, exactly like an ambiguous reserved-label timeline.
@@ -1050,6 +1091,39 @@ function writeIssue(
       .run();
   }
 
+  // Timeline events are an idempotent upsert keyed by the forge node id. Rows
+  // are intentionally never pruned when they fall out of the import window:
+  // that would erase retained local history as the window advances.
+  for (let i = 0; i < events.length; i += COMMENT_WRITE_CHUNK) {
+    tx.insert(mirrorIssueEvent)
+      .values(
+        events.slice(i, i + COMMENT_WRITE_CHUNK).map((event) => ({
+          repoId: issue.repoId,
+          threadNumber: issue.number,
+          externalId: event.externalId,
+          kind: event.kind,
+          action: event.action,
+          summary: event.summary,
+          actorId: event.actorId,
+          occurredAt: event.occurredAt,
+          detail: event.detail,
+        })),
+      )
+      .onConflictDoUpdate({
+        target: [mirrorIssueEvent.repoId, mirrorIssueEvent.externalId],
+        set: {
+          threadNumber: sql`excluded.thread_number`,
+          kind: sql`excluded.kind`,
+          action: sql`excluded.action`,
+          summary: sql`excluded.summary`,
+          actorId: sql`excluded.actor_id`,
+          occurredAt: sql`excluded.occurred_at`,
+          detail: sql`excluded.detail`,
+        },
+      })
+      .run();
+  }
+
   // Keep the FTS row in the same transaction as the content it indexes.
   writeSearchRow(
     tx,
@@ -1213,6 +1287,91 @@ export function getIssueAssigneeIds(repoId: number, number: number): string[] {
     )
     .all()
     .map((row) => row.externalId);
+}
+
+/** Logins of the people currently assigned to an issue. */
+export function getIssueAssigneeLogins(
+  repoId: number,
+  number: number,
+): string[] {
+  return db
+    .select({ login: mirrorUser.login })
+    .from(mirrorThreadAssignee)
+    .innerJoin(mirrorUser, eq(mirrorThreadAssignee.userId, mirrorUser.id))
+    .where(
+      and(
+        eq(mirrorThreadAssignee.repoId, repoId),
+        eq(mirrorThreadAssignee.threadNumber, number),
+      ),
+    )
+    .all()
+    .map((row) => row.login);
+}
+
+/** One mirrored timeline event with its resolved actor identity. */
+export interface IssueTimelineEvent {
+  id: number;
+  externalId: string;
+  kind: string;
+  action: string;
+  summary: string;
+  actor: UserRecord | null;
+  occurredAt: number;
+  detail: MirrorIssueEventDetail | null;
+}
+
+/** Mirrored GitHub timeline events for one issue, oldest first. */
+export function getIssueTimelineEvents(
+  repoId: number,
+  number: number,
+): IssueTimelineEvent[] {
+  return db
+    .select({
+      id: mirrorIssueEvent.id,
+      externalId: mirrorIssueEvent.externalId,
+      kind: mirrorIssueEvent.kind,
+      action: mirrorIssueEvent.action,
+      summary: mirrorIssueEvent.summary,
+      occurredAt: mirrorIssueEvent.occurredAt,
+      detail: mirrorIssueEvent.detail,
+      actorExternalId: mirrorUser.externalId,
+      actorForge: mirrorUser.forge,
+      actorInstance: mirrorUser.instance,
+      actorLogin: mirrorUser.login,
+      actorAvatarUrl: mirrorUser.avatarUrl,
+      actorUrl: mirrorUser.url,
+    })
+    .from(mirrorIssueEvent)
+    .leftJoin(mirrorUser, eq(mirrorIssueEvent.actorId, mirrorUser.id))
+    .where(
+      and(
+        eq(mirrorIssueEvent.repoId, repoId),
+        eq(mirrorIssueEvent.threadNumber, number),
+      ),
+    )
+    .orderBy(asc(mirrorIssueEvent.occurredAt), asc(mirrorIssueEvent.id))
+    .all()
+    .map((row) => ({
+      id: row.id,
+      externalId: row.externalId,
+      kind: row.kind,
+      action: row.action,
+      summary: row.summary,
+      occurredAt: row.occurredAt,
+      detail: row.detail ?? null,
+      actor:
+        row.actorExternalId === null
+          ? null
+          : {
+              id: 0,
+              externalId: row.actorExternalId,
+              forge: row.actorForge ?? "",
+              instance: row.actorInstance ?? "",
+              login: row.actorLogin ?? "",
+              avatarUrl: row.actorAvatarUrl ?? "",
+              url: row.actorUrl ?? "",
+            },
+    }));
 }
 
 export interface IssueCommentRow {
@@ -1599,6 +1758,14 @@ export function deleteIssue(repoId: number, number: number): void {
         and(
           eq(mirrorComment.repoId, repoId),
           eq(mirrorComment.threadNumber, number),
+        ),
+      )
+      .run();
+    tx.delete(mirrorIssueEvent)
+      .where(
+        and(
+          eq(mirrorIssueEvent.repoId, repoId),
+          eq(mirrorIssueEvent.threadNumber, number),
         ),
       )
       .run();

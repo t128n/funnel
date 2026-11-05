@@ -17,11 +17,21 @@ import { stateIssueEvent } from "#lib/server/db/schema";
 import type { DelayReason } from "./reasons";
 import { closeOpenDelays, openDelay } from "./store";
 
-/** The three observed dimensions the recorder diffs. */
+/** The observed dimensions the recorder diffs. */
 export interface IssueTransitionSnapshot {
   status: string;
   state: string;
   blocked: boolean;
+  /**
+   * Derived P1–P3 (or null); only changes after the first sighting are logged.
+   * Optional so callers that only diff the original three dimensions keep
+   * working; an omitted value is treated as "no priority change".
+   */
+  priority?: string | null;
+  /** Current label names; compared case-insensitively. */
+  labels?: readonly string[];
+  /** Current assignee logins; compared case-insensitively. */
+  assignees?: readonly string[];
 }
 
 export interface RecordIssueTransitionsInput {
@@ -41,7 +51,13 @@ export interface RecordIssueTransitionsInput {
   source?: string;
 }
 
-type EventKind = "status" | "state" | "blocked";
+type EventKind =
+  | "status"
+  | "state"
+  | "blocked"
+  | "priority"
+  | "label"
+  | "assignee";
 
 /** An unset status is stored as SQL NULL, not an empty string. */
 function eventValue(value: string): string | null {
@@ -88,6 +104,19 @@ function openBlockedDelay(input: RecordIssueTransitionsInput): void {
   });
 }
 
+/** Added and removed names, compared case-insensitively but reported as-is. */
+function addedAndRemoved(
+  previous: readonly string[],
+  next: readonly string[],
+): { added: string[]; removed: string[] } {
+  const previousKeys = new Set(previous.map((value) => value.toLowerCase()));
+  const nextKeys = new Set(next.map((value) => value.toLowerCase()));
+  return {
+    added: next.filter((value) => !previousKeys.has(value.toLowerCase())),
+    removed: previous.filter((value) => !nextKeys.has(value.toLowerCase())),
+  };
+}
+
 /**
  * Append the events (if any) for one observation and maintain automatic
  * delays. Idempotent when nothing changed: no rows are written and no delay is
@@ -131,6 +160,33 @@ export function recordIssueTransitions(
       blockedValue(previous.blocked),
       blockedValue(next.blocked),
     );
+  }
+  if ((previous.priority ?? null) !== (next.priority ?? null)) {
+    appendEvent(
+      input,
+      "priority",
+      eventValue(previous.priority ?? ""),
+      eventValue(next.priority ?? ""),
+    );
+  }
+
+  const labels = addedAndRemoved(previous.labels ?? [], next.labels ?? []);
+  for (const label of labels.added) {
+    appendEvent(input, "label", null, label);
+  }
+  for (const label of labels.removed) {
+    appendEvent(input, "label", label, null);
+  }
+
+  const assignees = addedAndRemoved(
+    previous.assignees ?? [],
+    next.assignees ?? [],
+  );
+  for (const login of assignees.added) {
+    appendEvent(input, "assignee", null, login);
+  }
+  for (const login of assignees.removed) {
+    appendEvent(input, "assignee", login, null);
   }
 
   const closedNow = previous.state !== "closed" && next.state === "closed";

@@ -310,9 +310,9 @@ Observed workflow transitions for one issue, keyed by the durable `org/name` slu
 | `org` | TEXT | Not null; repository owner. |
 | `name` | TEXT | Not null; repository name. |
 | `issue_number` | INTEGER | Not null. |
-| `kind` | TEXT | Not null; `status`, `state` or `blocked`. |
-| `from_value` | TEXT | Nullable; the previous value, or `null` for a baseline row. |
-| `to_value` | TEXT | Nullable; the observed value. |
+| `kind` | TEXT | Not null; `status`, `state`, `blocked`, `priority`, `label` or `assignee`. |
+| `from_value` | TEXT | Nullable; the previous value, or `null` for a baseline or an addition. |
+| `to_value` | TEXT | Nullable; the observed value, or `null` for a removal. |
 | `at` | INTEGER | Not null, Unix ms. |
 | `source` | TEXT | Not null; `sync` for events observed by the sync worker, `migration` for baselines seeded at deploy. |
 
@@ -321,6 +321,8 @@ Primary key: `id`. Foreign keys: none. Indexes:
 - `idx_state_issue_event_issue_at` on `(org, name, issue_number, at)`.
 
 On first observation every issue gets baseline `status`, `state` and `blocked` rows with `from_value` `null`. The migration seeds the same baselines for issues already mirrored, at the migration timestamp. There is no historical backfill from the forge timeline.
+
+After a previous snapshot exists, the recorder also appends `priority` rows when the derived P1–P3 changes, one `label` row per added (`to_value` = name, `from_value` = null) or removed (`from_value` = name, `to_value` = null) label, and one `assignee` row per added or removed assignee using the login as the value. These three kinds deliberately skip first-sighting baselines: an old issue's existing labels and assignees are not retold as activity. Names are compared case-insensitively so a casing-only re-sync writes nothing. Only `status` and `state` feed the actual-time arithmetic.
 
 ### `state_issue_delay`
 
@@ -764,6 +766,35 @@ Indexes:
 - `uq_mirror_comment_external` unique on `(repo_id, external_id)`.
 - `idx_mirror_comment_thread` on `(repo_id, thread_number)`.
 
+### `mirror_issue_event`
+
+Normalized GitHub issue timeline history (#35). One row per imported timeline item, keyed by the forge node id so every hydration is an idempotent upsert. Comments are never stored here: `mirror_comment` already mirrors them, and the unified activity timeline must not duplicate a comment. Rows live only as long as their issue: `deleteIssue` removes them, but they are **not** pruned when the import window advances, so retained history is never erased just because an event aged out of the newest 50.
+
+| Column | Type | Constraints / notes |
+| :--- | :--- | :--- |
+| `id` | INTEGER | Primary key; autoincrement. |
+| `repo_id` | INTEGER | Not null; FK to `mirror_repo.id`. |
+| `thread_number` | INTEGER | Not null; the issue number. |
+| `external_id` | TEXT | Not null; forge-native timeline node id. |
+| `kind` | TEXT | Not null; `label`, `assignment`, `state_change`, `referenced`, `mention` or `other`. |
+| `action` | TEXT | Not null; e.g. `labelled`, `unlabelled`, `assigned`, `closed`, `reopened`, `renamed`. |
+| `summary` | TEXT | Not null; one-line human-readable description. |
+| `actor_id` | INTEGER | Nullable; FK to `mirror_user.id`. |
+| `occurred_at` | INTEGER | Not null, Unix ms; the forge event time. |
+| `detail` | TEXT | Nullable JSON payload (label, assignee login, reference source/title, previous/current title, milestone). |
+
+Primary key: `id`. Foreign keys:
+
+- `repo_id` → `mirror_repo.id` on delete `CASCADE`.
+- `actor_id` → `mirror_user.id` on delete `SET NULL`.
+
+Indexes:
+
+- `uq_mirror_issue_event_external` unique on `(repo_id, external_id)`.
+- `idx_mirror_issue_event_issue` on `(repo_id, thread_number, occurred_at)`.
+
+Hydration requests `timelineItems(last: 50, since: $since)` in the same batched GraphQL query as the issue, where `$since` is the `sync.history_days` cutoff. A deeper timeline is intentionally not imported: the cap keeps one request per 100 issues bounded. Only label, assignment, close/reopen, cross-reference, reference, mention, rename and milestone events are normalized; unknown item types and every comment item are skipped.
+
 ### `mirror_thread_fts`
 
 The FTS5 virtual table behind issue search. It is hand-written in the migration because Drizzle cannot model SQLite virtual tables; the mirror write path keeps one row per `(repo_id, number)` and deletes it when the issue is pruned.
@@ -826,9 +857,11 @@ Foreign keys declared in the schema:
 | `mirror_pull_request.repo_id` | `mirror_repo.id` | `CASCADE` |
 | `mirror_pull_request.author_id` | `mirror_user.id` | `SET NULL` |
 | `mirror_issue_pull_request.repo_id` | `mirror_repo.id` | `CASCADE` |
+| `mirror_issue_event.repo_id` | `mirror_repo.id` | `CASCADE` |
+| `mirror_issue_event.actor_id` | `mirror_user.id` | `SET NULL` |
 | `mirror_comment.author_id` | `mirror_user.id` | `SET NULL` |
 
-The composite child tables `mirror_thread_label` and `mirror_thread_assignee`, the `repo_id`/`issue_number`/`pr_number` columns on `mirror_issue_pull_request`, and the `repo_id`/`thread_number` columns on `mirror_comment`, carry no foreign key to `mirror_thread` or `mirror_pull_request`. `mirror_thread.milestone_number` also has no foreign key to `mirror_milestone`: the milestone set is replaced wholesale on refresh, and a thread may briefly reference a number that has not been mirrored yet. The sync layer therefore deletes labels, assignees, links and comments explicitly before deleting a thread row (`deleteIssue` in `src/lib/server/sync/mirror.ts`) and prunes pull requests that no link refers to. `state_work_note`, `state_attachment`, `state_notification`, `state_issue_watch`, `state_comment_reaction`, `state_plan_item`, `state_issue_event`, `state_issue_delay`, `state_issue_waiting`, `state_snooze`, `state_triage_event`, `state_work_hours`, `state_unavailable_window`, `state_day_block` and `state_calendar_feed` also carry no foreign key to the mirror: their author/uploader/recipient/actor identities are snapshots, and their issue identity is the durable `org/name` plus number. The four legacy day-planning tables reference `auth_user.id` directly with `ON DELETE CASCADE`; deleting an account removes any retained rows.
+The composite child tables `mirror_thread_label` and `mirror_thread_assignee`, the `repo_id`/`issue_number`/`pr_number` columns on `mirror_issue_pull_request`, and the `repo_id`/`thread_number` columns on `mirror_comment` and `mirror_issue_event`, carry no foreign key to `mirror_thread` or `mirror_pull_request`. `mirror_thread.milestone_number` also has no foreign key to `mirror_milestone`: the milestone set is replaced wholesale on refresh, and a thread may briefly reference a number that has not been mirrored yet. The sync layer therefore deletes labels, assignees, links, comments and timeline events explicitly before deleting a thread row (`deleteIssue` in `src/lib/server/sync/mirror.ts`) and prunes pull requests that no link refers to. `state_work_note`, `state_attachment`, `state_notification`, `state_issue_watch`, `state_comment_reaction`, `state_plan_item`, `state_issue_event`, `state_issue_delay`, `state_issue_waiting`, `state_snooze`, `state_triage_event`, `state_work_hours`, `state_unavailable_window`, `state_day_block` and `state_calendar_feed` also carry no foreign key to the mirror: their author/uploader/recipient/actor identities are snapshots, and their issue identity is the durable `org/name` plus number. The four legacy day-planning tables reference `auth_user.id` directly with `ON DELETE CASCADE`; deleting an account removes any retained rows.
 
 ## Storage, pragmas and migrations
 

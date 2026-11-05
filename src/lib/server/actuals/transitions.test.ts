@@ -38,7 +38,15 @@ function blockedBody(reason: DelayReason = "dependency"): string {
 function snapshot(
   overrides: Partial<IssueTransitionSnapshot> = {},
 ): IssueTransitionSnapshot {
-  return { status: "backlog", state: "open", blocked: false, ...overrides };
+  return {
+    status: "backlog",
+    state: "open",
+    blocked: false,
+    priority: null,
+    labels: [],
+    assignees: [],
+    ...overrides,
+  };
 }
 
 function record(
@@ -267,6 +275,105 @@ describe("recordIssueTransitions", () => {
     );
     expect(events()).toEqual([]);
     expect(delays()).toEqual([]);
+  });
+});
+
+describe("local audit dimensions", () => {
+  test("first sighting adds no priority, label or assignee baselines", () => {
+    record(
+      null,
+      snapshot({
+        priority: "P1",
+        labels: ["bug", "todo"],
+        assignees: ["alice"],
+      }),
+    );
+
+    expect(events().map((row) => row.kind)).toEqual([
+      "blocked",
+      "state",
+      "status",
+    ]);
+  });
+
+  test("priority changes are recorded", () => {
+    record(snapshot({ priority: "P2" }), snapshot({ priority: "P1" }));
+
+    expect(events()).toHaveLength(1);
+    expect(events()[0]).toMatchObject({
+      kind: "priority",
+      fromValue: "P2",
+      toValue: "P1",
+    });
+  });
+
+  test("removing priority records a null target", () => {
+    record(snapshot({ priority: "P1" }), snapshot({ priority: null }));
+
+    expect(events()[0]).toMatchObject({
+      kind: "priority",
+      fromValue: "P1",
+      toValue: null,
+    });
+  });
+
+  test("added and removed labels are recorded individually", () => {
+    record(
+      snapshot({ labels: ["bug", "todo"] }),
+      snapshot({ labels: ["todo", "enhancement"] }),
+    );
+
+    const labels = events()
+      .filter((row) => row.kind === "label")
+      .map((row) => [row.fromValue, row.toValue]);
+    expect(labels).toContainEqual([null, "enhancement"]);
+    expect(labels).toContainEqual(["bug", null]);
+    expect(labels).toHaveLength(2);
+  });
+
+  test("label comparison is case-insensitive", () => {
+    record(snapshot({ labels: ["Bug"] }), snapshot({ labels: ["bug"] }));
+    expect(events()).toEqual([]);
+  });
+
+  test("added and removed assignees are recorded by login", () => {
+    record(
+      snapshot({ assignees: ["alice", "bob"] }),
+      snapshot({ assignees: ["bob", "carol"] }),
+    );
+
+    const assignees = events()
+      .filter((row) => row.kind === "assignee")
+      .map((row) => [row.fromValue, row.toValue]);
+    expect(assignees).toContainEqual([null, "carol"]);
+    expect(assignees).toContainEqual(["alice", null]);
+    expect(assignees).toHaveLength(2);
+  });
+
+  test("an unchanged observation writes nothing", () => {
+    record(
+      snapshot({
+        priority: "P2",
+        labels: ["bug"],
+        assignees: ["alice"],
+      }),
+      snapshot({
+        priority: "P2",
+        labels: ["bug"],
+        assignees: ["alice"],
+      }),
+    );
+
+    expect(events()).toEqual([]);
+  });
+
+  test("older snapshots without the new dimensions keep working", () => {
+    record(
+      { status: "backlog", state: "open", blocked: false },
+      { status: "todo", state: "open", blocked: false },
+    );
+    expect(events()).toHaveLength(1);
+    expect(events()[0]).toMatchObject({ kind: "status", toValue: "todo" });
   });
 });
 

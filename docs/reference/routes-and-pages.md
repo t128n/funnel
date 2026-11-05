@@ -56,10 +56,10 @@ The `C` shortcut and an empty board column's **New Issue** control open an in-ap
 | Page | Purpose | Minimum role | Notes |
 | :--- | :--- | :--- | :--- |
 | `/inbox` | Pending intake submissions followed by untriaged open issues. | `read` | Layout load renders submission bodies to sanitised HTML. Filters and search apply to issues; search also matches submission title/body. |
-| `/inbox/{owner}/{repo}/{number}` | Inspector for an issue selected from the Inbox. | `read` | Malformed params return `404`; the issue payload is fetched client-side. |
+| `/inbox/{owner}/{repo}/{number}` | Inspector for an issue selected from the Inbox. | `read` | Malformed params return `404`; the issue payload is fetched client-side. Activity merges comments with history and filters by All, Comments or History. |
 | `/inbox/submission/{id}` | Triage pane for one staged submission. | `read` to view; `write` for the actions | Actions: `accept`, `dismiss`, `duplicate`. A submission absent from the current Inbox result returns `404`. |
 | `/issues` | Every triaged mirrored issue matching the URL filter. | `read` | Defaults to `state=open` when no state filter is supplied. The `?assignee=me` filter provides the "Mine" segment. |
-| `/issues/{owner}/{repo}/{number}` | Inspector for an issue selected from All Issues. | `read` | Malformed params return `404`. |
+| `/issues/{owner}/{repo}/{number}` | Inspector for an issue selected from All Issues. | `read` | Malformed params return `404`. Activity merges comments with history and filters by All, Comments or History. |
 | `/board` | Five-column status board: Backlog, Todo, In Progress, In Review, Done. | `read` | `read` viewers see the board read-only. Done is bounded by `board.done_days`; blocking is a card flag, not a lane. |
 | `/board?view=backlog` | Backlog list view rather than board lanes. | `read` | Same layout and filters as the board. |
 | `/board/{owner}/{repo}/{number}` | Inspector docked beside the board. | `read` | Malformed params return `404`. |
@@ -171,7 +171,7 @@ API routes are not under the `(app)` layout and enforce their own guards. Detail
 | `/api/saved-views` | GET, POST, PATCH, DELETE | `read` / `write` | Visible saved views and their create/update/delete operations. |
 | `/api/mirror/issues/{owner}/{repo}/{number}/watch` | GET, PUT, DELETE | `read` | Whether the viewer watches an issue; start or stop watching. |
 | `/api/mirror/issues/{owner}/{repo}` | GET | `read` | Mirrored issue options. |
-| `/api/mirror/issues/{owner}/{repo}/{number}` | GET | `read` | Rendered Inspector payload. |
+| `/api/mirror/issues/{owner}/{repo}/{number}` | GET | `read` | Rendered Inspector payload, including the additive `history` array (local audit, intake, and non-duplicated GitHub timeline entries). |
 | `/api/repos/{owner}/{repo}/issues` | GET, POST | `read` / `write` | GitHub issue list and creation. |
 | `/api/repos/{owner}/{repo}/issues/{number}` | GET, PATCH | `read` / `write` | GitHub issue read and update. |
 | `/api/repos/{owner}/{repo}/issues/{number}/comments` | GET, POST | `read` / `write` | GitHub comments. |

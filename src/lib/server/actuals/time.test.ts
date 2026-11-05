@@ -211,6 +211,19 @@ describe("computeIssueTime", () => {
     expect(time.cycleMinutes).toBe(70);
   });
 
+  test("ignores priority, label and assignee events", () => {
+    const events: IssueEvent[] = [
+      ...activeRun(m(60)),
+      { kind: "priority", fromValue: "P2", toValue: "P1", at: m(10) },
+      { kind: "label", fromValue: null, toValue: "bug", at: m(20) },
+      { kind: "assignee", fromValue: null, toValue: "alice", at: m(30) },
+    ];
+    const withExtra = computeIssueTime({ events, now: m(120) });
+    const baseline = computeIssueTime({ events: activeRun(m(60)), now: m(120) });
+    expect(withExtra).toEqual(baseline);
+    expect(withExtra.actualMinutes).toBe(60);
+  });
+
   test("defaults to zeroes without events or delays", () => {
     expect(computeIssueTime({ now: 0 })).toEqual({
       actualMinutes: 0,

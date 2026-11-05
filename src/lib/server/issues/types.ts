@@ -298,6 +298,28 @@ export interface RenderedWorkNote extends WorkNoteItem {
   bodyHtml: string;
 }
 
+/**
+ * One entry in the unified issue activity history. Local Funnel events and
+ * mirrored GitHub timeline events share this shape so the timeline can merge
+ * and filter them without knowing where a row came from.
+ */
+export interface IssueHistoryItem {
+  /** Stable correlation id (`funnel:<row>`, `intake:<row>` or `github:<row>`). */
+  id: string;
+  /** Unix milliseconds. */
+  at: number;
+  /** `status` | `state` | `blocked` | `priority` | `label` | `assignee` | ... */
+  kind: string;
+  /** Forge/local action, e.g. `labelled`, `assigned`, `closed`, `renamed`. */
+  action: string;
+  /** Human-readable one-line description. */
+  summary: string;
+  /** The person who acted, or `null` for an unattributed local observation. */
+  actor: UserRef | null;
+  /** Where the row came from; local rows are never mirrored upstream. */
+  source: "funnel" | "github";
+}
+
 /** One uploaded file in the Inspector dropbox. Bytes are served separately. */
 export interface AttachmentItem {
   id: string;
@@ -337,6 +359,12 @@ export interface IssueDetail {
   hasMoreComments: boolean;
   /** Internal work notes for the issue, oldest first. */
   workNotes: WorkNoteItem[];
+  /**
+   * Unified activity history: local transition events, an intake creation
+   * entry, and the GitHub timeline items the local log does not already
+   * represent. Sorted oldest first; comments are never included.
+   */
+  history: IssueHistoryItem[];
   /** Files uploaded to the issue's dropbox, oldest first. */
   attachments: AttachmentItem[];
   /** Linked pull requests with state, review decision and check rollup. */

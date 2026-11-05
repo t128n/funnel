@@ -114,6 +114,16 @@ describe("issue detail page", () => {
 		expect(composer).toContain("ArrowDown");
 		expect(composer).toContain("chooseMention");
 	});
+
+	test("test_activity_passes_history_through_with_a_filter", () => {
+		expect(page).toContain("let activityFilter = $state<'all' | 'comments' | 'history'>('all')");
+		expect(page).toContain('aria-label="Activity filter"');
+		expect(page).toContain("activityFilter = 'history'");
+		expect(page).toContain("activityFilter = 'comments'");
+		expect(page).toContain("history={detail.history}");
+		expect(page).toContain("filter={activityFilter}");
+		expect(page).toContain("No history yet.");
+	});
 });
 
 describe("properties card", () => {

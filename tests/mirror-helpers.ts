@@ -25,6 +25,7 @@ export function clearMirror(): void {
     "mirror_thread_label",
     "mirror_thread_assignee",
     "mirror_comment",
+    "mirror_issue_event",
     "mirror_thread",
     "mirror_milestone",
     "mirror_repo_label",

@@ -211,6 +211,23 @@ describe("getIssueDetail", () => {
 		});
 	});
 
+	test("test_detail_history", () => {
+		event("status", "in-progress", START);
+
+		const detail = getIssueDetail(coreId, 1);
+		expect(detail?.history).toEqual([
+			{
+				id: `funnel:evt-status-${START}-in-progress`,
+				at: START,
+				kind: "status",
+				action: "recorded",
+				summary: "Status recorded as in-progress",
+				actor: null,
+				source: "funnel",
+			},
+		]);
+	});
+
 	test("test_detail_delays", () => {
 		db.insert(stateIssueDelay)
 			.values([
