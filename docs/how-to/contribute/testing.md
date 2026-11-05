@@ -11,7 +11,7 @@ bun run test
 That expands to:
 
 ```sh
-bun test --preload ./tests/setup.ts --max-concurrency 1 --coverage src tests
+bun test --preload ./tests/setup.ts --max-concurrency 1 --coverage src tests && bun scripts/check-coverage.ts
 ```
 
 With mise: `mise run test`.
@@ -21,6 +21,18 @@ With mise: `mise run test`.
 | `--preload ./tests/setup.ts`  | Mocks SvelteKit's virtual `$app/env` modules, migrates the in-memory DB, and seeds the test GitHub App **before** any test file loads. |
 | `--max-concurrency 1`         | Files run one at a time because they share a single in-memory database and process-wide caches. |
 | `--coverage src tests`        | Collects coverage over `src` and `tests`.                                                    |
+| `scripts/check-coverage.ts`   | Enforces the [coverage gate](#coverage-gate) against the generated lcov report.              |
+
+## Coverage gate
+
+`bun run test` (and therefore `mise run test` and CI) ends by running `scripts/check-coverage.ts`. It reads `coverage/lcov.info`, aggregates only the core server logic, and exits non-zero when the result is below **95% lines or 95% functions**:
+
+- `src/lib/server/issues/**`
+- `src/lib/server/intake/**`
+- `src/lib/server/sync/**`
+- `src/lib/server/github/**`
+
+Routes, UI components, generated code, `src/standalone.ts`, and tests are still collected by the suite but excluded from the threshold. The checker prints a per-directory table plus the totals. Raise the floor as the remaining gaps (notably intake) close; use `--min-lines` / `--min-functions` only to try a different floor locally.
 
 ## What the preload sets up
 
