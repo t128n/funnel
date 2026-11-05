@@ -1500,6 +1500,9 @@ export function replaceIssueRelations(
       kind: mirrorIssueRelation.kind,
       targetRepo: mirrorIssueRelation.targetRepo,
       targetNumber: mirrorIssueRelation.targetNumber,
+      targetTitle: mirrorIssueRelation.targetTitle,
+      targetState: mirrorIssueRelation.targetState,
+      targetUrl: mirrorIssueRelation.targetUrl,
     })
     .from(mirrorIssueRelation)
     .where(
@@ -1510,14 +1513,22 @@ export function replaceIssueRelations(
       ),
     )
     .all();
-  const before = new Set(
-    existing.map(
-      (row) => `${row.kind}\u0000${row.targetRepo}\u0000${row.targetNumber}`,
-    ),
-  );
+  // Compare the snapshot fields too: a child that merely closes keeps the same
+  // edge key but changes `target_state`, and must not be treated as a no-op.
+  const signature = (row: {
+    kind: string;
+    targetRepo: string;
+    targetNumber: number;
+    targetTitle: string;
+    targetState: string;
+    targetUrl: string;
+  }): string =>
+    `${row.kind}\u0000${row.targetRepo}\u0000${row.targetNumber}\u0000${row.targetTitle}\u0000${row.targetState}\u0000${row.targetUrl}`;
+  const before = new Set(existing.map(signature));
+  const next = new Set([...incoming.values()].map(signature));
   if (
-    before.size === incoming.size &&
-    [...incoming.keys()].every((key) => before.has(key))
+    before.size === next.size &&
+    [...next].every((value) => before.has(value))
   ) {
     return;
   }

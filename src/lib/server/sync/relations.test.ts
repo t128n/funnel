@@ -454,6 +454,24 @@ describe("relation storage", () => {
     expect(afterDeps).toEqual(["blocking:9", "child:8", "parent:7"]);
   });
 
+  test("updates snapshot fields when an edge key is unchanged", () => {
+    mirror.replaceIssueSubIssueRelations(repo.id, 1, null, [
+      ref(3, { title: "Child issue", state: "OPEN" }),
+    ]);
+    mirror.replaceIssueSubIssueRelations(repo.id, 1, null, [
+      ref(3, { title: "Child issue renamed", state: "closed" }),
+    ]);
+
+    expect(mirror.getIssueRelations(repo.id, 1)).toMatchObject([
+      {
+        kind: "child",
+        targetNumber: 3,
+        targetTitle: "Child issue renamed",
+        targetState: "closed",
+      },
+    ]);
+  });
+
   test("deleteIssue removes only the deleted source issue's relation rows", () => {
     seedIssue(1);
     seedIssue(2);
