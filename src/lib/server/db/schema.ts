@@ -13,9 +13,12 @@ import {
 // Table naming: `state_*` is Funnel-owned durable state (backup, never
 // truncated), `auth_*` is Better Auth-owned durable state (camelCase
 // columns imposed by the library), `mirror_*` is a disposable forge-neutral
-// cache (rebuilt by re-sync). Full-text search (FTS5)
-// is deferred: text search runs on LIKE queries until the FTS5 index
-// (`mirror_thread_fts`) comes back.
+// cache (rebuilt by re-sync).
+//
+// Full-text search lives in the hand-written FTS5 virtual table
+// `mirror_thread_fts` (title, body, comments + unindexed repo_id/number). It
+// cannot be modelled here, so the migration owns it and the sync layer keeps
+// one row per mirrored issue in step with `mirror_thread` + `mirror_comment`.
 
 // ---------------------------------------------------------------------------
 // State: public intake submissions (SPEC 7, 10.1).
