@@ -116,4 +116,5 @@ go -C tools/funnel-intake run ./cmd/funnel-intake -test
 | `package-release.ts` | Packages a platform executable into `release/` for the GitHub release workflow. |
 | `release-notes.ts` | Builds a GitHub release body from the Changesets `CHANGELOG.md` entry. |
 | `release.ts` | Applies pending database migrations. |
+| `smoke-standalone.ts` | Smoke-tests the packaged executable in `dist/` (`mise run smoke`). |
 | `install-intake.ps1` | Installs/removes the intake hotkey helper. |
