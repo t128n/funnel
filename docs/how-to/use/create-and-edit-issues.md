@@ -132,6 +132,18 @@ The label picker excludes reserved labels because those belong to their own cont
 
 If a label request fails, the row rolls back and the failure is reported. A partially completed sequence can leave some labels changed on GitHub even though the UI has rolled back.
 
+## Bulk edit issues
+
+The issue streams — All Issues, My Issues and a milestone's issue table — support multi-select for `write` users:
+
+1. Use the row checkbox, press Space on a focused checkbox, or press `x` while focus is anywhere in the row.
+2. The header checkbox selects or clears every loaded row in the current window.
+3. Use the compact bulk bar to set status, impact, urgency, size, assignee or add non-reserved labels. Snooze defers every selected issue from the Inbox.
+
+The bar runs the same per-item writes as the Inspector, at most three at a time. On a partial failure the successful writes stay applied, the failed rows stay selected, and the bar lists each failing `owner/name#number` with its error. A fully successful action clears the selection. Selection is keyed by `owner/name` plus issue number, so an SSE refresh does not clear it; navigating away or pressing **Clear** does.
+
+Read-only users do not see the checkboxes or the bulk bar.
+
 ## Optimistic and pessimistic writes
 
 Funnel is optimistic where it can be, and pessimistic where correctness depends on ordering.

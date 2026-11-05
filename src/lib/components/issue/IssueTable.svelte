@@ -2,10 +2,16 @@
 	import { tick } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { Badge, Button, Table } from '@sveltestrap/sveltestrap';
+	import BulkActionBar from '#lib/components/bulk/BulkActionBar.svelte';
 	import InlineStatus from '#lib/components/common/InlineStatus.svelte';
 	import PriorityText from '#lib/components/common/PriorityText.svelte';
 	import PullRequestIndicator from '#lib/components/issue/PullRequestIndicator.svelte';
 	import StatusText from '#lib/components/common/StatusText.svelte';
+	import {
+		bulkSelection,
+		issueBulkKey,
+		type BulkKey
+	} from '#lib/client/bulk-selection.svelte';
 	import { timeAgo } from '#lib/client/clock.svelte';
 	import {
 		getGroupBy,
@@ -44,6 +50,12 @@
 		project?: ((issues: IssueListItem[]) => IssueListItem[]) | null;
 		/** Single repository scope for the footer, or `null` for all repositories. */
 		repoScope?: string | null;
+		/** Writers get checkboxes and the bulk bar; readers keep the read table. */
+		mayWrite?: boolean;
+		/** Assignable logins offered by the bulk assignee picker. */
+		assignees?: string[];
+		/** Label names offered by the bulk label picker. */
+		labels?: string[];
 	}
 
 	let {
@@ -52,7 +64,10 @@
 		projects = [],
 		onclear = null,
 		project = null,
-		repoScope = null
+		repoScope = null,
+		mayWrite = false,
+		assignees = [],
+		labels = []
 	}: Props = $props();
 
 	/** How close to the end (px) the sentinel must be to fetch the next page. */
@@ -79,6 +94,18 @@
 	const count = $derived(feed.total);
 	/** Loaded rows in this window. */
 	const shown = $derived(source.length);
+
+	/** Durable keys for every loaded row (the select-all scope). */
+	const selectableKeys = $derived(
+		projected.map((issue) => issueBulkKey(issue.repo, issue.number))
+	);
+	const selectedLoaded = $derived(
+		selectableKeys.filter((key) => bulkSelection.has(key)).length
+	);
+	const allLoadedSelected = $derived(
+		selectableKeys.length > 0 && selectedLoaded === selectableKeys.length
+	);
+	const someLoadedSelected = $derived(selectedLoaded > 0 && !allLoadedSelected);
 
 	const loading = $derived(Boolean(feed.loading && source.length === 0));
 	const failed = $derived(Boolean(feed.error !== null && source.length === 0));
@@ -132,6 +159,48 @@
 		// Do not hijack a text selection.
 		if (window.getSelection()?.toString()) return;
 		openIssue(issue);
+	}
+
+	/** Toggle one durable row selection. Read-only viewers have no checkboxes. */
+	function toggleIssue(issue: IssueListItem): void {
+		if (!mayWrite) return;
+		bulkSelection.toggle(issueBulkKey(issue.repo, issue.number));
+	}
+
+	/** Select every loaded row, or clear the window when all are selected. */
+	function toggleAllLoaded(): void {
+		if (!mayWrite) return;
+		bulkSelection.toggleMany(selectableKeys);
+	}
+
+	/**
+	 * `x` toggles the row containing the focused control. Space remains the
+	 * checkbox's native toggle, so the table needs no second tab stop per row.
+	 */
+	function onTableKeydown(event: KeyboardEvent): void {
+		if (!mayWrite) return;
+		if (event.key !== 'x' && event.key !== 'X') return;
+		if (event.ctrlKey || event.metaKey || event.altKey) return;
+		const target = event.target;
+		if (!(target instanceof Element)) return;
+		if (target.closest('select, textarea, input:not([type="checkbox"]), [contenteditable="true"]')) {
+			return;
+		}
+		const row = target.closest('tr[data-bulk-key]');
+		const key = row?.getAttribute('data-bulk-key');
+		if (!key) return;
+		event.preventDefault();
+		bulkSelection.toggle(key as BulkKey);
+	}
+
+	/** Keep the select-all box's native mixed state in sync with the window. */
+	function indeterminate(node: HTMLInputElement, value: boolean) {
+		node.indeterminate = value;
+		return {
+			update(next: boolean) {
+				node.indeterminate = next;
+			}
+		};
 	}
 
 	let sentinel = $state<HTMLDivElement | null>(null);
@@ -195,6 +264,11 @@
 		<Table hover class="align-middle mb-0">
 			<thead class="table-light">
 				<tr>
+					{#if mayWrite}
+						<th scope="col" class="small text-body-secondary" style="width: 2.25rem;">
+							<span class="visually-hidden">Select</span>
+						</th>
+					{/if}
 					<th scope="col" class="small text-body-secondary d-none d-md-table-cell" style="width: 5.5rem;">Issue</th>
 					<th scope="col" class="small text-body-secondary">Title</th>
 					<th scope="col" class="small text-body-secondary d-none d-md-table-cell" style="width: 7rem;">Status</th>
@@ -207,6 +281,9 @@
 			<tbody>
 				{#each SKELETON_ROWS as row (row)}
 					<tr aria-hidden="true">
+						{#if mayWrite}
+							<td><span class="skeleton" style="width: 0.9rem"></span></td>
+						{/if}
 						<td class="d-none d-md-table-cell"><span class="skeleton" style="width: 4rem"></span></td>
 						<td><span class="skeleton" style="width: 62%"></span></td>
 						<td class="d-none d-md-table-cell"><span class="skeleton" style="width: 4.5rem"></span></td>
@@ -237,10 +314,29 @@
 		<Button color="outline-secondary" size="sm" onclick={() => onclear?.()}>Clear filters</Button>
 	</div>
 {:else}
-	<div class="table-responsive border rounded">
+	<BulkActionBar
+		kind="issues"
+		{mayWrite}
+		{assignees}
+		{labels}
+	/>
+	<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+	<div class="table-responsive border rounded" role="group" aria-label="Issues table" onkeydown={onTableKeydown}>
 		<Table hover class="align-middle mb-0">
 			<thead class="table-light">
 				<tr>
+					{#if mayWrite}
+						<th scope="col" class="small text-body-secondary" style="width: 2.25rem;">
+							<input
+								type="checkbox"
+								class="form-check-input"
+								aria-label="Select all loaded issues"
+								checked={allLoadedSelected}
+								use:indeterminate={someLoadedSelected}
+								onchange={toggleAllLoaded}
+							/>
+						</th>
+					{/if}
 					<th scope="col" class="small text-body-secondary d-none d-md-table-cell" style="width: 5.5rem;">Issue</th>
 					<th scope="col" class="small text-body-secondary">Title</th>
 					<th scope="col" class="small text-body-secondary d-none d-md-table-cell" style="width: 7rem;">Status</th>
@@ -255,7 +351,7 @@
 				{@const collapsed = isGroupCollapsed(groupKey)}
 				<tbody>
 					<tr class="table-light">
-						<th colspan="7" class="small fw-semibold text-body-secondary py-2">
+						<th colspan={mayWrite ? 8 : 7} class="small fw-semibold text-body-secondary py-2">
 							<button
 								type="button"
 								class="group-toggle btn btn-link btn-sm border-0 p-0 text-decoration-none text-reset text-wrap text-start fw-semibold"
@@ -275,7 +371,26 @@
 					{#if !collapsed}
 						{#each group.issues as issue (`${issue.repoId}:${issue.number}`)}
 							{@const labels = inlineLabels(labelsOf(issue))}
-							<tr class="issue-row" onclick={(event) => onRowClick(event, issue)}>
+							{@const selectionKey = issueBulkKey(issue.repo, issue.number)}
+							{@const selected = bulkSelection.has(selectionKey)}
+							<tr
+								class="issue-row"
+								data-bulk-key={selectionKey}
+								aria-selected={mayWrite ? selected : undefined}
+								onclick={(event) => onRowClick(event, issue)}
+							>
+								{#if mayWrite}
+									<td>
+										<input
+											type="checkbox"
+											class="form-check-input"
+											aria-label={`Select ${refOf(issue)}: ${titleOf(issue)}`}
+											checked={selected}
+											onclick={(event) => event.stopPropagation()}
+											onchange={() => toggleIssue(issue)}
+										/>
+									</td>
+								{/if}
 								<td class="font-monospace small text-body-secondary text-nowrap d-none d-md-table-cell">
 									{refOf(issue)}
 								</td>
@@ -398,6 +513,11 @@
 <style>
 	.issue-row {
 		cursor: pointer;
+	}
+
+	.issue-row[aria-selected='true'] {
+		box-shadow: inset 2px 0 0 var(--bs-primary);
+		background: var(--bs-primary-bg-subtle);
 	}
 
 	/* The title link is the row's only keyboard stop, so it must stay obvious. */

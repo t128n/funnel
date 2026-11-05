@@ -62,6 +62,24 @@ Snoozes are stored in `state_snooze`. Issues are keyed by `owner/name` plus issu
 
 Triage clears the snooze: accepting, dismissing or duplicating a submission removes its snooze row, and writing an issue status (from the Inbox quick triage or the Inspector) removes the issue's snooze.
 
+## Select and act on many Inbox rows
+
+Writers can select several staged submissions and untriaged issues at once:
+
+- Use the checkbox on each row, press Space on a focused checkbox, or press `x` while focus is anywhere in the row.
+- The header checkbox selects every loaded row in the current window. Collapsed Staged or issue groups are still part of that window.
+- The compact bulk bar shows how many rows are selected and splits them into issues and submissions.
+
+From the Inbox bulk bar:
+
+- **Issues** — set status, impact, urgency, size, assignee or add non-reserved labels. These controls apply only to the selected issues; they are disabled and labelled `Issues 0` when the selection has no issues.
+- **Submissions** — **Dismiss…** opens a reason prompt. The reason is required, trimmed and limited to 500 characters, and every selected submission is archived with the same reason and its own `dismissed` event. The submission controls are disabled and labelled `Submissions 0` when none are selected.
+- **Snooze** — applies the same Tomorrow, Next week or custom date to every selected issue and submission.
+
+A mixed selection therefore never sends an issue write to a submission or a submission write to an issue. The queue removes successful dismissals and snoozes immediately, and the page status region reports the outcome.
+
+Selection is keyed by `owner/name` plus issue number, or by the staged submission id, so an SSE refresh does not clear it. It clears when you navigate, press **Clear**, or when an action succeeds. Bulk writes run at most three at a time. If some fail, successful writes stay applied, the failed rows stay selected, and the bar lists each failing reference with its error so you can retry only those rows.
+
 ## Mark an issue as waiting
 
 Waiting is a first-class triage state for work that is parked on someone else — the reporter, a vendor or an upstream project — rather than blocked work that is in flight.

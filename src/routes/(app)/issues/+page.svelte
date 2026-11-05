@@ -14,6 +14,7 @@
 	import { createFeed } from '#lib/client/feed.svelte';
 	import { getGroupBy, setGroupBy } from '#lib/client/list-prefs.svelte';
 	import { projectIssues, reconcileIssues } from '#lib/client/optimistic.svelte';
+	import { canWrite } from '#lib/roles';
 	import { FEED_ENDPOINTS } from '#lib/feeds';
 	import {
 		activeFilterCount,
@@ -126,6 +127,12 @@
 	// counts and clears only the long-tail dimensions it owns.
 	const filterCount = $derived(activeFilterCount(filter));
 	const repoScope = $derived(filter.repos.length === 1 ? filter.repos[0] : null);
+
+	// Bulk writes are limited to `write` users; read-only viewers keep the same
+	// table without checkboxes or the action bar.
+	const mayWrite = $derived(canWrite(data.user?.role));
+	const bulkAssignees = $derived(data.options.assignees.map((person) => person.login));
+	const bulkLabels = $derived(data.options.labels);
 
 	// `/issues?assignee=me` is the My Issues destination. It keeps the same
 	// table and filters but gets its own heading, description and document title.
@@ -300,6 +307,9 @@
 		onclear={clearFilters}
 		project={projectIssues}
 		{repoScope}
+		{mayWrite}
+		assignees={bulkAssignees}
+		labels={bulkLabels}
 	/>
 </main>
 

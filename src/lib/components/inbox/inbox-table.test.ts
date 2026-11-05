@@ -28,12 +28,17 @@ const { submissionRepoLabel, submissionSource, submissionTitle } = (await import
 
 /** The visible header labels, in document order. */
 const headers = [...source.matchAll(/<th\b[^>]*>([\s\S]*?)<\/th>/g)].map((match) =>
-	match[1].replace(/<!--[\s\S]*?-->/g, '').replace(/\s+/g, ' ').trim()
+	match[1]
+		.replace(/<!--[\s\S]*?-->/g, '')
+		.replace(/<[^>]+>/g, ' ')
+		.replace(/\s+/g, ' ')
+		.trim()
 );
 
 describe('Inbox table columns', () => {
-	test('renders the six approved columns in order', () => {
+	test('renders the select and six approved columns in order', () => {
 		expect(headers).toEqual([
+			'Select',
 			'Issue',
 			'Title',
 			'Repository',
@@ -83,6 +88,29 @@ describe('Inbox table triage', () => {
 	test('title cells are real links to the dedicated pages', () => {
 		expect(source).toContain('href={submissionPath(submission.id)}');
 		expect(source).toContain("href={issuePath('issues', issue.repo, issue.number)}");
+	});
+});
+
+describe('Inbox table bulk selection', () => {
+	test('selects submissions and issues by durable keys', () => {
+		expect(source).toContain('submissionBulkKey(entry.submission.id)');
+		expect(source).toContain('issueBulkKey(entry.issue.repo, entry.issue.number)');
+		expect(source).toContain('data-bulk-key={bulkKey}');
+		expect(source).toContain('bulkSelection.toggle(entryBulkKey(entry))');
+		expect(source).toContain('bulkSelection.toggleMany(selectableKeys)');
+	});
+
+	test('offers x as the keyboard toggle beside the native checkbox', () => {
+		expect(source).toContain('onkeydown={onTableKeydown}');
+		expect(source).toContain("event.key !== 'x' && event.key !== 'X'");
+		expect(source).toContain('type="checkbox"');
+	});
+
+	test('the bulk bar is the mixed issue/submission bar behind mayWrite', () => {
+		expect(source).toContain('<BulkActionBar');
+		expect(source).toContain('kind="inbox"');
+		expect(source).toContain('{mayWrite}');
+		expect(source).toContain('{#if mayWrite}');
 	});
 });
 

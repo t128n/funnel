@@ -305,6 +305,21 @@ export function createRepoMilestone(
   });
 }
 
+/**
+ * Dismiss a staged submission with the required reason. This mirrors the
+ * Inbox form action for callers that cannot submit a SvelteKit form, such as
+ * the bulk action bar; the route reuses the same `dismissSubmission` path.
+ */
+export function dismissSubmission(
+  id: string,
+  reason: string,
+): Promise<MutationResult<{ id: string; eventId: string }>> {
+  return request("/api/intake/dismiss", {
+    method: "POST",
+    body: JSON.stringify({ id, reason }),
+  });
+}
+
 // ---------------------------------------------------------------------------
 // Inbox snoozes (Funnel-local)
 // ---------------------------------------------------------------------------

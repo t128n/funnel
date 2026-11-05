@@ -20,6 +20,7 @@
 	import { createFeed } from '#lib/client/feed.svelte';
 	import { inboxEmptyState, inboxSummary } from '#lib/client/inbox';
 	import { resurface } from '#lib/client/mutations';
+	import { canWrite } from '#lib/roles';
 	import {
 		projectInboxEntries,
 		reconcileIssues,
@@ -96,6 +97,12 @@
 	);
 
 	const repoSlugs = $derived(data.options.repos.map((repo) => repo.slug));
+
+	// Bulk selection is a writer affordance; read-only viewers keep the queue
+	// and its inline triage controls as-is.
+	const mayWrite = $derived(canWrite(data.user?.role));
+	const bulkAssignees = $derived(data.options.assignees.map((person) => person.login));
+	const bulkLabels = $derived(data.options.labels);
 
 	// Drop overlays and submission hides once the authoritative queue reflects
 	// them; a stale refresh leaves them in place.
@@ -476,6 +483,9 @@
 			defaultRepo={data.defaultRepo}
 			onremove={(key) => inboxFeed.remove(key)}
 			onnotice={showNotice}
+			{mayWrite}
+			assignees={bulkAssignees}
+			labels={bulkLabels}
 		/>
 
 		<div bind:this={sentinel} class="py-1" aria-hidden="true"></div>
