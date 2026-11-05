@@ -102,7 +102,8 @@ describe('Inbox table bulk selection', () => {
 
 	test('offers x as the keyboard toggle beside the native checkbox', () => {
 		expect(source).toContain('onkeydown={onTableKeydown}');
-		expect(source).toContain("event.key !== 'x' && event.key !== 'X'");
+		expect(source).toContain('listKeyAction');
+		expect(source).toContain('data-list-row');
 		expect(source).toContain('type="checkbox"');
 	});
 

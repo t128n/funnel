@@ -23,6 +23,7 @@
 <script lang="ts">
 	import type { ActionResult } from '$app/forms';
 	import { enhance } from '$app/forms';
+	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import {
 		Alert,
@@ -40,11 +41,18 @@
 	import { timeAgo } from '#lib/client/clock.svelte';
 	import {
 		bulkSelection,
+		clearBulkSelection,
 		issueBulkKey,
 		submissionBulkKey,
 		type BulkKey
 	} from '#lib/client/bulk-selection.svelte';
+	import { openQuickCreate } from '#lib/client/quick-create';
 	import { inboxActionUrl } from '#lib/client/inbox';
+	import {
+		listKeyAction,
+		listRowAnnouncement,
+		nextListIndex
+	} from '#lib/client/list-keyboard';
 	import {
 		mutate,
 		overlayKey,
@@ -159,21 +167,152 @@
 		bulkSelection.toggleMany(selectableKeys);
 	}
 
-	/** `x` toggles the row containing the focused control; Space is native. */
+	let table = $state<HTMLElement | null>(null);
+	let activeKey = $state<BulkKey | null>(null);
+	let announcement = $state('');
+
+	/** Roving tab stop: the focused row, or the first row by default. */
+	const effectiveActiveKey = $derived(
+		activeKey && selectableKeys.includes(activeKey) ? activeKey : (selectableKeys[0] ?? null)
+	);
+
+	function rowLinks(): HTMLAnchorElement[] {
+		return table
+			? Array.from(table.querySelectorAll<HTMLAnchorElement>('[data-list-link]'))
+			: [];
+	}
+
+	function entryLabel(entry: RenderedInboxEntry): string {
+		return entry.kind === 'submission'
+			? `Submission: ${submissionTitle(entry.submission.title)}`
+			: `${issueRef(entry.issue.repo, entry.issue.number, repoShortcodes)}: ${
+					entry.issue.title.trim() || 'Untitled'
+				}`;
+	}
+
+	/** Index of the focused (or roving-active) row. */
+	function currentRowIndex(): number {
+		const focused = document.activeElement;
+		const row =
+			focused instanceof Element ? focused.closest<HTMLElement>('tr[data-list-row]') : null;
+		const focusedKey = row?.dataset.listRow as BulkKey | undefined;
+		const at = focusedKey ? selectableKeys.indexOf(focusedKey) : -1;
+		if (at >= 0) return at;
+		return effectiveActiveKey ? selectableKeys.indexOf(effectiveActiveKey) : -1;
+	}
+
+	function announceRow(index: number): void {
+		const entry = entries[index];
+		if (!entry) return;
+		announcement = listRowAnnouncement(index, entries.length, entryLabel(entry));
+	}
+
+	function focusRow(index: number): void {
+		const link = rowLinks()[index];
+		if (!link) return;
+		link.scrollIntoView({ block: 'nearest' });
+		link.focus({ preventScroll: true });
+		announceRow(index);
+	}
+
+	function onRowFocus(event: FocusEvent): void {
+		const link =
+			event.target instanceof Element
+				? event.target.closest<HTMLElement>('[data-list-link]')
+				: null;
+		const key = link?.closest<HTMLElement>('tr[data-list-row]')?.dataset.listRow as
+			| BulkKey
+			| undefined;
+		if (!key) return;
+		activeKey = key;
+		announceRow(selectableKeys.indexOf(key));
+	}
+
+	/** `s` moves focus into the issue's Triage select; submissions have none. */
+	function focusStatus(row: HTMLElement | null): void {
+		const control = row?.querySelector<HTMLSelectElement>('[data-list-status]');
+		if (!control) return;
+		control.focus();
+		try {
+			(control as HTMLSelectElement & { showPicker?: () => void }).showPicker?.();
+		} catch {
+			// Not every browser exposes the picker for a programmatic focus.
+		}
+	}
+
+	function hasNativeEnter(target: EventTarget | null): boolean {
+		return target instanceof Element && target.closest('a, button, input, select, textarea') !== null;
+	}
+
+	/**
+	 * Roving row navigation plus the shared list shortcuts.
+	 *
+	 * `j`/`k` and the arrows clamp at the ends; `Enter` keeps native link
+	 * behaviour; `x` reuses the bulk selection; `s` focuses an issue's Triage
+	 * select; `c` opens quick-create for writers; `Escape` clears selection and
+	 * returns focus to the row link. Typing targets are ignored by the helper.
+	 */
 	function onTableKeydown(event: KeyboardEvent): void {
-		if (!mayWrite) return;
-		if (event.key !== 'x' && event.key !== 'X') return;
-		if (event.ctrlKey || event.metaKey || event.altKey) return;
-		const target = event.target;
-		if (!(target instanceof Element)) return;
-		if (target.closest('select, textarea, input:not([type="checkbox"]), [contenteditable="true"]')) {
+		const action = listKeyAction(event, { mayWrite });
+		if (action === null) return;
+
+		if (action.type === 'move') {
+			const next = nextListIndex(action.to, currentRowIndex(), entries.length);
+			if (next === null) return;
+			event.preventDefault();
+			focusRow(next);
 			return;
 		}
-		const row = target.closest('tr[data-bulk-key]');
-		const key = row?.getAttribute('data-bulk-key');
-		if (!key) return;
+
+		if (action.type === 'open') {
+			if (hasNativeEnter(event.target)) return;
+			const index = currentRowIndex();
+			const entry = entries[index];
+			if (!entry) return;
+			event.preventDefault();
+			if (entry.kind === 'submission') {
+				void goto(submissionPath(entry.submission.id));
+			} else {
+				void goto(issuePath('issues', entry.issue.repo, entry.issue.number));
+			}
+			return;
+		}
+
+		const index = currentRowIndex();
+		const entry = entries[index];
+		if (!entry) return;
+		const row =
+			event.target instanceof Element
+				? event.target.closest<HTMLElement>('tr[data-list-row]')
+				: null;
+
+		if (action.type === 'toggle') {
+			if (!row) return;
+			event.preventDefault();
+			const key = entryBulkKey(entry);
+			bulkSelection.toggle(key);
+			announcement = `${bulkSelection.has(key) ? 'Selected' : 'Deselected'} ${entryLabel(entry)}. ${bulkSelection.count} selected.`;
+			return;
+		}
+
+		if (action.type === 'status') {
+			if (!row) return;
+			event.preventDefault();
+			focusStatus(row);
+			return;
+		}
+
+		if (action.type === 'create') {
+			event.preventDefault();
+			openQuickCreate();
+			return;
+		}
+
+		// Escape clears the shared selection and returns focus to the row link.
 		event.preventDefault();
-		bulkSelection.toggle(key as BulkKey);
+		clearBulkSelection();
+		announcement = 'Selection cleared.';
+		if (row) focusRow(index);
 	}
 
 	function indeterminate(node: HTMLInputElement, value: boolean) {
@@ -327,7 +466,15 @@
 />
 
 <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-<div class="table-responsive border rounded" role="group" aria-label="Inbox queue" onkeydown={onTableKeydown}>
+<div
+	bind:this={table}
+	class="table-responsive border rounded"
+	role="group"
+	aria-label="Inbox queue"
+	onkeydown={onTableKeydown}
+	onfocusin={onRowFocus}
+>
+	<p class="visually-hidden mb-0" role="status" aria-live="polite">{announcement}</p>
 	<Table hover class="inbox-table align-middle mb-0">
 		<caption class="visually-hidden">Inbox triage queue</caption>
 		<thead class="table-light">
@@ -369,7 +516,7 @@
 					{@const repo = submissionRepoLabel(acceptRepo)}
 					{@const bulkKey = entryBulkKey(entry)}
 					{@const selected = bulkSelection.has(bulkKey)}
-					<tr data-bulk-key={bulkKey} aria-selected={mayWrite ? selected : undefined}>
+					<tr data-bulk-key={bulkKey} data-list-row={bulkKey} aria-selected={mayWrite ? selected : undefined}>
 						{#if mayWrite}
 							<td>
 								<input
@@ -392,6 +539,8 @@
 								href={submissionPath(submission.id)}
 								class="link-primary text-decoration-none"
 								title={title}
+								data-list-link
+								tabindex={bulkKey === effectiveActiveKey ? 0 : -1}
 							>
 								{title}
 							</a>
@@ -475,7 +624,7 @@
 					{@const title = issue.title.trim() || 'Untitled'}
 					{@const bulkKey = entryBulkKey(entry)}
 					{@const selected = bulkSelection.has(bulkKey)}
-					<tr data-bulk-key={bulkKey} aria-selected={mayWrite ? selected : undefined}>
+					<tr data-bulk-key={bulkKey} data-list-row={bulkKey} aria-selected={mayWrite ? selected : undefined}>
 						{#if mayWrite}
 							<td>
 								<input
@@ -498,6 +647,8 @@
 								href={issuePath('issues', issue.repo, issue.number)}
 								class="link-primary text-decoration-none"
 								title={title}
+								data-list-link
+								tabindex={bulkKey === effectiveActiveKey ? 0 : -1}
 							>
 								{title}
 							</a>
@@ -532,6 +683,7 @@
 									type="select"
 									bsSize="sm"
 									class="triage-select"
+									data-list-status
 									aria-label={`Triage ${ref}`}
 									value=""
 									disabled={busy[issueKey(issue)] !== undefined}
