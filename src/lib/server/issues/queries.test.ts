@@ -6,7 +6,9 @@ import { createSubmission } from "#lib/server/intake/staging";
 import {
   replaceRepoMilestones,
   upsertIssue,
+  upsertIssues,
   upsertRepo,
+  type IssueRecord,
   type UserRecord,
 } from "#lib/server/sync/mirror";
 import { writeBlocked } from "#lib/funnel-metadata";
@@ -370,15 +372,164 @@ describe("allIssues", () => {
     ).toEqual([]);
   });
 
-  test("searches titles, bodies, and comments with LIKE", () => {
+  test("searches titles, bodies, and comments with FTS", () => {
     expect(numbers(allIssues(parse("q=gamma")))).toEqual([3]);
+    // `repro steps` exists only in issue 1's comment.
     expect(numbers(allIssues(parse("q=repro")))).toEqual([1]);
     expect(numbers(allIssues(parse("q=stack")))).toEqual([1]);
     expect(numbers(allIssues(parse("q=nomatch")))).toEqual([]);
   });
 
-  test("treats LIKE metacharacters literally", () => {
-    expect(numbers(allIssues(parse("q=%")))).toEqual([]);
+  test("supports FTS prefix terms and neutralises operators", () => {
+    expect(numbers(allIssues(parse("q=gamm")))).toEqual([3]);
+    // FTS operators are inert: the terms are ANDed, so no issue has all three.
+    expect(numbers(allIssues(parse("q=gamma%20OR%20stack")))).toEqual([]);
+    expect(numbers(allIssues(parse("q=%25")))).toEqual([]);
+  });
+
+  test("resolves #number, shortcode and owner/repo identifiers", () => {
+    expect(numbers(allIssues(parse("q=%231")))).toEqual([1]);
+    expect(numbers(allIssues(parse("q=CORE-1")))).toEqual([1]);
+    expect(numbers(allIssues(parse("q=orgA/web%233")))).toEqual([3]);
+    // An unknown shortcode is ordinary text; an unknown repo cannot match.
+    expect(numbers(allIssues(parse("q=NOPE-3")))).toEqual([]);
+    expect(numbers(allIssues(parse("q=orgA/ghost%233")))).toEqual([]);
+  });
+
+  test("resolves a configured shortcode via the filter context", () => {
+    const ctx = {
+      ...filterContext(VIEWER),
+      shortcodes: { "orgA/core": "FIT" },
+    };
+    const filter = parseIssueFilter(new URLSearchParams("q=FIT-1"), ctx);
+    expect(numbers(allIssues(filter))).toEqual([1]);
+  });
+
+  test("ANDs mixed identifiers and free text", () => {
+    expect(numbers(allIssues(parse("q=%231%20crash")))).toEqual([1]);
+    expect(numbers(allIssues(parse("q=%239%20crash")))).toEqual([]);
+  });
+
+  test("constrains with is:unassigned and is:blocked", () => {
+    seedExtra({
+      repoId: 1,
+      number: 7,
+      externalId: "107",
+      updatedAt: 700,
+      status: "todo",
+      priority: null,
+    });
+    seedExtra({
+      repoId: 1,
+      number: 8,
+      externalId: "108",
+      updatedAt: 800,
+      status: "todo",
+      priority: null,
+      blocked: true,
+    });
+    expect(numbers(allIssues(parse("q=is:unassigned")))).toEqual([8, 7]);
+    expect(numbers(allIssues(parse("q=is:blocked")))).toEqual([8]);
+  });
+
+  test("constrains with label, repo, status and assignee qualifiers", () => {
+    expect(numbers(allIssues(parse("q=label:bug")))).toEqual([1, 6]);
+    expect(numbers(allIssues(parse("q=repo:orgA/web")))).toEqual([3]);
+    expect(numbers(allIssues(parse("q=status:todo")))).toEqual([1]);
+    expect(numbers(allIssues(parse("q=assignee:octocat")))).toEqual([3, 6]);
+  });
+
+  test("ANDs qualifiers with URL dimensions and free text", () => {
+    // Both labels are required; label:bug AND the URL's label=frontend is empty.
+    expect(numbers(allIssues(parse("q=label:bug&label=frontend")))).toEqual([]);
+    expect(numbers(allIssues(parse("q=label:bug&status=todo")))).toEqual([1]);
+    expect(numbers(allIssues(parse("q=label:bug%20zeta")))).toEqual([6]);
+    // Disjoint repo constraints narrow to nothing rather than ORing.
+    expect(numbers(allIssues(parse("q=repo:orgA/web&repo=orgA/core")))).toEqual(
+      [],
+    );
+    expect(
+      numbers(allIssues(parse("q=is:unassigned&assignee=octocat"))),
+    ).toEqual([]);
+  });
+
+  test("keeps the selected sort for search results", () => {
+    seedExtra({
+      repoId: 1,
+      number: 7,
+      externalId: "107",
+      title: "Issue searchable",
+      updatedAt: 700,
+      status: "todo",
+      priority: "P1",
+    });
+    seedExtra({
+      repoId: 1,
+      number: 8,
+      externalId: "108",
+      title: "Issue also searchable",
+      updatedAt: 800,
+      status: "todo",
+      priority: "P3",
+    });
+    expect(numbers(allIssues(parse("q=searchable")))).toEqual([7, 8]);
+    expect(numbers(allIssues(parse("q=searchable&sort=updated&direction=desc")))).toEqual([
+      8, 7,
+    ]);
+  });
+});
+
+describe("search at mirror scale", () => {
+  beforeEach(() => {
+    clearMirror();
+    setConfig(TEST_CONFIG);
+  });
+
+  test("finds a unique body term among 750 issues", () => {
+    const repo = upsertRepo({
+      externalId: "1",
+      forge: "github",
+      instance: "github.com",
+      org: "orgA",
+      name: "core",
+      url: "",
+      archived: false,
+    });
+    const issues: IssueRecord[] = Array.from({ length: 750 }, (_, index) => {
+      const number = index + 1;
+      return {
+        externalId: String(10_000 + number),
+        repoId: repo.id,
+        number,
+        kind: "issue",
+        title: `Bulk issue ${number}`,
+        body: number === 433 ? "unique needle in a haystack" : `body ${number}`,
+        state: "open",
+        stateReason: null,
+        author: null,
+        milestoneNumber: null,
+        url: "",
+        createdAt: 1,
+        updatedAt: number,
+        closedAt: null,
+        labels: ["todo"],
+        assignees: [],
+        comments: [],
+      };
+    });
+    upsertIssues(issues, {
+      status: "todo",
+      impact: null,
+      urgency: null,
+      priority: null,
+      size: null,
+      blocked: false,
+      labelConflict: false,
+    });
+
+    expect(numbers(allIssues(parse("q=needle")))).toEqual([433]);
+    expect(numbers(allIssues(parse("q=%23433")))).toEqual([433]);
+    expect(numbers(allIssues(parse("q=body%20750")))).toEqual([750]);
   });
 });
 
