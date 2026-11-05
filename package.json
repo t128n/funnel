@@ -28,7 +28,7 @@
 		"db:generate": "bun --bun drizzle-kit generate",
 		"db:migrate": "bun --bun drizzle-kit migrate",
 		"db:studio": "bun --bun drizzle-kit studio",
-		"test": "bun test --preload ./tests/setup.ts --max-concurrency 1 --coverage src tests"
+		"test": "bun test --preload ./tests/setup.ts --max-concurrency 1 --coverage src tests && bun scripts/check-coverage.ts"
 	},
 	"devDependencies": {
 		"@changesets/cli": "^3.0.3",
