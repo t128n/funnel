@@ -139,6 +139,20 @@ Primary key: `id`. Foreign keys: none; the owner is the durable `auth_user.id`. 
 
 Opening a view never mutates an issue or the mirror; create, update and delete only touch this table.
 
+### `state_comment_reaction`
+
+The signed-in user's own reactions on mirrored comments. GitHub aggregates counts on the comment, but reports the viewer's own choices only to a request made with that viewer's token; the detail read is served from the local mirror, so this table supplies the filled chips. It is an additive best-effort cache, not the authoritative count.
+
+| Column | Type | Constraints / notes |
+| :--- | :--- | :--- |
+| `user_id` | TEXT | Not null; the acting user's `auth_user.id`, not a foreign key. |
+| `repo` | TEXT | Not null; `owner/name` of the comment's repository. |
+| `comment_external_id` | TEXT | Not null; forge-native comment id (`mirror_comment.external_id`). |
+| `content` | TEXT | Not null; `+1`, `-1`, `laugh`, `confused`, `heart`, `hooray`, `rocket` or `eyes`. |
+| `created_at` | INTEGER | Not null, Unix ms. |
+
+Primary key: `(user_id, repo, comment_external_id, content)`. Foreign keys: none; the comment identity is durable across mirror pruning. Index `idx_state_comment_reaction_comment` on `(repo, comment_external_id)` supports the detail read. Removing a reaction deletes its row; a comment deleted directly on GitHub leaves the row harmlessly behind.
+
 ### `state_notification`
 
 Per-user notification rows. Each row snapshots everything the notification center renders, including the title, body and actor, so reading the feed never depends on the disposable mirror. Rows are durable; read state is tracked and there is no automatic expiry.
@@ -737,6 +751,7 @@ Mirrored thread comments. `(repo_id, external_id)` is the forge identity; the in
 | `external_id` | TEXT | Not null; forge-native comment id. |
 | `author_id` | INTEGER | Nullable; FK to `mirror_user.id`. |
 | `body` | TEXT | Not null, default `''`. |
+| `reactions` | TEXT | Nullable JSON `{ total, counts, viewerReacted }`. `counts` is keyed by GitHub reaction name; `viewerReacted` is always empty here because the mirror is shared, and the detail read merges the acting user's rows from `state_comment_reaction`. |
 | `created_at` | INTEGER | Not null, Unix ms. |
 | `updated_at` | INTEGER | Not null, Unix ms. |
 
@@ -813,7 +828,7 @@ Foreign keys declared in the schema:
 | `mirror_issue_pull_request.repo_id` | `mirror_repo.id` | `CASCADE` |
 | `mirror_comment.author_id` | `mirror_user.id` | `SET NULL` |
 
-The composite child tables `mirror_thread_label` and `mirror_thread_assignee`, the `repo_id`/`issue_number`/`pr_number` columns on `mirror_issue_pull_request`, and the `repo_id`/`thread_number` columns on `mirror_comment`, carry no foreign key to `mirror_thread` or `mirror_pull_request`. `mirror_thread.milestone_number` also has no foreign key to `mirror_milestone`: the milestone set is replaced wholesale on refresh, and a thread may briefly reference a number that has not been mirrored yet. The sync layer therefore deletes labels, assignees, links and comments explicitly before deleting a thread row (`deleteIssue` in `src/lib/server/sync/mirror.ts`) and prunes pull requests that no link refers to. `state_work_note`, `state_attachment`, `state_notification`, `state_issue_watch`, `state_plan_item`, `state_issue_event`, `state_issue_delay`, `state_issue_waiting`, `state_snooze`, `state_triage_event`, `state_work_hours`, `state_unavailable_window`, `state_day_block` and `state_calendar_feed` also carry no foreign key to the mirror: their author/uploader/recipient/actor identities are snapshots, and their issue identity is the durable `org/name` plus number. The four legacy day-planning tables reference `auth_user.id` directly with `ON DELETE CASCADE`; deleting an account removes any retained rows.
+The composite child tables `mirror_thread_label` and `mirror_thread_assignee`, the `repo_id`/`issue_number`/`pr_number` columns on `mirror_issue_pull_request`, and the `repo_id`/`thread_number` columns on `mirror_comment`, carry no foreign key to `mirror_thread` or `mirror_pull_request`. `mirror_thread.milestone_number` also has no foreign key to `mirror_milestone`: the milestone set is replaced wholesale on refresh, and a thread may briefly reference a number that has not been mirrored yet. The sync layer therefore deletes labels, assignees, links and comments explicitly before deleting a thread row (`deleteIssue` in `src/lib/server/sync/mirror.ts`) and prunes pull requests that no link refers to. `state_work_note`, `state_attachment`, `state_notification`, `state_issue_watch`, `state_comment_reaction`, `state_plan_item`, `state_issue_event`, `state_issue_delay`, `state_issue_waiting`, `state_snooze`, `state_triage_event`, `state_work_hours`, `state_unavailable_window`, `state_day_block` and `state_calendar_feed` also carry no foreign key to the mirror: their author/uploader/recipient/actor identities are snapshots, and their issue identity is the durable `org/name` plus number. The four legacy day-planning tables reference `auth_user.id` directly with `ON DELETE CASCADE`; deleting an account removes any retained rows.
 
 ## Storage, pragmas and migrations
 
