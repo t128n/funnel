@@ -188,8 +188,8 @@
 
 		<ModalBody>
 			<p class="small text-body-secondary">
-				Creates the issue on GitHub immediately. For a public submission that a maintainer
-				triages first, use the <a href="/intake">intake form</a> instead.
+				Creates the issue on GitHub immediately. To stage a public submission for triage
+				instead, use the external intake form.
 			</p>
 
 			{#if repoChoices.length === 0}
@@ -345,6 +345,10 @@
 						fields.
 					</div>
 				</FormGroup>
+
+				<p class="small text-body-secondary mb-0">
+					Need the public submission flow? <a href="/intake">Open the intake form</a>.
+				</p>
 
 				{#if error}
 					<InlineStatus tone="error" message={error} />
