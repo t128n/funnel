@@ -56,6 +56,7 @@ If a test clears the GitHub App credentials, re-seed them with `seedTestGithubAp
 | Error routes      | `tests/error-routes.test.ts`                                                           | The `/api` catch-all returns a JSON 404, never the HTML error page. |
 | Hotkeys           | `tests/hotkeys.test.ts`                                                                | Every default hotkey is valid and no two actions share a binding. |
 | Mirror & sync     | `src/lib/server/sync/{mirror,hydrate,reconcile,worker,conflicts}.test.ts`, `tests/mirror-issues-route.test.ts` | Mirror upserts, hydration, reconciliation, the polling worker, and conflict detection. |
+| Release migrations | `tests/release.test.ts`                                                               | The release/admin migration runner and folder resolution, including `bun run release` against a temp database. |
 
 Other suites cover feature flags (`tests/flags.test.ts`, `src/lib/features.test.ts`), the GitHub layer (`src/lib/server/github/*.test.ts`), Markdown rendering, auth, onboarding access, logging, crypto secrets, and small shared helpers (`seo`, `time`, `errors`, `issue-url`, `issue-ref`, `attention`, `funnel-metadata`).
 
