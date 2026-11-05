@@ -44,6 +44,13 @@ describe("renderMarkdown", () => {
 		expect(html).not.toContain("hljs");
 	});
 
+	test("keeps mention text intact", () => {
+		const html = renderMarkdown("Thanks @alice and @bob-2, see you.");
+		expect(html).toContain("@alice");
+		expect(html).toContain("@bob-2");
+		expect(html).not.toContain("&amp;");
+	});
+
 	test("autolinks bare URLs", () => {
 		const html = renderMarkdown("see https://example.com now");
 		expect(html).toContain(

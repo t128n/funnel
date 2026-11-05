@@ -448,7 +448,11 @@ describe("comment reconciliation", () => {
   const record = (
     repoId: number,
     number: number,
-    comments: Array<{ externalId: string; body: string }>,
+    comments: Array<{
+      externalId: string;
+      body: string;
+      reactions?: mirror.CommentRecord["reactions"];
+    }>,
   ): mirror.IssueRecord => ({
     externalId: String(9000 + number),
     repoId,
@@ -513,6 +517,46 @@ describe("comment reconciliation", () => {
       body: "one edited",
       createdAt: 3,
       updatedAt: 99,
+    });
+  });
+
+  test("stores and replaces the aggregated reaction summary", () => {
+    const repo = seedRepo();
+    mirror.upsertIssue(
+      record(repo.id, 1, [
+        {
+          externalId: "1",
+          body: "one",
+          reactions: {
+            total: 2,
+            counts: { heart: 2 },
+            viewerReacted: [],
+          },
+        },
+      ]),
+      metadata,
+    );
+
+    expect(db.select().from(mirrorComment).get()?.reactions).toEqual({
+      total: 2,
+      counts: { heart: 2 },
+      viewerReacted: [],
+    });
+
+    mirror.upsertIssue(
+      record(repo.id, 1, [
+        {
+          externalId: "1",
+          body: "one",
+          reactions: { total: 0, counts: {}, viewerReacted: [] },
+        },
+      ]),
+      metadata,
+    );
+    expect(db.select().from(mirrorComment).get()?.reactions).toEqual({
+      total: 0,
+      counts: {},
+      viewerReacted: [],
     });
   });
 

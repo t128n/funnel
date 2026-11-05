@@ -33,4 +33,22 @@ describe("issue comment thread", () => {
 		expect(timeline).toContain("data-index={index}");
 		expect(timeline).toContain("{@html entry.comment.bodyHtml}");
 	});
+
+	test("test_own_comments_get_edit_and_delete_actions", () => {
+		expect(timeline).toContain("oncommentedit");
+		expect(timeline).toContain("oncommentdelete");
+		expect(timeline).toContain("mayModerate");
+		expect(timeline).toContain("entry.comment.author?.login === viewerLogin");
+		expect(timeline).toContain("Edit comment");
+		expect(timeline).toContain("Delete comment");
+	});
+
+	test("test_comments_render_reaction_counts_and_a_picker", () => {
+		expect(timeline).toContain("REACTION_CONTENTS");
+		expect(timeline).toContain("aria-label=\"Reactions\"");
+		expect(timeline).toContain("aria-pressed={hasReacted(comment, content)}");
+		expect(timeline).toContain("Add a reaction");
+		expect(timeline).toContain("Choose a reaction");
+		expect(timeline).toContain("onreaction(comment.externalId, content");
+	});
 });

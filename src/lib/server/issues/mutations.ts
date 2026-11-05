@@ -14,7 +14,14 @@
  * the set in one call. Priority is derived from impact × urgency and carries no
  * label; retired p-labels are refused or stripped from new writes.
  */
-import type { Thread, ThreadInput, ThreadRef, ThreadUpdate } from "forges";
+import type {
+  CommentRef,
+  ReactionContent,
+  Thread,
+  ThreadInput,
+  ThreadRef,
+  ThreadUpdate,
+} from "forges";
 import { getConfig, isConfiguredRepo } from "#lib/server/config";
 import { DEFAULT_VOCABULARY, type LabelGroup, type ReservedVocabulary } from "#lib/labels";
 import { vocabularyFor } from "#lib/server/label-vocabulary";
@@ -104,6 +111,38 @@ export interface AddCommentInput {
   repo: string;
   number: number;
   body: string;
+}
+
+export interface CommentTarget {
+  provider: GitHubProvider;
+  repo: string;
+  number: number;
+  /** Forge-native comment database id (mirrored as `externalId`). */
+  commentId: number;
+}
+
+export interface UpdateCommentInput extends CommentTarget {
+  body: string;
+}
+
+export interface CommentReactionInput extends CommentTarget {
+  content: ReactionContent;
+}
+
+export interface UpdatedComment {
+  id: number;
+  htmlUrl: string;
+  updatedAt: number | null;
+}
+
+export interface DeletedComment {
+  id: number;
+}
+
+export interface CommentReactionResult {
+  id: number;
+  content: ReactionContent;
+  reacted: boolean;
 }
 
 export interface CreateMilestoneInput {
@@ -577,6 +616,170 @@ export async function addIssueComment(
     ok: true,
     value: { id: Number(id), htmlUrl: comment.url ?? "" },
   };
+}
+
+/**
+ * Build the provider ref for one comment. GitHub identifies a comment by its
+ * database id, which the mirror stores as `mirror_comment.external_id`.
+ */
+function commentRef(
+  repo: { owner: string; name: string },
+  number: number,
+  commentId: number,
+): CommentRef {
+  const thread = forge.threadRef(
+    forge.repoRef(repo.owner, repo.name),
+    "issue",
+    number,
+  );
+  return {
+    forge: thread.forge,
+    instance: thread.instance,
+    thread,
+    id: String(commentId),
+  };
+}
+
+/**
+ * GitHub is authoritative for who may edit, delete or react to a comment.
+ * Forward its status, but make a permission rejection legible: the raw REST
+ * body ("Resource not accessible by integration") does not tell the reader
+ * that their GitHub role, not Funnel's, refused the write.
+ */
+function commentFailure(
+  action: string,
+  commentId: number,
+  error: unknown,
+): Outcome<never> {
+  const status = errorStatus(error);
+  if (status === 403) {
+    return {
+      ok: false,
+      status,
+      message: `GitHub denied permission to ${action} comment ${commentId}. Check your access to this repository on GitHub. (${errorMessage(error)})`,
+    };
+  }
+  if (status === 404) {
+    return {
+      ok: false,
+      status,
+      message: `Comment ${commentId} was not found on GitHub, or you do not have permission to ${action} it.`,
+    };
+  }
+  return { ok: false, status, message: errorMessage(error) };
+}
+
+/** Edit one issue comment with the signed-in user's token. */
+export async function updateIssueComment(
+  input: UpdateCommentInput,
+): Promise<Outcome<UpdatedComment>> {
+  const parts = splitRepo(input.repo);
+  if (!parts) return badRequest(`Invalid repository ${input.repo}`);
+  if (!Number.isInteger(input.commentId) || input.commentId <= 0) {
+    return badRequest(`Invalid comment id: ${input.commentId}`);
+  }
+
+  const notConfigured = await requireConfiguredRepo(input.repo);
+  if (notConfigured) return notConfigured;
+
+  const ref = commentRef(parts, input.number, input.commentId);
+  try {
+    const comment = await input.provider.threads.updateComment(ref, input.body);
+    publish({ type: "issues", repo: input.repo, numbers: [input.number] });
+    return {
+      ok: true,
+      value: {
+        id: input.commentId,
+        htmlUrl: comment.url ?? "",
+        updatedAt: comment.updatedAt?.getTime() ?? null,
+      },
+    };
+  } catch (error) {
+    log.warn(
+      { repo: input.repo, number: input.number, commentId: input.commentId, ...errorFields(error) },
+      "update comment failed",
+    );
+    return commentFailure("edit", input.commentId, error);
+  }
+}
+
+/** Delete one issue comment with the signed-in user's token. */
+export async function deleteIssueComment(
+  input: CommentTarget,
+): Promise<Outcome<DeletedComment>> {
+  const parts = splitRepo(input.repo);
+  if (!parts) return badRequest(`Invalid repository ${input.repo}`);
+  if (!Number.isInteger(input.commentId) || input.commentId <= 0) {
+    return badRequest(`Invalid comment id: ${input.commentId}`);
+  }
+
+  const notConfigured = await requireConfiguredRepo(input.repo);
+  if (notConfigured) return notConfigured;
+
+  const ref = commentRef(parts, input.number, input.commentId);
+  try {
+    await input.provider.threads.deleteComment(ref);
+    publish({ type: "issues", repo: input.repo, numbers: [input.number] });
+    return { ok: true, value: { id: input.commentId } };
+  } catch (error) {
+    log.warn(
+      { repo: input.repo, number: input.number, commentId: input.commentId, ...errorFields(error) },
+      "delete comment failed",
+    );
+    return commentFailure("delete", input.commentId, error);
+  }
+}
+
+/**
+ * Add or remove one reaction on a comment. `forges` addresses a reaction by
+ * content rather than by reaction id, so no per-reaction identity has to be
+ * mirrored; GitHub removes the authenticated account's matching reaction.
+ */
+export async function setCommentReaction(
+  input: CommentReactionInput & { active: boolean },
+): Promise<Outcome<CommentReactionResult>> {
+  const parts = splitRepo(input.repo);
+  if (!parts) return badRequest(`Invalid repository ${input.repo}`);
+  if (!Number.isInteger(input.commentId) || input.commentId <= 0) {
+    return badRequest(`Invalid comment id: ${input.commentId}`);
+  }
+
+  const notConfigured = await requireConfiguredRepo(input.repo);
+  if (notConfigured) return notConfigured;
+
+  const ref = commentRef(parts, input.number, input.commentId);
+  try {
+    if (input.active) {
+      await input.provider.threads.react(ref, input.content);
+    } else {
+      await input.provider.threads.unreact(ref, input.content);
+    }
+    publish({ type: "issues", repo: input.repo, numbers: [input.number] });
+    return {
+      ok: true,
+      value: {
+        id: input.commentId,
+        content: input.content,
+        reacted: input.active,
+      },
+    };
+  } catch (error) {
+    log.warn(
+      {
+        repo: input.repo,
+        number: input.number,
+        commentId: input.commentId,
+        content: input.content,
+        ...errorFields(error),
+      },
+      "comment reaction failed",
+    );
+    return commentFailure(
+      input.active ? "react to" : "remove a reaction from",
+      input.commentId,
+      error,
+    );
+  }
 }
 
 /**

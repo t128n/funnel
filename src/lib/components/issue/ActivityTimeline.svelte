@@ -10,6 +10,12 @@
 <script lang="ts">
 	import { Button } from '@sveltestrap/sveltestrap';
 	import { timeAgo } from '#lib/client/clock.svelte';
+	import {
+		emptyReactions,
+		REACTION_CONTENTS,
+		REACTION_META,
+		type ReactionContent
+	} from '#lib/reactions';
 	import { absoluteTime } from '#lib/time';
 	import type { RenderedComment, RenderedWorkNote } from '#lib/server/issues/types';
 
@@ -32,13 +38,21 @@
 		reporterLogin?: string | null;
 		/** Hide edit/publish/delete affordances (RBAC `read`). */
 		readonly?: boolean;
-		/** `note:<id>` while a note mutation is in flight. */
+		/** Admins may delete any public comment; GitHub still decides server-side. */
+		mayModerate?: boolean;
+		/** `note:<id>` or `comment:<id>` while a mutation is in flight. */
 		busyId?: string | null;
 		/** Focus the composer for this entry (reply link). */
 		onreply?: (id: string) => void;
 		onedit: (id: string, body: string) => void;
 		ondelete: (id: string) => void;
 		onpublish: (id: string) => void;
+		/** Edit one of the viewer's own GitHub comments (public lifecycle). */
+		oncommentedit?: (id: string, body: string) => void;
+		/** Delete one of the viewer's own comments, or any comment as an admin. */
+		oncommentdelete?: (id: string) => void;
+		/** Add (`active: true`) or remove one reaction on a public comment. */
+		onreaction?: (id: string, content: ReactionContent, active: boolean) => void;
 	}
 
 	let {
@@ -49,11 +63,15 @@
 		viewerLogin = null,
 		reporterLogin: _reporterLogin = null,
 		readonly = false,
+		mayModerate = false,
 		busyId = null,
 		onreply,
 		onedit,
 		ondelete,
-		onpublish
+		onpublish,
+		oncommentedit,
+		oncommentdelete,
+		onreaction
 	}: Props = $props();
 
 	type Entry =
@@ -95,6 +113,52 @@
 	function entryId(entry: Entry): string {
 		return entry.kind === 'comment' ? entry.comment.externalId : entry.note.id;
 	}
+
+	/** Comment inline editor is independent of the note editor. */
+	let editingCommentId = $state<string | null>(null);
+	let commentDraft = $state('');
+	/** `comment:<id>` whose reaction picker is open. */
+	let pickerFor = $state<string | null>(null);
+
+	function startCommentEdit(comment: RenderedComment) {
+		editingCommentId = comment.externalId;
+		commentDraft = comment.body;
+	}
+
+	function cancelCommentEdit() {
+		editingCommentId = null;
+		commentDraft = '';
+	}
+
+	function saveCommentEdit(id: string) {
+		const body = commentDraft.trim();
+		if (body.length === 0) return;
+		oncommentedit?.(id, body);
+		editingCommentId = null;
+		commentDraft = '';
+	}
+
+	function reactionsFor(comment: RenderedComment) {
+		return comment.reactions ?? emptyReactions();
+	}
+
+	function reactionCount(comment: RenderedComment, content: ReactionContent): number {
+		return reactionsFor(comment).counts[content] ?? 0;
+	}
+
+	function hasReacted(comment: RenderedComment, content: ReactionContent): boolean {
+		return reactionsFor(comment).viewerReacted.includes(content);
+	}
+
+	function toggleReaction(comment: RenderedComment, content: ReactionContent) {
+		if (readonly || !onreaction) return;
+		onreaction(comment.externalId, content, !hasReacted(comment, content));
+	}
+
+	function chooseReaction(comment: RenderedComment, content: ReactionContent) {
+		pickerFor = null;
+		toggleReaction(comment, content);
+	}
 </script>
 
 {#snippet entryMeta(entry: Entry, index: number)}
@@ -130,6 +194,32 @@
 			>
 				Reply
 			</Button>
+		{/if}
+		{#if entry.kind === 'comment' && !readonly && viewerLogin && (entry.comment.author?.login === viewerLogin || mayModerate)}
+			<span class="ms-auto d-flex align-items-center gap-2">
+				{#if entry.comment.author?.login === viewerLogin}
+					<Button
+						color="link"
+						size="sm"
+						class="d-inline-flex align-items-center text-decoration-none px-1 py-0"
+						disabled={busyId === `comment:${entry.comment.externalId}`}
+						title="Edit comment"
+						onclick={() => startCommentEdit(entry.comment)}
+					>
+						Edit
+					</Button>
+				{/if}
+				<Button
+					color="link"
+					size="sm"
+					class="d-inline-flex align-items-center text-decoration-none px-1 py-0 text-body-secondary"
+					title="Delete comment"
+					disabled={busyId === `comment:${entry.comment.externalId}`}
+					onclick={() => oncommentdelete?.(entry.comment.externalId)}
+				>
+					Delete
+				</Button>
+			</span>
 		{/if}
 		{#if entry.kind === 'note' && !readonly && viewerLogin && entry.note.author?.login === viewerLogin}
 			<span class="ms-auto d-flex align-items-center gap-2">
@@ -181,7 +271,34 @@
 				<i class="bi bi-person-circle fs-4 text-body-secondary flex-shrink-0" aria-hidden="true"></i>
 				<div class="min-w-0 flex-grow-1">
 					{@render entryMeta(entry, index)}
-					<div class="markdown mt-2">{@html entry.comment.bodyHtml}</div>
+					{#if editingCommentId === entry.comment.externalId}
+						<div class="d-flex flex-column gap-2 mt-2">
+							<textarea
+								class="form-control"
+								rows="3"
+								bind:value={commentDraft}
+								placeholder="Update the comment…"
+								aria-label="Edit comment"
+							></textarea>
+							<div class="d-flex justify-content-end gap-1">
+								<Button color="link" size="sm" class="text-decoration-none" onclick={cancelCommentEdit}>
+									Cancel
+								</Button>
+								<Button
+									color="primary"
+									size="sm"
+									onclick={() => saveCommentEdit(entry.comment.externalId)}
+									disabled={commentDraft.trim().length === 0 ||
+										busyId === `comment:${entry.comment.externalId}`}
+								>
+									Save
+								</Button>
+							</div>
+						</div>
+					{:else}
+						<div class="markdown mt-2">{@html entry.comment.bodyHtml}</div>
+					{/if}
+					{@render reactions(entry.comment)}
 				</div>
 			{:else}
 				{@render entryMeta(entry, index)}
@@ -190,6 +307,70 @@
 		</article>
 	{/each}
 </div>
+
+{#snippet reactions(comment: RenderedComment)}
+	{@const busy = busyId === `comment:${comment.externalId}`}
+	<div class="d-flex flex-wrap align-items-center gap-1 mt-2" aria-label="Reactions">
+		{#each REACTION_CONTENTS as content (content)}
+			{@const count = reactionCount(comment, content)}
+			{#if count > 0}
+				<button
+					type="button"
+					class="btn btn-sm reaction-chip d-inline-flex align-items-center gap-1 {hasReacted(
+						comment,
+						content
+					)
+						? 'btn-primary'
+						: 'btn-outline-secondary'}"
+					aria-pressed={hasReacted(comment, content)}
+					aria-label={`${REACTION_META[content].label}, ${count}`}
+					title={`${REACTION_META[content].label} · ${count}`}
+					disabled={readonly || !onreaction || busy}
+					onclick={() => toggleReaction(comment, content)}
+				>
+					<span aria-hidden="true">{REACTION_META[content].emoji}</span>
+					<span class="metric-number">{count}</span>
+				</button>
+			{/if}
+		{/each}
+		{#if !readonly && onreaction}
+			<div class="position-relative">
+				<button
+					type="button"
+					class="btn btn-sm btn-outline-secondary reaction-chip"
+					aria-haspopup="true"
+					aria-expanded={pickerFor === comment.externalId}
+					aria-label="Add a reaction"
+					title="Add a reaction"
+					disabled={busy}
+					onclick={() => (pickerFor = pickerFor === comment.externalId ? null : comment.externalId)}
+				>
+					<i class="bi bi-emoji-smile" aria-hidden="true"></i>
+					<span aria-hidden="true">+</span>
+				</button>
+				{#if pickerFor === comment.externalId}
+					<div class="reaction-menu dropdown-menu show" role="menu" aria-label="Choose a reaction">
+						{#each REACTION_CONTENTS as content (content)}
+							<button
+								type="button"
+								class="dropdown-item d-flex align-items-center gap-2"
+								class:active={hasReacted(comment, content)}
+								role="menuitem"
+								onclick={() => chooseReaction(comment, content)}
+							>
+								<span aria-hidden="true">{REACTION_META[content].emoji}</span>
+								<span>{REACTION_META[content].label}</span>
+								{#if hasReacted(comment, content)}
+									<i class="bi bi-check-lg ms-auto" aria-hidden="true"></i>
+								{/if}
+							</button>
+						{/each}
+					</div>
+				{/if}
+			</div>
+		{/if}
+	</div>
+{/snippet}
 
 {#snippet noteBody(note: RenderedWorkNote)}
 	{#if editingId === note.id}
@@ -225,5 +406,16 @@
 <style>
 	.activity-meta {
 		font-size: 0.875rem;
+	}
+
+	.reaction-chip {
+		--bs-btn-padding-y: 0.125rem;
+		--bs-btn-padding-x: 0.5rem;
+		--bs-btn-font-size: 0.8125rem;
+	}
+
+	.reaction-menu {
+		z-index: 1040;
+		min-width: 12rem;
 	}
 </style>

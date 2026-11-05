@@ -175,6 +175,8 @@ API routes are not under the `(app)` layout and enforce their own guards. Detail
 | `/api/repos/{owner}/{repo}/issues` | GET, POST | `read` / `write` | GitHub issue list and creation. |
 | `/api/repos/{owner}/{repo}/issues/{number}` | GET, PATCH | `read` / `write` | GitHub issue read and update. |
 | `/api/repos/{owner}/{repo}/issues/{number}/comments` | GET, POST | `read` / `write` | GitHub comments. |
+| `/api/repos/{owner}/{repo}/issues/{number}/comments/{commentId}` | PATCH, DELETE | `write` | Edit or delete one GitHub comment; GitHub decides authorship. |
+| `/api/repos/{owner}/{repo}/issues/{number}/comments/{commentId}/reactions` | POST, DELETE | `write` | Add a reaction, or remove the viewer's reaction by `?content=`. |
 | `/api/repos/{owner}/{repo}/issues/{number}/labels` | POST | `write` | Add GitHub issue labels. |
 | `/api/repos/{owner}/{repo}/issues/{number}/labels/{name}` | DELETE | `write` | Remove a GitHub issue label. |
 | `/api/repos/{owner}/{repo}/labels` | GET | `read` | GitHub repo labels. |

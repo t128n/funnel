@@ -12,6 +12,7 @@ import type {
   RenderedIssueDetail,
   WorkNoteItem,
 } from "#lib/server/issues/types";
+import type { ReactionContent } from "#lib/reactions";
 import {
   formatBlockComment,
   formatUnblockComment,
@@ -243,6 +244,63 @@ export function addIssueComment(
     method: "POST",
     body: JSON.stringify({ body }),
   });
+}
+
+function commentPath(
+  repo: string,
+  number: number,
+  commentId: number,
+): string {
+  return `/api/repos/${repoPath(repo)}/issues/${number}/comments/${commentId}`;
+}
+
+/** Edit one of the signed-in user's GitHub comments. */
+export function updateIssueComment(
+  repo: string,
+  number: number,
+  commentId: number,
+  body: string,
+): Promise<MutationResult<{ id: number; htmlUrl: string }>> {
+  return request(commentPath(repo, number, commentId), {
+    method: "PATCH",
+    body: JSON.stringify({ body }),
+  });
+}
+
+/** Delete one of the signed-in user's GitHub comments. */
+export function deleteIssueComment(
+  repo: string,
+  number: number,
+  commentId: number,
+): Promise<MutationResult<{ id: number }>> {
+  return request(commentPath(repo, number, commentId), { method: "DELETE" });
+}
+
+/** Add one reaction to a GitHub comment. */
+export function addCommentReaction(
+  repo: string,
+  number: number,
+  commentId: number,
+  content: ReactionContent,
+): Promise<MutationResult<{ id: number; content: ReactionContent; reacted: true }>> {
+  return request(`${commentPath(repo, number, commentId)}/reactions`, {
+    method: "POST",
+    body: JSON.stringify({ content }),
+  });
+}
+
+/** Remove the signed-in user's reaction from a GitHub comment. */
+export function removeCommentReaction(
+  repo: string,
+  number: number,
+  commentId: number,
+  content: ReactionContent,
+): Promise<MutationResult<{ id: number; content: ReactionContent; reacted: false }>> {
+  const query = new URLSearchParams({ content });
+  return request(
+    `${commentPath(repo, number, commentId)}/reactions?${query.toString()}`,
+    { method: "DELETE" },
+  );
 }
 
 export function addIssueLabels(

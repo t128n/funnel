@@ -53,6 +53,19 @@ test("test_snooze_columns", () => {
   );
 });
 
+test("test_comment_reaction_columns", () => {
+  expect(cols("mirror_comment")).toContain("reactions");
+  expect(cols("state_comment_reaction")).toEqual(
+    expect.arrayContaining([
+      "user_id",
+      "repo",
+      "comment_external_id",
+      "content",
+      "created_at",
+    ]),
+  );
+});
+
 test("test_saved_view_columns", () => {
   expect(cols("state_saved_view")).toEqual(
     expect.arrayContaining([

@@ -110,5 +110,6 @@ Hiding a surface does not delete any notes or files. Re-enabling the flag makes 
 
 - [The workflow model](../../explanation/workflow-model.md)
 - [Roles and permissions](../../reference/roles-and-permissions.md)
+- [Comments, reactions and mentions](comments.md)
 - [Create and edit issues](create-and-edit-issues.md)
 - [Keyboard shortcuts](keyboard.md)

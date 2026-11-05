@@ -72,7 +72,9 @@ import { mirrorRevision } from "#lib/server/sync/revision";
 import { listWorkNotes } from "#lib/server/work-notes";
 import { estimateMinutes } from "#lib/server/planning/capacity";
 import { readSettings } from "#lib/server/settings/store";
+import { emptyReactions, type ReactionContent } from "#lib/reactions";
 import { readBlocked, readEpicChildren } from "#lib/funnel-metadata";
+import { listViewerReactions } from "./reaction-state";
 import {
   IMPACT_VALUES,
   URGENCY_VALUES,
@@ -386,6 +388,11 @@ export const MAX_COMMENT_LIMIT = 2000;
 export interface IssueDetailOptions {
   /** Newest comments to include; clamped to `1..`{@link MAX_COMMENT_LIMIT}. */
   commentLimit?: number;
+  /**
+   * The signed-in Funnel user, so their own reactions merge into each comment.
+   * Omit for system reads that do not render reaction state.
+   */
+  viewerUserId?: string;
 }
 
 /**
@@ -1708,7 +1715,9 @@ export function getIssueDetail(
     .select({
       externalId: mirrorComment.externalId,
       body: mirrorComment.body,
+      reactions: mirrorComment.reactions,
       createdAt: mirrorComment.createdAt,
+      updatedAt: mirrorComment.updatedAt,
       authorExternalId: mirrorUser.externalId,
       authorForge: mirrorUser.forge,
       authorInstance: mirrorUser.instance,
@@ -1724,10 +1733,26 @@ export function getIssueDetail(
     .all()
     .reverse();
 
+  // The mirror stores aggregate counts only (it is shared by every viewer);
+  // the acting user's own chips come from the durable local reaction state.
+  const viewerReactions: Map<string, ReactionContent[]> =
+    opts.viewerUserId === undefined
+      ? new Map()
+      : listViewerReactions(
+          opts.viewerUserId,
+          issue.repo,
+          commentRows.map((row) => row.externalId),
+        );
+
   const comments: CommentItem[] = commentRows.map((row) => ({
     externalId: row.externalId,
     body: row.body,
     createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+    reactions: {
+      ...(row.reactions ?? emptyReactions()),
+      viewerReacted: viewerReactions.get(row.externalId) ?? [],
+    },
     author: nullableUserRef(
       row.authorExternalId,
       row.authorForge,

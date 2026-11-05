@@ -89,6 +89,31 @@ describe("issue detail page", () => {
 		expect(composer).toContain("event.metaKey || event.ctrlKey");
 		expect(composer).toContain('id="issue-composer"');
 	});
+
+	test("test_comment_lifecycle_is_wired_to_the_github_mutations", () => {
+		expect(page).toContain("updateIssueComment(repo, number, Number(id), body)");
+		expect(page).toContain("deleteIssueComment(repo, number, Number(id))");
+		expect(page).toContain("addCommentReaction(repo, number, Number(id), content)");
+		expect(page).toContain("removeCommentReaction(repo, number, Number(id), content)");
+		expect(page).toContain("oncommentedit={editComment}");
+		expect(page).toContain("oncommentdelete={removeComment}");
+		expect(page).toContain("onreaction={reactToComment}");
+		expect(page).toContain("mayModerate={mayModerate}");
+		// Comment writes and work notes use separate busy ids and handlers.
+		expect(page).toContain("commentBusy = `comment:${id}`");
+		expect(page).toContain("noteBusy = `note:${id}`");
+	});
+
+	test("test_composer_offers_assignee_mention_autocomplete", () => {
+		expect(page).toContain("mentionOptions={detail?.assigneeOptions ?? []}");
+		expect(composer).toContain("mentionOptions");
+		expect(composer).toContain("activeMentionAt");
+		expect(composer).toContain("filterMentions");
+		expect(composer).toContain("applyMention");
+		expect(composer).toContain("role=\"listbox\"");
+		expect(composer).toContain("ArrowDown");
+		expect(composer).toContain("chooseMention");
+	});
 });
 
 describe("properties card", () => {

@@ -297,6 +297,29 @@ describe("demoProvider", () => {
     expect(stored().isEpic).toBe(0);
   });
 
+  test("test_comment_lifecycle_and_reactions", async () => {
+    const provider = demoProvider();
+    const comment = await provider.threads.createComment(ref(funnel, 1), "draft");
+
+    const updated = await provider.threads.updateComment(comment.ref, "revised");
+    expect(updated.body).toBe("revised");
+
+    await provider.threads.react(comment.ref, "heart");
+    let row = db.select().from(mirrorComment).get();
+    expect(row?.reactions).toEqual({
+      total: 1,
+      counts: { heart: 1 },
+      viewerReacted: [],
+    });
+
+    await provider.threads.unreact(comment.ref, "heart");
+    row = db.select().from(mirrorComment).get();
+    expect(row?.reactions).toEqual({ total: 0, counts: {}, viewerReacted: [] });
+
+    await provider.threads.deleteComment(comment.ref);
+    expect(db.select().from(mirrorComment).all()).toHaveLength(0);
+  });
+
   test("test_comment", async () => {
     const provider = demoProvider();
     const comment = await provider.threads.createComment(

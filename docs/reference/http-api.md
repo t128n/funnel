@@ -202,7 +202,7 @@ Detail responses:
 | `issue` | `IssueListItem`: `repoId`, `repo`, `number`, `title`, `state`, `stateReason`, `status`, `priority` (`P1`–`P3` or null), `impact` (`1`–`3` or null), `urgency` (`1`–`3` or null), `size`, `blocked`, `isEpic`, `labelConflict`, `createdAt`, `updatedAt`, `closedAt`, `author`, `assignees`, `labels`, `milestone`. |
 | `body` | Raw Markdown body from the mirror. |
 | `bodyHtml` | Sanitised HTML rendered from `body`. |
-| `comments` | `RenderedComment[]`: `externalId`, `author`, `body`, `createdAt`, `bodyHtml`. |
+| `comments` | `RenderedComment[]`: `externalId`, `author`, `body`, `createdAt`, `updatedAt`, `reactions`, `bodyHtml`. `reactions` is `{ total, counts, viewerReacted }`; `counts` is keyed by GitHub's reaction names (`+1`, `-1`, `laugh`, `confused`, `heart`, `hooray`, `rocket`, `eyes`) and `viewerReacted` carries the signed-in user's own choices. |
 | `workNotes` | `RenderedWorkNote[]`: `id`, `author`, `body`, `createdAt`, `updatedAt`, `bodyHtml`. |
 | `attachments` | `AttachmentItem[]`: `id`, `filename`, `mimeType`, `sizeBytes`, `uploadedBy`, `createdAt`. |
 | `repoLabels` | `{ "name": string, "color": string }[]`. |
@@ -288,6 +288,10 @@ As on create, `status`, `impact`, `urgency` and `size` are logical keys. A confi
 | :--- | :--- | :--- | :--- | :--- |
 | `GET` | `/api/repos/{owner}/{repo}/issues/{number}/comments` | `read` | Installation | `200` GitHub comment array, or `304` |
 | `POST` | `/api/repos/{owner}/{repo}/issues/{number}/comments` | `write` | User | `201 { "id": 123, "htmlUrl": "…" }` |
+| `PATCH` | `/api/repos/{owner}/{repo}/issues/{number}/comments/{commentId}` | `write` | User | `200 { "id": 123, "htmlUrl": "…", "updatedAt": 1760000000000 }` |
+| `DELETE` | `/api/repos/{owner}/{repo}/issues/{number}/comments/{commentId}` | `write` | User | `200 { "id": 123 }` |
+| `POST` | `/api/repos/{owner}/{repo}/issues/{number}/comments/{commentId}/reactions` | `write` | User | `201 { "id": 123, "content": "heart", "reacted": true }` |
+| `DELETE` | `/api/repos/{owner}/{repo}/issues/{number}/comments/{commentId}/reactions?content=heart` | `write` | User | `200 { "id": 123, "content": "heart", "reacted": false }` |
 
 The `GET` forwards `since`, `per_page` and `page`; unknown query parameters are ignored. The 404 fallback points at the issue's GitHub URL.
 
@@ -298,6 +302,16 @@ The `POST` body is:
 ```
 
 `body` is trimmed and limited to 65,536 characters; an empty value is rejected.
+
+`commentId` is GitHub's comment database id, which the mirror stores as `mirror_comment.external_id`; a non-positive or non-integer value returns `400 {"message":"Invalid comment id"}`. `PATCH` takes the same `{ "body": "…" }` envelope and validation as `POST`.
+
+GitHub is authoritative for comment authorship. A `write` user may submit an edit or delete for any id, but GitHub rejects the write unless that user authored the comment (or is a repository admin). A `403` is forwarded with a message naming the refused action, for example:
+
+```json
+{ "message": "GitHub denied permission to edit comment 123. Check your access to this repository on GitHub. (Resource not accessible by integration)" }
+```
+
+Reactions accept one of `+1`, `-1`, `laugh`, `confused`, `heart`, `hooray`, `rocket`, `eyes`. Adding a reaction the user already left is a no-op; removing one addresses the signed-in user's own reaction by content, so no reaction id is required from the client. After a successful write the route stores the viewer's choice locally for the detail payload and schedules a single-issue refresh, so the aggregate counts follow GitHub on the next read.
 
 ### Labels
 
