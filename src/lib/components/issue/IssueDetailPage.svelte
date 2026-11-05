@@ -34,6 +34,7 @@
 	import { codeBlocks } from '#lib/client/code-blocks';
 	import { mermaidDiagrams } from '#lib/client/mermaid';
 	import {
+		addCommentReaction,
 		addIssueComment,
 		addIssueLabels,
 		addWorkNote,
@@ -41,15 +42,18 @@
 		clearWaiting as clearIssueWaiting,
 		closeIssue,
 		deleteAttachment,
+		deleteIssueComment,
 		deleteWorkNote,
 		fetchIssueDetail,
 		publishWorkNote,
+		removeCommentReaction,
 		removeIssueLabel,
 		reopenIssue,
 		setIssueWatching,
 		setWaiting as setIssueWaiting,
 		unblockIssue,
 		updateIssue,
+		updateIssueComment,
 		updateWorkNote,
 		uploadAttachment,
 		type CloseReason,
@@ -85,7 +89,12 @@
 	} from '#lib/priority';
 	import { absoluteDate, absoluteTime } from '#lib/time';
 	import { ATTACHMENTS_FLAG, WORK_NOTES_FLAG } from '#lib/features';
-	import { canWrite } from '#lib/roles';
+	import {
+		emptyReactions,
+		toggleReaction,
+		type ReactionContent
+	} from '#lib/reactions';
+	import { canAdmin, canWrite } from '#lib/roles';
 	import type {
 		AttachmentItem,
 		RenderedIssueDetail,
@@ -152,6 +161,8 @@
 	let composerMode = $state<'comment' | 'note'>('comment');
 	/** In-flight Funnel-local note mutation, e.g. `note:<uuid>`. */
 	let noteBusy = $state<string | null>(null);
+	/** In-flight GitHub comment lifecycle mutation, e.g. `comment:<id>`. */
+	let commentBusy = $state<string | null>(null);
 	/** Attachments still uploading (drives the dropbox label). */
 	let uploading = $state(0);
 	/** Attachment being deleted. */
@@ -201,6 +212,13 @@
 	);
 	/** RBAC: `read` viewers see the issue but cannot edit it. */
 	const mayWrite = $derived(canWrite((page.data as { user?: { role?: unknown } }).user?.role));
+	/**
+	 * Admins get the Delete affordance on public comments too. GitHub still
+	 * decides server-side; this only decides whether the button is offered.
+	 */
+	const mayModerate = $derived(
+		canAdmin((page.data as { user?: { role?: unknown } }).user?.role)
+	);
 
 	/** Structured block/unblock dialog (SPEC §5.1). */
 	let blockedDialogMode = $state<'block' | 'unblock' | null>(null);
@@ -926,6 +944,111 @@
 		setWriteSuccess('Comment posted.');
 	}
 
+	/**
+	 * A plain, escaped preview of an edited comment until the mirror re-renders
+	 * the Markdown. It is replaced by the authoritative `bodyHtml` on `load()`.
+	 */
+	function plainCommentHtml(text: string): string {
+		const escaped = text
+			.replaceAll('&', '&amp;')
+			.replaceAll('<', '&lt;')
+			.replaceAll('>', '&gt;')
+			.replaceAll('\n', '<br>');
+		return `<p>${escaped}</p>`;
+	}
+
+	/** Edit one of the viewer's own GitHub comments (GitHub enforces authorship). */
+	async function editComment(id: string, text: string) {
+		if (!detail) return;
+		const body = text.trim();
+		if (body.length === 0) return;
+		const previous = detail.comments;
+		writeStatus = null;
+		commentBusy = `comment:${id}`;
+		// Optimistically show the new wording; the refreshed mirror replaces this
+		// plain-text preview with sanitised Markdown HTML.
+		detail = {
+			...detail,
+			comments: detail.comments.map((entry) =>
+				entry.externalId === id
+					? { ...entry, body, bodyHtml: plainCommentHtml(body) }
+					: entry
+			)
+		};
+		const result = await updateIssueComment(repo, number, Number(id), body);
+		commentBusy = null;
+		if (!result.ok) {
+			detail = detail ? { ...detail, comments: previous } : detail;
+			setWriteError(`Could not update the comment. ${result.error}`);
+			return;
+		}
+		await load();
+		setWriteSuccess('Comment updated.');
+	}
+
+	/** Delete one of the viewer's own comments (admins may delete any). */
+	async function removeComment(id: string) {
+		if (!detail) return;
+		const previous = detail.comments;
+		const previousTotal = detail.commentTotal;
+		writeStatus = null;
+		commentBusy = `comment:${id}`;
+		detail = {
+			...detail,
+			comments: detail.comments.filter((entry) => entry.externalId !== id),
+			commentTotal: Math.max(0, detail.commentTotal - 1)
+		};
+		const result = await deleteIssueComment(repo, number, Number(id));
+		commentBusy = null;
+		if (!result.ok) {
+			detail = detail
+				? { ...detail, comments: previous, commentTotal: previousTotal }
+				: detail;
+			setWriteError(`Could not delete the comment. ${result.error}`);
+			return;
+		}
+		await load();
+		setWriteSuccess('Comment deleted.');
+	}
+
+	/** Add or remove one reaction, reconciled by the post-write refresh. */
+	async function reactToComment(
+		id: string,
+		content: ReactionContent,
+		active: boolean
+	) {
+		if (!detail) return;
+		const previous = detail.comments;
+		detail = {
+			...detail,
+			comments: detail.comments.map((entry) =>
+				entry.externalId === id
+					? {
+							...entry,
+							reactions: toggleReaction(
+								entry.reactions ?? emptyReactions(),
+								content,
+								active
+							)
+						}
+					: entry
+			)
+		};
+		commentBusy = `comment:${id}`;
+		const result = active
+			? await addCommentReaction(repo, number, Number(id), content)
+			: await removeCommentReaction(repo, number, Number(id), content);
+		commentBusy = null;
+		if (!result.ok) {
+			detail = detail ? { ...detail, comments: previous } : detail;
+			setWriteError(
+				`Could not ${active ? 'add' : 'remove'} the reaction. ${result.error}`
+			);
+			return;
+		}
+		await load();
+	}
+
 	/** Create an internal work note from the shared composer draft. */
 	async function submitWorkNote() {
 		const text = comment.trim();
@@ -1033,6 +1156,7 @@
 		busy={busy === 'comment' || noteBusy === 'note:new'}
 		label="Comment"
 		showModeToggle={workNotesEnabled}
+		mentionOptions={detail?.assigneeOptions ?? []}
 		onattach={attachmentsEnabled ? (files) => void uploadFiles(files) : undefined}
 		onsubmit={submitComposer}
 	/>
@@ -1383,9 +1507,15 @@
 							workNotes={[]}
 							filter="comments"
 							bubbles={commentBubbles}
+							viewerLogin={viewerLogin}
 							reporterLogin={detail.issue.author?.login ?? null}
 							readonly={!mayWrite}
+							mayModerate={mayModerate}
+							busyId={commentBusy}
 							onreply={mayWrite ? () => focusComposer() : undefined}
+							oncommentedit={editComment}
+							oncommentdelete={removeComment}
+							onreaction={reactToComment}
 							onedit={editWorkNote}
 							ondelete={removeWorkNote}
 							onpublish={publishNote}
