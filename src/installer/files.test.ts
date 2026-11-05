@@ -2,7 +2,7 @@ import { afterEach, describe, expect, test } from "bun:test";
 import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { removeBinary } from "./files";
+import { binaryPath, logFilePath, removeBinary } from "./files";
 
 const dirs: string[] = [];
 
@@ -26,6 +26,38 @@ function configFor(installDir: string) {
     platform: "linux" as const,
   };
 }
+
+describe("platform paths", () => {
+  test("uses the target platform's separators, not the host's", () => {
+    const base = {
+      dataDir: "/var/lib/funnel",
+      logDir: "/var/log/funnel",
+    };
+
+    expect(
+      binaryPath({ ...base, installDir: "/opt/funnel/bin", platform: "linux" }),
+    ).toBe("/opt/funnel/bin/funnel");
+    expect(
+      logFilePath({ ...base, installDir: "/opt/funnel/bin", platform: "linux" }),
+    ).toBe("/var/log/funnel/funnel.log");
+    expect(
+      binaryPath({
+        dataDir: "C:\\ProgramData\\Funnel\\data",
+        logDir: "C:\\ProgramData\\Funnel\\logs",
+        installDir: "C:\\Program Files\\Funnel",
+        platform: "windows",
+      }),
+    ).toBe("C:\\Program Files\\Funnel\\funnel.exe");
+    expect(
+      logFilePath({
+        dataDir: "C:\\ProgramData\\Funnel\\data",
+        logDir: "C:\\ProgramData\\Funnel\\logs",
+        installDir: "C:\\Program Files\\Funnel",
+        platform: "windows",
+      }),
+    ).toBe("C:\\ProgramData\\Funnel\\logs\\funnel.log");
+  });
+});
 
 describe("removeBinary", () => {
   test("removes the binary and leftover image copies, but keeps other files", () => {

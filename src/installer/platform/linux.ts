@@ -6,7 +6,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { homedir, userInfo } from "node:os";
-import { dirname, join } from "node:path";
+import { dirname, posix } from "node:path";
 import { binaryPath, logFilePath } from "../files";
 import { tailFile } from "../tail";
 import type {
@@ -77,7 +77,7 @@ export function systemdUnitPath(
   if (config.mode === "system") {
     return `/etc/systemd/system/${unitName(config)}`;
   }
-  return join(home, ".config", "systemd", "user", unitName(config));
+  return posix.join(home, ".config", "systemd", "user", unitName(config));
 }
 
 export function renderSystemdUnit(

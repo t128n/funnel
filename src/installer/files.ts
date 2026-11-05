@@ -7,7 +7,7 @@ import {
   renameSync,
   rmSync,
 } from "node:fs";
-import { basename, join, resolve } from "node:path";
+import { basename, join, posix, resolve, win32 } from "node:path";
 import type { InstallConfig } from "./types";
 
 type FileConfig = Pick<
@@ -15,15 +15,28 @@ type FileConfig = Pick<
   "installDir" | "platform" | "dataDir" | "logDir"
 >;
 
+/**
+ * Join with the target platform's separators, not the host's. Installer tests
+ * render Linux/macOS definitions while running on Windows (and vice versa), so
+ * a plain `node:path.join` would leak backslashes into POSIX unit files.
+ */
+function joinFor(
+  platform: InstallConfig["platform"],
+  ...parts: string[]
+): string {
+  return platform === "windows" ? win32.join(...parts) : posix.join(...parts);
+}
+
 export function binaryPath(config: FileConfig): string {
-  return join(
+  return joinFor(
+    config.platform,
     config.installDir,
     config.platform === "windows" ? "funnel.exe" : "funnel",
   );
 }
 
 export function logFilePath(config: FileConfig, stream = "funnel"): string {
-  return join(config.logDir, `${stream}.log`);
+  return joinFor(config.platform, config.logDir, `${stream}.log`);
 }
 
 export function ensureInstallDirs(config: FileConfig): void {

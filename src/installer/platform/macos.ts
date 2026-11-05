@@ -6,7 +6,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { homedir } from "node:os";
-import { dirname, join } from "node:path";
+import { dirname, posix } from "node:path";
 import { binaryPath, logFilePath } from "../files";
 import { tailFile } from "../tail";
 import type {
@@ -33,8 +33,8 @@ export function launchdPlistPath(
 ): string {
   const file = `${config.launchdLabel}.plist`;
   return mode === "system"
-    ? join(SYSTEM_PLIST_DIR, file)
-    : join(home, "Library", "LaunchAgents", file);
+    ? posix.join(SYSTEM_PLIST_DIR, file)
+    : posix.join(home, "Library", "LaunchAgents", file);
 }
 
 export function escapePlistXml(value: string): string {
