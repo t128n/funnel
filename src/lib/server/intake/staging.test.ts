@@ -18,6 +18,7 @@ import {
 const BASE_SETTINGS: SettingsInput = {
   repos: [],
   projects: [],
+  labels: { prefix: "" },
   intake: {},
   sync: {
     history_days: 90,

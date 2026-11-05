@@ -1,8 +1,10 @@
 import { describe, expect, test } from "bun:test";
+import { buildVocabulary } from "#lib/labels";
 import {
   buildIssueWhere,
   EMPTY_FILTER,
   escapeLike,
+  groupOf,
   parseIssueFilter,
   type IssueFilterContext,
 } from "./filters";
@@ -94,6 +96,23 @@ describe("parseIssueFilter", () => {
     expect(filter.labels).toEqual(["bug", "frontend"]);
   });
 
+  test("excludes prefixed reserved labels but keeps old names as ordinary labels", () => {
+    const prefixed: IssueFilterContext = {
+      ...ctx,
+      vocabulary: buildVocabulary("funnel"),
+    };
+    const filter = parseIssueFilter(
+      new URLSearchParams(
+        "label=bug&label=funnel-todo&label=todo&label=funnel-sm&status=todo&size=sm",
+      ),
+      prefixed,
+    );
+    // URL values stay logical; only the label dimension holds actual names.
+    expect(filter.labels).toEqual(["bug", "todo"]);
+    expect(filter.statuses).toEqual(["todo"]);
+    expect(filter.sizes).toEqual(["sm"]);
+  });
+
   test("resolves repo-scoped milestone slugs and the none sentinel", () => {
     const filter = parseIssueFilter(
       new URLSearchParams(
@@ -141,6 +160,12 @@ describe("buildIssueWhere", () => {
 
   test("returns a clause once any dimension is populated", () => {
     expect(buildIssueWhere({ ...EMPTY_FILTER, statuses: ["todo"] })).toBeDefined();
+  });
+
+  test("resolves reserved groups against a configured vocabulary", () => {
+    const vocabulary = buildVocabulary("funnel");
+    expect(groupOf("funnel-todo", vocabulary)).toBe("status");
+    expect(groupOf("todo", vocabulary)).toBeUndefined();
   });
 
   test("builds a clause for repo-scoped milestones and the none sentinel", () => {

@@ -20,6 +20,7 @@ import * as v from "valibot";
 import { deriveRepoShortcode } from "#lib/issue-ref";
 import {
   count,
+  labelPrefix,
   planningInput,
   projectInput,
   readSettings,
@@ -99,6 +100,8 @@ export const configSchema = v.pipe(
      * name; omitted means no project grouping is available in the cockpit.
      */
     projects: v.pipe(v.array(projectInput), v.transform(normalizeProjects)),
+    /** Global prefix for the reserved-label vocabulary (empty = unprefixed). */
+    labels: v.object({ prefix: labelPrefix }),
     intake: v.object({
       default_repo: v.optional(repoName),
     }),

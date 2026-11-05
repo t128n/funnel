@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { canonicalLabel } from '#lib/labels';
+	import { canonicalLabelByBase } from '#lib/labels';
 
 	/**
 	 * Status glyph shared by the board and the dense list feeds. Bootstrap Icons
@@ -31,8 +31,8 @@
 			? 'var(--bs-success)'
 			: key === 'blocked'
 				? 'var(--bs-danger)'
-				: canonicalLabel(key)?.color
-					? `#${canonicalLabel(key)?.color}`
+				: canonicalLabelByBase(key)?.color
+					? `#${canonicalLabelByBase(key)?.color}`
 					: undefined
 	);
 </script>

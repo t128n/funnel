@@ -55,6 +55,7 @@ const FIELD_TARGETS: Record<string, FieldTarget> = {
   "board.done_days": { label: "Done retention", selector: "#board-done-days" },
   "board.wip_limits": { label: "Work-in-progress limit" },
   "intake.default_repo": { label: "Default repository", selector: "#intake-default-repo" },
+  "labels.prefix": { label: "Label prefix", selector: "#labels-prefix" },
   "notifications.enabled": { label: "Notifications", selector: "#notification-enabled" },
   "notifications.native": {
     label: "Browser notifications",

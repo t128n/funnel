@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, test } from "bun:test";
 import { sql } from "drizzle-orm";
+import { buildVocabulary } from "#lib/labels";
 import { clearMirror } from "#tests/mirror-helpers";
 import { db } from "#lib/server/db/index";
 import { mirrorComment, mirrorThreadAssignee } from "#lib/server/db/schema";
@@ -252,6 +253,79 @@ describe("issue upsert", () => {
       labelConflict: false,
     });
     expect(mirror.getIssue(repo.id, 2)?.isEpic).toBe(0);
+  });
+
+  test("resolves the epic label from the configured prefix", () => {
+    const repo = seedRepo();
+    const vocabulary = buildVocabulary("funnel");
+    const record = {
+      externalId: "7201",
+      repoId: repo.id,
+      number: 3,
+      kind: "issue" as const,
+      title: "prefixed epic",
+      body: "",
+      state: "open",
+      stateReason: null,
+      author: null,
+      milestoneNumber: null,
+      url: "https://github.com/orgA/core/issues/3",
+      createdAt: 1000,
+      updatedAt: 1000,
+      closedAt: null,
+      labels: ["funnel-epic", "funnel-todo"],
+      assignees: [],
+      comments: [],
+    };
+
+    // Older callers may omit isEpic; the fallback must use `funnel-epic`.
+    mirror.upsertIssue(
+      record,
+      {
+        status: "todo",
+        impact: null,
+        urgency: null,
+        priority: null,
+        size: null,
+        blocked: false,
+        labelConflict: false,
+      },
+      vocabulary,
+    );
+    expect(mirror.getIssue(repo.id, 3)?.isEpic).toBe(1);
+
+    // The metadata-only path shares the same vocabulary-aware fallback.
+    mirror.setIssueMetadata(
+      repo.id,
+      3,
+      {
+        status: "todo",
+        impact: null,
+        urgency: null,
+        priority: null,
+        size: null,
+        blocked: false,
+        labelConflict: true,
+      },
+      vocabulary,
+    );
+    expect(mirror.getIssue(repo.id, 3)?.isEpic).toBe(1);
+
+    // An old unprefixed epic name is an ordinary label once a prefix is set.
+    mirror.upsertIssue(
+      { ...record, externalId: "7202", number: 4, labels: ["epic", "todo"] },
+      {
+        status: "todo",
+        impact: null,
+        urgency: null,
+        priority: null,
+        size: null,
+        blocked: false,
+        labelConflict: false,
+      },
+      vocabulary,
+    );
+    expect(mirror.getIssue(repo.id, 4)?.isEpic).toBe(0);
   });
 
   test("replaces labels and assignees on re-hydration", () => {

@@ -32,7 +32,11 @@ import {
   mirrorUser,
   statePlanItem,
 } from "#lib/server/db/schema";
-import { CANONICAL_LABELS, type LabelGroup } from "#lib/server/github/labels";
+import {
+  DEFAULT_VOCABULARY,
+  type LabelGroup,
+  type ReservedVocabulary,
+} from "#lib/labels";
 import { addWeeks, weekStartOf } from "#lib/server/planning/calendar";
 import { isRetiredPriorityLabel } from "#lib/priority";
 
@@ -73,9 +77,9 @@ export type PlannedValue = (typeof PLANNED_VALUES)[number];
 /** Sentinel selecting items missing the label for a dimension. */
 export const NONE = "none";
 
-/** Canonical label name (lowercase) -> its reserved group. */
+/** Canonical label name (lowercase) -> its reserved group (default vocabulary). */
 export const RESERVED_GROUP = new Map<string, LabelGroup>(
-  CANONICAL_LABELS.map((label) => [label.name.toLowerCase(), label.group]),
+  DEFAULT_VOCABULARY.labels.map((label) => [label.name.toLowerCase(), label.group]),
 );
 
 const STATUS_SET = new Set<string>(STATUS_VALUES);
@@ -124,6 +128,11 @@ export interface IssueFilterContext {
   viewerExternalId?: string | null;
   /** Login -> external id resolver (case-insensitive) for assignee names. */
   resolveLogin?: (login: string) => string | undefined;
+  /**
+   * The configured reserved vocabulary. Actual GitHub names are prefixed, but
+   * the URL/API values stay logical, so only reserved-label exclusion uses it.
+   */
+  vocabulary?: ReservedVocabulary;
 }
 
 export const EMPTY_FILTER: IssueFilter = {
@@ -249,6 +258,7 @@ export function parseIssueFilter(
   params: URLSearchParams,
   ctx: IssueFilterContext,
 ): IssueFilter {
+  const vocabulary = ctx.vocabulary ?? DEFAULT_VOCABULARY;
   const milestones = resolveMilestones(multi(params, "milestone"), ctx.repos);
   return {
     repos: resolveRepos(multi(params, "repo"), ctx.repos),
@@ -261,7 +271,7 @@ export function parseIssueFilter(
     sizes: vocab(multi(params, "size"), SIZE_SET),
     labels: multi(params, "label").filter(
       (name) =>
-        !RESERVED_GROUP.has(name.toLowerCase()) &&
+        !vocabulary.byName.has(name.toLowerCase()) &&
         !isRetiredPriorityLabel(name),
     ),
     planned: vocab(multi(params, "planned"), PLANNED_SET),
@@ -455,7 +465,10 @@ export function buildIssueWhere(filter: IssueFilter): SQL | undefined {
   return conditions.length === 1 ? conditions[0] : and(...conditions);
 }
 
-/** Reserved-group membership of a label name, if any. */
-export function groupOf(label: string): LabelGroup | undefined {
-  return RESERVED_GROUP.get(label.toLowerCase());
+/** Reserved-group membership of an actual label name, if any. */
+export function groupOf(
+  label: string,
+  vocabulary: ReservedVocabulary = DEFAULT_VOCABULARY,
+): LabelGroup | undefined {
+  return vocabulary.byName.get(label.toLowerCase())?.group;
 }

@@ -13,6 +13,7 @@
 import { configuredRepoSlugs, getConfig } from "#/lib/server/config";
 import { createLogger, errorFields } from "#/lib/server/log";
 import { forge } from "#/lib/server/forge/providers.server";
+import { vocabularyFor } from "#/lib/server/label-vocabulary";
 import {
   provisionRepoLabels,
   type ProvisionSummary,
@@ -76,7 +77,12 @@ export async function reconcileRepo(
     refreshRepoMilestones(installationId, repoRow),
   ]);
   const removed = mirror.deleteIssuesNotIn(repoRow.id, result.seenNumbers);
-  const summary = await provisionRepoLabels(owner, repo);
+  const { labels } = await getConfig();
+  const summary = await provisionRepoLabels(
+    owner,
+    repo,
+    vocabularyFor(labels.prefix).labels,
+  );
   mirror.setRepoReconciledAt(repoRow.id, Date.now());
   mirror.setRepoDegraded(repoRow.id, false);
 

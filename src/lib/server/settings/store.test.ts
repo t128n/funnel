@@ -13,6 +13,7 @@ import {
 const BASE: SettingsInput = {
   repos: ["orgA/core"],
   projects: ["project1"],
+  labels: { prefix: "" },
   intake: { default_repo: "orgA/core" },
   sync: {
     history_days: 45,
@@ -51,6 +52,7 @@ describe("settings store", () => {
 
     expect(settings.repos).toEqual([]);
     expect(settings.projects).toEqual([]);
+    expect(settings.labels).toEqual({ prefix: "" });
     expect(settings.intake).toEqual({});
     expect(settings.sync).toEqual({
       history_days: 90,
@@ -143,6 +145,30 @@ describe("settings store", () => {
     writeSettings(BASE);
 
     expect(readSettings()).toEqual(BASE);
+  });
+
+  test("defaults the label prefix to empty", () => {
+    expect(readSettings().labels).toEqual({ prefix: "" });
+  });
+
+  test("round-trips a label prefix", () => {
+    writeSettings({ ...BASE, labels: { prefix: "funnel" } });
+
+    expect(readSettings().labels).toEqual({ prefix: "funnel" });
+  });
+
+  test("normalizes a trailing hyphen on write", () => {
+    writeSettings({ ...BASE, labels: { prefix: "  funnel- " } });
+
+    expect(readSettings().labels.prefix).toBe("funnel");
+  });
+
+  test("rejects unsafe or over-long label prefixes", () => {
+    for (const prefix of ["funnel_2", "funnel 2", "funnel/2", "x".repeat(33)]) {
+      expect(() =>
+        writeSettings({ ...BASE, labels: { prefix } })
+      ).toThrow(SettingsError);
+    }
   });
 
   test("deletes the row for an unset intake.default_repo", () => {

@@ -21,6 +21,7 @@ import {
   provisionCanonicalLabels,
   provisionRepoLabels,
 } from "./labels";
+import { buildReservedLabels } from "#lib/labels";
 
 interface FakeLabel {
   name: string;
@@ -241,6 +242,49 @@ describe("provisionRepoLabels", () => {
       status: 404,
     });
   });
+
+  test("with a prefix, creates only prefixed names and leaves old names alone", async () => {
+    const prefixed = buildReservedLabels("funnel");
+    existing = [{ name: "todo", colour: "56a8f5", description: "Status: Todo" }];
+
+    const summary = await provisionRepoLabels(
+      "acme",
+      "widgets",
+      prefixed,
+    );
+
+    expect(summary.created).toEqual(prefixed.map((label) => label.name));
+    expect(summary.updated).toEqual([]);
+    expect(calls).toHaveLength(prefixed.length);
+    expect(calls.every((call) => call.method === "POST")).toBe(true);
+    expect(
+      calls.some((call) => (call.body as { name?: string })?.name === "todo"),
+    ).toBe(false);
+  });
+
+  test("with a prefix, patches drift under the prefixed name", async () => {
+    const prefixed = buildReservedLabels("funnel");
+    existing = [
+      { name: "Funnel-Todo", colour: "000000", description: "old" },
+    ];
+
+    const summary = await provisionRepoLabels(
+      "acme",
+      "widgets",
+      prefixed,
+    );
+
+    expect(summary.updated).toEqual(["funnel-todo"]);
+    expect(calls).toContainEqual({
+      method: "PATCH",
+      path: "/repos/acme/widgets/labels/Funnel-Todo",
+      body: {
+        color: prefixed.find((label) => label.base === "todo")!.color,
+        description: prefixed.find((label) => label.base === "todo")!
+          .description,
+      },
+    });
+  });
 });
 
 describe("provisionCanonicalLabels", () => {
@@ -315,13 +359,23 @@ describe("provisionCanonicalLabels", () => {
     });
   });
 
+  test("provisions the configured prefixed vocabulary", async () => {
+    setConfig({ ...TEST_CONFIG, labels: { prefix: "funnel" } });
+
+    const report = await provisionCanonicalLabels();
+
+    expect(report.failed).toBe(0);
+    expect(report.created).toBe(CANONICAL_LABELS.length);
+    expect(
+      calls.map((call) => (call.body as { name?: string })?.name),
+    ).toEqual(buildReservedLabels("funnel").map((label) => label.name));
+  });
+
   test("resolves with an empty report when config cannot be loaded", async () => {
-    // Force a load failure deterministically: `intake.default_repo` points at a
-    // repository that is not configured, which the cross-field validation
-    // rejects (a plain empty store would now be a valid fresh-install config).
     writeSettings({
       repos: [],
       projects: [],
+      labels: { prefix: "" },
       intake: { default_repo: "ghost/repo" },
       sync: TEST_CONFIG.sync,
       board: TEST_CONFIG.board,

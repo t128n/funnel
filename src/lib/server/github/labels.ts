@@ -9,10 +9,12 @@
  * installation token (`funnel[bot]`), independent of any signed-in user
  * (SPEC §8), and is idempotent: a converged repo issues zero writes.
  *
- * Only the reserved names in {@link CANONICAL_LABELS} are ever created or
- * patched. Every other label (`bug`, `frontend`, monorepo domain tags, ...)
- * is preserved untouched (SPEC §5.2(5)). Retired priority labels are left in
- * place: dropping them is a separate, explicit upstream cleanup.
+ * Only the reserved names in the configured vocabulary (see
+ * {@link CANONICAL_LABELS}, prefixed by `labels.prefix`) are ever created or
+ * patched. Every other label (`bug`, `frontend`, monorepo domain tags, and old
+ * reserved names from before a prefix change, ...) is preserved untouched
+ * (SPEC §5.2(5)). Retired priority labels are left in place: dropping them is a
+ * separate, explicit upstream cleanup.
  *
  * Reads, creates and updates go through a `forges` installation provider.
  * `forges` models listing and creating labels but not updating one, so drift
@@ -23,6 +25,7 @@
 import { ForgeApiError } from "forges";
 import { configuredRepoSlugs, getConfig } from "#/lib/server/config";
 import { CANONICAL_LABELS, type CanonicalLabel, type LabelGroup } from "#lib/labels";
+import { vocabularyFor } from "#/lib/server/label-vocabulary";
 import { createLogger, errorFields } from "#/lib/server/log";
 import { forge, type GitHubProvider } from "#/lib/server/forge/providers.server";
 
@@ -150,8 +153,13 @@ export async function provisionCanonicalLabels(): Promise<ProvisionReport> {
   };
 
   let repos: readonly string[];
+  let labels: readonly CanonicalLabel[];
   try {
-    repos = configuredRepoSlugs(await getConfig());
+    const config = await getConfig();
+    repos = configuredRepoSlugs(config);
+    // Only the configured set is ever created or patched. Changing the prefix
+    // therefore leaves old names untouched: they simply stop being canonical.
+    labels = vocabularyFor(config.labels.prefix).labels;
   } catch (error) {
     log.warn(errorFields(error), "provisioning skipped");
     return report;
@@ -166,7 +174,7 @@ export async function provisionCanonicalLabels(): Promise<ProvisionReport> {
     const repo = entry.slice(slash + 1);
     const repoStartedAt = Date.now();
     try {
-      const summary = await provisionRepoLabels(owner, repo);
+      const summary = await provisionRepoLabels(owner, repo, labels);
       report.created += summary.created.length;
       report.updated += summary.updated.length;
       report.repos.push({ repo: entry, summary });

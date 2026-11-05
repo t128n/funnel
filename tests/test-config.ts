@@ -14,6 +14,7 @@ export const TEST_CONFIG: FunnelConfig = {
   github: { url: "https://github.com", api_url: "https://api.github.com" },
   repos: [{ repo: "orgA/core", shortcode: "CORE" }],
   projects: [],
+  labels: { prefix: "" },
   intake: {},
   sync: {
     history_days: 90,

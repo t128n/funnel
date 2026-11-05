@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { CANONICAL_LABELS } from "#lib/labels";
+import { buildVocabulary, CANONICAL_LABELS } from "#lib/labels";
 import type { GitHubProvider, RepoRef } from "#lib/server/forge/providers.server";
 import {
   deriveMetadata,
@@ -14,6 +14,7 @@ describe("deriveMetadata", () => {
   test("test_epic_label_is_canonical", () => {
     expect(CANONICAL_LABELS).toContainEqual({
       name: "epic",
+      base: "epic",
       color: "b389f5",
       description: "Type: Epic",
       group: "epic",
@@ -108,6 +109,47 @@ describe("deriveMetadata", () => {
       conflicts: [],
     });
   });
+
+  test("recognizes prefixed labels but returns logical keys", () => {
+    const vocabulary = buildVocabulary("funnel");
+    expect(
+      deriveMetadata(
+        [
+          "funnel-todo",
+          "funnel-sev",
+          "funnel-high",
+          "funnel-md",
+          "funnel-blocked",
+          "funnel-epic",
+          "bug",
+        ],
+        vocabulary,
+      ),
+    ).toEqual({
+      status: "todo",
+      impact: 1,
+      urgency: 1,
+      priority: "P1",
+      size: "md",
+      blocked: true,
+      isEpic: true,
+      conflicts: [],
+    });
+  });
+
+  test("ignores old unprefixed names when a prefix is configured", () => {
+    const vocabulary = buildVocabulary("funnel");
+    expect(deriveMetadata(["todo", "sev", "high", "md"], vocabulary)).toEqual({
+      status: null,
+      impact: null,
+      urgency: null,
+      priority: null,
+      size: null,
+      blocked: false,
+      isEpic: false,
+      conflicts: [],
+    });
+  });
 });
 
 describe("parseTimeline", () => {
@@ -172,6 +214,21 @@ describe("resolveWinners", () => {
     const resolution = resolveWinners(["todo", "in-progress"], []);
     expect(resolution.ambiguous).toBe(true);
     expect(resolution.obsolete).toEqual(["in-progress"]);
+  });
+
+  test("resolves prefixed names with the configured vocabulary", () => {
+    const vocabulary = buildVocabulary("funnel");
+    const resolution = resolveWinners(
+      ["funnel-todo", "funnel-in-progress"],
+      [
+        { label: "funnel-todo", createdAt: 100 },
+        { label: "funnel-in-progress", createdAt: 200 },
+      ],
+      vocabulary,
+    );
+    expect(resolution.ambiguous).toBe(false);
+    expect(resolution.winners.get("status")).toBe("funnel-in-progress");
+    expect(resolution.obsolete).toEqual(["funnel-todo"]);
   });
 
   test("single-label groups are never conflicted", () => {
@@ -293,6 +350,26 @@ describe("resolveIssueConflict", () => {
       ambiguous: false,
     });
     expect(removed).toEqual([]);
+  });
+
+  test("removes prefixed labels and returns the logical winner", async () => {
+    const vocabulary = buildVocabulary("funnel");
+    const { provider, removed } = fakeProvider([
+      labelEvent("funnel-todo", 1000),
+      labelEvent("funnel-in-progress", 2000),
+    ]);
+
+    const resolved = await resolveIssueConflict(
+      provider,
+      repo,
+      1,
+      ["funnel-todo", "funnel-in-progress"],
+      vocabulary,
+    );
+
+    expect(resolved.removed).toEqual(["funnel-todo"]);
+    expect(resolved.metadata.status).toBe("in-progress");
+    expect(removed).toEqual([["funnel-todo"]]);
   });
 });
 

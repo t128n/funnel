@@ -16,6 +16,8 @@
  */
 import type { Thread, ThreadInput, ThreadRef, ThreadUpdate } from "forges";
 import { getConfig, isConfiguredRepo } from "#lib/server/config";
+import { DEFAULT_VOCABULARY, type LabelGroup, type ReservedVocabulary } from "#lib/labels";
+import { vocabularyFor } from "#lib/server/label-vocabulary";
 import { forge, type GitHubProvider } from "#lib/server/forge/providers.server";
 import {
   errorMessage,
@@ -23,11 +25,10 @@ import {
   type Outcome,
 } from "#lib/server/http/outcome";
 import { createLogger, errorFields } from "#lib/server/log";
-import { CANONICAL_LABELS, type LabelGroup } from "#lib/server/github/labels";
 import { createRepoMilestone } from "#lib/server/github/milestones";
 import { publish } from "#lib/server/sync/events";
 import { isRetiredPriorityLabel } from "#lib/priority";
-import { groupOf, SIZE_VALUES, STATUS_VALUES } from "./filters";
+import { groupOf } from "./filters";
 
 const log = createLogger({ component: "issues" });
 
@@ -120,40 +121,51 @@ function splitRepo(repo: string): { owner: string; name: string } | null {
   return { owner: repo.slice(0, slash), name: repo.slice(slash + 1) };
 }
 
-const GROUP_VALUES: Record<LabelGroup, ReadonlySet<string>> = {
-  status: new Set(STATUS_VALUES),
-  // Priority is no longer a label group; the set stays empty so the record
-  // remains total without accepting a retired p-label as canonical.
-  priority: new Set<string>(),
-  impact: groupMembers("impact"),
-  urgency: groupMembers("urgency"),
-  size: new Set(SIZE_VALUES),
-  flags: groupMembers("flags"),
-  epic: groupMembers("epic"),
-};
-
-function isCanonical(group: LabelGroup, value: string): boolean {
-  return GROUP_VALUES[group].has(value.toLowerCase());
+/** Every logical value in a group, lowercased. */
+function groupValues(
+  group: LabelGroup,
+  vocabulary: ReservedVocabulary,
+): ReadonlySet<string> {
+  if (group === "priority") return new Set<string>();
+  return new Set(
+    vocabulary.labels
+      .filter((label) => label.group === group)
+      .map((label) => label.base.toLowerCase()),
+  );
 }
 
-/** Every canonical label name in a group, lowercased. */
-function groupMembers(group: LabelGroup): Set<string> {
+function isCanonical(
+  group: LabelGroup,
+  value: string,
+  vocabulary: ReservedVocabulary,
+): boolean {
+  return groupValues(group, vocabulary).has(value.toLowerCase());
+}
+
+/** Every actual label name in a group, lowercased. */
+function groupMembers(
+  group: LabelGroup,
+  vocabulary: ReservedVocabulary,
+): Set<string> {
   return new Set(
-    CANONICAL_LABELS.filter((label) => label.group === group).map((label) =>
-      label.name.toLowerCase(),
-    ),
+    vocabulary.labels
+      .filter((label) => label.group === group)
+      .map((label) => label.name.toLowerCase()),
   );
 }
 
 /** Keep the first label of each reserved group; de-duplicate case-insensitively. */
-export function normalizeReserved(labels: readonly string[]): string[] {
+export function normalizeReserved(
+  labels: readonly string[],
+  vocabulary: ReservedVocabulary = DEFAULT_VOCABULARY,
+): string[] {
   const seen = new Set<string>();
   const seenGroups = new Set<LabelGroup>();
   const out: string[] = [];
   for (const raw of labels) {
     const lower = raw.toLowerCase();
     if (seen.has(lower)) continue;
-    const group = groupOf(lower);
+    const group = groupOf(lower, vocabulary);
     if (group) {
       if (seenGroups.has(group)) continue;
       seenGroups.add(group);
@@ -166,17 +178,24 @@ export function normalizeReserved(labels: readonly string[]): string[] {
 
 /**
  * Return `labels` with the reserved group's labels removed and `target`
- * (canonical name, or `null` to just clear the group) appended.
+ * (a logical key, or `null` to just clear the group) appended as its actual
+ * GitHub name.
  */
 export function withReserved(
   labels: readonly string[],
   group: LabelGroup,
   target: string | null,
+  vocabulary: ReservedVocabulary = DEFAULT_VOCABULARY,
 ): string[] {
-  const members = groupMembers(group);
+  const members = groupMembers(group, vocabulary);
   const filtered = labels.filter((label) => !members.has(label.toLowerCase()));
-  if (target) filtered.push(target.toLowerCase());
-  return normalizeReserved(filtered);
+  if (target) {
+    const entry =
+      vocabulary.byBase.get(target.toLowerCase()) ??
+      vocabulary.byName.get(target.toLowerCase());
+    filtered.push(entry?.name ?? target.toLowerCase());
+  }
+  return normalizeReserved(filtered, vocabulary);
 }
 
 /** Read the issue's authoritative label set from the forge (names only). */
@@ -236,13 +255,24 @@ export async function createIssue(
   const notConfigured = await requireConfiguredRepo(input.repo);
   if (notConfigured) return notConfigured;
 
+  const vocabulary = vocabularyFor((await getConfig()).labels.prefix);
+
   let labels = normalizeReserved(
     (input.labels ?? []).filter((label) => !isRetiredPriorityLabel(label)),
+    vocabulary,
   );
-  if (input.status) labels = withReserved(labels, "status", input.status);
-  if (input.impact) labels = withReserved(labels, "impact", input.impact);
-  if (input.urgency) labels = withReserved(labels, "urgency", input.urgency);
-  if (input.size) labels = withReserved(labels, "size", input.size);
+  if (input.status) {
+    labels = withReserved(labels, "status", input.status, vocabulary);
+  }
+  if (input.impact) {
+    labels = withReserved(labels, "impact", input.impact, vocabulary);
+  }
+  if (input.urgency) {
+    labels = withReserved(labels, "urgency", input.urgency, vocabulary);
+  }
+  if (input.size) {
+    labels = withReserved(labels, "size", input.size, vocabulary);
+  }
 
   const thread: ThreadInput = {
     kind: "issue",
@@ -293,6 +323,8 @@ export async function updateIssue(
   const notConfigured = await requireConfiguredRepo(input.repo);
   if (notConfigured) return notConfigured;
 
+  const vocabulary = vocabularyFor((await getConfig()).labels.prefix);
+
   const ref = forge.threadRef(
     forge.repoRef(parts.owner, parts.name),
     "issue",
@@ -340,7 +372,7 @@ export async function updateIssue(
     ["urgency", input.urgency],
     ["size", input.size],
   ] as const) {
-    if (value !== undefined && value !== null && !isCanonical(group, value)) {
+    if (value !== undefined && value !== null && !isCanonical(group, value, vocabulary)) {
       return badRequest(`Invalid ${group} value: ${value}`);
     }
   }
@@ -370,22 +402,23 @@ export async function updateIssue(
     if (reservedRequested) {
       let labels = await fetchIssueLabels(input.provider, ref);
       if (input.status !== undefined) {
-        labels = withReserved(labels, "status", input.status);
+        labels = withReserved(labels, "status", input.status, vocabulary);
       }
       if (input.impact !== undefined) {
-        labels = withReserved(labels, "impact", input.impact);
+        labels = withReserved(labels, "impact", input.impact, vocabulary);
       }
       if (input.urgency !== undefined) {
-        labels = withReserved(labels, "urgency", input.urgency);
+        labels = withReserved(labels, "urgency", input.urgency, vocabulary);
       }
       if (input.size !== undefined) {
-        labels = withReserved(labels, "size", input.size);
+        labels = withReserved(labels, "size", input.size, vocabulary);
       }
       if (input.blocked !== undefined) {
         labels = withReserved(
           labels,
           "flags",
           input.blocked ? "blocked" : null,
+          vocabulary,
         );
       }
       const replaced = await replaceIssueLabels(input.provider, ref, labels);
@@ -434,6 +467,8 @@ export async function addIssueLabels(
     return badRequest("Priority labels are retired; set impact and urgency instead");
   }
 
+  const vocabulary = vocabularyFor((await getConfig()).labels.prefix);
+
   const ref = forge.threadRef(
     forge.repoRef(parts.owner, parts.name),
     "issue",
@@ -443,10 +478,10 @@ export async function addIssueLabels(
   try {
     let labels = await fetchIssueLabels(input.provider, ref);
     for (const raw of input.labels) {
-      const group = groupOf(raw);
+      const group = groupOf(raw, vocabulary);
       labels = group
-        ? withReserved(labels, group, raw)
-        : normalizeReserved([...labels, raw]);
+        ? withReserved(labels, group, raw, vocabulary)
+        : normalizeReserved([...labels, raw], vocabulary);
     }
     await replaceIssueLabels(input.provider, ref, labels);
   } catch (error) {

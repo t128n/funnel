@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, untrack } from 'svelte';
 	import { goto, refreshAll } from '$app/navigation';
 	import { createHotkeys, getAppHotkeys } from '@tanstack/svelte-hotkeys';
 	import AppShell from '#lib/components/shell/AppShell.svelte';
@@ -9,10 +9,19 @@
 	import { startNativeNotifications } from '#lib/client/native-notifications';
 	import { clockTick, startClock } from '#lib/client/clock.svelte';
 	import { bumpRefresh, type RefreshScope } from '#lib/client/refresh';
+	import { setActiveLabelPrefix } from '#lib/labels';
 	import { canWrite } from '#lib/roles';
 	import type { LayoutProps } from './$types';
 
 	let { data, children }: LayoutProps = $props();
+
+	// Raw GitHub label names in feed/inspector payloads are recognized against
+	// the configured vocabulary. The top-level call covers SSR and first mount;
+	// the effect keeps it in step when settings refresh the layout data.
+	setActiveLabelPrefix(untrack(() => data.labelPrefix));
+	$effect(() => {
+		setActiveLabelPrefix(data.labelPrefix);
+	});
 
 	const mayWrite = $derived(canWrite(data.user.role));
 

@@ -631,6 +631,7 @@ function writeSettingsSeed(): void {
       { repo: DEMO_REPO_SLUGS[1], shortcode: "PLT" },
     ],
     projects: ["frontend", "backend", "docs", "infra"],
+    labels: { prefix: "" },
     intake: { default_repo: DEMO_REPO_SLUGS[0] },
     sync: {
       history_days: 90,

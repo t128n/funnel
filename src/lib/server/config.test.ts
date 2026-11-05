@@ -16,6 +16,7 @@ import {
 const BASE: SettingsInput = {
   repos: [],
   projects: [],
+  labels: { prefix: "" },
   intake: {},
   sync: {
     history_days: 90,
@@ -74,6 +75,7 @@ describe("loadFunnelConfig", () => {
         { label: "project1", name: "Project One" },
         { label: "project2", name: "project2" },
       ],
+      labels: { prefix: "" },
       intake: { default_repo: "orgA/core" },
       sync: {
         history_days: 30,

@@ -257,6 +257,8 @@ If installation resolution fails with a non-404 status, the route returns `{"mes
 
 Reserved labels are normalised to at most one per active group before the GitHub create: status, impact, urgency and size are each single-valued. Retired `p1`–`p3` labels are stripped from outbound sets. Success returns `201` with `{ number, htmlUrl }`.
 
+These shortcut values are always the **logical keys**, even when the instance configures a `labels.prefix`. With `funnel`, sending `status: "todo"` writes the GitHub label `funnel-todo`; `labels` itself contains actual GitHub names and is preserved as given (apart from reserved-group normalisation).
+
 ### Read or update an issue
 
 `PATCH /api/repos/{owner}/{repo}/issues/{number}`
@@ -276,6 +278,8 @@ Reserved labels are normalised to at most one per active group before the GitHub
 | `milestone` | positive integer or `null` | Attaches a repository milestone by number, or clears it. Omitting the field leaves it untouched. |
 
 A patch with no fields present returns `400 {"message":"No changes provided"}`. An invalid status, impact, urgency or size value returns `400 {"message":"Invalid status value: …"}`. Field edits and state changes use GitHub's issue update; reserved-label edits read the authoritative label set from GitHub and replace it so at most one label per active group remains. Priority is derived from impact × urgency and is not writable. Success returns `200` with `{ number, htmlUrl }`.
+
+As on create, `status`, `impact`, `urgency` and `size` are logical keys. A configured prefix changes only the GitHub names written (`todo` → `funnel-todo`), never the accepted request values.
 
 ## Comments
 

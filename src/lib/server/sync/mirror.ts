@@ -30,6 +30,10 @@ import {
   mirrorUser,
 } from "#lib/server/db/schema";
 import {
+  DEFAULT_VOCABULARY,
+  type ReservedVocabulary,
+} from "#lib/labels";
+import {
   priorityRank,
   retiredPriorityConflict,
   type Impact,
@@ -737,7 +741,11 @@ function storedPriorityRank(priority: Priority | null): number {
 }
 
 /** Write one prepared issue and its children inside the caller's transaction. */
-function writeIssue(tx: MirrorTx, prepared: PreparedIssue): void {
+function writeIssue(
+  tx: MirrorTx,
+  prepared: PreparedIssue,
+  vocabulary: ReservedVocabulary,
+): void {
   const { issue, metadata, authorId, assigneeIds, comments } = prepared;
 
   // A matching retired p-label is just stale; a mismatching one is a conflict
@@ -747,10 +755,15 @@ function writeIssue(tx: MirrorTx, prepared: PreparedIssue): void {
     retiredPriorityConflict(metadata.priority, issue.labels);
 
   // `epic` is a type marker, independent of status and the blocked flag. The
-  // label set is authoritative; metadata just caches the derivation.
+  // label set is authoritative; metadata just caches the derivation. Older
+  // callers may omit `isEpic`, so resolve the actual configured name (which is
+  // `epic` itself only at the default prefix).
+  const epicName = (
+    vocabulary.byBase.get("epic")?.name ?? "epic"
+  ).toLowerCase();
   const isEpic =
     metadata.isEpic ??
-    issue.labels.some((label) => label.toLowerCase() === "epic");
+    issue.labels.some((label) => label.toLowerCase() === epicName);
 
   tx.insert(mirrorThread)
     .values({
@@ -939,6 +952,7 @@ function writeIssue(tx: MirrorTx, prepared: PreparedIssue): void {
 export function upsertIssues(
   issues: readonly IssueRecord[],
   metadata: StoredMetadata | ((issue: IssueRecord) => StoredMetadata),
+  vocabulary: ReservedVocabulary = DEFAULT_VOCABULARY,
 ): void {
   if (issues.length === 0) return;
   const metadataFor =
@@ -948,15 +962,23 @@ export function upsertIssues(
     // thread, label, assignee and comment row reuses the returned id map.
     const userIds = upsertUsersIn(tx, collectIssueUsers(issues));
     for (const issue of issues) {
-      writeIssue(tx, prepareIssue(issue, metadataFor(issue), userIds));
+      writeIssue(
+        tx,
+        prepareIssue(issue, metadataFor(issue), userIds),
+        vocabulary,
+      );
     }
   });
   bumpRevision();
 }
 
 /** One-record wrapper over {@link upsertIssues}. */
-export function upsertIssue(issue: IssueRecord, metadata: StoredMetadata): void {
-  upsertIssues([issue], metadata);
+export function upsertIssue(
+  issue: IssueRecord,
+  metadata: StoredMetadata,
+  vocabulary: ReservedVocabulary = DEFAULT_VOCABULARY,
+): void {
+  upsertIssues([issue], metadata, vocabulary);
 }
 
 /**
@@ -964,7 +986,14 @@ export function upsertIssue(issue: IssueRecord, metadata: StoredMetadata): void 
  * when a metadata-only write omits `isEpic` (older callers, such as conflict
  * resolution): the cache must follow the labels, not be cleared to 0.
  */
-function carriedEpicLabel(repoId: number, number: number): boolean {
+function carriedEpicLabel(
+  repoId: number,
+  number: number,
+  vocabulary: ReservedVocabulary = DEFAULT_VOCABULARY,
+): boolean {
+  const epicName = (
+    vocabulary.byBase.get("epic")?.name ?? "epic"
+  ).toLowerCase();
   return db
     .select({ name: mirrorThreadLabel.labelName })
     .from(mirrorThreadLabel)
@@ -975,13 +1004,14 @@ function carriedEpicLabel(repoId: number, number: number): boolean {
       ),
     )
     .all()
-    .some((row) => row.name.toLowerCase() === "epic");
+    .some((row) => row.name.toLowerCase() === epicName);
 }
 
 export function setIssueMetadata(
   repoId: number,
   number: number,
   metadata: StoredMetadata,
+  vocabulary: ReservedVocabulary = DEFAULT_VOCABULARY,
 ): void {
   db.update(mirrorThread)
     .set({
@@ -992,7 +1022,9 @@ export function setIssueMetadata(
       priorityRank: storedPriorityRank(metadata.priority),
       size: metadata.size,
       blocked: metadata.blocked ? 1 : 0,
-      isEpic: (metadata.isEpic ?? carriedEpicLabel(repoId, number)) ? 1 : 0,
+      isEpic: (metadata.isEpic ?? carriedEpicLabel(repoId, number, vocabulary))
+        ? 1
+        : 0,
       labelConflict: metadata.labelConflict ? 1 : 0,
     })
     .where(

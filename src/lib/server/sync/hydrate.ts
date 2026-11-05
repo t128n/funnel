@@ -12,6 +12,11 @@
  * pure over an injected `graphql` function for testability.
  */
 import { and, eq } from "drizzle-orm";
+import {
+  buildVocabulary,
+  DEFAULT_VOCABULARY,
+  type ReservedVocabulary,
+} from "#lib/labels";
 import { db } from "#lib/server/db/index";
 import { authAccount } from "#lib/server/db/schema";
 import { forge } from "#lib/server/forge/providers.server";
@@ -538,10 +543,25 @@ export async function hydrateNodes(
 export interface HydrateOptions {
   /** The signed-in Funnel user whose write triggered this refresh. */
   actorUserId?: string;
+  /** Configured vocabulary; resolved from settings when omitted. */
+  vocabulary?: ReservedVocabulary;
   /** Test seam: replace the whole change hook. */
   notify?: (input: IssueChangeInput) => number;
   /** Test seam: override the instance's enabled switch. */
   notificationsEnabled?: () => boolean | Promise<boolean>;
+}
+
+/**
+ * The configured vocabulary for this hydration pass. Reads the setting
+ * directly (like the notification switch) so a failed config load degrades to
+ * the default vocabulary instead of aborting the mirror.
+ */
+function configuredVocabulary(): ReservedVocabulary {
+  try {
+    return buildVocabulary(readSettings().labels.prefix);
+  } catch {
+    return DEFAULT_VOCABULARY;
+  }
 }
 
 /**
@@ -625,6 +645,7 @@ export async function hydrateAndStore(
     ? await options.notificationsEnabled()
     : await notificationsEnabled();
   const notify = options.notify ?? notifyIssueChanges;
+  const vocabulary = options.vocabulary ?? configuredVocabulary();
 
   // Snapshot every issue's previous state before the batch write; a missing
   // row means a first sighting. The transition recorder needs its snapshot even
@@ -646,20 +667,25 @@ export async function hydrateAndStore(
   }
 
   const metadataByNumber = new Map<number, mirror.StoredMetadata>();
-  mirror.upsertIssues(records, (record) => {
-    const derived = deriveMetadata(record.labels);
-    const metadata: mirror.StoredMetadata = {
-      status: derived.status,
-      impact: derived.impact,
-      urgency: derived.urgency,
-      priority: derived.priority,
-      size: derived.size,
-      blocked: derived.blocked,
-      labelConflict: derived.conflicts.length > 0,
-    };
-    metadataByNumber.set(record.number, metadata);
-    return metadata;
-  });
+  mirror.upsertIssues(
+    records,
+    (record) => {
+      const derived = deriveMetadata(record.labels, vocabulary);
+      const metadata: mirror.StoredMetadata = {
+        status: derived.status,
+        impact: derived.impact,
+        urgency: derived.urgency,
+        priority: derived.priority,
+        size: derived.size,
+        blocked: derived.blocked,
+        isEpic: derived.isEpic,
+        labelConflict: derived.conflicts.length > 0,
+      };
+      metadataByNumber.set(record.number, metadata);
+      return metadata;
+    },
+    vocabulary,
+  );
 
   if (!repo) return records;
 

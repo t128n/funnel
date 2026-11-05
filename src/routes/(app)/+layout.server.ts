@@ -58,6 +58,7 @@ export const load: LayoutServerLoad = async ({ locals, url, cookies }) => {
     nativeNotifications,
     githubUrl: config.github.url,
     defaultRepo: config.intake.default_repo ?? config.repos[0]?.repo ?? "",
+    labelPrefix: config.labels.prefix,
     repoShortcodes: repoShortcodeMap(config),
     projects: config.projects,
     doneDays: config.board.done_days,
