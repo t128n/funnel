@@ -7,7 +7,10 @@ import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 
 function source(relative: string): string {
-  return readFileSync(new URL(`../${relative}`, import.meta.url), "utf8");
+  return readFileSync(
+    new URL(`../${relative}`, import.meta.url),
+    "utf8",
+  ).replace(/\r\n/g, "\n");
 }
 
 describe("attention page", () => {

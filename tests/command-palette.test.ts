@@ -119,7 +119,8 @@ describe('palette selection', () => {
 
 describe('palette wiring', () => {
 	const root = new URL('..', import.meta.url);
-	const source = (path: string) => readFileSync(new URL(path, root), 'utf8');
+	const source = (path: string) =>
+		readFileSync(new URL(path, root), 'utf8').replace(/\r\n/g, '\n');
 
 	test('one Mod+K surface hosts commands and issue results', () => {
 		const panel = source('src/lib/components/shell/GlobalSearch.svelte');

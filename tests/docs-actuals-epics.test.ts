@@ -15,7 +15,7 @@ function read(relative: string): string {
   return readFileSync(
     fileURLToPath(new URL(`../${relative}`, import.meta.url)),
     "utf8",
-  );
+  ).replace(/\r\n/g, "\n");
 }
 
 const reserved = read("docs/reference/reserved-labels.md");

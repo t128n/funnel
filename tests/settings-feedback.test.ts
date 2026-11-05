@@ -12,7 +12,10 @@ import { isDirty } from "#lib/components/settings/settings-dirty";
 import { STATUS_OPTIONS } from "#lib/labels";
 
 function source(relative: string): string {
-  return readFileSync(new URL(`../${relative}`, import.meta.url), "utf8");
+  return readFileSync(
+    new URL(`../${relative}`, import.meta.url),
+    "utf8",
+  ).replace(/\r\n/g, "\n");
 }
 
 describe("settings dirty tracking", () => {

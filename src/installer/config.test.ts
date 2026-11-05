@@ -37,7 +37,10 @@ afterEach(() => {
 
 describe("envTemplate", () => {
   test("stays identical to the documented .env.example", () => {
-    const file = readFileSync(new URL("../../.env.example", import.meta.url), "utf8");
+    const file = readFileSync(
+      new URL("../../.env.example", import.meta.url),
+      "utf8",
+    ).replace(/\r\n/g, "\n");
     expect(envTemplate).toBe(file);
   });
 });
