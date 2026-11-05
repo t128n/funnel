@@ -95,7 +95,7 @@ The issue lists share one URL filter model: `repo`, `state`, `status`, `assignee
 
 `/issues` also accepts `sort=priority|updated|created|title` and `direction=asc|desc`. The default is `sort=priority&direction=asc`, which keeps priority rank ascending (P1 first, unprioritized last) and resolves ties by most recently updated. Title sorting is case-insensitive. Both parameters live in the URL, so the chosen sort survives reloads and shared links. Sort is a view preference: it does not count towards the active-filter badge. Board lanes keep their fixed priority order regardless of these parameters.
 
-
+### Inbox triage actions
 
 The submission detail route defines three SvelteKit form actions:
 
