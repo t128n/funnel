@@ -45,8 +45,10 @@ export const load: LayoutServerLoad = async ({ locals, url, cookies }) => {
 
   // Waiting is loaded separately from blocked Attention items. The page renders
   // it in its own section; the sidebar Attention badge intentionally counts
-  // only blocked overdue/today re-checks (see the app layout).
-  const waiting = waitingIssues();
+  // only blocked overdue/today re-checks (see the app layout). The configured
+  // `attention.waiting_days` drives the stale flag so the rule breaches and the
+  // Waiting section agree.
+  const waiting = waitingIssues(Date.now(), config.attention.waiting_days);
 
   // The badge counts this viewer's unread rows only; reading them is always
   // scoped by `auth_user.id`, never by a client-supplied id.

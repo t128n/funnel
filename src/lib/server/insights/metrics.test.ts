@@ -410,6 +410,34 @@ describe("stale waiting", () => {
       ),
     ).toBe(0);
   });
+
+  test("an explicit threshold overrides the seven-day default", () => {
+    const now = localNow();
+    const five = new Date(2026, 0, 10, 12, 0, 0).getTime();
+    const open = new Set([issueKey("a/one", 1)]);
+    const rows = [{ repo: "a/one", number: 1, waitingSince: five }];
+
+    expect(staleWaitingCount(rows, open, now)).toBe(0);
+    expect(staleWaitingCount(rows, open, now, 3)).toBe(1);
+    expect(
+      computeInsights(
+        {
+          pendingSubmissions: [],
+          submissions: [],
+          decisions: [],
+          closedIssues: [],
+          openIssues: [
+            { repo: "a/one", number: 1, status: "todo", createdAt: now },
+          ],
+          waiting: rows,
+        },
+        range(),
+        now,
+        null,
+        3,
+      ).stale,
+    ).toEqual({ count: 1, thresholdDays: 3 });
+  });
 });
 
 describe("backlog aging", () => {

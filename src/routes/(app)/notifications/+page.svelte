@@ -33,7 +33,8 @@
 		status: { label: 'Status', icon: 'bi-record-circle' },
 		priority: { label: 'Priority', icon: 'bi-flag' },
 		state: { label: 'State', icon: 'bi-arrow-clockwise' },
-		new_intake: { label: 'New intake', icon: 'bi-inbox' }
+		new_intake: { label: 'New intake', icon: 'bi-inbox' },
+		sla: { label: 'Attention rule', icon: 'bi-exclamation-octagon' }
 	};
 
 	const unread = $derived(data.items.filter((item) => item.readAt === null));
@@ -221,7 +222,7 @@
 
 <PageHead
 	title="Notifications"
-	description="Assignments, mentions, watched-issue changes, and new intake submissions."
+	description="Assignments, mentions, watched-issue changes, attention-rule breaches, and new intake submissions."
 />
 
 <main class="container-xl py-4">

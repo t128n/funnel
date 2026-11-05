@@ -62,7 +62,7 @@ import {
   listSubmissions,
 } from "#lib/server/intake/staging";
 import { activeSnoozes, issueSnoozeClause } from "#lib/server/snooze";
-import { getWaiting, listWaiting } from "#lib/server/waiting";
+import { getWaiting, listWaiting, WAITING_STALE_DAYS } from "#lib/server/waiting";
 import {
   getIssuePullRequests,
   getRepoByOrgName,
@@ -1330,8 +1330,11 @@ export function attentionIssues(): AttentionItem[] {
  * the waiting row, so it reappears after a re-sync. `now` drives the stale flag
  * and day count.
  */
-export function waitingIssues(now = Date.now()): WaitingAttentionItem[] {
-  const waits = listWaiting(now);
+export function waitingIssues(
+  now = Date.now(),
+  thresholdDays = WAITING_STALE_DAYS,
+): WaitingAttentionItem[] {
+  const waits = listWaiting(now, thresholdDays);
   if (waits.length === 0) return [];
 
   const conditions = waits.map((wait) => {

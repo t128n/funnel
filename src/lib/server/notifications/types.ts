@@ -13,7 +13,8 @@ export type NotificationKind =
 	| 'status'
 	| 'priority'
 	| 'state'
-	| 'new_intake';
+	| 'new_intake'
+	| 'sla';
 
 /** A recipient resolved from the GitHub mirror and the linked Funnel user. */
 export interface Recipient {

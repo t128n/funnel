@@ -33,6 +33,12 @@ export const TEST_CONFIG: FunnelConfig = {
     cycle_anchor: "2024-01-01",
     maintainers: [],
   },
+  attention: {
+    first_response_days: 3,
+    stale_open_days: 30,
+    recheck_cadence_days: 7,
+    waiting_days: 7,
+  },
 };
 
 /** A GitHub Enterprise config for exercising the dynamic host wiring. */

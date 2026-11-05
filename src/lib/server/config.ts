@@ -19,7 +19,9 @@ import { GITHUB_API_URL, GITHUB_URL } from "$app/env/private";
 import * as v from "valibot";
 import { deriveRepoShortcode } from "#lib/issue-ref";
 import {
+  attentionInput,
   count,
+  DEFAULT_ATTENTION,
   labelPrefix,
   planningInput,
   projectInput,
@@ -134,6 +136,12 @@ export const configSchema = v.pipe(
     }),
     /** Estimates, cycle shape and the maintainer roster (SPEC §1, §3). */
     planning: planningInput,
+    /**
+     * Triage thresholds. Optional at the schema boundary (existing stored
+     * settings and `setConfig()` literals predate it) but always resolved by a
+     * parse, so `getConfig().attention` is a complete object.
+     */
+    attention: v.optional(attentionInput, DEFAULT_ATTENTION),
   }),
   v.check(
     (config) =>
@@ -157,6 +165,15 @@ export const configSchema = v.pipe(
 );
 
 export type FunnelConfig = v.InferOutput<typeof configSchema>;
+
+/**
+ * Input accepted by {@link setConfig}: the resolved config with an optional
+ * attention section, so callers (and older tests) that predate issue #37 keep
+ * type-checking. The stored value always has the resolved defaults.
+ */
+export type FunnelConfigInput = Omit<FunnelConfig, "attention"> & {
+  attention?: FunnelConfig["attention"];
+};
 
 /** `owner/name` slugs for every configured repository. */
 export function configuredRepoSlugs(
@@ -251,8 +268,11 @@ export function resetConfigCache(): void {
  * tests exercise config-dependent code (e.g. the GitHub App's enterprise host)
  * without writing settings rows.
  */
-export function setConfig(config: FunnelConfig): void {
-  cached = Promise.resolve(config);
+export function setConfig(config: FunnelConfigInput): void {
+  cached = Promise.resolve({
+    ...config,
+    attention: config.attention ?? DEFAULT_ATTENTION,
+  });
 }
 
 /** Error raised when the funnel configuration fails to load or validate. */

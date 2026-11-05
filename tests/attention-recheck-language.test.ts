@@ -17,7 +17,7 @@ const row = source("src/lib/components/attention/AttentionRow.svelte");
 describe("Attention re-check language", () => {
 	test("the page states what the buckets mean", () => {
 		expect(page).toContain(
-			'description="Blocked issues grouped by re-check date, plus issues waiting on someone else."',
+			'description="Blocked issues grouped by re-check date, issues waiting on someone else, and configured rule breaches."',
 		);
 	});
 

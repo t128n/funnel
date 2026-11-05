@@ -109,6 +109,13 @@ export const settingsGroups: SettingsGroup[] = [
 				minRole: 'admin'
 			},
 			{
+				id: 'attention',
+				label: 'Attention rules',
+				description: 'First-response, stale, waiting and re-check thresholds.',
+				href: '/settings/attention',
+				minRole: 'admin'
+			},
+			{
 				id: 'notifications',
 				label: 'Notifications',
 				description: 'Which notification channels the instance uses.',

@@ -88,10 +88,14 @@ function toRow(row: WaitingTableRow): WaitingRow {
   };
 }
 
-function entry(row: WaitingRow, now: number): WaitingEntry {
+function entry(
+  row: WaitingRow,
+  now: number,
+  thresholdDays: number,
+): WaitingEntry {
   return {
     ...row,
-    stale: isWaitingStale(row, now),
+    stale: isWaitingStale(row, now, thresholdDays),
     days: waitingDays(row, now),
   };
 }
@@ -239,9 +243,13 @@ export function isWaiting(repo: string, number: number): boolean {
 
 /**
  * Every waiting issue, oldest wait first. `now` drives the derived stale flag
- * and day count; it has no effect on which rows are returned.
+ * and day count; `thresholdDays` lets the caller apply `attention.waiting_days`
+ * while defaulting to the original seven-day rule.
  */
-export function listWaiting(now = Date.now()): WaitingEntry[] {
+export function listWaiting(
+  now = Date.now(),
+  thresholdDays = WAITING_STALE_DAYS,
+): WaitingEntry[] {
   return db
     .select()
     .from(stateIssueWaiting)
@@ -251,5 +259,5 @@ export function listWaiting(now = Date.now()): WaitingEntry[] {
       asc(stateIssueWaiting.number),
     )
     .all()
-    .map((row) => entry(toRow(row), now));
+    .map((row) => entry(toRow(row), now, thresholdDays));
 }
