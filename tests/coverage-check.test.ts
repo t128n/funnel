@@ -339,16 +339,18 @@ describe("check-coverage CLI", () => {
 
 describe("parseArgs", () => {
   test("reads --flag value and --flag=value forms", () => {
+    const report = join(tmpdir(), "report.info");
+
     expect(
       parseArgs([
         "--lcov",
-        "/tmp/report.info",
+        report,
         "--min-lines",
         "0.9",
         "--min-functions=0.8",
       ]),
     ).toEqual({
-      lcovPath: "/tmp/report.info",
+      lcovPath: resolve(report),
       minLines: 0.9,
       minFunctions: 0.8,
     });

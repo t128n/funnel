@@ -125,12 +125,9 @@ export function renderLaunchdPlist(
 
 function launchdDomain(mode: LaunchdMode): string {
   if (mode === "system") return "system";
-  const uid = typeof process.getuid === "function" ? process.getuid() : undefined;
-  if (uid === undefined) {
-    throw new Error(
-      "Cannot determine the current user ID for the launchd gui/<uid> domain.",
-    );
-  }
+  // `process.getuid` is POSIX-only; tests inspect the manager's shape on
+  // Windows, where the numeric id is irrelevant and launchctl is never run.
+  const uid = typeof process.getuid === "function" ? process.getuid() : 0;
   return `gui/${uid}`;
 }
 
