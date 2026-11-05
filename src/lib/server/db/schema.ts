@@ -418,9 +418,11 @@ export const statePlanItem = sqliteTable(
 // ---------------------------------------------------------------------------
 // State: observed issue transitions (actual-time log).
 // Durable append-only events keyed by `org/name` + issue number so they
-// survive mirror pruning and a re-sync. `kind` is `status`, `state` or
-// `blocked`; `from_value` is null for the baseline rows written on first
-// observation. There is no historical backfill from the forge timeline.
+// survive mirror pruning and a re-sync. `kind` is `status`, `state`,
+// `blocked`, `priority`, `label` or `assignee`; `from_value` is null for the
+// baseline rows written on first observation of the three original kinds.
+// There is no historical backfill from the forge timeline: the log starts
+// when Funnel first observes the issue.
 // ---------------------------------------------------------------------------
 export const stateIssueEvent = sqliteTable(
   "state_issue_event",
@@ -429,7 +431,7 @@ export const stateIssueEvent = sqliteTable(
     org: text("org").notNull(),
     name: text("name").notNull(),
     issueNumber: integer("issue_number").notNull(),
-    /** `status` | `state` | `blocked`. */
+    /** `status` | `state` | `blocked` | `priority` | `label` | `assignee`. */
     kind: text("kind").notNull(),
     fromValue: text("from_value"),
     toValue: text("to_value"),
@@ -990,5 +992,73 @@ export const mirrorComment = sqliteTable(
   (t) => [
     uniqueIndex("uq_mirror_comment_external").on(t.repoId, t.externalId),
     index("idx_mirror_comment_thread").on(t.repoId, t.threadNumber),
+  ],
+);
+
+/**
+ * Normalized payload on a mirrored timeline event. Only the fields relevant to
+ * the event's kind are set; every field is optional so an unknown or partial
+ * forge payload still stores a useful row.
+ */
+export interface MirrorIssueEventDetail {
+  /** Label added or removed. */
+  label?: string;
+  /** Login assigned or unassigned. */
+  assignee?: string;
+  /** Commit OID for a plain reference. */
+  reference?: string;
+  /** Previous title (rename events). */
+  from?: string;
+  /** New title (rename events). */
+  to?: string;
+  /** Milestone title (milestoned/demilestoned events). */
+  milestone?: string;
+  /** `Issue` or `PullRequest` for a cross-reference. */
+  sourceType?: string;
+  sourceNumber?: number;
+  sourceTitle?: string;
+  sourceUrl?: string;
+}
+
+// ---------------------------------------------------------------------------
+// Mirror: GitHub issue timeline history.
+//
+// The disposable counterpart of `state_issue_event`: GitHub-owned actions
+// (labels, assignments, close/reopen, references, mentions, renames and
+// milestones) normalized from the batched hydration query. Keyed by
+// `(repo_id, external_id)` so each hydration is an idempotent upsert; rows are
+// deleted with the issue and never pruned merely because the import window
+// moved forward. Comments are deliberately excluded: `mirror_comment` already
+// mirrors them and the unified activity timeline must not duplicate them.
+// ---------------------------------------------------------------------------
+export const mirrorIssueEvent = sqliteTable(
+  "mirror_issue_event",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    repoId: integer("repo_id")
+      .notNull()
+      .references(() => mirrorRepo.id, { onDelete: "cascade" }),
+    threadNumber: integer("thread_number").notNull(),
+    /** Forge-native timeline item id (GraphQL node id). */
+    externalId: text("external_id").notNull(),
+    /** `label` | `assignment` | `state_change` | `referenced` | `mention` | `other`. */
+    kind: text("kind").notNull(),
+    /** Forge action, e.g. `labelled`, `assigned`, `closed`, `renamed`. */
+    action: text("action").notNull(),
+    /** Human-readable one-line description rendered by the timeline. */
+    summary: text("summary").notNull(),
+    actorId: integer("actor_id").references(() => mirrorUser.id, {
+      onDelete: "set null",
+    }),
+    occurredAt: integer("occurred_at").notNull(),
+    detail: text("detail", { mode: "json" }).$type<MirrorIssueEventDetail>(),
+  },
+  (t) => [
+    uniqueIndex("uq_mirror_issue_event_external").on(t.repoId, t.externalId),
+    index("idx_mirror_issue_event_issue").on(
+      t.repoId,
+      t.threadNumber,
+      t.occurredAt,
+    ),
   ],
 );

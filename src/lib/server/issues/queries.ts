@@ -75,6 +75,7 @@ import { readSettings } from "#lib/server/settings/store";
 import { emptyReactions, type ReactionContent } from "#lib/reactions";
 import { readBlocked, readEpicChildren } from "#lib/funnel-metadata";
 import { listViewerReactions } from "./reaction-state";
+import { listIssueHistory } from "./history";
 import {
   IMPACT_VALUES,
   URGENCY_VALUES,
@@ -1828,6 +1829,12 @@ export function getIssueDetail(
     commentTotal,
     hasMoreComments: commentTotal > comments.length,
     workNotes: listWorkNotes(org, name, number),
+    history: listIssueHistory({
+      repoId,
+      org,
+      name,
+      number,
+    }),
     attachments: listAttachments(org, name, number),
     pullRequests: toLinkedPullRequests(getIssuePullRequests(repoId, number)),
     repoLabels,

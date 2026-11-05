@@ -7,7 +7,7 @@
  * There are deliberately no update/delete helpers: undo appends an `undone`
  * event and restores the submission.
  */
-import { asc, eq, sql } from "drizzle-orm";
+import { and, asc, eq, sql } from "drizzle-orm";
 import { db } from "#lib/server/db/index";
 import { stateTriageEvent } from "#lib/server/db/schema";
 
@@ -81,5 +81,28 @@ export function latestTriageEvent(
     .from(stateTriageEvent)
     .where(eq(stateTriageEvent.submissionId, submissionId))
     .orderBy(sql`rowid desc`)
+    .get() as TriageEvent | undefined;
+}
+
+/**
+ * The earliest `accepted` decision that created one issue, or `undefined` when
+ * the issue did not come from intake. Used to add a "Created from intake"
+ * entry to the issue history without duplicating the append-only log.
+ */
+export function findAcceptedEvent(
+  repo: string,
+  number: number,
+): TriageEvent | undefined {
+  return db
+    .select()
+    .from(stateTriageEvent)
+    .where(
+      and(
+        eq(stateTriageEvent.action, "accepted"),
+        eq(stateTriageEvent.repo, repo),
+        eq(stateTriageEvent.number, number),
+      ),
+    )
+    .orderBy(asc(stateTriageEvent.createdAt), sql`rowid asc`)
     .get() as TriageEvent | undefined;
 }

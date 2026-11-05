@@ -14,8 +14,10 @@
 
 /** One entry of the durable `state_issue_event` log. */
 export interface IssueEvent {
-  /** `status` | `state` | `blocked`. */
-  kind: "status" | "state" | "blocked";
+  /** Stable row id when loaded from the store; synthetic in pure tests. */
+  id?: string;
+  /** `status` | `state` | `blocked` | `priority` | `label` | `assignee`. */
+  kind: "status" | "state" | "blocked" | "priority" | "label" | "assignee";
   fromValue: string | null;
   toValue: string | null;
   /** Unix milliseconds. */

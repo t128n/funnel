@@ -18,7 +18,7 @@ import {
   type ReservedVocabulary,
 } from "#lib/labels";
 import { db } from "#lib/server/db/index";
-import { authAccount } from "#lib/server/db/schema";
+import { authAccount, type MirrorIssueEventDetail } from "#lib/server/db/schema";
 import { forge } from "#lib/server/forge/providers.server";
 import { createLogger, errorFields } from "#lib/server/log";
 import { normalizeGraphqlReactions } from "#lib/reactions";
@@ -52,7 +52,7 @@ const log = createLogger({ component: "sync" });
 export const BATCH_SIZE = 100;
 
 /** GitHub's GraphQL `nodes(ids:)` caps a single query at 100 ids. */
-export const HYDRATE_QUERY = `query FunnelHydrate($ids: [ID!]!) {
+export const HYDRATE_QUERY = `query FunnelHydrate($ids: [ID!]!, $since: DateTime) {
   nodes(ids: $ids) {
     ... on Issue {
       databaseId
@@ -70,6 +70,86 @@ export const HYDRATE_QUERY = `query FunnelHydrate($ids: [ID!]!) {
       milestone { number }
       labels(first: 100) { nodes { name } }
       assignees(first: 100) { nodes { login avatarUrl ... on User { databaseId } } }
+      timelineItems(last: 50, since: $since) {
+        nodes {
+          __typename
+          ... on LabeledEvent {
+            id
+            createdAt
+            actor { login avatarUrl ... on User { databaseId } }
+            label { name }
+          }
+          ... on UnlabeledEvent {
+            id
+            createdAt
+            actor { login avatarUrl ... on User { databaseId } }
+            label { name }
+          }
+          ... on AssignedEvent {
+            id
+            createdAt
+            actor { login avatarUrl ... on User { databaseId } }
+            assignee { login avatarUrl ... on User { databaseId } }
+          }
+          ... on UnassignedEvent {
+            id
+            createdAt
+            actor { login avatarUrl ... on User { databaseId } }
+            assignee { login avatarUrl ... on User { databaseId } }
+          }
+          ... on ClosedEvent {
+            id
+            createdAt
+            actor { login avatarUrl ... on User { databaseId } }
+          }
+          ... on ReopenedEvent {
+            id
+            createdAt
+            actor { login avatarUrl ... on User { databaseId } }
+          }
+          ... on CrossReferencedEvent {
+            id
+            createdAt
+            actor { login avatarUrl ... on User { databaseId } }
+            source {
+              __typename
+              ... on PullRequest { number title url }
+              ... on Issue { number title url }
+            }
+          }
+          ... on ReferencedEvent {
+            id
+            createdAt
+            actor { login avatarUrl ... on User { databaseId } }
+            isCrossRepository
+            commit { oid }
+          }
+          ... on MentionedEvent {
+            id
+            createdAt
+            actor { login avatarUrl ... on User { databaseId } }
+          }
+          ... on RenamedTitleEvent {
+            id
+            createdAt
+            actor { login avatarUrl ... on User { databaseId } }
+            previousTitle
+            currentTitle
+          }
+          ... on MilestonedEvent {
+            id
+            createdAt
+            actor { login avatarUrl ... on User { databaseId } }
+            milestoneTitle
+          }
+          ... on DemilestonedEvent {
+            id
+            createdAt
+            actor { login avatarUrl ... on User { databaseId } }
+            milestoneTitle
+          }
+        }
+      }
       comments(first: 100) {
         pageInfo { hasNextPage endCursor }
         nodes {
@@ -88,6 +168,17 @@ export const HYDRATE_QUERY = `query FunnelHydrate($ids: [ID!]!) {
     }
   }
 }`;
+
+/**
+ * Timeline items imported per issue and hydration pass. GitHub returns the
+ * newest items first when paginating backwards (`last`), so this is a window,
+ * not a full history: deeper timeline history is intentionally not imported.
+ */
+export const TIMELINE_EVENT_LIMIT = 50;
+
+/** Default history window when settings are unavailable (mirrors settings). */
+const DEFAULT_HISTORY_DAYS = 90;
+const DAY_MS = 86_400_000;
 
 /**
  * Follow-up comment page for issues whose first page reported more comments.
@@ -154,6 +245,28 @@ interface GqlCommentConnection {
   pageInfo?: GqlPageInfo | null;
 }
 
+interface GqlTimelineSource {
+  __typename?: string | null;
+  number?: number | null;
+  title?: string | null;
+  url?: string | null;
+}
+
+interface GqlTimelineItem {
+  __typename?: string | null;
+  id?: string | null;
+  createdAt?: string | null;
+  actor?: GqlActor | null;
+  label?: { name?: string | null } | null;
+  assignee?: GqlActor | null;
+  source?: GqlTimelineSource | null;
+  isCrossRepository?: boolean | null;
+  commit?: { oid?: string | null } | null;
+  previousTitle?: string | null;
+  currentTitle?: string | null;
+  milestoneTitle?: string | null;
+}
+
 interface GqlNode {
   databaseId?: number | null;
   number?: number | null;
@@ -169,6 +282,7 @@ interface GqlNode {
   milestone?: { number?: number | null } | null;
   labels?: { nodes?: Array<{ name?: string | null }> } | null;
   assignees?: { nodes?: GqlActor[] } | null;
+  timelineItems?: { nodes?: GqlTimelineItem[] } | null;
   comments?: GqlCommentConnection | null;
 }
 
@@ -233,6 +347,146 @@ function normalizeComments(
 }
 
 /**
+ * Normalize GraphQL timeline items into mirror event records.
+ *
+ * Only the GitHub actions Funnel mirrors are kept; comments are skipped
+ * because `mirror_comment` already holds them, and unknown node types are
+ * dropped safely. Items without a stable id or a parseable timestamp are
+ * skipped; a missing actor degrades to `null` instead of failing the batch.
+ */
+export function normalizeTimelineItems(
+  items: readonly GqlTimelineItem[] | null | undefined,
+  forge = "github",
+  instance = "github.com",
+): mirror.TimelineEventRecord[] {
+  const events: mirror.TimelineEventRecord[] = [];
+  for (const item of items ?? []) {
+    const type = item.__typename;
+    if (typeof type !== "string" || type.includes("Comment")) continue;
+    if (typeof item.id !== "string" || item.id.length === 0) continue;
+    const occurredAt = ms(item.createdAt);
+    if (occurredAt === null) continue;
+
+    const label = item.label?.name ?? null;
+    const assignee = item.assignee?.login ?? null;
+    const source = item.source ?? null;
+    const sourceNumber =
+      typeof source?.number === "number" ? source.number : null;
+    const sourceTitle = source?.title ?? null;
+    const sourceUrl = source?.url ?? null;
+    const detail: MirrorIssueEventDetail = {};
+
+    let kind: string;
+    let action: string;
+    let summary: string;
+
+    switch (type) {
+      case "LabeledEvent":
+        kind = "label";
+        action = "labelled";
+        summary = `added label "${label ?? "unknown"}"`;
+        if (label) detail.label = label;
+        break;
+      case "UnlabeledEvent":
+        kind = "label";
+        action = "unlabelled";
+        summary = `removed label "${label ?? "unknown"}"`;
+        if (label) detail.label = label;
+        break;
+      case "AssignedEvent":
+        kind = "assignment";
+        action = "assigned";
+        summary = assignee ? `assigned @${assignee}` : "assigned an issue";
+        if (assignee) detail.assignee = assignee;
+        break;
+      case "UnassignedEvent":
+        kind = "assignment";
+        action = "unassigned";
+        summary = assignee
+          ? `unassigned @${assignee}`
+          : "unassigned an issue";
+        if (assignee) detail.assignee = assignee;
+        break;
+      case "ClosedEvent":
+        kind = "state_change";
+        action = "closed";
+        summary = "closed this issue";
+        break;
+      case "ReopenedEvent":
+        kind = "state_change";
+        action = "reopened";
+        summary = "reopened this issue";
+        break;
+      case "CrossReferencedEvent":
+        kind = "referenced";
+        action = "cross-referenced";
+        summary =
+          sourceNumber === null
+            ? "cross-referenced this issue"
+            : `cross-referenced this issue from #${sourceNumber}`;
+        if (source?.__typename) detail.sourceType = source.__typename;
+        if (sourceNumber !== null) detail.sourceNumber = sourceNumber;
+        if (sourceTitle) detail.sourceTitle = sourceTitle;
+        if (sourceUrl) detail.sourceUrl = sourceUrl;
+        break;
+      case "ReferencedEvent": {
+        kind = "referenced";
+        action = "referenced";
+        const oid = item.commit?.oid ?? null;
+        summary = oid
+          ? `referenced this issue in commit ${oid.slice(0, 7)}`
+          : "referenced this issue";
+        if (oid) detail.reference = oid;
+        break;
+      }
+      case "MentionedEvent":
+        kind = "mention";
+        action = "mentioned";
+        summary = "was mentioned in a comment";
+        break;
+      case "RenamedTitleEvent": {
+        kind = "other";
+        action = "renamed";
+        const previous = item.previousTitle ?? null;
+        const current = item.currentTitle ?? null;
+        summary =
+          previous === null
+            ? `renamed the title to "${current ?? ""}"`
+            : `renamed the title from "${previous}" to "${current ?? ""}"`;
+        if (previous !== null) detail.from = previous;
+        if (current !== null) detail.to = current;
+        break;
+      }
+      case "MilestonedEvent":
+        kind = "other";
+        action = "added";
+        summary = `added milestone "${item.milestoneTitle ?? "unknown"}"`;
+        if (item.milestoneTitle) detail.milestone = item.milestoneTitle;
+        break;
+      case "DemilestonedEvent":
+        kind = "other";
+        action = "removed";
+        summary = `removed milestone "${item.milestoneTitle ?? "unknown"}"`;
+        if (item.milestoneTitle) detail.milestone = item.milestoneTitle;
+        break;
+      default:
+        continue;
+    }
+
+    events.push({
+      externalId: item.id,
+      kind,
+      action,
+      summary,
+      actor: toUser(item.actor, forge, instance),
+      occurredAt,
+      detail: Object.keys(detail).length > 0 ? detail : null,
+    });
+  }
+  return events;
+}
+
+/**
  * Convert one GraphQL node to a mirror record. Returns `null` for PRs (the
  * `... on Issue` fragment leaves them empty) and anything missing identity.
  * The node carries no forge identity, so callers that know the repository
@@ -264,6 +518,16 @@ export function normalizeNode(
     .filter((u): u is mirror.UserRecord => u !== null);
 
   const comments = normalizeComments(node.comments, forge, instance);
+  let events: mirror.TimelineEventRecord[] = [];
+  try {
+    events = normalizeTimelineItems(node.timelineItems?.nodes, forge, instance);
+  } catch (error) {
+    // Timeline history is useful context, never a reason to lose the issue.
+    log.warn(
+      { number: node.number, ...errorFields(error) },
+      "timeline normalization failed",
+    );
+  }
 
   return {
     externalId: String(node.databaseId),
@@ -284,6 +548,7 @@ export function normalizeNode(
     labels,
     assignees,
     comments,
+    events,
   };
 }
 
@@ -352,6 +617,9 @@ function transitionSnapshotFromRecord(
     status: metadata.status ?? "",
     state: record.state,
     blocked: metadata.blocked,
+    priority: metadata.priority,
+    labels: record.labels,
+    assignees: record.assignees.map((assignee) => assignee.login),
   };
 }
 
@@ -541,10 +809,14 @@ export async function hydrateNodes(
   nodeIds: readonly string[],
   forge = "github",
   instance = "github.com",
+  since?: string,
 ): Promise<mirror.IssueRecord[]> {
   const records: mirror.IssueRecord[] = [];
   for (const ids of chunk(nodeIds, BATCH_SIZE)) {
-    const result = (await graphqlFn(HYDRATE_QUERY, { ids })) as {
+    const result = (await graphqlFn(HYDRATE_QUERY, {
+      ids,
+      ...(since ? { since } : {}),
+    })) as {
       nodes?: Array<GqlNode | null>;
     };
     const nodes = result?.nodes ?? [];
@@ -578,6 +850,24 @@ export interface HydrateOptions {
   notify?: (input: IssueChangeInput) => number;
   /** Test seam: override the instance's enabled switch. */
   notificationsEnabled?: () => boolean | Promise<boolean>;
+  /**
+   * Timeline history cutoff. Defaults to `now - sync.history_days` so the
+   * timeline window matches the issue mirror's own retention window.
+   */
+  since?: string | Date;
+}
+
+/** The timeline cutoff for this hydration pass, as an ISO DateTime. */
+function timelineSince(override?: string | Date): string {
+  if (override instanceof Date) return override.toISOString();
+  if (typeof override === "string" && override.length > 0) return override;
+  let days = DEFAULT_HISTORY_DAYS;
+  try {
+    days = readSettings().sync.history_days;
+  } catch {
+    // Settings failures must not block hydration; use the documented default.
+  }
+  return new Date(Date.now() - days * DAY_MS).toISOString();
 }
 
 /**
@@ -647,6 +937,7 @@ export async function hydrateAndStore(
       nodeIds,
       repo?.forge ?? "github",
       repo?.instance ?? "github.com",
+      timelineSince(options.since),
     );
   } catch (error) {
     log.warn(
@@ -689,6 +980,9 @@ export async function hydrateAndStore(
         status: row.status ?? "",
         state: row.state,
         blocked: row.blocked === 1,
+        priority: row.priority,
+        labels: mirror.getIssueLabels(repoId, record.number),
+        assignees: mirror.getIssueAssigneeLogins(repoId, record.number),
       });
       const previous = snapshotIssue(repoId, record.number);
       if (previous) previousByNumber.set(record.number, previous);

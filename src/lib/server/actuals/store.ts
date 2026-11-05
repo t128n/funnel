@@ -71,12 +71,21 @@ function toDelayItem(row: DelayRow): DelayItem {
   };
 }
 
+const EVENT_KINDS = new Set<IssueEvent["kind"]>([
+  "status",
+  "state",
+  "blocked",
+  "priority",
+  "label",
+  "assignee",
+]);
+
 function toIssueEvent(row: EventRow): IssueEvent {
   return {
-    kind:
-      row.kind === "status" || row.kind === "state" || row.kind === "blocked"
-        ? row.kind
-        : "status",
+    id: row.id,
+    kind: EVENT_KINDS.has(row.kind as IssueEvent["kind"])
+      ? (row.kind as IssueEvent["kind"])
+      : "status",
     fromValue: row.fromValue,
     toValue: row.toValue,
     at: row.at,
