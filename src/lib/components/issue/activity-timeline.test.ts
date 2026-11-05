@@ -51,4 +51,20 @@ describe("issue comment thread", () => {
 		expect(timeline).toContain("Choose a reaction");
 		expect(timeline).toContain("onreaction(comment.externalId, content");
 	});
+
+	test("test_history_entries_merge_into_the_ruled_timeline", () => {
+		expect(timeline).toContain("history?: IssueHistoryItem[]");
+		expect(timeline).toContain("'all' | 'comments' | 'notes' | 'history'");
+		expect(timeline).toContain(
+			"{ kind: 'history'; at: number; history: IssueHistoryItem }",
+		);
+		expect(timeline).toContain("entry.kind === 'history'");
+		expect(timeline).toContain("entry.history.summary");
+		expect(timeline).toContain("bi-clock-history");
+		expect(timeline).toContain(
+			"data-tone={entry.kind === 'note' ? 'note' : entry.kind === 'history' ? 'history' : undefined}",
+		);
+		// History entries are informational: no reply affordance.
+		expect(timeline).toContain("onreply && entry.kind !== 'history'");
+	});
 });

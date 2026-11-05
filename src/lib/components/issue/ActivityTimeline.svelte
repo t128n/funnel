@@ -17,21 +17,28 @@
 		type ReactionContent
 	} from '#lib/reactions';
 	import { absoluteTime } from '#lib/time';
-	import type { RenderedComment, RenderedWorkNote } from '#lib/server/issues/types';
+	import type {
+		IssueHistoryItem,
+		RenderedComment,
+		RenderedWorkNote
+	} from '#lib/server/issues/types';
 
 	/**
-	 * The issue activity timeline: GitHub comments and internal work notes,
-	 * merged in chronological order and rendered as ruled document entries —
-	 * author and time in a compact caption line, prose at 1rem/1.6. Internal
-	 * notes carry a small lock label in the caption, never a filled panel.
+	 * The issue activity timeline: GitHub comments, internal work notes and
+	 * history entries, merged in chronological order and rendered as ruled
+	 * document entries — author and time in a compact caption line, prose at
+	 * 1rem/1.6. Internal notes carry a small lock label in the caption, never a
+	 * filled panel. History entries are compact captions without prose.
 	 */
 	interface Props {
 		comments: RenderedComment[];
 		workNotes: RenderedWorkNote[];
+		/** Local audit and mirrored GitHub timeline entries, oldest first. */
+		history?: IssueHistoryItem[];
 		/** Legacy chat presentation flag; ruled entries are always used. */
 		bubbles?: boolean;
-		/** Restrict the timeline to one channel; defaults to both merged. */
-		filter?: 'all' | 'comments' | 'notes';
+		/** Restrict the timeline to one channel; defaults to all three merged. */
+		filter?: 'all' | 'comments' | 'notes' | 'history';
 		/** GitHub login of the signed-in viewer; enables note authoring actions. */
 		viewerLogin?: string | null;
 		/** Login of the issue reporter; kept for API compatibility. */
@@ -58,6 +65,7 @@
 	let {
 		comments,
 		workNotes,
+		history = [],
 		bubbles: _bubbles = false,
 		filter = 'all',
 		viewerLogin = null,
@@ -76,16 +84,22 @@
 
 	type Entry =
 		| { kind: 'comment'; at: number; comment: RenderedComment }
-		| { kind: 'note'; at: number; note: RenderedWorkNote };
+		| { kind: 'note'; at: number; note: RenderedWorkNote }
+		| { kind: 'history'; at: number; history: IssueHistoryItem };
 
 	const entries = $derived(
 		[
-			...(filter === 'notes'
+			...(filter === 'notes' || filter === 'history'
 				? []
 				: comments.map((comment): Entry => ({ kind: 'comment', at: comment.createdAt, comment }))),
-			...(filter === 'comments'
+			...(filter === 'comments' || filter === 'history'
 				? []
-				: workNotes.map((note): Entry => ({ kind: 'note', at: note.createdAt, note })))
+				: workNotes.map((note): Entry => ({ kind: 'note', at: note.createdAt, note }))),
+			...(filter === 'comments' || filter === 'notes'
+				? []
+				: history.map(
+						(entry): Entry => ({ kind: 'history', at: entry.at, history: entry })
+					))
 		].sort((a, b) => a.at - b.at)
 	);
 
@@ -111,7 +125,9 @@
 	}
 
 	function entryId(entry: Entry): string {
-		return entry.kind === 'comment' ? entry.comment.externalId : entry.note.id;
+		if (entry.kind === 'comment') return entry.comment.externalId;
+		if (entry.kind === 'note') return entry.note.id;
+		return entry.history.id;
 	}
 
 	/** Comment inline editor is independent of the note editor. */
@@ -162,8 +178,18 @@
 </script>
 
 {#snippet entryMeta(entry: Entry, index: number)}
-	{@const author = entry.kind === 'comment' ? entry.comment.author : entry.note.author}
-	{@const at = entry.kind === 'comment' ? entry.comment.createdAt : entry.note.createdAt}
+	{@const author =
+		entry.kind === 'comment'
+			? entry.comment.author
+			: entry.kind === 'note'
+				? entry.note.author
+				: entry.history.actor}
+	{@const at =
+		entry.kind === 'comment'
+			? entry.comment.createdAt
+			: entry.kind === 'note'
+				? entry.note.createdAt
+				: entry.history.at}
 	<header class="d-flex min-w-0 flex-wrap align-items-center gap-2 activity-meta text-body-secondary">
 		{#if entry.kind === 'comment'}
 			<a
@@ -177,15 +203,20 @@
 				commented
 				<time datetime={new Date(at).toISOString()} title={absoluteTime(at)}>{timeAgo(at)}</time>
 			</span>
-		{:else}
+		{:else if entry.kind === 'note'}
 			<span class="text-body fw-semibold">{author?.login ?? 'ghost'}</span>
 			<span class="d-inline-flex align-items-center gap-1">
 				<i class="bi bi-lock flex-shrink-0" aria-hidden="true"></i>
 				Internal
 			</span>
 			<span title={absoluteTime(at)}>{timeAgo(at)}</span>
+		{:else}
+			<i class="bi bi-clock-history flex-shrink-0" aria-hidden="true"></i>
+			<span class="text-body fw-semibold">{author?.login ?? 'Funnel'}</span>
+			<span>{entry.history.summary}</span>
+			<time datetime={new Date(at).toISOString()} title={absoluteTime(at)}>{timeAgo(at)}</time>
 		{/if}
-		{#if onreply}
+		{#if onreply && entry.kind !== 'history'}
 			<Button
 				color="link"
 				size="sm"
@@ -259,13 +290,19 @@
 {/snippet}
 
 <div class="d-flex flex-column">
-	{#each entries as entry, index (entry.kind === 'comment' ? `c${entry.comment.externalId}` : entry.note.id)}
+	{#each entries as entry, index (entry.kind === 'comment'
+		? `c${entry.comment.externalId}`
+		: entry.kind === 'note'
+			? entry.note.id
+			: entry.history.id)}
 		<article
 			class="activity-entry {entry.kind === 'comment'
 				? 'd-flex gap-3 py-3'
-				: 'd-flex flex-column gap-1 py-2'} {index > 0 ? 'border-top' : ''}"
+				: entry.kind === 'note'
+					? 'd-flex flex-column gap-1 py-2'
+					: 'd-flex flex-column gap-1 py-2'} {index > 0 ? 'border-top' : ''}"
 			data-index={index}
-			data-tone={entry.kind === 'note' ? 'note' : undefined}
+			data-tone={entry.kind === 'note' ? 'note' : entry.kind === 'history' ? 'history' : undefined}
 		>
 			{#if entry.kind === 'comment'}
 				<i class="bi bi-person-circle fs-4 text-body-secondary flex-shrink-0" aria-hidden="true"></i>
@@ -300,9 +337,11 @@
 					{/if}
 					{@render reactions(entry.comment)}
 				</div>
-			{:else}
+			{:else if entry.kind === 'note'}
 				{@render entryMeta(entry, index)}
 				{@render noteBody(entry.note)}
+			{:else}
+				{@render entryMeta(entry, index)}
 			{/if}
 		</article>
 	{/each}
