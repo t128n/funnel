@@ -11,6 +11,7 @@ import {
   waitingIssues,
 } from "#lib/server/issues/queries";
 import { unreadNotificationCount } from "#lib/server/notifications/service";
+import { listSavedViews } from "#lib/server/saved-views";
 import { getUser } from "#lib/server/sync/mirror";
 import type { LayoutServerLoad } from "./$types";
 
@@ -50,6 +51,9 @@ export const load: LayoutServerLoad = async ({ locals, url, cookies }) => {
   // The badge counts this viewer's unread rows only; reading them is always
   // scoped by `auth_user.id`, never by a client-supplied id.
   const unreadNotifications = unreadNotificationCount(user.id);
+  // Saved views are URL presets, not filters: the switcher needs the visible
+  // list on every cockpit page so a view can be opened from Issues or Inbox.
+  const savedViews = listSavedViews(user.id);
   // T3 persists `notifications.native`; false only disables the browser channel.
   const nativeNotifications = config.notifications.native;
 
@@ -62,6 +66,7 @@ export const load: LayoutServerLoad = async ({ locals, url, cookies }) => {
     waiting,
     inboxCount: inboxTotal,
     unreadNotifications,
+    savedViews,
     nativeNotifications,
     githubUrl: config.github.url,
     defaultRepo: config.intake.default_repo ?? config.repos[0]?.repo ?? "",
