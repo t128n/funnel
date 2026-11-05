@@ -6,24 +6,36 @@ This guide explains how issues are created in Funnel, how to create them directl
 
 | Path | Who it is for | What happens |
 | :--- | :--- | :--- |
-| **New issue** in the cockpit (`C`, the sidebar `+`, or a board column `+`) | People working inside Funnel | Opens the `/intake` composer. Submitting stages the report; a triager accepts it and chooses the repository. |
+| **New issue** in the cockpit (`C`, or the **New Issue** control in an empty board column) | People working inside Funnel | Opens the in-app create dialog. Submitting creates the GitHub issue immediately with the signed-in user's token. |
+| `/intake` | Reporters outside the cockpit, or anyone filing a report for triage | Public submission form. Submitting stages the report; a triager accepts it and chooses the repository. |
 | `POST /api/repos/{owner}/{repo}/issues` | Integrations and automation | Creates the GitHub issue immediately, with the signed-in user's token. |
 
-The cockpit does not have a separate create dialog with repository, label and assignee pickers. The **New issue** action opens the intake composer, whose only fields are title, description and source. Repository selection and optional size are chosen by the triager when the submission is accepted. Labels and assignees are applied after creation in the inspector.
+The cockpit create dialog is separate from `/intake`; it does not stage a submission. `/intake` remains the external path where a reporter submits text and a maintainer triages it later.
 
-| What you want to set | Where it is set on the cockpit path |
+| What you want to set | Where it is set in the cockpit dialog |
 | :--- | :--- |
-| Repository | The triager's **Repository** pill at Accept |
-| Status | `backlog` is applied at Accept; change it later with the status pill |
-| Size | The optional pill at Accept, or the inspector afterwards |
-| Priority | Single **Priority** control in the inspector; its popover sets impact and urgency |
-| Labels and assignees | The inspector after creation |
+| Repository | The **Repository** picker, defaulting to the instance's default repository |
+| Status | The **Status** picker. A board column prefills its own status; **No status** leaves the issue untriaged (Inbox) |
+| Size | The **Size** picker |
+| Priority | The **Impact** and **Urgency** pickers; priority is derived from the pair |
+| Labels and assignees | The **Labels** and **Assignees** pickers. Labels excludes the reserved vocabulary |
 | Milestone | The inspector after creation |
 | Blocked flag and blocker details | The inspector or board after creation |
 
 ### Create through the cockpit
 
-1. Press `C` or select the sidebar **New issue** button. Both open `/intake`. The `C` shortcut is registered only for `write` users, and the sidebar button is disabled for `read` users.
+1. Press `C`, or choose **New Issue** in an empty board column. Both open the same dialog; the column prefills that open status. **Done** is a closed window, not a status, so it does not prefill one.
+2. Choose the repository. It defaults to the instance's default repository; only configured repositories are offered.
+3. Enter a **Title**. It is required, trimmed, and limited to 256 characters.
+4. Enter a **Description**. Markdown is supported and the body is limited to 65,536 characters.
+5. Optionally choose **Status**, **Impact**, **Urgency**, **Size**, **Assignees**, and non-reserved **Labels**. When both impact and urgency are set, the dialog previews the derived priority.
+6. Choose **Create issue**. The issue is created on GitHub immediately. On success the dialog closes, the mirror and feeds refresh, and a confirmation appears with an **Open on GitHub** link. A failed request keeps the dialog open with the error inline so you can correct it.
+
+The `C` shortcut, the board control, and the dialog itself are limited to `write` users. `read` users can browse the cockpit but cannot create from it; `/intake` remains available as the external submission path.
+
+### Submit through the public intake form
+
+1. Open `/intake` directly (or share that URL with the reporter).
 2. Enter an **Issue title**. It is required, trimmed, and limited to 256 characters.
 3. Enter a **Description**. Markdown is supported and the body is limited to 65,536 characters.
 4. Optionally choose a source (Email, Chat, Meeting, Walk-in, Self-Service) or leave it blank. The form submits with `⌘`/`Ctrl` + Enter.

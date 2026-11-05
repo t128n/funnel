@@ -51,6 +51,8 @@ The intake form validates a non-empty title of at most 256 characters and a body
 
 All cockpit routes live under the `(app)` layout and require at least the `read` role.
 
+The `C` shortcut and an empty board column's **New Issue** control open an in-app create dialog for `write` users; creating posts to the GitHub issue API and refreshes the cockpit. `/intake` is unchanged and remains the external, public submission path.
+
 | Page | Purpose | Minimum role | Notes |
 | :--- | :--- | :--- | :--- |
 | `/inbox` | Pending intake submissions followed by untriaged open issues. | `read` | Layout load renders submission bodies to sanitised HTML. Filters and search apply to issues; search also matches submission title/body. |
