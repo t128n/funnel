@@ -4,6 +4,50 @@ This page records Funnel's canonical reserved-label vocabulary, the one-label-pe
 
 The canonical list is defined in `src/lib/labels.ts` and re-exported by the server provisioner in `src/lib/server/github/labels.ts`. There are fifteen reserved labels. Colours are six-digit hexadecimal values without `#`, the format the GitHub labels API expects.
 
+## Logical keys and actual names
+
+Each reserved label has two identities:
+
+- The **logical key** (`base`) is stable and never prefixed: `backlog`, `todo`, `in-progress`, `in-review`, `sm`, `md`, `lg`, and so on. The mirror columns, filters, URL parameters, client options and the HTTP API all use this key.
+- The **actual GitHub name** is what Funnel provisions and writes. Without a prefix it equals the logical key (`todo`); with `labels.prefix = "funnel"` it is `funnel-todo`.
+
+`deriveMetadata` recognizes actual names and stores the logical key, so changing the prefix does not change the mirror schema or require a database migration. The UI displays human names ("Todo", "Small") and sends logical values; anywhere it shows a raw GitHub label, it shows the actual, prefixed name.
+
+## Prefixing the vocabulary
+
+The global prefix is the `labels.prefix` setting, edited at **Settings → Labels** by an administrator. The default is empty, which keeps today's names exactly. A prefix applies to every reserved label; there are no per-group prefixes or full vocabulary overrides.
+
+| Logical key | Default actual name | With `labels.prefix = "funnel"` |
+| :--- | :--- | :--- |
+| `backlog` | `backlog` | `funnel-backlog` |
+| `todo` | `todo` | `funnel-todo` |
+| `in-progress` | `in-progress` | `funnel-in-progress` |
+| `in-review` | `in-review` | `funnel-in-review` |
+| `blocked` | `blocked` | `funnel-blocked` |
+| `sev` / `mod` / `min` | `sev` / `mod` / `min` | `funnel-sev` / `funnel-mod` / `funnel-min` |
+| `high` / `mid` / `low` | `high` / `mid` / `low` | `funnel-high` / `funnel-mid` / `funnel-low` |
+| `sm` / `md` / `lg` | `sm` / `md` / `lg` | `funnel-sm` / `funnel-md` / `funnel-lg` |
+| `epic` | `epic` | `funnel-epic` |
+
+Validation on save: the value is trimmed and trailing hyphens are dropped, so `funnel-` and `funnel` both yield `funnel-todo`. It must be at most 32 characters and contain only letters, digits and single hyphens (`^[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*$`); whitespace, slashes, underscores and repeated hyphens are rejected. The resulting fifteen names must be unique. Errors appear inline on the Labels settings page.
+
+Because URL parameters and API bodies keep the logical keys, a prefixed instance still uses `?status=todo`, `?size=sm`, and `{ "status": "todo" }`. Only the labels written to GitHub change.
+
+## Only-new migration
+
+Changing the prefix never renames, patches or deletes existing GitHub labels. Funnel's provisioner and sync only consider the currently configured set:
+
+- Old reserved names become ordinary labels. With `funnel` configured, an existing `todo` label is no longer recognized as the status group and is displayed as an ordinary label.
+- Funnel provisions the newly named set (`funnel-todo`, ...) on the next provisioning cycle, which runs at startup and during nightly reconciliation. You can also trigger a sync from the instance to converge sooner.
+- Existing issues keep their old labels until someone relabels them. Their cached status/impact/urgency/size become unset on the next hydration because the old names no longer map to the vocabulary.
+
+Manual migration after changing the prefix:
+
+1. Let Funnel provision the new set, or create the labels manually with the same colours and descriptions (see the table above).
+2. For each issue that carried a reserved label, add the corresponding prefixed label and remove the old one. Issue edits through the cockpit write the new names; bulk edits can use GitHub's label tools or API.
+3. Confirm the mirror shows the expected status/size after the next poll. The old names can then be deleted from each repository manually; Funnel will not do that.
+4. Clearing the prefix later follows the same rules in reverse: the unprefixed names become reserved again, and the prefixed names become ordinary labels.
+
 ## Canonical labels
 
 | Name | Group | Colour (hex, no `#`) | Description |
@@ -65,7 +109,7 @@ If an issue carries more than one label from a group, the sync worker resolves t
 - The issue timeline is fetched and reduced to `labeled` events.
 - For each conflicted group, the label with the newest `labeled` timestamp among the group's current labels wins.
 - The other labels in that group are deleted on GitHub, and the mirror's metadata is recomputed from the surviving labels.
-- Only reserved labels participate; other labels are ignored.
+- Only reserved labels participate; other labels are ignored. Names are matched against the configured vocabulary, so old unprefixed names do not participate once a prefix is set.
 
 A timeline is ambiguous when no `labeled` event exists for the conflicted group, or when two candidates tie for the newest timestamp. In that case Funnel removes nothing, leaves the labels untouched, and sets `mirror_thread.label_conflict` so the UI can flag the issue. While a conflict is unresolved, the read projection chooses the first label in canonical order.
 
@@ -78,7 +122,7 @@ Provisioning reconciles the canonical labels in every configured repository:
 
 For each repository, the provisioner lists all labels, matches existing labels case-insensitively, creates missing canonical labels, patches canonical labels whose colour or description has drifted, and leaves correct labels unchanged. A converged repository issues zero writes.
 
-Only the fifteen names in the canonical table are ever created or patched. Every other label, including `bug`, `frontend`, and domain tags, is preserved untouched. Failures are isolated per repository: one repository that cannot be provisioned is recorded and skipped while the remaining repositories still reconcile.
+Only the fifteen names in the configured vocabulary are ever created or patched. Every other label, including `bug`, `frontend`, domain tags, and old reserved names from before a prefix change, is preserved untouched. Failures are isolated per repository: one repository that cannot be provisioned is recorded and skipped while the remaining repositories still reconcile.
 
 Writes run through the shared installation Octokit. The provisioning code expects Octokit's throttling to keep these writes to roughly one per second, so a repository missing all fifteen labels takes roughly fifteen seconds to converge; a converged repository returns immediately.
 
