@@ -8,6 +8,7 @@
 	import FilterPopover from '#lib/components/filter/FilterPopover.svelte';
 	import IssueTable from '#lib/components/issue/IssueTable.svelte';
 	import { issuesIdentity } from '#lib/components/issue/page-identity';
+	import SortControl from '#lib/components/issue/SortControl.svelte';
 	import type { GroupKey } from '#lib/components/issue/grouping';
 	import PageHeader from '#lib/components/shell/PageHeader.svelte';
 	import { createFeed } from '#lib/client/feed.svelte';
@@ -94,7 +95,12 @@
 		return options;
 	});
 	const currentAssignee = $derived.by(() => {
-		const value = filter.assignees.length === 1 ? filter.assignees[0] : '';
+		const value =
+			filter.unassigned && filter.assignees.length === 0
+				? 'none'
+				: filter.assignees.length === 1
+					? filter.assignees[0]
+					: '';
 		return assigneeOptions.some((option) => option.value === value) ? value : '';
 	});
 
@@ -158,7 +164,10 @@
 	}
 
 	function setAssignee(value: string) {
-		apply({ assignees: value ? [value] : [] });
+		apply({
+			assignees: value && value !== 'none' ? [value] : [],
+			unassigned: value === 'none'
+		});
 	}
 
 	// Merge each fresh first page into the loaded window; SSE refreshes keep
@@ -261,6 +270,8 @@
 				<option value={option.value}>{option.label}</option>
 			{/each}
 		</select>
+
+		<SortControl />
 
 		{#if filterCount > 0}
 			<Button
