@@ -59,31 +59,41 @@ export function countMigrations(dir: string): number {
 }
 
 /**
- * Locate the migrations folder. Honors `FUNNEL_MIGRATIONS_DIR`, then probes the
- * layouts we ship: embedded beside the executable, an adapter-node deploy that
- * keeps `drizzle/` at the app root, and a source checkout.
+ * Find the first candidate that looks like a migrations folder. Relative
+ * candidates resolve against `cwd`, matching the `FUNNEL_MIGRATIONS_DIR`
+ * override. Blank candidates are skipped; none matching is an error.
  */
-export function resolveMigrationsFolder(): string {
-  const candidates = [
-    process.env[MIGRATIONS_DIR_ENV],
-    join(import.meta.dir, "drizzle"),
-    join(process.cwd(), "drizzle"),
-    resolve(import.meta.dir, "../../../../drizzle"),
-  ].filter((candidate): candidate is string =>
+export function findMigrationsFolder(
+  candidates: ReadonlyArray<string | undefined>,
+  cwd: string = process.cwd(),
+): string {
+  const tried = candidates.filter((candidate): candidate is string =>
     Boolean(candidate && candidate.trim()),
   );
 
-  for (const candidate of candidates) {
-    const dir = isAbsolute(candidate)
-      ? candidate
-      : resolve(process.cwd(), candidate);
+  for (const candidate of tried) {
+    const dir = isAbsolute(candidate) ? candidate : resolve(cwd, candidate);
     if (isMigrationsFolder(dir)) return dir;
   }
 
   throw new Error(
     `Could not find the Drizzle migrations folder (a directory containing <timestamp>_*/migration.sql). ` +
-      `Set ${MIGRATIONS_DIR_ENV} to its absolute path. Tried: ${candidates.join(", ")}`,
+      `Set ${MIGRATIONS_DIR_ENV} to its absolute path. Tried: ${tried.join(", ")}`,
   );
+}
+
+/**
+ * Locate the migrations folder. Honors `FUNNEL_MIGRATIONS_DIR`, then probes the
+ * layouts we ship: embedded beside the executable, an adapter-node deploy that
+ * keeps `drizzle/` at the app root, and a source checkout.
+ */
+export function resolveMigrationsFolder(): string {
+  return findMigrationsFolder([
+    process.env[MIGRATIONS_DIR_ENV],
+    join(import.meta.dir, "drizzle"),
+    join(process.cwd(), "drizzle"),
+    resolve(import.meta.dir, "../../../../drizzle"),
+  ]);
 }
 
 /** Resolve the database path from the environment, applying the default. */
