@@ -624,6 +624,20 @@ Indexes:
 - `uq_mirror_comment_external` unique on `(repo_id, external_id)`.
 - `idx_mirror_comment_thread` on `(repo_id, thread_number)`.
 
+### `mirror_thread_fts`
+
+The FTS5 virtual table behind issue search. It is hand-written in the migration because Drizzle cannot model SQLite virtual tables; the mirror write path keeps one row per `(repo_id, number)` and deletes it when the issue is pruned.
+
+| Column | Type | Constraints / notes |
+| :--- | :--- | :--- |
+| `title` | TEXT | Indexed issue title. |
+| `body` | TEXT | Indexed issue body. |
+| `comments` | TEXT | Every mirrored comment body, joined with newlines. |
+| `repo_id` | INTEGER | `UNINDEXED`; part of the mirror identity. |
+| `number` | INTEGER | `UNINDEXED`; part of the mirror identity. |
+
+Tokenizer: `porter unicode61`. Each `upsertIssues` write replaces the row, `deleteIssue`/`deleteIssuesNotIn` remove it, and direct demo-provider edits call `refreshIssueSearchIndex`. Queries use a safe quoted/prefix `MATCH` expression inside a row-value `IN` subquery, so free text is never interpreted as an FTS operator.
+
 ## Identity and keys
 
 | Concept | Key | Notes |
@@ -684,7 +698,8 @@ The composite child tables `mirror_thread_label` and `mirror_thread_assignee`, a
 - Attachments are stored outside the database under `FUNNEL_UPLOAD_DIR` (default `./data/uploads`); only metadata is in `state_attachment`.
 - Migrations are committed as `<timestamp>_<name>/migration.sql` directories under `drizzle/`. Drizzle records applied migrations in `__drizzle_migrations`.
 - The packaged executable applies migrations on boot; a separate release step can run the same migrator. `/readyz` compares the applied count with the number of migration directories.
-- Full-text search is deferred. Text search currently uses SQL `LIKE` over issue titles, bodies and comments rather than an FTS5 index.
+- Full-text search is provided by the `mirror_thread_fts` FTS5 virtual table. The migration that creates and backfills it is hand-written and additive; Drizzle snapshots intentionally omit the virtual table.
+- Search ranking keeps the selected issue sort (priority by default) rather than ordering by FTS `bm25()`. Relevance ordering is a follow-up because #23's keyset cursor resumes on integer/text primary keys, not floating-point scores.
 
 ## Related
 
