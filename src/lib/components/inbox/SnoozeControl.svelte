@@ -49,6 +49,12 @@
 	const tomorrow = $derived(snoozeTomorrow());
 	const nextWeek = $derived(snoozeNextWeek());
 	const minDate = $derived(snoozeMinDate());
+	/** Stable, valid HTML id for the custom date field. */
+	const dateInputId = $derived(
+		target.kind === 'submission'
+			? `snooze-date-submission-${target.id.replace(/[^A-Za-z0-9_-]/g, '-')}`
+			: `snooze-date-issue-${target.repo.replace(/[^A-Za-z0-9_-]/g, '-')}-${target.number}`
+	);
 
 	async function apply(until: number): Promise<void> {
 		if (busy || disabled) return;
@@ -103,10 +109,10 @@
 			<span class="small text-body-tertiary">{absoluteTime(nextWeek)}</span>
 		</button>
 		<div class="dropdown-divider"></div>
-		<label class="form-label small mb-1" for={`snooze-date-${label}`}>Custom date</label>
+		<label class="form-label small mb-1" for={dateInputId}>Custom date</label>
 		<div class="d-flex align-items-center gap-2">
 			<input
-				id={`snooze-date-${label}`}
+				id={dateInputId}
 				type="date"
 				class="form-control form-control-sm"
 				min={minDate}
