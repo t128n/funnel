@@ -22,7 +22,7 @@ import {
   errorStatus,
   type Outcome,
 } from "#lib/server/http/outcome";
-import { createLogger } from "#lib/server/log";
+import { createLogger, errorFields } from "#lib/server/log";
 import { CANONICAL_LABELS, type LabelGroup } from "#lib/server/github/labels";
 import { createRepoMilestone } from "#lib/server/github/milestones";
 import { publish } from "#lib/server/sync/events";
@@ -262,7 +262,7 @@ export async function createIssue(
     );
   } catch (error) {
     log.warn(
-      { repo: input.repo, err: errorMessage(error) },
+      { repo: input.repo, ...errorFields(error) },
       "create issue failed",
     );
     return {
@@ -396,7 +396,7 @@ export async function updateIssue(
       {
         repo: input.repo,
         number: input.number,
-        err: errorMessage(error),
+        ...errorFields(error),
       },
       "update issue failed",
     );
@@ -451,7 +451,7 @@ export async function addIssueLabels(
     await replaceIssueLabels(input.provider, ref, labels);
   } catch (error) {
     log.warn(
-      { repo: input.repo, number: input.number, err: errorMessage(error) },
+      { repo: input.repo, number: input.number, ...errorFields(error) },
       "add labels failed",
     );
     return {
@@ -485,7 +485,7 @@ export async function removeIssueLabel(
     await input.provider.threads.removeLabels(ref, [input.name]);
   } catch (error) {
     log.warn(
-      { repo: input.repo, number: input.number, err: errorMessage(error) },
+      { repo: input.repo, number: input.number, ...errorFields(error) },
       "remove label failed",
     );
     return {
@@ -520,7 +520,7 @@ export async function addIssueComment(
     comment = await input.provider.threads.createComment(ref, input.body);
   } catch (error) {
     log.warn(
-      { repo: input.repo, number: input.number, err: errorMessage(error) },
+      { repo: input.repo, number: input.number, ...errorFields(error) },
       "add comment failed",
     );
     return {
@@ -573,7 +573,7 @@ export async function createMilestone(
     };
   } catch (error) {
     log.warn(
-      { repo: input.repo, err: errorMessage(error) },
+      { repo: input.repo, ...errorFields(error) },
       "create milestone failed",
     );
     return {

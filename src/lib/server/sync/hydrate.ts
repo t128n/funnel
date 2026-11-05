@@ -15,7 +15,7 @@ import { and, eq } from "drizzle-orm";
 import { db } from "#lib/server/db/index";
 import { authAccount } from "#lib/server/db/schema";
 import { forge } from "#lib/server/forge/providers.server";
-import { createLogger } from "#lib/server/log";
+import { createLogger, errorFields } from "#lib/server/log";
 import { readSettings } from "#lib/server/settings/store";
 import {
   parseMentions,
@@ -583,12 +583,43 @@ export async function hydrateAndStore(
     graphqlFn ?? ((query, variables) => provider!.graphql(query, variables));
   // The node has no forge identity of its own; use the mirrored repo's.
   const repo = mirror.getRepo(repoId);
-  const records = await hydrateNodes(
-    gql,
-    repoId,
-    nodeIds,
-    repo?.forge ?? "github",
-    repo?.instance ?? "github.com",
+  const repoLabel = repo ? `${repo.org}/${repo.name}` : null;
+  const batches = Math.ceil(nodeIds.length / BATCH_SIZE);
+  const startedAt = Date.now();
+  log.debug(
+    { repo: repoLabel, requested: nodeIds.length, batches },
+    "hydration started",
+  );
+  let records: mirror.IssueRecord[];
+  try {
+    records = await hydrateNodes(
+      gql,
+      repoId,
+      nodeIds,
+      repo?.forge ?? "github",
+      repo?.instance ?? "github.com",
+    );
+  } catch (error) {
+    log.warn(
+      {
+        repo: repoLabel,
+        requested: nodeIds.length,
+        batches,
+        ...errorFields(error),
+      },
+      "hydration failed",
+    );
+    throw error;
+  }
+  log.debug(
+    {
+      repo: repoLabel,
+      requested: nodeIds.length,
+      hydrated: records.length,
+      batches,
+      durationMs: Date.now() - startedAt,
+    },
+    "hydration finished",
   );
   const enabled = options.notificationsEnabled
     ? await options.notificationsEnabled()

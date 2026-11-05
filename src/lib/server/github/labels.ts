@@ -23,7 +23,7 @@
 import { ForgeApiError } from "forges";
 import { configuredRepoSlugs, getConfig } from "#/lib/server/config";
 import { CANONICAL_LABELS, type CanonicalLabel, type LabelGroup } from "#lib/labels";
-import { createLogger } from "#/lib/server/log";
+import { createLogger, errorFields } from "#/lib/server/log";
 import { forge, type GitHubProvider } from "#/lib/server/forge/providers.server";
 
 const log = createLogger({ component: "labels" });
@@ -153,16 +153,18 @@ export async function provisionCanonicalLabels(): Promise<ProvisionReport> {
   try {
     repos = configuredRepoSlugs(await getConfig());
   } catch (error) {
-    log.warn({ err: errorMessage(error) }, "provisioning skipped");
+    log.warn(errorFields(error), "provisioning skipped");
     return report;
   }
 
+  const startedAt = Date.now();
   log.info({ repos: repos.length }, "label provisioning started");
 
   for (const entry of repos) {
     const slash = entry.indexOf("/");
     const owner = entry.slice(0, slash);
     const repo = entry.slice(slash + 1);
+    const repoStartedAt = Date.now();
     try {
       const summary = await provisionRepoLabels(owner, repo);
       report.created += summary.created.length;
@@ -174,6 +176,7 @@ export async function provisionCanonicalLabels(): Promise<ProvisionReport> {
           created: summary.created.length,
           updated: summary.updated.length,
           unchanged: summary.unchanged.length,
+          durationMs: Date.now() - repoStartedAt,
         },
         "repo labels reconciled",
       );
@@ -181,7 +184,7 @@ export async function provisionCanonicalLabels(): Promise<ProvisionReport> {
       report.failed += 1;
       const message = errorMessage(error);
       report.repos.push({ repo: entry, error: message });
-      log.warn({ repo: entry, err: message }, "provisioning failed");
+      log.warn({ repo: entry, ...errorFields(error) }, "provisioning failed");
     }
   }
 
@@ -191,6 +194,7 @@ export async function provisionCanonicalLabels(): Promise<ProvisionReport> {
       created: report.created,
       updated: report.updated,
       failed: report.failed,
+      durationMs: Date.now() - startedAt,
     },
     "label provisioning finished",
   );

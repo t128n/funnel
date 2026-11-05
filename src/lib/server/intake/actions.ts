@@ -140,7 +140,7 @@ export async function acceptSubmission(
   });
   if (!created.ok) {
     log.warn(
-      { id: input.id, repo: target, err: created.message },
+      { id: input.id, repo: target, status: created.status, err: created.message },
       "accept failed",
     );
     return created;
@@ -218,6 +218,7 @@ export async function duplicateSubmission(
         id: input.id,
         repo: input.repo,
         number: input.number,
+        status: commented.status,
         err: commented.message,
       },
       "duplicate failed",

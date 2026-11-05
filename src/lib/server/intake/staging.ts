@@ -80,13 +80,17 @@ export function createSubmission(
     })
     .run();
 
+  // Deliberately id/source only: the queue is external-facing and the title or
+  // body must never land in a log sink.
+  log.info({ id, source: input.source ?? null }, "intake submission staged");
+
   const notify = deps.notifyNewIntake ?? notifyNewIntake;
   const enabled = deps.enabled ?? newIntakeEnabled;
   if (notify && enabled()) {
     try {
       notify({ id, title: input.title });
     } catch (error) {
-      log.warn({ err: error }, "new-intake notification failed");
+      log.warn({ id, err: error }, "new-intake notification failed");
     }
   }
 

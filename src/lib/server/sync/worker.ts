@@ -18,7 +18,7 @@
  */
 import type { Thread, ThreadQuery } from "forges";
 import { configuredRepoSlugs, getConfig } from "#/lib/server/config";
-import { createLogger } from "#/lib/server/log";
+import { createLogger, errorFields } from "#/lib/server/log";
 import {
   forge,
   type GitHubProvider,
@@ -62,20 +62,6 @@ export interface PollResult {
   conflicts: number;
   /** Issue numbers seen inside the window (reconciliation prune input). */
   seenNumbers: number[];
-}
-
-function statusOf(error: unknown): number | null {
-  if (typeof error === "object" && error !== null && "status" in error) {
-    const status = (error as { status?: unknown }).status;
-    if (typeof status === "number") return status;
-  }
-  return null;
-}
-
-function errorMessage(error: unknown): string {
-  const message = error instanceof Error ? error.message : String(error);
-  const status = statusOf(error);
-  return typeof status === "number" ? `${status} ${message}`.trim() : message;
 }
 
 /** Open issues, plus closed issues within `sync.history_days` (SPEC §7.1). */
@@ -379,12 +365,15 @@ export async function runRepoCycle(
   owner: string,
   repo: string,
 ): Promise<PollResult> {
+  const startedAt = Date.now();
+  const repoLabel = `${owner}/${repo}`;
   const ref = forge.repoRef(owner, repo);
   const installationId = await forge.getInstallationId(owner, repo);
   const repoRow =
     mirror.getRepoBySlug(ref.forge, ref.instance, ref.owner, ref.name) ??
     (await ensureRepoMirror(owner, repo, installationId));
   try {
+    log.debug({ repo: repoLabel }, "repo poll started");
     if (repoRow.lastPolledAt === null) {
       await Promise.all([
         refreshRepoLabels(installationId, repoRow),
@@ -393,12 +382,15 @@ export async function runRepoCycle(
       ]);
     }
     const result = await pollRepo(repoRow, installationId, Date.now());
-    log.debug({ repo: `${owner}/${repo}`, ...result }, "repo polled");
+    log.debug(
+      { repo: repoLabel, ...result, durationMs: Date.now() - startedAt },
+      "repo polled",
+    );
     return result;
   } catch (error) {
     mirror.setRepoDegraded(repoRow.id, true);
     log.warn(
-      { repo: `${owner}/${repo}`, err: errorMessage(error) },
+      { repo: repoLabel, ...errorFields(error) },
       "repo poll failed",
     );
     throw error;
@@ -452,7 +444,7 @@ const nextDue = new Map<string, number>();
 export function startSyncWorker(): void {
   if (running) return;
   running = true;
-  log.info("sync worker started");
+  log.info({ tickMs: TICK_MS }, "sync worker started");
   void tick();
 }
 
@@ -476,26 +468,37 @@ export function notifyConfigChanged(): void {
 
 /** Run one cycle for every configured repo now (tests / manual trigger). */
 export async function syncAllRepos(): Promise<void> {
+  const startedAt = Date.now();
   let repos: readonly string[];
   try {
     repos = configuredRepoSlugs(await getConfig());
   } catch (error) {
-    log.warn({ err: errorMessage(error) }, "sync skipped: no config");
+    log.warn(errorFields(error), "sync skipped: no config");
     return;
   }
+  log.info({ repos: repos.length }, "sync run started");
+  let failed = 0;
   for (const entry of repos) {
     const [owner, repo] = entry.split("/");
     try {
       await runRepoCycle(owner, repo);
     } catch {
       // Already logged and flagged degraded by runRepoCycle.
+      failed += 1;
     }
   }
+  log.info(
+    { repos: repos.length, failed, durationMs: Date.now() - startedAt },
+    "sync run finished",
+  );
 }
 
 async function tick(): Promise<void> {
   if (!running) return;
   const now = Date.now();
+  const startedAt = now;
+  let polled = 0;
+  let failed = 0;
   try {
     const config = await getConfig();
     const { sync } = config;
@@ -504,6 +507,11 @@ async function tick(): Promise<void> {
       (clientCount() > 0
         ? sync.poll_interval_active_seconds
         : sync.poll_interval_idle_seconds) * 1000;
+
+    log.debug(
+      { repos: repos.length, intervalMs },
+      "sync tick started",
+    );
 
     // Stagger first-time repos across the interval so they never burst.
     repos.forEach((entry, index) => {
@@ -518,13 +526,20 @@ async function tick(): Promise<void> {
       const [owner, repo] = entry.split("/");
       try {
         await runRepoCycle(owner, repo);
+        polled += 1;
       } catch {
         // Isolated by runRepoCycle; keep polling the remaining repos.
+        failed += 1;
       }
       nextDue.set(entry, Date.now() + intervalMs);
     }
+
+    log.debug(
+      { repos: repos.length, polled, failed, durationMs: Date.now() - startedAt },
+      "sync tick finished",
+    );
   } catch (error) {
-    log.warn({ err: errorMessage(error) }, "sync tick skipped");
+    log.warn(errorFields(error), "sync tick failed");
   }
   if (running) timer = setTimeout(() => void tick(), TICK_MS);
 }
