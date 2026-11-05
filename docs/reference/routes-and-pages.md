@@ -83,7 +83,7 @@ The `C` shortcut and an empty board column's **New Issue** control open an in-ap
 | `/settings/notifications` | Master switch, browser notifications and new-intake notices. | `admin` | Shared settings `save` action; three boolean switches. |
 | `/settings/people` | Account list and role management. | `admin` | `setRole` action; the last administrator cannot be demoted (`409`). |
 | `/settings/github-app` | Current App metadata and install URL. | `admin` | `reset` action clears App credentials and returns to `/onboarding`. |
-| `/settings/sync` | History window and active/idle polling intervals. | `admin` | Shared settings `save` action. |
+| `/settings/sync` | History window, active/idle polling intervals, per-repository health, and a manual sync trigger. | `admin` | Shared settings `save` action plus a `sync` action that runs one cycle for every configured repository. |
 | `/settings/session` | Session idle lifetime in days. | `admin` | Shared settings `save` action. |
 | `/settings/planning` | Size-to-time estimates, allocation percentage and the maintainer roster. | `admin` | Shared settings `save` action; `planning` payload with hours converted to minutes. Cycle keys remain in the stored config for compatibility but are not exposed. |
 
@@ -130,6 +130,8 @@ All three require `write`. Accept and duplicate fail with `401` when no user tok
 ### Settings actions
 
 `/settings/repositories`, `/settings/projects`, `/settings/intake`, `/settings/board`, `/settings/notifications`, `/settings/sync`, `/settings/session` and `/settings/planning` all use `saveSettingsAction`: a JSON `payload` form field is merged onto current settings, validated as one configuration, persisted in a transaction, and propagated through the `settings` SSE event and a sync-scheduler wake-up. Errors return `400` with a `message` and, for per-key validation failures, an `issues` array.
+
+`/settings/sync` also defines a `sync` action. It re-checks the admin role, awaits one `syncAllRepos` pass, and returns `{ synced, repos }` on success or `502` with a `syncError` when one or more repositories failed. The page invalidates its load after either outcome so the health table reflects the cycle's timestamps and degraded flags.
 
 `/settings/people` returns `400` for an invalid role, `404` for an unknown user, `409` when demoting the last administrator, `503` when auth is unconfigured and `502` when the auth provider rejects the change.
 
@@ -222,7 +224,7 @@ API routes are not under the `(app)` layout and enforce their own guards. Detail
 | `/settings/notifications` | Notification channels. | `admin` |
 | `/settings/people` | People and roles. | `admin` |
 | `/settings/github-app` | GitHub App. | `admin` |
-| `/settings/sync` | Sync cadence. | `admin` |
+| `/settings/sync` | Sync cadence and repository health. | `admin` |
 | `/settings/session` | Session lifetime. | `admin` |
 | `/settings/planning` | Estimates, allocation and maintainers. | `admin` |
 

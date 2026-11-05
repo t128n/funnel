@@ -12,6 +12,26 @@ Only an administrator can open **Settings → Sync**; other roles receive a 403 
 
 All three accept a whole number of zero or more. Leaving a field empty fails validation rather than restoring the default.
 
+## Repository health
+
+The top of **Settings → Sync** lists every configured repository with its last successful poll, its last nightly reconciliation and a state:
+
+| State | Meaning |
+| :--- | :--- |
+| **Healthy** | The last cycle succeeded. The degraded flag is clear. |
+| **Degraded** | A cycle failed after the mirror row was resolved. The flag stays set until a poll or the nightly reconciliation succeeds. |
+| **Awaiting first sync** | The repository is configured but has no mirror row yet. Its timestamps are empty until the first cycle resolves the installation. |
+
+For a degraded repository, a warning banner names the affected repositories and links to the table. The failing error itself stays in the server log (`repo poll failed`, with the `repo` field) rather than the database: this release does not persist a last-error value, so the page points at the log instead of inventing one.
+
+Each relative time links to a `title` tooltip with the precise timestamp in the viewer's local timezone. The page refreshes the table when it loads and after a manual sync.
+
+## Manual sync
+
+**Sync now** runs one immediate cycle for every configured repository. It is the same `syncAllRepos` pass the scheduler uses: each repository gets the normal poll, failures are isolated per repository, and a failure still marks that repository degraded. The action is administrator-only and re-checks the role on the server, so a direct POST cannot bypass the page guard.
+
+The request waits for the cycle to finish before it returns. On a large first backfill that can take a while; the button shows **Syncing…** while it runs. A successful cycle updates the timestamps in place. A partial or total failure reports how many repositories failed and keeps the updated table visible, including the degraded rows. Manual sync does not change the polling schedule, retry policy or next due time.
+
 ## Steps
 
 1. Open **Settings → Sync**.
