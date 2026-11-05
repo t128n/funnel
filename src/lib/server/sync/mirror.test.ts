@@ -3,7 +3,11 @@ import { sql } from "drizzle-orm";
 import { buildVocabulary } from "#lib/labels";
 import { clearMirror } from "#tests/mirror-helpers";
 import { db } from "#lib/server/db/index";
-import { mirrorComment, mirrorThreadAssignee } from "#lib/server/db/schema";
+import {
+  mirrorComment,
+  mirrorThread,
+  mirrorThreadAssignee,
+} from "#lib/server/db/schema";
 import { getIssueListItem } from "#lib/server/issues/queries";
 import * as mirror from "./mirror";
 
@@ -598,6 +602,177 @@ describe("comment reconciliation", () => {
       ["1", "one"],
       ["2", "two"],
     ]);
+  });
+});
+
+describe("search index", () => {
+  const metadata: mirror.StoredMetadata = {
+    status: null,
+    impact: null,
+    urgency: null,
+    priority: null,
+    size: null,
+    blocked: false,
+    labelConflict: false,
+  };
+
+  function record(
+    repoId: number,
+    number: number,
+    input: {
+      title?: string;
+      body?: string;
+      comments?: Array<{ externalId: string; body: string }>;
+    } = {},
+  ): mirror.IssueRecord {
+    return {
+      externalId: String(9000 + number),
+      repoId,
+      number,
+      kind: "issue",
+      title: input.title ?? `issue ${number}`,
+      body: input.body ?? "",
+      state: "open",
+      stateReason: null,
+      author: null,
+      milestoneNumber: null,
+      url: "",
+      createdAt: 1,
+      updatedAt: 2,
+      closedAt: null,
+      labels: [],
+      assignees: [],
+      comments: (input.comments ?? []).map((comment) => ({
+        ...comment,
+        author: null,
+        createdAt: 3,
+        updatedAt: 4,
+      })),
+    };
+  }
+
+  function searchRows(
+    repoId: number,
+    number: number,
+  ): Array<{ title: string; body: string; comments: string }> {
+    return db.$client
+      .query(
+        "SELECT title, body, comments FROM mirror_thread_fts WHERE repo_id = ? AND number = ?",
+      )
+      .all(repoId, number) as Array<{
+      title: string;
+      body: string;
+      comments: string;
+    }>;
+  }
+
+  test("indexes title, body and every comment; re-sync replaces one row", () => {
+    const repo = seedRepo();
+    mirror.upsertIssue(
+      record(repo.id, 1, {
+        title: "Original title",
+        body: "Original body",
+        comments: [
+          { externalId: "1", body: "old comment secret" },
+          { externalId: "2", body: "second comment" },
+        ],
+      }),
+      metadata,
+    );
+
+    expect(searchRows(repo.id, 1)).toEqual([
+      {
+        title: "Original title",
+        body: "Original body",
+        comments: "old comment secret\nsecond comment",
+      },
+    ]);
+
+    // A re-sync is an idempotent replace, not a duplicate row.
+    mirror.upsertIssue(
+      record(repo.id, 1, {
+        title: "Original title",
+        body: "Original body",
+        comments: [{ externalId: "1", body: "old comment secret" }],
+      }),
+      metadata,
+    );
+    expect(searchRows(repo.id, 1)).toHaveLength(1);
+  });
+
+  test("updates after title/body edits and comment add/edit/delete", () => {
+    const repo = seedRepo();
+    mirror.upsertIssue(
+      record(repo.id, 1, {
+        title: "Before",
+        body: "old body",
+        comments: [{ externalId: "1", body: "first wording" }],
+      }),
+      metadata,
+    );
+
+    mirror.upsertIssue(
+      record(repo.id, 1, {
+        title: "After",
+        body: "new body",
+        comments: [
+          { externalId: "1", body: "edited wording" },
+          { externalId: "2", body: "brand new comment" },
+        ],
+      }),
+      metadata,
+    );
+
+    expect(searchRows(repo.id, 1)).toEqual([
+      {
+        title: "After",
+        body: "new body",
+        comments: "edited wording\nbrand new comment",
+      },
+    ]);
+
+    mirror.upsertIssue(
+      record(repo.id, 1, {
+        title: "After",
+        body: "new body",
+        comments: [{ externalId: "2", body: "brand new comment" }],
+      }),
+      metadata,
+    );
+    expect(searchRows(repo.id, 1)[0]?.comments).toBe("brand new comment");
+  });
+
+  test("removes the row on deleteIssue and deleteIssuesNotIn", () => {
+    const repo = seedRepo();
+    seedIssue(repo.id, 1, 1000);
+    seedIssue(repo.id, 2, 2000);
+    seedIssue(repo.id, 3, 3000);
+    expect(searchRows(repo.id, 1)).toHaveLength(1);
+
+    mirror.deleteIssue(repo.id, 1);
+    expect(searchRows(repo.id, 1)).toEqual([]);
+
+    mirror.deleteIssuesNotIn(repo.id, [3]);
+    expect(searchRows(repo.id, 2)).toEqual([]);
+    expect(searchRows(repo.id, 3)).toHaveLength(1);
+  });
+
+  test("refreshIssueSearchIndex rebuilds after a direct content write", () => {
+    const repo = seedRepo();
+    mirror.upsertIssue(
+      record(repo.id, 1, { title: "Before", comments: [] }),
+      metadata,
+    );
+
+    db.update(mirrorThread)
+      .set({ title: "Direct edit" })
+      .where(
+        sql`${mirrorThread.repoId} = ${repo.id} AND ${mirrorThread.number} = 1`,
+      )
+      .run();
+    mirror.refreshIssueSearchIndex(repo.id, 1);
+
+    expect(searchRows(repo.id, 1)[0]?.title).toBe("Direct edit");
   });
 });
 

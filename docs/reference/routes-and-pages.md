@@ -93,6 +93,26 @@ The issue lists share one URL filter model: `repo`, `state`, `status`, `assignee
 
 `assignee=none` selects issues with no assignees. It may be combined with named assignees (`?assignee=none&assignee=octocat`), in which case either condition matches. `assignee=me` resolves to the signed-in viewer.
 
+### Search (`q`)
+
+`q` searches issue titles, bodies and every mirrored comment through the FTS5 index. Plain words are prefix-matched and ANDed; FTS operators in user input are quoted, not executed. The term keeps the shared URL model, so it combines with the filter dimensions and survives reloads and shared links.
+
+`q` also accepts issue identifiers and GitHub-style qualifiers:
+
+| Form | Meaning |
+| :--- | :--- |
+| `#123` | Issue number 123 in any mirrored repo. |
+| `FIT-123` | Issue 123 in the repo whose configured shortcode is `FIT` (see `/settings/repositories`). Unknown shortcodes remain plain text. |
+| `owner/repo#123` | Issue 123 in that repo. An unknown repo matches nothing. |
+| `is:unassigned` | Issues with no assignee. |
+| `is:blocked` | Issues with the mirrored `blocked` flag. |
+| `label:bug` | Requires the label. Repeat the qualifier to require several labels. |
+| `repo:owner/name` | Narrows to that repo. |
+| `status:todo` | Narrows to that canonical status (or `status:none` for untriaged). |
+| `assignee:login` | Narrows to that assignee; `assignee:me` and `assignee:none` work like the URL dimension. |
+
+Qualifiers are constraining: they AND with the URL dimensions and with each other (labels AND across repeated tokens; repos, statuses and assignees OR inside their own group). A qualifier can therefore only narrow the current result set — `?q=repo:orgA/web&repo=orgA/core` returns nothing rather than both repos. Identifiers and qualifiers are removed from the FTS text; a query may mix them with words (`?q=%231%20crash`). Search results keep the selected sort; relevance ranking is not a separate sort yet.
+
 `/issues` also accepts `sort=priority|updated|created|title` and `direction=asc|desc`. The default is `sort=priority&direction=asc`, which keeps priority rank ascending (P1 first, unprioritized last) and resolves ties by most recently updated. Title sorting is case-insensitive. Both parameters live in the URL, so the chosen sort survives reloads and shared links. Sort is a view preference: it does not count towards the active-filter badge. Board lanes keep their fixed priority order regardless of these parameters.
 
 ### Inbox triage actions

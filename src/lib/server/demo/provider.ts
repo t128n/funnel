@@ -44,6 +44,7 @@ import {
   getRepoBySlug,
   getRepoLabels,
   getRepoMilestones,
+  refreshIssueSearchIndex,
   replaceIssueLabels,
   setIssueMetadata,
   upsertIssue,
@@ -863,6 +864,9 @@ function buildProvider(): GitHubProvider {
             ),
           )
           .run();
+        if (input.title !== undefined || input.body !== undefined) {
+          refreshIssueSearchIndex(repo.id, number);
+        }
         bumpRevision();
 
         if (input.assignees !== undefined) {
@@ -971,6 +975,7 @@ function buildProvider(): GitHubProvider {
             updatedAt: now,
           })
           .run();
+        refreshIssueSearchIndex(repo.id, number);
         bumpRevision();
 
         const comment = {

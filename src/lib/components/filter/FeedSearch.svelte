@@ -9,6 +9,10 @@
 	 * Full-text search for the feed column. Owns the same `q` parameter as the
 	 * classic Filter Bar and keeps the shared `#issue-search` id so the `/`
 	 * shortcut can focus the page-local filter (Mod+K is the global panel).
+	 *
+	 * `q` also accepts issue identifiers (`#123`, `FIT-123`,
+	 * `owner/repo#123`) and qualifiers (`is:unassigned`, `is:blocked`,
+	 * `label:bug`, `repo:owner/name`, `status:todo`, `assignee:login`).
 	 */
 	interface Props {
 		/** Width override for the containing toolbar. */
@@ -65,7 +69,8 @@
 			id="issue-search"
 			type="search"
 			class="form-control search-with-clear"
-			placeholder="Search title, body, or comments"
+			placeholder="Search title, body, or comments (#123, FIT-123, label:bug)"
+			title="Search text, identifiers (#123, FIT-123, owner/repo#123), or qualifiers (is:unassigned, is:blocked, label:, repo:, status:, assignee:)"
 			value={search}
 			oninput={(event) => onInput(event.currentTarget.value)}
 			onfocus={() => (focused = true)}
