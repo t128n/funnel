@@ -38,7 +38,7 @@ Because URL parameters and API bodies keep the logical keys, a prefixed instance
 Changing the prefix never renames, patches or deletes existing GitHub labels. Funnel's provisioner and sync only consider the currently configured set:
 
 - Old reserved names become ordinary labels. With `funnel` configured, an existing `todo` label is no longer recognized as the status group and is displayed as an ordinary label.
-- Funnel provisions the newly named set (`funnel-todo`, ...) on the next provisioning cycle, which runs at startup and during nightly reconciliation. You can also trigger a sync from the instance to converge sooner.
+- Funnel provisions the newly named set (`funnel-todo`, ...) on the next provisioning cycle, which runs at startup and during nightly reconciliation (or after a restart).
 - Existing issues keep their old labels until someone relabels them. Their cached status/impact/urgency/size become unset on the next hydration because the old names no longer map to the vocabulary.
 
 Manual migration after changing the prefix:
