@@ -205,6 +205,7 @@ function seedExtra(input: {
   closedAt?: number | null;
   status: string | null;
   priority: "P1" | "P2" | "P3" | null;
+  blocked?: boolean;
 }): void {
   upsertIssue(
     {
@@ -232,7 +233,7 @@ function seedExtra(input: {
       urgency: null,
       priority: input.priority,
       size: null,
-      blocked: false,
+      blocked: input.blocked ?? false,
       labelConflict: false,
     },
   );
@@ -330,6 +331,35 @@ describe("allIssues", () => {
     expect(numbers(allIssues(parse("assignee=8")))).toEqual([6]);
   });
 
+  test("filters unassigned issues and ORs them with named assignees", () => {
+    seedExtra({
+      repoId: 1,
+      number: 7,
+      externalId: "107",
+      updatedAt: 700,
+      status: "todo",
+      priority: null,
+    });
+    expect(numbers(allIssues(parse("assignee=none")))).toEqual([7]);
+    expect(
+      numbers(allIssues(parse("assignee=none&assignee=octocat"))).sort(),
+    ).toEqual([3, 6, 7]);
+  });
+
+  test("filters by the mirrored blocked cache", () => {
+    seedExtra({
+      repoId: 1,
+      number: 8,
+      externalId: "108",
+      updatedAt: 800,
+      status: "todo",
+      priority: null,
+      blocked: true,
+    });
+    expect(numbers(allIssues(parse("blocked=true")))).toEqual([8]);
+    expect(numbers(allIssues(parse("blocked=false")))).toEqual([1, 3, 6]);
+  });
+
   test("combines dimensions with AND", () => {
     expect(numbers(allIssues(parse("repo=orgA/core&priority=p3&label=bug")))).toEqual([
       6,
@@ -351,6 +381,81 @@ describe("allIssues", () => {
   });
 });
 
+describe("sorting", () => {
+  test("priority descending flips the rank but keeps ties newest-first", () => {
+    expect(numbers(allIssues(parse("sort=priority&direction=desc")))).toEqual([
+      6, 3, 1,
+    ]);
+  });
+
+  test("updated applies the direction to the timestamp and tie-breakers", () => {
+    expect(numbers(allIssues(parse("sort=updated")))).toEqual([6, 1, 3]);
+    expect(numbers(allIssues(parse("sort=updated&direction=desc")))).toEqual([
+      3, 1, 6,
+    ]);
+  });
+
+  test("created applies the direction to the timestamp and tie-breakers", () => {
+    // All seeded issues share createdAt=1, so the repoId/number tie-breakers
+    // (which follow the direction) decide the order.
+    expect(numbers(allIssues(parse("sort=created")))).toEqual([1, 6, 3]);
+    expect(numbers(allIssues(parse("sort=created&direction=desc")))).toEqual([
+      3, 6, 1,
+    ]);
+  });
+
+  test("title sorts case-insensitively with the same tie-breakers", () => {
+    seedExtra({
+      repoId: 1,
+      number: 7,
+      externalId: "107",
+      title: "aardvark",
+      updatedAt: 700,
+      status: "todo",
+      priority: null,
+    });
+    // Binary collation would put "Alpha" before "aardvark"; NOCASE does not.
+    expect(numbers(allIssues(parse("sort=title")))).toEqual([7, 1, 3, 6]);
+    expect(numbers(allIssues(parse("sort=title&direction=desc")))).toEqual([
+      6, 3, 1, 7,
+    ]);
+  });
+
+  test("each sort walks its pages through a matching cursor", () => {
+    seedExtra({
+      repoId: 1,
+      number: 7,
+      externalId: "107",
+      title: "aardvark",
+      updatedAt: 700,
+      status: "todo",
+      priority: null,
+    });
+    const queries = [
+      "sort=priority",
+      "sort=priority&direction=desc",
+      "sort=updated",
+      "sort=updated&direction=desc",
+      "sort=created",
+      "sort=created&direction=desc",
+      "sort=title",
+      "sort=title&direction=desc",
+    ];
+    for (const query of queries) {
+      const expected = numbers(allIssues(parse(query)));
+      const walked: number[] = [];
+      let cursor: string | null = null;
+      for (let guard = 0; guard < 10; guard += 1) {
+        const page = allIssues(parse(query), { limit: 1, cursor });
+        walked.push(...numbers(page));
+        cursor = page.nextCursor;
+        if (!cursor) break;
+      }
+      expect(walked).toEqual(expected);
+    }
+  });
+});
+
 describe("myIssues", () => {
   test("restricts to the viewer's assignments", () => {
     expect(numbers(myIssues(parse(""), VIEWER))).toEqual([1]);
@@ -358,6 +463,10 @@ describe("myIssues", () => {
 
   test("still applies the other dimensions", () => {
     expect(numbers(myIssues(parse("repo=orgA/web"), VIEWER))).toEqual([]);
+  });
+
+  test("clears the unassigned sentinel before applying the viewer clause", () => {
+    expect(numbers(myIssues(parse("assignee=none"), VIEWER))).toEqual([1]);
   });
 
   test("is empty without a viewer id", () => {
@@ -620,7 +729,7 @@ describe("cursor pagination", () => {
     ).toBeNull();
     expect(
       decodeCursor(
-        Buffer.from(JSON.stringify({ v: 1, f: signature, k: [0, 100, 1] })).toString("base64url"),
+        Buffer.from(JSON.stringify({ v: 1, f: signature, k: [0, 100] })).toString("base64url"),
         signature,
       ),
     ).toBeNull();
@@ -634,6 +743,35 @@ describe("cursor pagination", () => {
     expect(filterSignature(parse(""), "inbox")).not.toBe(
       filterSignature(parse("")),
     );
+    expect(filterSignature(parse("sort=title"))).not.toBe(filterSignature(parse("")));
+    expect(filterSignature(parse("direction=desc"))).not.toBe(
+      filterSignature(parse("")),
+    );
+    expect(filterSignature(parse("blocked=true"))).not.toBe(
+      filterSignature(parse("blocked=false")),
+    );
+    expect(filterSignature(parse("assignee=none"))).not.toBe(
+      filterSignature(parse("")),
+    );
+  });
+
+  test("round-trips a title cursor and rejects a numeric one for the same sort", () => {
+    const signature = filterSignature(parse("sort=title"));
+    const cursor = encodeCursor(signature, ["Alpha", 1, 1]);
+    expect(decodeCursor(cursor, signature, "text")).toEqual(["Alpha", 1, 1]);
+    expect(decodeCursor(cursor, signature, "number")).toBeNull();
+    const numeric = encodeCursor(signature, [0, 1, 1]);
+    expect(decodeCursor(numeric, signature, "text")).toBeNull();
+  });
+
+  test("a cursor from a different sort is rejected", () => {
+    const titleCursor = encodeCursor(filterSignature(parse("sort=title")), [
+      "Alpha",
+      1,
+      1,
+    ]);
+    const page = allIssues(parse(""), { cursor: titleCursor });
+    expect(numbers(page)).toEqual([1, 3, 6]);
   });
 
   test("a cursor from another filter is rejected", () => {

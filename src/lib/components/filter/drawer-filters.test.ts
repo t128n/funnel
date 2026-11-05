@@ -75,6 +75,26 @@ describe('ownedFilterCount / clearOwnedFilters', () => {
 		expect(ownedFilterCount(cleared, EVERYTHING_VISIBLE)).toBe(0);
 	});
 
+	test('counts and clears unassigned with the assignee dimension', () => {
+		const current = filter({ assignees: ['me'], unassigned: true });
+		expect(ownedFilterCount(current, EVERYTHING_VISIBLE)).toBe(1);
+
+		const cleared = clearOwnedFilters(current, EVERYTHING_VISIBLE);
+		expect(cleared.assignees).toEqual(['me']);
+		expect(cleared.unassigned).toBe(false);
+		expect(ownedFilterCount(cleared, EVERYTHING_VISIBLE)).toBe(0);
+	});
+
+	test('counts and clears the blocked dimension', () => {
+		const current = filter({ blocked: false, sizes: ['sm'] });
+		expect(ownedFilterCount(current, EVERYTHING_VISIBLE)).toBe(2);
+
+		const cleared = clearOwnedFilters(current, EVERYTHING_VISIBLE);
+		expect(cleared.blocked).toBeNull();
+		expect(cleared.sizes).toEqual([]);
+		expect(ownedFilterCount(cleared, EVERYTHING_VISIBLE)).toBe(0);
+	});
+
 	test('state counts only when the drawer offers the state switch', () => {
 		const current = filter({ states: ['closed'] });
 		expect(ownedFilterCount(current, EVERYTHING_VISIBLE)).toBe(1);
