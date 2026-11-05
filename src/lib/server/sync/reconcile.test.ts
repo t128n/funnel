@@ -4,6 +4,7 @@ import { setConfig } from "#/lib/server/config";
 import { forge } from "#/lib/server/forge/providers.server";
 import { TEST_CONFIG } from "#tests/test-config";
 import { clearMirror } from "#tests/mirror-helpers";
+import { captureLog, type LogCapture } from "#tests/log-capture";
 import * as mirror from "./mirror";
 import { msUntilNextRun, reconcileRepo, runReconciliation } from "./reconcile";
 
@@ -92,6 +93,7 @@ const fakeProvider = {
 };
 
 let spy: { mockRestore(): void };
+let logs: LogCapture;
 
 beforeEach(() => {
   clearMirror();
@@ -124,12 +126,14 @@ beforeEach(() => {
   spy = spyOn(forge, "installationProvider").mockResolvedValue(
     fakeProvider as never,
   );
+  logs = captureLog();
 });
 
 afterEach(() => {
   spy.mockRestore();
   globalThis.fetch = realFetch;
   forge.resetCaches();
+  logs.reset();
 });
 
 let seededRepoId = 0;
@@ -217,5 +221,33 @@ describe("runReconciliation", () => {
     expect(bad?.error).toContain("404");
     const good = report.repos.find((r) => r.repo === "recon/core");
     expect(good?.pruned).toBe(1);
+
+    expect(logs.find("reconcile", "reconciliation started")).toMatchObject({
+      level: "info",
+      component: "reconcile",
+      repos: 2,
+    });
+    const perRepo = logs.find("reconcile", "repo reconciled");
+    expect(perRepo).toMatchObject({
+      level: "info",
+      component: "reconcile",
+      repo: "recon/core",
+      pruned: 1,
+      durationMs: expect.any(Number),
+    });
+    expect(logs.find("reconcile", "reconciliation finished")).toMatchObject({
+      level: "info",
+      component: "reconcile",
+      repos: 2,
+      failed: 1,
+      durationMs: expect.any(Number),
+    });
+    expect(logs.find("reconcile", "reconciliation failed")).toMatchObject({
+      level: "warn",
+      component: "reconcile",
+      repo: "ghost/nope",
+      status: 404,
+      err: expect.objectContaining({ message: expect.any(String) }),
+    });
   });
 });

@@ -11,7 +11,7 @@
  * Scheduled for 03:00 local time and re-armed after each run.
  */
 import { configuredRepoSlugs, getConfig } from "#/lib/server/config";
-import { createLogger } from "#/lib/server/log";
+import { createLogger, errorFields } from "#/lib/server/log";
 import { forge } from "#/lib/server/forge/providers.server";
 import {
   provisionRepoLabels,
@@ -97,15 +97,17 @@ export async function runReconciliation(): Promise<ReconcileReport> {
   try {
     repos = configuredRepoSlugs(await getConfig());
   } catch (error) {
-    log.warn({ err: errorMessage(error) }, "reconciliation skipped");
+    log.warn(errorFields(error), "reconciliation skipped");
     return report;
   }
 
+  const startedAt = Date.now();
   log.info({ repos: repos.length }, "reconciliation started");
   for (const entry of repos) {
     const slash = entry.indexOf("/");
     const owner = entry.slice(0, slash);
     const repo = entry.slice(slash + 1);
+    const repoStartedAt = Date.now();
     try {
       const result = await reconcileRepo(owner, repo);
       report.pruned += result.pruned;
@@ -113,9 +115,11 @@ export async function runReconciliation(): Promise<ReconcileReport> {
       log.info(
         {
           repo: entry,
+          changed: result.changed,
           hydrated: result.hydrated,
           pruned: result.pruned,
           labelsCreated: result.labels?.created.length ?? 0,
+          durationMs: Date.now() - repoStartedAt,
         },
         "repo reconciled",
       );
@@ -130,11 +134,19 @@ export async function runReconciliation(): Promise<ReconcileReport> {
         labels: null,
         error: message,
       });
-      log.warn({ repo: entry, err: message }, "reconciliation failed");
+      log.warn(
+        { repo: entry, ...errorFields(error) },
+        "reconciliation failed",
+      );
     }
   }
   log.info(
-    { repos: report.repos.length, pruned: report.pruned, failed: report.failed },
+    {
+      repos: report.repos.length,
+      pruned: report.pruned,
+      failed: report.failed,
+      durationMs: Date.now() - startedAt,
+    },
     "reconciliation finished",
   );
   return report;
@@ -157,7 +169,7 @@ export function scheduleReconciliation(): void {
     try {
       await runReconciliation();
     } catch (error) {
-      log.warn({ err: errorMessage(error) }, "reconciliation run failed");
+      log.warn(errorFields(error), "reconciliation run failed");
     }
     scheduleReconciliation();
   }, delay);

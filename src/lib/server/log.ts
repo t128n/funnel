@@ -74,10 +74,71 @@ export function loggerOptions(level: string, isDev: boolean): LoggerOptions {
   return options;
 }
 
-/** Process-wide root logger: JSON in production, pretty in development. */
-export const logger: Logger = pino(loggerOptions(LOG_LEVEL, dev));
+/** Process-wide production logger: JSON in production, pretty in development. */
+const productionLogger: Logger = pino(loggerOptions(LOG_LEVEL, dev));
 
-/** Child logger carrying stable bindings (e.g. `{ component: "labels" }`). */
-export function createLogger(bindings: Record<string, unknown> = {}): Logger {
-  return logger.child(bindings);
+/** The root every `createLogger` child resolves through. Swapped by tests. */
+let rootLogger: Logger = productionLogger;
+
+/**
+ * Point the shared logger at a test sink. Passing `null` restores the
+ * production logger; `resetLogForTests` does the same without needing a value.
+ *
+ * Production code never calls this. The seam exists because modules bind their
+ * child at import time and the test preload sets `LOG_LEVEL=silent`, so a test
+ * cannot capture records by reading stdout.
+ */
+export function setLogDestinationForTests(
+  stream: pino.DestinationStream | null,
+): void {
+  // Trace is deliberate: the capture must see debug records even though the
+  // process-level `LOG_LEVEL` is silent under test.
+  rootLogger = stream
+    ? pino(loggerOptions("trace", false), stream)
+    : productionLogger;
 }
+
+/** Restore the production root logger after a test. */
+export function resetLogForTests(): void {
+  rootLogger = productionLogger;
+}
+
+/**
+ * Normalise a thrown value for structured logging. The value itself stays
+ * under `err` so pino keeps its type, message and stack; an upstream HTTP
+ * `status` (GitHub/`forges` errors carry one) is lifted to its own field.
+ */
+export function errorFields(error: unknown): {
+  err: unknown;
+  status?: number;
+} {
+  if (typeof error === "object" && error !== null && "status" in error) {
+    const status = (error as { status?: unknown }).status;
+    if (typeof status === "number") return { err: error, status };
+  }
+  return { err: error };
+}
+
+/**
+ * Child logger carrying stable bindings (e.g. `{ component: "labels" }`).
+ *
+ * The returned proxy resolves the current root on every access, so a child
+ * created at module load still writes to a test destination installed later.
+ */
+export function createLogger(bindings: Record<string, unknown> = {}): Logger {
+  let boundRoot = rootLogger;
+  let child = boundRoot.child(bindings);
+  return new Proxy(child, {
+    get(_target, property) {
+      if (boundRoot !== rootLogger) {
+        boundRoot = rootLogger;
+        child = boundRoot.child(bindings);
+      }
+      const value = Reflect.get(child, property, child);
+      return typeof value === "function" ? value.bind(child) : value;
+    },
+  }) as Logger;
+}
+
+/** Process-wide root logger exported for callers that need no bindings. */
+export const logger: Logger = createLogger();

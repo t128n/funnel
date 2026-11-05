@@ -39,37 +39,47 @@ const httpLog = createLogger({ component: "http" });
  */
 export const init: ServerInit = async () => {
   if (building) return;
+  const startedAt = Date.now();
 
   // Demo mode owns startup: migrate and seed the demo database, then skip the
   // three GitHub-contacting steps below. A seed failure throws so a broken
   // demo is visible instead of silently serving an empty cockpit.
   if (isDemoMode()) {
-    // Pass the folder explicitly: `resolveMigrationsFolder()` probes
-    // `import.meta.dir`, which Vite's SSR transform leaves undefined, so the
-    // default would throw before the first request is served.
-    runMigrations({
-      dbPath: FUNNEL_DB,
-      migrationsFolder: join(process.cwd(), "drizzle"),
-    });
-    seedDemoDatabase();
-    resetConfigCache();
-    resetAuthCache();
-    log.info("demo ready");
+    try {
+      // Pass the folder explicitly: `resolveMigrationsFolder()` probes
+      // `import.meta.dir`, which Vite's SSR transform leaves undefined, so the
+      // default would throw before the first request is served.
+      runMigrations({
+        dbPath: FUNNEL_DB,
+        migrationsFolder: join(process.cwd(), "drizzle"),
+      });
+      seedDemoDatabase();
+      resetConfigCache();
+      resetAuthCache();
+    } catch (error) {
+      log.error({ err: error }, "demo startup failed");
+      throw error;
+    }
+    log.info({ durationMs: Date.now() - startedAt }, "demo ready");
     return;
   }
 
-  const startedAt = Date.now();
-  const report = await provisionCanonicalLabels();
-  log.info(
-    {
-      repos: report.repos.length,
-      created: report.created,
-      updated: report.updated,
-      failed: report.failed,
-      durationMs: Date.now() - startedAt,
-    },
-    "startup complete",
-  );
+  try {
+    const report = await provisionCanonicalLabels();
+    log.info(
+      {
+        repos: report.repos.length,
+        created: report.created,
+        updated: report.updated,
+        failed: report.failed,
+        durationMs: Date.now() - startedAt,
+      },
+      "startup complete",
+    );
+  } catch (error) {
+    log.error({ err: error }, "startup failed");
+    throw error;
+  }
   startSyncWorker();
   scheduleReconciliation();
 };

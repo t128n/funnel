@@ -16,6 +16,7 @@ import {
 } from "#lib/server/settings/store";
 import { clearMirror } from "#tests/mirror-helpers";
 import { TEST_CONFIG } from "#tests/test-config";
+import { captureLog, type LogCapture } from "#tests/log-capture";
 import { forge } from "#/lib/server/forge/providers.server";
 import { deriveMetadata } from "./conflicts";
 import type {
@@ -54,6 +55,7 @@ const BASE_SETTINGS: SettingsInput = {
 };
 
 let repoId = 0;
+let logs: LogCapture;
 
 beforeEach(() => {
   clearMirror();
@@ -72,6 +74,11 @@ beforeEach(() => {
     url: "https://github.com/orgA/core",
     archived: false,
   }).id;
+  logs = captureLog();
+});
+
+afterEach(() => {
+  logs.reset();
 });
 
 function seedUser(
@@ -739,6 +746,23 @@ describe("hydrateAndStore", () => {
     expect(stored?.status).toBe("todo");
     expect(stored?.labelConflict).toBe(0);
     expect(mirror.getIssueLabels(repoId, 1).sort()).toEqual(["bug", "todo"]);
+
+    expect(logs.find("sync", "hydration started")).toMatchObject({
+      level: "debug",
+      component: "sync",
+      repo: "orgA/core",
+      requested: 1,
+      batches: 1,
+    });
+    expect(logs.find("sync", "hydration finished")).toMatchObject({
+      level: "debug",
+      component: "sync",
+      repo: "orgA/core",
+      requested: 1,
+      hydrated: 1,
+      batches: 1,
+      durationMs: expect.any(Number),
+    });
   });
 
   test("caches impact/urgency labels and derives priority", async () => {

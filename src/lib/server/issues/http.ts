@@ -13,7 +13,7 @@ import {
 } from "#lib/server/forge/providers.server";
 import { errorMessage } from "#lib/server/http/outcome";
 import { apiRole } from "#lib/server/http/session";
-import { createLogger } from "#lib/server/log";
+import { createLogger, errorFields } from "#lib/server/log";
 import { isDemoMode } from "#lib/server/demo/mode";
 import { refreshIssue } from "#lib/server/sync/worker";
 
@@ -42,7 +42,7 @@ export async function authenticate(
     const token = await getUserAccessToken(userId);
     return { ok: true, provider: forge.userProvider(token) };
   } catch (error) {
-    log.warn({ err: errorMessage(error) }, "user token unavailable");
+    log.warn(errorFields(error), "user token unavailable");
     return { ok: false, response: jsonError(errorMessage(error), 502) };
   }
 }
@@ -85,7 +85,7 @@ export function scheduleRefresh(
   if (isDemoMode()) return;
   void refreshIssue(owner, repo, number, actorUserId).catch((error) => {
     log.warn(
-      { repo: `${owner}/${repo}`, number, err: errorMessage(error) },
+      { repo: `${owner}/${repo}`, number, ...errorFields(error) },
       "post-write refresh failed",
     );
   });

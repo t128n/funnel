@@ -15,6 +15,7 @@ import {
 import { clearSettings, writeSettings } from "#/lib/server/settings/store";
 import { forge } from "#/lib/server/forge/providers.server";
 import { TEST_CONFIG } from "#tests/test-config";
+import { captureLog, type LogCapture } from "#tests/log-capture";
 import {
   CANONICAL_LABELS,
   provisionCanonicalLabels,
@@ -74,6 +75,7 @@ function fakeProvider() {
 
 let providerSpy: ReturnType<typeof spyOn>;
 let idSpy: ReturnType<typeof spyOn>;
+let logs: LogCapture;
 
 beforeEach(() => {
   calls.length = 0;
@@ -83,11 +85,13 @@ beforeEach(() => {
     fakeProvider() as never,
   );
   idSpy = spyOn(forge, "getInstallationId").mockResolvedValue(777);
+  logs = captureLog();
 });
 
 afterEach(() => {
   providerSpy.mockRestore();
   idSpy.mockRestore();
+  logs.reset();
 });
 
 describe("CANONICAL_LABELS", () => {
@@ -255,6 +259,30 @@ describe("provisionCanonicalLabels", () => {
     expect(report.repos.map((r) => r.repo)).toEqual(["orgA/core", "orgA/web"]);
     expect(report.created).toBe(CANONICAL_LABELS.length * 2);
     expect(report.updated).toBe(0);
+
+    expect(logs.find("labels", "label provisioning started")).toMatchObject({
+      level: "info",
+      component: "labels",
+      repos: 2,
+    });
+    expect(logs.find("labels", "repo labels reconciled")).toMatchObject({
+      level: "info",
+      component: "labels",
+      repo: "orgA/core",
+      created: CANONICAL_LABELS.length,
+      updated: 0,
+      unchanged: 0,
+      durationMs: expect.any(Number),
+    });
+    expect(logs.find("labels", "label provisioning finished")).toMatchObject({
+      level: "info",
+      component: "labels",
+      repos: 2,
+      created: CANONICAL_LABELS.length * 2,
+      updated: 0,
+      failed: 0,
+      durationMs: expect.any(Number),
+    });
   });
 
   test("isolates a failing repo so the others still reconcile", async () => {
@@ -278,6 +306,13 @@ describe("provisionCanonicalLabels", () => {
     expect(good?.summary?.created).toHaveLength(CANONICAL_LABELS.length);
     const bad = report.repos.find((r) => r.repo === "bad/core");
     expect(bad?.error).toContain("404");
+    expect(logs.find("labels", "provisioning failed")).toMatchObject({
+      level: "warn",
+      component: "labels",
+      repo: "bad/core",
+      status: 404,
+      err: expect.objectContaining({ message: expect.any(String) }),
+    });
   });
 
   test("resolves with an empty report when config cannot be loaded", async () => {

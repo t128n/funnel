@@ -14,6 +14,7 @@ import { watchIssue } from "#lib/server/notifications/service";
 import { clearSettings } from "#lib/server/settings/store";
 import { TEST_CONFIG } from "#tests/test-config";
 import { clearMirror } from "#tests/mirror-helpers";
+import { captureLog, type LogCapture } from "#tests/log-capture";
 import { resetEventBus, subscribe } from "./events";
 import * as mirror from "./mirror";
 import {
@@ -37,6 +38,7 @@ let nodes: unknown[] = [];
 let graphqlCalls: Array<Record<string, unknown>> = [];
 let failIssues = false;
 let repoId = 0;
+let logs: LogCapture;
 
 /** Returned by the fake provider's assignable-users listing. */
 interface FakeAssignee {
@@ -276,12 +278,14 @@ beforeEach(() => {
   spy = spyOn(forge, "installationProvider").mockResolvedValue(
     fakeProvider as never,
   );
+  logs = captureLog();
 });
 
 afterEach(() => {
   spy.mockRestore();
   globalThis.fetch = realFetch;
   forge.resetCaches();
+  logs.reset();
 });
 
 describe("inHistoryWindow", () => {
@@ -548,6 +552,23 @@ describe("runRepoCycle", () => {
     expect(mirror.getRepo(repoId)?.name).toBe("core");
     expect(mirror.getRepo(repoId)?.degraded).toBe(0);
     expect(mirror.getIssue(repoId, 1)?.title).toBe("t");
+
+    const started = logs.find("sync", "repo poll started");
+    expect(started).toMatchObject({
+      level: "debug",
+      component: "sync",
+      repo: "orgA/core",
+    });
+    const finished = logs.find("sync", "repo polled");
+    expect(finished).toMatchObject({
+      level: "debug",
+      component: "sync",
+      repo: "orgA/core",
+      changed: 1,
+      hydrated: 1,
+      pruned: 0,
+      durationMs: expect.any(Number),
+    });
   });
 
   test("mirrors the repo's assignable users", async () => {
@@ -659,6 +680,13 @@ describe("syncAllRepos", () => {
     await syncAllRepos();
 
     expect(mirror.getIssue(repoId, 1)?.title).toBe("t");
+    expect(logs.find("sync", "sync run finished")).toMatchObject({
+      level: "info",
+      component: "sync",
+      repos: 1,
+      failed: 0,
+      durationMs: expect.any(Number),
+    });
   });
 });
 
@@ -668,6 +696,13 @@ describe("scheduler lifecycle", () => {
     startSyncWorker();
     stopSyncWorker();
     stopSyncWorker();
-    expect(true).toBe(true);
+    expect(logs.find("sync", "sync worker started")).toMatchObject({
+      level: "info",
+      component: "sync",
+      tickMs: 5_000,
+    });
+    expect(
+      logs.entries.filter((entry) => entry.msg === "sync worker started"),
+    ).toHaveLength(1);
   });
 });

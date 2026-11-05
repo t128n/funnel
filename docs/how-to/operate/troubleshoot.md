@@ -172,7 +172,7 @@ Once the repository's mirror row exists, a failed cycle is isolated: the schedul
 
 **Checks**
 
-- The logs contain `repo poll failed` with a `repo` and `err` field. The error often carries GitHub's status and message, for example `403 API rate limit exceeded`, `403 Resource not accessible by integration`, `404 Not Found`, or `401 Bad credentials`.
+- The logs contain `repo poll failed` with a `repo` field, the original error under `err`, and a separate `status` field when GitHub returned one. Typical errors are `403 API rate limit exceeded`, `403 Resource not accessible by integration`, `404 Not Found`, or `401 Bad credentials`.
 - Look for the repo row and its timestamps (if the `sqlite3` CLI is available):
 
 ```sh
@@ -291,7 +291,7 @@ Every request gets a UUID in `event.locals.requestId`. An unexpected 5xx page sh
 - `request failed` is a 5xx at `error` level.
 - `request rejected` is an expected 4xx at `warn` level.
 
-Background work logs carry a `component` (for example `sync`, `reconcile`, `onboarding`, `http`) and usually a `repo`. Search for `repo poll failed`, `reconciliation failed`, `provisioning failed`, `user token unavailable`, or `post-write refresh failed`.
+Background work logs carry a `component` (for example `sync`, `reconcile`, `labels`, `intake`, `startup`, `onboarding`, `http`) and usually a `repo`. Cycle records start with `... started` and finish with counts (`repos`, `hydrated`, `pruned`, `created`, `updated`, `failed`) plus `durationMs` where the pass has a measurable span. Failures keep the original error under `err` and lift an upstream HTTP `status` into its own field. Search for `repo poll failed`, `hydration failed`, `reconciliation failed`, `provisioning failed`, `user token unavailable`, or `post-write refresh failed`.
 
 Useful startup lines:
 
