@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, test } from "bun:test";
 import { setConfig } from "#lib/server/config";
 import { db } from "#lib/server/db/index";
-import { stateIntakeSubmission } from "#lib/server/db/schema";
+import { stateIntakeSubmission, stateIssueWaiting } from "#lib/server/db/schema";
 import { createSubmission } from "#lib/server/intake/staging";
 import {
   replaceRepoMilestones,
@@ -12,6 +12,7 @@ import {
   type UserRecord,
 } from "#lib/server/sync/mirror";
 import { writeBlocked } from "#lib/funnel-metadata";
+import { setWaiting } from "#lib/server/waiting";
 import { clearMirror } from "#tests/mirror-helpers";
 import { TEST_CONFIG } from "#tests/test-config";
 import { EMPTY_FILTER, parseIssueFilter } from "./filters";
@@ -41,6 +42,7 @@ import {
   myIssues,
   statusBoard,
   type MatrixBoard,
+  waitingIssues,
 } from "./queries";
 import {
   seedPlanningIssue,
@@ -249,6 +251,7 @@ const rawNumbers = (items: { number: number }[]) =>
 
 beforeEach(() => {
   db.delete(stateIntakeSubmission).run();
+  db.delete(stateIssueWaiting).run();
   clearMirror();
   setConfig(TEST_CONFIG);
   seed();
@@ -361,6 +364,15 @@ describe("allIssues", () => {
     });
     expect(numbers(allIssues(parse("blocked=true")))).toEqual([8]);
     expect(numbers(allIssues(parse("blocked=false")))).toEqual([1, 3, 6]);
+  });
+
+  test("filters by the durable waiting state", () => {
+    expect(
+      setWaiting("orgA/core", 1, { reason: "waiting-on-reporter" }).ok,
+    ).toBe(true);
+    expect(numbers(allIssues(parse("waiting=true")))).toEqual([1]);
+    expect(numbers(allIssues(parse("waiting=false")))).toEqual([3, 6]);
+    expect(numbers(allIssues(parse("waiting=maybe")))).toEqual([1, 3, 6]);
   });
 
   test("combines dimensions with AND", () => {
@@ -783,6 +795,88 @@ describe("attentionIssues", () => {
       "2026-10-19",
       "2026-11-01",
     ]);
+  });
+});
+
+describe("waitingIssues", () => {
+  function seedWaitingIssue(
+    number: number,
+    externalId: string,
+    state: "open" | "closed" = "open",
+  ): void {
+    upsertIssue(
+      {
+        externalId,
+        kind: "issue",
+        url: "",
+        repoId: 1,
+        number,
+        title: `Waiting ${number}`,
+        body: "",
+        state,
+        stateReason: state === "closed" ? "completed" : null,
+        author: null,
+        milestoneNumber: null,
+        createdAt: 1,
+        updatedAt: 600,
+        closedAt: state === "closed" ? 700 : null,
+        labels: ["todo"],
+        assignees: [],
+        comments: [],
+      },
+      {
+        status: "todo",
+        impact: null,
+        urgency: null,
+        priority: null,
+        size: null,
+        blocked: false,
+        labelConflict: false,
+      },
+    );
+  }
+
+  const NOW = new Date(2026, 9, 18, 12).getTime();
+  const DAY_MS = 86_400_000;
+
+  test("returns open waiting issues with reason, date and stale flag", () => {
+    seedWaitingIssue(21, "121");
+    seedWaitingIssue(22, "122");
+    setWaiting(
+      "orgA/core",
+      21,
+      { reason: "waiting-on-vendor", note: "Ticket 42", recheckOn: "2026-10-25" },
+      null,
+      NOW - 2 * DAY_MS,
+    );
+    setWaiting(
+      "orgA/core",
+      22,
+      { reason: "needs-info" },
+      null,
+      NOW - 8 * DAY_MS,
+    );
+
+    const items = waitingIssues(NOW);
+    expect(
+      items.map((item) => [
+        item.issue.number,
+        item.reason,
+        item.note,
+        item.recheckOn,
+        item.stale,
+      ]),
+    ).toEqual([
+      [22, "needs-info", null, null, true],
+      [21, "waiting-on-vendor", "Ticket 42", "2026-10-25", false],
+    ]);
+  });
+
+  test("omits waiting rows whose issue is closed or no longer mirrored", () => {
+    seedWaitingIssue(23, "123", "closed");
+    setWaiting("orgA/core", 23, { reason: "other" });
+    setWaiting("orgA/core", 99, { reason: "other" });
+    expect(waitingIssues(NOW)).toEqual([]);
   });
 });
 

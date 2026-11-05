@@ -77,6 +77,19 @@ describe("parseIssueFilter", () => {
     expect(parseIssueFilter(new URLSearchParams(""), ctx).blocked).toBeNull();
   });
 
+  test("parses the waiting dimension and ignores unknown values", () => {
+    expect(
+      parseIssueFilter(new URLSearchParams("waiting=true"), ctx).waiting,
+    ).toBe(true);
+    expect(
+      parseIssueFilter(new URLSearchParams("waiting=false"), ctx).waiting,
+    ).toBe(false);
+    expect(
+      parseIssueFilter(new URLSearchParams("waiting=yes"), ctx).waiting,
+    ).toBeNull();
+    expect(parseIssueFilter(new URLSearchParams(""), ctx).waiting).toBeNull();
+  });
+
   test("parses sort and direction with safe defaults", () => {
     expect(parseIssueFilter(new URLSearchParams(""), ctx)).toMatchObject({
       sort: "priority",
@@ -231,5 +244,8 @@ describe("buildIssueWhere", () => {
     expect(buildIssueWhere({ ...EMPTY_FILTER, blocked: true })).toBeDefined();
     expect(buildIssueWhere({ ...EMPTY_FILTER, blocked: false })).toBeDefined();
     expect(buildIssueWhere({ ...EMPTY_FILTER, blocked: null })).toBeUndefined();
+    expect(buildIssueWhere({ ...EMPTY_FILTER, waiting: true })).toBeDefined();
+    expect(buildIssueWhere({ ...EMPTY_FILTER, waiting: false })).toBeDefined();
+    expect(buildIssueWhere({ ...EMPTY_FILTER, waiting: null })).toBeUndefined();
   });
 });
