@@ -72,6 +72,11 @@ outputs = [
 ]
 run = 'bun scripts/build-standalone.ts{% if usage.target %} --target={{ usage.target }}{% endif %}'
 
+[tasks.smoke]
+description = "Smoke-test the standalone executable in dist/ (CLI, migrations, boot, health)"
+depends = ["exe"]
+run = "bun scripts/smoke-standalone.ts"
+
 [tasks.verify]
 description = "Run everything the release pipeline relies on"
 run = [
@@ -80,6 +85,7 @@ run = [
   { task = "intake:check" },
   { task = "build" },
   { task = "exe" },
+  { task = "smoke" },
 ]
 
 [tasks."intake:exe"]
