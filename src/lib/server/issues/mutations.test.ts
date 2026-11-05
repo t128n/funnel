@@ -1,6 +1,8 @@
-import { beforeEach, describe, expect, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { buildVocabulary } from "#lib/labels";
 import { setConfig } from "#lib/server/config";
+import { db } from "#lib/server/db/index";
+import { stateSnooze } from "#lib/server/db/schema";
 import type { GitHubProvider } from "#lib/server/forge/providers.server";
 import { resetEventBus, subscribe } from "#lib/server/sync/events";
 import { TEST_CONFIG } from "#tests/test-config";
@@ -14,6 +16,7 @@ import {
   updateIssue,
   withReserved,
 } from "./mutations";
+import { isIssueSnoozed, snoozeIssue } from "#lib/server/snooze";
 
 interface Call {
   op: string;
@@ -132,6 +135,7 @@ function ops(calls: Call[]): string[] {
 }
 
 beforeEach(() => {
+  db.delete(stateSnooze).run();
   setConfig({
     ...TEST_CONFIG,
     repos: [
@@ -140,6 +144,10 @@ beforeEach(() => {
     ],
   });
   resetEventBus();
+});
+
+afterEach(() => {
+  db.delete(stateSnooze).run();
 });
 
 describe("normalizeReserved", () => {
@@ -470,6 +478,30 @@ describe("updateIssue", () => {
     await updateIssue({ provider, repo: "orgA/core", number: 5, status: null });
 
     expect(calls[1].args[1]).toEqual(["bug"]);
+  });
+
+  test("clears an issue snooze when the status changes", async () => {
+    const { provider } = stubProvider();
+    expect(snoozeIssue("orgA/core", 5, Date.now() + 60_000).ok).toBe(true);
+    expect(isIssueSnoozed("orgA/core", 5)).toBe(true);
+
+    await updateIssue({
+      provider,
+      repo: "orgA/core",
+      number: 5,
+      status: "todo",
+    });
+
+    expect(isIssueSnoozed("orgA/core", 5)).toBe(false);
+  });
+
+  test("keeps an issue snooze on a non-status edit", async () => {
+    const { provider } = stubProvider();
+    expect(snoozeIssue("orgA/core", 5, Date.now() + 60_000).ok).toBe(true);
+
+    await updateIssue({ provider, repo: "orgA/core", number: 5, title: "Rename" });
+
+    expect(isIssueSnoozed("orgA/core", 5)).toBe(true);
   });
 
   test("swaps impact and size in the same request", async () => {
