@@ -77,6 +77,7 @@ Learning-oriented, with one path and expected results.
 - [Use milestones](how-to/use/milestones.md) — browse repo-scoped milestones, filter and group by them, and set or create one from an issue.
 - [Read the milestone timeline](how-to/use/milestones.md#read-the-timeline) — project open milestones as an Apache ECharts Gantt from plan weeks and observed status changes.
 - [Comments, reactions and mentions](how-to/use/comments.md) — edit or delete your own GitHub comments, react, and mention repository collaborators.
+- [Read issue history](how-to/use/issue-history.md) — filter an issue's activity between comments and the unified status, label, assignee and GitHub event history.
 - [Work notes and attachments](how-to/use/work-notes-and-attachments.md) — keep internal notes, publish them, and manage the file dropbox.
 - [Keyboard shortcuts](how-to/use/keyboard.md) — the global and board bindings, plus arrow-key navigation.
 
