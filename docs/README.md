@@ -105,6 +105,7 @@ Learning-oriented, with one path and expected results.
 - [HTTP API](reference/http-api.md) — the intake endpoint, mutation endpoints, mirror reads, and health probes.
 - [Database schema](reference/database-schema.md) — mirror tables, Funnel-owned state, and authentication tables.
 - [Routes and pages](reference/routes-and-pages.md) — the public, onboarding, cockpit, settings, and API route map.
+- [Insights](reference/insights.md) — triage metric formulas, UTC date-range semantics, snapshot vs range clocks, and empty-data behavior.
 - [Feature flags](reference/feature-flags.md) — the flag keys, defaults, and per-browser overrides.
 - [Glossary](reference/glossary.md) — the terms Funnel uses for intake, mirror, triage, workflow, actual time, delays, and epics.
 
