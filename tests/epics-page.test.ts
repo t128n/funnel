@@ -33,7 +33,10 @@ const START = Date.parse("2026-10-01T00:00:00Z");
 const HOUR = 60 * 60_000;
 
 function source(relative: string): string {
-  return readFileSync(new URL(`../${relative}`, import.meta.url), "utf8");
+  return readFileSync(
+    new URL(`../${relative}`, import.meta.url),
+    "utf8",
+  ).replace(/\r\n/g, "\n");
 }
 
 function metadata(labels: string[]): StoredMetadata {

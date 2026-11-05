@@ -29,7 +29,10 @@ function url(path: string): URL {
 }
 
 function source(relative: string): string {
-  return readFileSync(new URL(`../${relative}`, import.meta.url), "utf8");
+  return readFileSync(
+    new URL(`../${relative}`, import.meta.url),
+    "utf8",
+  ).replace(/\r\n/g, "\n");
 }
 
 beforeEach(() => {

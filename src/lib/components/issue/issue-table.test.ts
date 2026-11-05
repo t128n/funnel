@@ -6,7 +6,10 @@ import { describe, expect, test } from 'bun:test';
  * markup structure, not pure functions. Bun has no Svelte loader, so assert on
  * the source the same way the other component tests in this folder do.
  */
-const source = readFileSync(new URL('./IssueTable.svelte', import.meta.url), 'utf8');
+const source = readFileSync(
+	new URL('./IssueTable.svelte', import.meta.url),
+	'utf8'
+).replace(/\r\n/g, '\n');
 
 describe('IssueTable keyboard model', () => {
 	test('rows add no tab stop; the title link and checkbox stay the stops', () => {

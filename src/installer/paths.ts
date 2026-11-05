@@ -1,11 +1,10 @@
 import { existsSync } from "node:fs";
 import { homedir } from "node:os";
-import {
-  isAbsolute as isPosixAbsolute,
-  join as posixJoin,
-  posix,
-  win32,
-} from "node:path";
+import { posix, win32 } from "node:path";
+
+/** POSIX joins must not follow the host separator (tests run on Windows too). */
+const posixJoin = posix.join;
+const isPosixAbsolute = posix.isAbsolute;
 import {
   MANIFEST_FILE,
   type InstallMode,

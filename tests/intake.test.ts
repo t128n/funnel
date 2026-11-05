@@ -340,7 +340,7 @@ describe("POST /intake form action", () => {
     const page = readFileSync(
       new URL("../src/routes/intake/+page.svelte", import.meta.url),
       "utf8",
-    );
+    ).replace(/\r\n/g, "\n");
 
     expect(page).toContain('aria-required="true"');
     expect(page).toContain('aria-describedby={titleDescribedBy}');

@@ -5,7 +5,7 @@ import { join } from 'node:path';
 const root = join(import.meta.dir, '..');
 
 function source(path: string): string {
-	return readFileSync(join(root, path), 'utf8');
+	return readFileSync(join(root, path), 'utf8').replace(/\r\n/g, '\n');
 }
 
 function walk(dir: string, files: string[] = []): string[] {

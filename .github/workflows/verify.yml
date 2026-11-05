@@ -35,9 +35,12 @@ jobs:
         run: mise run verify
 
   windows-package:
+    # Kept under the same job name because branch protection requires this
+    # check. It now runs the same full gate as Ubuntu; the suite is kept
+    # Windows-clean by #164 so both platforms agree.
     name: Windows package (windows-latest)
     runs-on: windows-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -50,17 +53,5 @@ jobs:
       - name: Install dependencies
         run: mise run bun:install
 
-      - name: Build executable
-        run: mise run exe
-
-      - name: Check packaged executable
-        shell: pwsh
-        run: |
-          if (-not (Test-Path dist/funnel.exe)) {
-            Write-Error "dist/funnel.exe was not built"
-            exit 1
-          }
-          ./dist/funnel.exe --version
-
-      - name: Smoke test
-        run: mise run smoke
+      - name: Verify
+        run: mise run verify

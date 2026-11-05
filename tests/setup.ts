@@ -1,4 +1,4 @@
-import { mock } from "bun:test";
+import { beforeEach, mock } from "bun:test";
 import { fileURLToPath } from "node:url";
 
 // Runs via `bun test --preload ./tests/setup.ts` before any test file
@@ -44,3 +44,12 @@ migrate(db, {
 // (the credential store reads FUNNEL_SECRET to derive its encryption key).
 const { seedTestGithubApp } = await import("./github-app");
 await seedTestGithubApp();
+
+// The SSE bus is process-global. A test that subscribes and does not unwind
+// would otherwise leak a listener into the next file; Bun runs files in one
+// process with `--max-concurrency 1`. Reset before every test so subscriber
+// counts and delivery assertions are deterministic on every OS.
+const { resetEventBus } = await import("#lib/server/sync/events");
+beforeEach(() => {
+  resetEventBus();
+});

@@ -1,5 +1,12 @@
 import { describe, expect, test } from "bun:test";
-import { readFileSync, statSync } from "node:fs";
+import {
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 const root = join(import.meta.dir, "..");
@@ -66,7 +73,7 @@ describe("systemd environment template", () => {
 
 describe("systemd install helper", () => {
   test("runs the installer instead of reimplementing it", () => {
-    const script = readFileSync(installPath, "utf8");
+    const script = readFileSync(installPath, "utf8").replace(/\r\n/g, "\n");
 
     expect(script.startsWith("#!/bin/sh\n")).toBe(true);
     expect(script).toContain("set -eu");
@@ -87,13 +94,25 @@ describe("systemd install helper", () => {
     () => {
       expect(statSync(installPath).mode & 0o111).not.toBe(0);
 
-      const check = Bun.spawnSync({
-        cmd: ["sh", "-n", installPath],
-        stdout: "pipe",
-        stderr: "pipe",
-      });
-      expect(check.exitCode).toBe(0);
-      expect(check.stderr.toString()).toBe("");
+      // Parse a normalised copy: a CRLF working tree (a local Windows clone
+      // without .gitattributes applied) must not fail a POSIX syntax check.
+      const dir = mkdtempSync(join(tmpdir(), "funnel-systemd-"));
+      const scriptPath = join(dir, "install.sh");
+      try {
+        writeFileSync(
+          scriptPath,
+          readFileSync(installPath, "utf8").replace(/\r\n/g, "\n"),
+        );
+        const check = Bun.spawnSync({
+          cmd: ["sh", "-n", scriptPath],
+          stdout: "pipe",
+          stderr: "pipe",
+        });
+        expect(check.exitCode).toBe(0);
+        expect(check.stderr.toString()).toBe("");
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
+      }
     },
   );
 });

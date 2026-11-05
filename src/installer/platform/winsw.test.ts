@@ -9,7 +9,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import {
   locateWinSw,
   materializeWinSw,
@@ -55,16 +55,18 @@ describe("winSwCandidates", () => {
       moduleDir: "/srv/funnel/src/installer/platform",
     });
 
+    // WinSW is Windows-only, but the candidate builder uses the host's path
+    // semantics so the tests must assert through the same functions.
     expect(candidates[0]).toEqual({
-      path: "/opt/winsw/WinSW.exe",
+      path: resolve("/opt/winsw/WinSW.exe"),
       source: "env",
     });
     expect(candidates[1]).toEqual({
-      path: "/opt/funnel/funnel-service.exe",
+      path: join(dirname("/opt/funnel/funnel.exe"), "funnel-service.exe"),
       source: "sibling",
     });
     expect(candidates).toContainEqual({
-      path: "/srv/funnel/vendor/winsw/WinSW.NET461.exe",
+      path: join("/srv/funnel", "vendor", "winsw", "WinSW.NET461.exe"),
       source: "vendor",
     });
   });

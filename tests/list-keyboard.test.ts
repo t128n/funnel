@@ -136,7 +136,8 @@ describe('row announcements', () => {
 
 describe('table wiring', () => {
 	const root = new URL('..', import.meta.url);
-	const source = (path: string) => readFileSync(new URL(path, root), 'utf8');
+	const source = (path: string) =>
+		readFileSync(new URL(path, root), 'utf8').replace(/\r\n/g, '\n');
 
 	test('both tables use the shared roving keyboard contract', () => {
 		for (const path of [
