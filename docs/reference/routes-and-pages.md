@@ -65,7 +65,7 @@ The `C` shortcut and an empty board column's **New Issue** control open an in-ap
 | `/board/{owner}/{repo}/{number}` | Inspector docked beside the board. | `read` | Malformed params return `404`. |
 | `/matrix` | Assessment summary and a selectable 3×3 impact × urgency matrix over the same filtered issue stream. | `read` | Defaults to `state=open` and includes triaged and untriaged issues. Search, scope, and filters drive the needs-assessment count, rated count, the nine cell totals, and the selected cell's issue list. `?cell=<impact>-<urgency>` selects a cell; without it, the highest-priority populated cell is selected. Writers can open the assessment queue for inline rating. |
 | `/matrix/{owner}/{repo}/{number}` | Inspector docked beside the matrix. | `read` | Malformed params return `404`. The selected cell is preserved when the Inspector closes. |
-| `/attention` | Blocked issues with a re-check date, grouped overdue, today and upcoming. | `read` | Bucketing is computed in the browser's local timezone; upcoming is a seven-day window. |
+| `/attention` | Blocked issues with a re-check date, grouped overdue, today and upcoming, plus a separate Waiting section. | `read` | Bucketing is computed in the browser's local timezone; upcoming is a seven-day window. Waiting rows show their reason, optional re-check date and a stale badge after seven days; writers can clear waiting in one click. |
 | `/notifications` | The signed-in viewer's notification feed, unread rows before read rows. | `read` | Newest first, limited to 100 rows. Opening an unread row marks it read; per-row and mark-all controls persist read state. The page also offers the per-browser notification opt-in when `notifications.native` is on. |
 | `/milestones` | Every mirrored milestone, grouped by repository, with progress and due dates. | `read` | GitHub scopes a milestone to one repository, so equal titles in two repositories are separate entries. |
 | `/milestones/{owner}/{repo}/{number}` | The issues attached to one repo-scoped milestone. | `read` | Returns `404` for an unknown repository or milestone. |
@@ -89,7 +89,7 @@ The `C` shortcut and an empty board column's **New Issue** control open an in-ap
 
 ### Issue filters and sorting
 
-The issue lists share one URL filter model: `repo`, `state`, `status`, `assignee`, `priority`, `size`, `label`, `planned` and `milestone` repeat (or comma-join) to OR values inside a dimension, while dimensions AND together. `q` carries the search term. Unknown values are ignored. `blocked=true` and `blocked=false` filter on the mirrored blocked cache, so they work with any configured reserved-label prefix.
+The issue lists share one URL filter model: `repo`, `state`, `status`, `assignee`, `priority`, `size`, `label`, `planned` and `milestone` repeat (or comma-join) to OR values inside a dimension, while dimensions AND together. `q` carries the search term. Unknown values are ignored. `blocked=true` and `blocked=false` filter on the mirrored blocked cache, so they work with any configured reserved-label prefix. `waiting=true` and `waiting=false` filter on Funnel's local waiting table (`state_issue_waiting`), independent of the blocked flag and any label prefix.
 
 `assignee=none` selects issues with no assignees. It may be combined with named assignees (`?assignee=none&assignee=octocat`), in which case either condition matches. `assignee=me` resolves to the signed-in viewer.
 

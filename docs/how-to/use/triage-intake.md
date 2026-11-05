@@ -62,6 +62,24 @@ Snoozes are stored in `state_snooze`. Issues are keyed by `owner/name` plus issu
 
 Triage clears the snooze: accepting, dismissing or duplicating a submission removes its snooze row, and writing an issue status (from the Inbox quick triage or the Inspector) removes the issue's snooze.
 
+## Mark an issue as waiting
+
+Waiting is a first-class triage state for work that is parked on someone else — the reporter, a vendor or an upstream project — rather than blocked work that is in flight.
+
+Open an issue and use **Waiting** in the Properties card:
+
+1. Choose a **Reason**: Needs info, Waiting on reporter, Waiting on vendor, Waiting on upstream or Other.
+2. Optionally add a **Note** and a **Re-check date**.
+3. Select **Mark waiting** (or **Update waiting** to revise the reason/date).
+
+The issue's Waiting state is local to Funnel. It never edits the issue body, adds a label or posts a comment, and it does not use the `funnel_metadata` envelope. The row is stored in `state_issue_waiting`, keyed by `owner/name` plus issue number, so it survives mirror pruning and re-sync. Revising the reason or date keeps the original `waiting_since`; clearing and setting it again starts a new wait.
+
+Waiting issues appear in **Attention** in their own **Waiting on others** section, separate from blocked re-check groups. A waiting issue without a re-check date still appears. Waits older than seven calendar days are marked **Stale** with an emphasised row and a day count.
+
+To clear the state when a reply arrives, select **Clear waiting** on the Attention row or in the issue's Properties card. Clearing is immediate and does not post anything to GitHub. The sidebar Attention badge continues to count only blocked overdue/today re-checks; waiting items are always visible on the page even though they do not raise that badge.
+
+The Inbox issue half has a **Waiting / Not waiting** switch beside the Queue/Snoozed tabs (URL `waiting=true|false`), so pending untriaged issues can be filtered by the same state. The switch only affects the issue half; staged submissions have no waiting state.
+
 ## Open a submission
 
 Select a **Staged** row, or press Enter or Space while it is focused. The detail pane shows the intake tag, the source when one was recorded, the title, when it was staged, and the rendered Markdown description. An empty description is shown as “No description provided.”
