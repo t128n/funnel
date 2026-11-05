@@ -11,6 +11,7 @@ import {
 const BASE: SettingsInput = {
   repos: ["orgA/core"],
   projects: ["project1"],
+  labels: { prefix: "" },
   intake: { default_repo: "orgA/core" },
   sync: {
     history_days: 45,
@@ -45,6 +46,14 @@ describe("applySettings", () => {
     expect(settings.sync).toEqual(BASE.sync);
     // A save re-validates the merged config, so repos are stored normalized.
     expect(settings.repos).toEqual([{ repo: "orgA/core", shortcode: "CORE" }]);
+  });
+
+  test("applies and normalizes a label prefix patch", () => {
+    writeSettings(BASE);
+
+    applySettings({ labels: { prefix: " funnel- " } });
+
+    expect(readSettings().labels).toEqual({ prefix: "funnel" });
   });
 
   test("invalidates the cached config after a save", async () => {

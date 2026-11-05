@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, spyOn, test } from "bun:test";
+import { buildVocabulary } from "#lib/labels";
 import { getConfig, resetConfigCache } from "#lib/server/config";
 import { db } from "#lib/server/db/index";
 import {
@@ -42,6 +43,7 @@ import * as mirror from "./mirror";
 const BASE_SETTINGS: SettingsInput = {
   repos: [],
   projects: [],
+  labels: { prefix: "" },
   intake: {},
   sync: {
     history_days: 90,
@@ -783,6 +785,35 @@ describe("hydrateAndStore", () => {
     expect(stored?.urgency).toBe(1);
     expect(stored?.priority).toBe("P1");
     expect(stored?.labelConflict).toBe(0);
+  });
+
+  test("stores logical keys from prefixed labels", async () => {
+    const graphql: GraphqlFn = async () => ({
+      nodes: [
+        {
+          ...ISSUE_NODE,
+          labels: {
+            nodes: [
+              { name: "funnel-todo" },
+              { name: "funnel-sev" },
+              { name: "funnel-high" },
+              { name: "funnel-md" },
+            ],
+          },
+        },
+      ],
+    });
+    await hydrateAndStore(1, repoId, ["n1"], graphql, {
+      vocabulary: buildVocabulary("funnel"),
+    });
+
+    const stored = mirror.getIssue(repoId, 1);
+    expect(stored?.status).toBe("todo");
+    expect(stored?.impact).toBe(1);
+    expect(stored?.urgency).toBe(1);
+    expect(stored?.priority).toBe("P1");
+    expect(stored?.size).toBe("md");
+    expect(mirror.getIssueLabels(repoId, 1)).toContain("funnel-todo");
   });
 
   test("flags a retired p-label that disagrees with the axes", async () => {

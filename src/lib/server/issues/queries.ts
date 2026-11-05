@@ -29,6 +29,7 @@ import {
 } from "drizzle-orm";
 import { isValidISODate } from "#lib/attention";
 import { getConfig } from "#lib/server/config";
+import { configuredVocabulary } from "#lib/server/label-vocabulary";
 import { db } from "#lib/server/db/index";
 import {
   mirrorComment,
@@ -73,7 +74,6 @@ import {
 import {
   assigneeExists,
   buildIssueWhere,
-  RESERVED_GROUP,
   type IssueFilter,
   type IssueFilterContext,
   STATUS_VALUES,
@@ -257,6 +257,7 @@ export function filterContext(
       name: repo.name,
     })),
     viewerExternalId: viewerExternalId ?? null,
+    vocabulary: configuredVocabulary(),
     resolveLogin: (login) => {
       const row = db
         .select({ externalId: mirrorUser.externalId })
@@ -335,8 +336,8 @@ const TOTAL_TTL_MS = 5_000;
 const TOTAL_CACHE_LIMIT = 256;
 const totalCache = new Map<string, { value: number; at: number }>();
 
-/** Filter-option lists, valid until the next mirror revision (plan T4). */
-let optionsCache: { revision: number; value: FilterOptions } | null = null;
+/** Filter-option lists, valid until the next mirror revision or prefix change. */
+let optionsCache: { key: string; value: FilterOptions } | null = null;
 
 /** Drop every read cache; the mirror changed outside the revision bump. */
 export function clearQueryCaches(): void {
@@ -934,16 +935,19 @@ export function attentionIssues(): AttentionItem[] {
  * than by scanning every assignment in JavaScript.
  */
 export function filterOptions(): FilterOptions {
-  const revision = mirrorRevision();
-  if (optionsCache?.revision === revision) return optionsCache.value;
+  const vocabulary = configuredVocabulary();
+  const key = `${mirrorRevision()}:${vocabulary.prefix}`;
+  if (optionsCache?.key === key) return optionsCache.value;
 
-  const value = computeFilterOptions();
-  optionsCache = { revision, value };
+  const value = computeFilterOptions(vocabulary);
+  optionsCache = { key, value };
   return value;
 }
 
 /** Unbuffered {@link filterOptions} scan. */
-function computeFilterOptions(): FilterOptions {
+function computeFilterOptions(
+  vocabulary = configuredVocabulary(),
+): FilterOptions {
   const repos = listRepos()
     .map((repo) => ({ id: repo.id, slug: `${repo.org}/${repo.name}` }))
     .sort((a, b) => a.slug.localeCompare(b.slug));
@@ -988,7 +992,7 @@ function computeFilterOptions(): FilterOptions {
     .map((row) => row.name)
     .filter(
       (name) =>
-        !RESERVED_GROUP.has(name.toLowerCase()) &&
+        !vocabulary.byName.has(name.toLowerCase()) &&
         !isRetiredPriorityLabel(name),
     )
     // `selectDistinct` orders with SQLite's binary collation; restore the

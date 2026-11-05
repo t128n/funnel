@@ -23,10 +23,12 @@ import {
   forge,
   type GitHubProvider,
 } from "#/lib/server/forge/providers.server";
+import { vocabularyFor } from "#/lib/server/label-vocabulary";
 import { listRepoLabels } from "#/lib/server/github/labels";
 import { listRepoMilestones } from "#/lib/server/github/milestones";
 import { listRepoAssignees } from "#/lib/server/github/assignees";
 import { retiredPriorityConflict } from "#lib/priority";
+import type { ReservedVocabulary } from "#lib/labels";
 import { deriveMetadata, resolveIssueConflict } from "./conflicts";
 import { clientCount, publish } from "./events";
 import { hydrateAndStore } from "./hydrate";
@@ -84,17 +86,19 @@ async function resolveConflicts(
   provider: GitHubProvider,
   repo: mirror.RepoRow,
   records: readonly mirror.IssueRecord[],
+  vocabulary: ReservedVocabulary,
 ): Promise<number> {
   const repoRef = forge.repoRef(repo.org, repo.name);
   let processed = 0;
   for (const record of records) {
-    const derived = deriveMetadata(record.labels);
+    const derived = deriveMetadata(record.labels, vocabulary);
     if (derived.conflicts.length === 0) continue;
     const resolved = await resolveIssueConflict(
       provider,
       repoRef,
       record.number,
       record.labels,
+      vocabulary,
     );
     const removed = new Set(
       resolved.removed.map((name) => name.toLowerCase()),
@@ -109,6 +113,7 @@ async function resolveConflicts(
       priority: resolved.metadata.priority,
       size: resolved.metadata.size,
       blocked: resolved.metadata.blocked,
+      isEpic: resolved.metadata.isEpic,
       labelConflict:
         resolved.ambiguous ||
         retiredPriorityConflict(resolved.metadata.priority, remaining),
@@ -131,7 +136,9 @@ export async function pollRepo(
   now = Date.now(),
   options: PollOptions = {},
 ): Promise<PollResult> {
-  const { sync } = await getConfig();
+  const config = await getConfig();
+  const { sync } = config;
+  const vocabulary = vocabularyFor(config.labels.prefix);
   const provider = await forge.installationProvider(installationId);
   const repoRef = forge.repoRef(repo.org, repo.name);
   const cursor = options.full ? null : mirror.getRepoCursor(repo.id);
@@ -196,9 +203,11 @@ export async function pollRepo(
 
   const hydrated =
     nodeIds.length > 0
-      ? await hydrateAndStore(installationId, repo.id, nodeIds)
+      ? await hydrateAndStore(installationId, repo.id, nodeIds, undefined, {
+          vocabulary,
+        })
       : [];
-  const conflicts = await resolveConflicts(provider, repo, hydrated);
+  const conflicts = await resolveConflicts(provider, repo, hydrated, vocabulary);
 
   // Changed issues that aged out of the window are dropped from the mirror.
   for (const number of pruned) mirror.deleteIssue(repo.id, number);
@@ -421,14 +430,16 @@ export async function refreshIssue(
     forge.threadRef(repoRef, "issue", number),
   );
   if (typeof thread.ref.externalId !== "string") return;
+  const config = await getConfig();
+  const vocabulary = vocabularyFor(config.labels.prefix);
   const records = await hydrateAndStore(
     installationId,
     repoRow.id,
     [thread.ref.externalId],
     undefined,
-    { actorUserId },
+    { actorUserId, vocabulary },
   );
-  await resolveConflicts(provider, repoRow, records);
+  await resolveConflicts(provider, repoRow, records, vocabulary);
   publish({ type: "issues", repo: `${owner}/${repo}`, numbers: [number] });
 }
 

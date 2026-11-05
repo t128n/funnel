@@ -24,6 +24,12 @@
  */
 import { eq } from "drizzle-orm";
 import * as v from "valibot";
+import {
+  buildReservedLabels,
+  isValidLabelPrefix,
+  LABEL_PREFIX_MAX_LENGTH,
+  normalizeLabelPrefix,
+} from "#lib/labels";
 import type { SettingsIssue } from "#lib/settings-feedback";
 import { db } from "#lib/server/db/index";
 import { stateSetting } from "#lib/server/db/schema";
@@ -86,6 +92,34 @@ export const projectInput = v.union([
 
 /** Open workflow stages that can carry a Work-in-Progress cap. */
 export const WIP_STAGES = ["backlog", "todo", "in-progress", "in-review"] as const;
+
+/**
+ * The optional global prefix for reserved GitHub labels.
+ *
+ * Trimmed and trailing-hyphen normalized (`funnel-` and `funnel` both mean
+ * `funnel`), then restricted to letters/digits separated by single hyphens.
+ * Empty means the unprefixed vocabulary. The check for duplicate resulting
+ * names is defensive: the fixed vocabulary cannot collide under a valid prefix,
+ * but a future separator/override must never silently create two `todo`s.
+ */
+export const labelPrefix = v.pipe(
+  v.string("labels.prefix must be a string"),
+  v.transform(normalizeLabelPrefix),
+  v.maxLength(
+    LABEL_PREFIX_MAX_LENGTH,
+    `labels.prefix must be at most ${LABEL_PREFIX_MAX_LENGTH} characters`,
+  ),
+  v.check(
+    isValidLabelPrefix,
+    "labels.prefix may contain only letters, digits and single hyphens",
+  ),
+  v.check((prefix) => {
+    const names = buildReservedLabels(prefix).map((label) =>
+      label.name.toLowerCase(),
+    );
+    return new Set(names).size === names.length;
+  }, "labels.prefix must not produce duplicate reserved label names"),
+);
 
 // ---------------------------------------------------------------------------
 // Planning primitives
@@ -204,6 +238,7 @@ export type PlanningInput = v.InferOutput<typeof planningInput>;
 const defs = {
   repos: { schema: v.array(repoEntry), default: [] as RepoInput[] },
   projects: { schema: v.array(projectInput), default: [] as ProjectInput[] },
+  "labels.prefix": { schema: labelPrefix, default: "" },
   "intake.default_repo": {
     schema: v.optional(repoName),
     default: undefined as string | undefined,
@@ -258,6 +293,7 @@ export type SettingKey = keyof typeof defs;
 export interface Settings {
   repos: RepoInput[];
   projects: ProjectInput[];
+  labels: { prefix: string };
   intake: { default_repo?: string };
   sync: {
     history_days: number;
@@ -297,6 +333,9 @@ export class SettingsError extends Error {
 export const settingsInputSchema = v.object({
   repos: v.array(repoEntry),
   projects: v.array(projectInput),
+  // Optional so settings written before this section (and patches from older
+  // test fixtures) default to the unprefixed vocabulary instead of failing.
+  labels: v.optional(v.object({ prefix: labelPrefix }), { prefix: "" }),
   intake: v.object({ default_repo: v.optional(repoName) }),
   sync: v.object({
     history_days: count("sync.history_days"),
@@ -371,6 +410,9 @@ export function readSettings(): Settings {
   return {
     repos: readKey(rows, "repos") as RepoInput[],
     projects: readKey(rows, "projects") as ProjectInput[],
+    labels: {
+      prefix: readKey(rows, "labels.prefix") as string,
+    },
     intake: {
       default_repo: readKey(rows, "intake.default_repo") as string | undefined,
     },
@@ -429,9 +471,11 @@ function toEntries(input: SettingsInput): [SettingKey, unknown][] {
     cycle_anchor: DEFAULT_CYCLE_ANCHOR,
     maintainers: [] as MaintainerInput[],
   };
+  const labels = input.labels ?? { prefix: "" };
   return [
     ["repos", input.repos],
     ["projects", input.projects],
+    ["labels.prefix", labels.prefix],
     ["intake.default_repo", input.intake.default_repo],
     ["sync.history_days", input.sync.history_days],
     [

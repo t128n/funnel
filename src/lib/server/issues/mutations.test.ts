@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, test } from "bun:test";
+import { buildVocabulary } from "#lib/labels";
 import { setConfig } from "#lib/server/config";
 import type { GitHubProvider } from "#lib/server/forge/providers.server";
 import { resetEventBus, subscribe } from "#lib/server/sync/events";
@@ -178,12 +179,36 @@ describe("withReserved", () => {
       "bug",
     ]);
   });
+
+  test("maps logical targets to actual prefixed names", () => {
+    const vocabulary = buildVocabulary("funnel");
+    expect(
+      withReserved(
+        ["funnel-todo", "bug", "p2"],
+        "status",
+        "in-progress",
+        vocabulary,
+      ),
+    ).toEqual(["bug", "p2", "funnel-in-progress"]);
+    expect(
+      withReserved(["funnel-todo", "bug"], "status", null, vocabulary),
+    ).toEqual(["bug"]);
+  });
+
+  test("normalizes prefixed groups with the configured vocabulary", () => {
+    const vocabulary = buildVocabulary("funnel");
+    expect(
+      normalizeReserved(
+        ["funnel-todo", "funnel-blocked", "bug", "funnel-sev", "funnel-mod"],
+        vocabulary,
+      ),
+    ).toEqual(["funnel-todo", "funnel-blocked", "bug", "funnel-sev"]);
+  });
 });
 
 describe("createIssue", () => {
   test("creates the issue with normalised labels and publishes", async () => {
-    const { provider, calls } = stubProvider();
-    const events: Array<Record<string, unknown>> = [];
+    const { provider, calls } = stubProvider();    const events: Array<Record<string, unknown>> = [];
     subscribe((event) => events.push(event as Record<string, unknown>));
 
     const result = await createIssue({
@@ -246,6 +271,31 @@ describe("createIssue", () => {
     expect(result.ok).toBe(false);
     expect((result as { status: number }).status).toBe(400);
     expect(calls).toHaveLength(0);
+  });
+
+  test("writes prefixed names for logical shortcuts", async () => {
+    setConfig({ ...TEST_CONFIG, labels: { prefix: "funnel" } });
+    const { provider, calls } = stubProvider();
+
+    await createIssue({
+      provider,
+      repo: "orgA/core",
+      title: "Prefixed",
+      status: "todo",
+      impact: "sev",
+      urgency: "high",
+      size: "md",
+    });
+
+    const input = calls.find((call) => call.op === "create")?.args[1] as {
+      labels: string[];
+    };
+    expect(input.labels).toEqual([
+      "funnel-todo",
+      "funnel-sev",
+      "funnel-high",
+      "funnel-md",
+    ]);
   });
 
   test("rejects a malformed repo", async () => {
@@ -433,6 +483,31 @@ describe("updateIssue", () => {
     });
 
     expect(calls[1].args[1]).toEqual(["todo", "bug", "mod", "md"]);
+  });
+
+  test("swaps prefixed group members when a prefix is configured", async () => {
+    setConfig({ ...TEST_CONFIG, labels: { prefix: "funnel" } });
+    const { provider, calls } = stubProvider({
+      labels: ["funnel-todo", "bug", "funnel-sev", "funnel-mid", "todo"],
+    });
+
+    await updateIssue({
+      provider,
+      repo: "orgA/core",
+      number: 5,
+      status: "in-progress",
+      impact: "mod",
+      size: "lg",
+    });
+
+    expect(calls[1].args[1]).toEqual([
+      "bug",
+      "funnel-mid",
+      "todo",
+      "funnel-in-progress",
+      "funnel-mod",
+      "funnel-lg",
+    ]);
   });
 
   test("rejects an invalid reserved value", async () => {

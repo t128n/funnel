@@ -13,7 +13,11 @@
  * the UI; `resolveIssueConflict` performs the network round-trips.
  */
 import type { ForgeEvent } from "forges";
-import { CANONICAL_LABELS, type LabelGroup } from "#lib/server/github/labels";
+import {
+  DEFAULT_VOCABULARY,
+  type LabelGroup,
+  type ReservedVocabulary,
+} from "#lib/labels";
 import {
   IMPACT_LABELS,
   URGENCY_LABELS,
@@ -54,23 +58,27 @@ export const GROUP_ORDER: readonly LabelGroup[] = [
   "epic",
 ];
 
-/** Canonical label name (lowercase) -> group, for fast lookups. */
-const GROUP_BY_NAME = new Map<string, LabelGroup>(
-  CANONICAL_LABELS.map((l) => [l.name.toLowerCase(), l.group]),
-);
+/** Canonical label order for one vocabulary (actual lowercase name -> index). */
+function canonicalOrder(
+  vocabulary: ReservedVocabulary,
+): ReadonlyMap<string, number> {
+  return new Map(
+    vocabulary.labels.map((label, index) => [
+      label.name.toLowerCase(),
+      index,
+    ]),
+  );
+}
 
-const CANONICAL_ORDER = new Map<string, number>(
-  CANONICAL_LABELS.map((l, i) => [l.name.toLowerCase(), i]),
-);
-
-/** Canonical labels present, grouped. Unknown/non-reserved labels are ignored. */
+/** Reserved labels present, grouped; unknown/non-reserved labels are ignored. */
 function groupLabels(
   labelNames: readonly string[],
+  vocabulary: ReservedVocabulary,
 ): Map<LabelGroup, string[]> {
   const grouped = new Map<LabelGroup, string[]>();
   for (const raw of labelNames) {
     const name = raw.toLowerCase();
-    const group = GROUP_BY_NAME.get(name);
+    const group = vocabulary.byName.get(name)?.group;
     if (!group) continue;
     const list = grouped.get(group) ?? [];
     list.push(name);
@@ -80,9 +88,13 @@ function groupLabels(
 }
 
 /** Deterministic winner when only the label set is known: canonical order. */
-function firstCanonical(names: readonly string[]): string {
+function firstCanonical(
+  names: readonly string[],
+  vocabulary: ReservedVocabulary,
+): string {
+  const order = canonicalOrder(vocabulary);
   return [...names].sort(
-    (a, b) => (CANONICAL_ORDER.get(a) ?? 0) - (CANONICAL_ORDER.get(b) ?? 0),
+    (a, b) => (order.get(a) ?? 0) - (order.get(b) ?? 0),
   )[0];
 }
 
@@ -90,9 +102,15 @@ function firstCanonical(names: readonly string[]): string {
  * Project a label set onto the reserved vocabulary without any network access.
  * When a group has multiple labels the deterministic winner is reported but the
  * group is also listed in `conflicts` so callers can trigger resolution.
+ *
+ * `labelNames` are actual GitHub names; the returned metadata stores stable
+ * logical keys so mirror rows and every consumer stay prefix-independent.
  */
-export function deriveMetadata(labelNames: readonly string[]): DerivedMetadata {
-  const grouped = groupLabels(labelNames);
+export function deriveMetadata(
+  labelNames: readonly string[],
+  vocabulary: ReservedVocabulary = DEFAULT_VOCABULARY,
+): DerivedMetadata {
+  const grouped = groupLabels(labelNames, vocabulary);
   const metadata: DerivedMetadata = {
     status: null,
     impact: null,
@@ -106,11 +124,14 @@ export function deriveMetadata(labelNames: readonly string[]): DerivedMetadata {
   for (const group of GROUP_ORDER) {
     const names = grouped.get(group);
     if (!names || names.length === 0) continue;
-    const winner = names.length === 1 ? names[0] : firstCanonical(names);
-    if (group === "status") metadata.status = winner;
-    else if (group === "impact") metadata.impact = IMPACT_LABELS[winner] ?? null;
-    else if (group === "urgency") metadata.urgency = URGENCY_LABELS[winner] ?? null;
-    else if (group === "size") metadata.size = winner;
+    const winner =
+      names.length === 1 ? names[0] : firstCanonical(names, vocabulary);
+    const base = vocabulary.byName.get(winner)?.base;
+    if (group === "status") metadata.status = base ?? null;
+    else if (group === "impact") metadata.impact = IMPACT_LABELS[base ?? ""] ?? null;
+    else if (group === "urgency")
+      metadata.urgency = URGENCY_LABELS[base ?? ""] ?? null;
+    else if (group === "size") metadata.size = base ?? null;
     else if (group === "flags") metadata.blocked = true;
     else if (group === "epic") metadata.isEpic = true;
     if (names.length > 1) metadata.conflicts.push(group);
@@ -164,8 +185,9 @@ export interface ConflictResolution {
 export function resolveWinners(
   labelNames: readonly string[],
   events: readonly LabeledEvent[],
+  vocabulary: ReservedVocabulary = DEFAULT_VOCABULARY,
 ): ConflictResolution {
-  const grouped = groupLabels(labelNames);
+  const grouped = groupLabels(labelNames, vocabulary);
   const winners = new Map<LabelGroup, string>();
   const obsolete: string[] = [];
   let ambiguous = false;
@@ -178,8 +200,9 @@ export function resolveWinners(
     );
     if (candidates.length === 0) {
       ambiguous = true;
-      winners.set(group, firstCanonical(names));
-      obsolete.push(...names.filter((n) => n !== firstCanonical(names)));
+      const fallback = firstCanonical(names, vocabulary);
+      winners.set(group, fallback);
+      obsolete.push(...names.filter((n) => n !== fallback));
       continue;
     }
     const newest = Math.max(...candidates.map((c) => c.createdAt));
@@ -237,15 +260,16 @@ export async function resolveIssueConflict(
   repo: RepoRef,
   issueNumber: number,
   labelNames: readonly string[],
+  vocabulary: ReservedVocabulary = DEFAULT_VOCABULARY,
 ): Promise<ResolvedConflict> {
-  const derived = deriveMetadata(labelNames);
+  const derived = deriveMetadata(labelNames, vocabulary);
   if (derived.conflicts.length === 0) {
     return { metadata: derived, removed: [], ambiguous: false };
   }
 
   const ref = forge.threadRef(repo, "issue", issueNumber);
   const events = await fetchTimeline(provider, ref);
-  const resolution = resolveWinners(labelNames, events);
+  const resolution = resolveWinners(labelNames, events, vocabulary);
 
   if (resolution.ambiguous) {
     return { metadata: derived, removed: [], ambiguous: true };
@@ -258,7 +282,7 @@ export async function resolveIssueConflict(
   const removed = new Set(resolution.obsolete.map((n) => n.toLowerCase()));
   const remaining = labelNames.filter((n) => !removed.has(n.toLowerCase()));
   return {
-    metadata: deriveMetadata(remaining),
+    metadata: deriveMetadata(remaining, vocabulary),
     removed: resolution.obsolete,
     ambiguous: false,
   };
