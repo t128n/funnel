@@ -3,11 +3,16 @@
 	import AppBar from './AppBar.svelte';
 	import GlobalSearch from './GlobalSearch.svelte';
 	import type { Role } from '#lib/roles';
+	import type { SavedView } from '#lib/saved-views';
 
 	interface Props {
 		user: { id: string; name: string; email: string; image: string | null; role: Role };
 		/** `owner/name` → project key for issue references in search results. */
 		repoShortcodes?: Record<string, string>;
+		/** Writers see the palette's create command; readers do not. */
+		mayWrite?: boolean;
+		/** Saved views offered as palette commands. */
+		savedViews?: SavedView[];
 		inboxCount?: number;
 		dueCount?: number;
 		unread?: number;
@@ -18,6 +23,8 @@
 	let {
 		user,
 		repoShortcodes = {},
+		mayWrite = false,
+		savedViews = [],
 		inboxCount = 0,
 		dueCount = 0,
 		unread = 0,
@@ -29,7 +36,7 @@
 <a class="skip-link visually-hidden-focusable" href="#main">Skip to main content</a>
 
 <AppBar {user} {inboxCount} {dueCount} {unread} onsearch={onSearch} />
-<GlobalSearch {repoShortcodes} />
+<GlobalSearch {repoShortcodes} {mayWrite} {savedViews} />
 
 <!--
 	Composition A has one navigation layer and normal document scroll. There is

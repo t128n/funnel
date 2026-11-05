@@ -9,7 +9,7 @@
 
 export const GLOBAL_SEARCH_LIMIT = 8;
 
-export const GLOBAL_SEARCH_PLACEHOLDER = 'Search title, body, or comments';
+export const GLOBAL_SEARCH_PLACEHOLDER = 'Search issues or run a command';
 
 /** `/api/feeds/issues` with a trimmed query, never a repository scope. */
 export function globalSearchUrl(query: string, limit = GLOBAL_SEARCH_LIMIT): string {

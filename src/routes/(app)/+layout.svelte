@@ -191,6 +191,8 @@
 	{dueCount}
 	inboxCount={data.inboxCount}
 	unread={data.unreadNotifications}
+	mayWrite={mayWrite}
+	savedViews={data.savedViews}
 	onSearch={openSearch}
 >
 	{#if $quickCreate.success}
