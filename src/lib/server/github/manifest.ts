@@ -35,6 +35,7 @@ export const MANIFEST_EVENTS: readonly string[] = [
   "issue_comment",
   "pull_request",
   "pull_request_review",
+  "pull_request_review_comment",
   "check_run",
   "check_suite",
 ];
