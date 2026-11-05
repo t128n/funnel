@@ -667,20 +667,25 @@ export async function hydrateAndStore(
   }
 
   const metadataByNumber = new Map<number, mirror.StoredMetadata>();
-  mirror.upsertIssues(records, (record) => {
-    const derived = deriveMetadata(record.labels, vocabulary);
-    const metadata: mirror.StoredMetadata = {
-      status: derived.status,
-      impact: derived.impact,
-      urgency: derived.urgency,
-      priority: derived.priority,
-      size: derived.size,
-      blocked: derived.blocked,
-      labelConflict: derived.conflicts.length > 0,
-    };
-    metadataByNumber.set(record.number, metadata);
-    return metadata;
-  });
+  mirror.upsertIssues(
+    records,
+    (record) => {
+      const derived = deriveMetadata(record.labels, vocabulary);
+      const metadata: mirror.StoredMetadata = {
+        status: derived.status,
+        impact: derived.impact,
+        urgency: derived.urgency,
+        priority: derived.priority,
+        size: derived.size,
+        blocked: derived.blocked,
+        isEpic: derived.isEpic,
+        labelConflict: derived.conflicts.length > 0,
+      };
+      metadataByNumber.set(record.number, metadata);
+      return metadata;
+    },
+    vocabulary,
+  );
 
   if (!repo) return records;
 

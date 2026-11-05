@@ -175,6 +175,45 @@ describe("setEpicLabel", () => {
       args: [expect.anything(), ["epic"]],
     });
   });
+
+  test("uses the configured epic name for add and remove", async () => {
+    setConfig({
+      ...TEST_CONFIG,
+      labels: { prefix: "funnel" },
+      repos: [
+        { repo: "orgA/core", shortcode: "CORE" },
+        { repo: "orgA/web", shortcode: "WEB" },
+      ],
+    });
+
+    // An old unprefixed epic label stays as an ordinary label; the configured
+    // name is what gets added.
+    const add = stubProvider({ labels: ["epic"] });
+    const added = await setEpicLabel({
+      provider: add.provider,
+      repo: "orgA/core",
+      number: 1,
+      isEpic: true,
+    });
+    expect(added).toEqual({ ok: true, value: { isEpic: true } });
+    expect(add.calls.at(-1)).toEqual({
+      op: "setLabels",
+      args: [expect.anything(), ["epic", "funnel-epic"]],
+    });
+
+    const remove = stubProvider({ labels: ["funnel-epic"] });
+    const removed = await setEpicLabel({
+      provider: remove.provider,
+      repo: "orgA/core",
+      number: 1,
+      isEpic: false,
+    });
+    expect(removed).toEqual({ ok: true, value: { isEpic: false } });
+    expect(remove.calls.at(-1)).toEqual({
+      op: "removeLabels",
+      args: [expect.anything(), ["funnel-epic"]],
+    });
+  });
 });
 
 describe("setEpicChildren", () => {

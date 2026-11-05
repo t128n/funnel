@@ -22,6 +22,7 @@ import {
   mirrorRepo,
   mirrorThread,
 } from "#lib/server/db/schema";
+import { getConfig } from "#lib/server/config";
 import { forge, type GitHubProvider } from "#lib/server/forge/providers.server";
 import {
   errorMessage,
@@ -33,6 +34,8 @@ import {
   removeIssueLabel,
   updateIssue,
 } from "#lib/server/issues/mutations";
+import { canonicalName } from "#lib/labels";
+import { vocabularyFor } from "#lib/server/label-vocabulary";
 
 export interface SetEpicLabelInput {
   /** User-token provider (SPEC §8). */
@@ -150,18 +153,24 @@ export async function setEpicLabel(
   const parts = splitRepo(input.repo);
   if (!parts) return badRequest(`Invalid repository ${input.repo}`);
 
+  // The epic label is reserved and therefore subject to the global prefix; the
+  // logical value `epic` never changes, only the GitHub name written.
+  const { labels } = await getConfig();
+  const epicLabel =
+    canonicalName("epic", vocabularyFor(labels.prefix)) ?? "epic";
+
   const result = input.isEpic
     ? await addIssueLabels({
         provider: input.provider,
         repo: input.repo,
         number: input.number,
-        labels: ["epic"],
+        labels: [epicLabel],
       })
     : await removeIssueLabel({
         provider: input.provider,
         repo: input.repo,
         number: input.number,
-        name: "epic",
+        name: epicLabel,
       });
 
   if (!result.ok) return result;

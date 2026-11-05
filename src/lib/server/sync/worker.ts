@@ -106,18 +106,23 @@ async function resolveConflicts(
     const remaining = record.labels.filter(
       (name) => !removed.has(name.toLowerCase()),
     );
-    mirror.setIssueMetadata(repo.id, record.number, {
-      status: resolved.metadata.status,
-      impact: resolved.metadata.impact,
-      urgency: resolved.metadata.urgency,
-      priority: resolved.metadata.priority,
-      size: resolved.metadata.size,
-      blocked: resolved.metadata.blocked,
-      isEpic: resolved.metadata.isEpic,
-      labelConflict:
-        resolved.ambiguous ||
-        retiredPriorityConflict(resolved.metadata.priority, remaining),
-    });
+    mirror.setIssueMetadata(
+      repo.id,
+      record.number,
+      {
+        status: resolved.metadata.status,
+        impact: resolved.metadata.impact,
+        urgency: resolved.metadata.urgency,
+        priority: resolved.metadata.priority,
+        size: resolved.metadata.size,
+        blocked: resolved.metadata.blocked,
+        isEpic: resolved.metadata.isEpic,
+        labelConflict:
+          resolved.ambiguous ||
+          retiredPriorityConflict(resolved.metadata.priority, remaining),
+      },
+      vocabulary,
+    );
     if (resolved.removed.length > 0) {
       mirror.replaceIssueLabels(repo.id, record.number, remaining);
     }

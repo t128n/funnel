@@ -798,6 +798,7 @@ describe("hydrateAndStore", () => {
               { name: "funnel-sev" },
               { name: "funnel-high" },
               { name: "funnel-md" },
+              { name: "funnel-epic" },
             ],
           },
         },
@@ -813,7 +814,9 @@ describe("hydrateAndStore", () => {
     expect(stored?.urgency).toBe(1);
     expect(stored?.priority).toBe("P1");
     expect(stored?.size).toBe("md");
+    expect(stored?.isEpic).toBe(1);
     expect(mirror.getIssueLabels(repoId, 1)).toContain("funnel-todo");
+    expect(mirror.getIssueLabels(repoId, 1)).toContain("funnel-epic");
   });
 
   test("flags a retired p-label that disagrees with the axes", async () => {
