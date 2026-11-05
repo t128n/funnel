@@ -7,6 +7,22 @@
  * pure makes the input guards and boundary rules testable without a DOM.
  */
 
+import { appHotkeys } from '#lib/client/hotkeys';
+
+/** The catalog binding for a list action, lower-cased for key comparison. */
+function catalogKey(id: keyof typeof appHotkeys): string {
+	const value = appHotkeys[id].hotkey;
+	return typeof value === 'string' ? value.toLowerCase() : '';
+}
+
+const NEXT_KEY = catalogKey('list.next');
+const PREVIOUS_KEY = catalogKey('list.previous');
+const OPEN_KEY = catalogKey('list.open');
+const TOGGLE_KEY = catalogKey('issue.select');
+const STATUS_KEY = catalogKey('issue.status');
+const CREATE_KEY = catalogKey('issue.create');
+const DISMISS_KEY = catalogKey('list.dismiss');
+
 /** Keys the list surfaces understand. */
 export type ListMoveTarget = 'next' | 'previous' | 'first' | 'last';
 
@@ -48,33 +64,22 @@ export function listKeyAction(
 	if (event.ctrlKey || event.metaKey || event.altKey) return null;
 	if (isTypingTarget(event.target)) return null;
 
-	switch (event.key) {
-		case 'j':
-		case 'ArrowDown':
-			return { type: 'move', to: 'next' };
-		case 'k':
-		case 'ArrowUp':
-			return { type: 'move', to: 'previous' };
-		case 'Home':
-			return { type: 'move', to: 'first' };
-		case 'End':
-			return { type: 'move', to: 'last' };
-		case 'Enter':
-			return { type: 'open' };
-		case 'x':
-		case 'X':
-			return options.mayWrite ? { type: 'toggle' } : null;
-		case 's':
-		case 'S':
-			return options.mayWrite ? { type: 'status' } : null;
-		case 'c':
-		case 'C':
-			return options.mayWrite ? { type: 'create' } : null;
-		case 'Escape':
-			return { type: 'dismiss' };
-		default:
-			return null;
+	const pressed = event.key.toLowerCase();
+
+	if (pressed === NEXT_KEY || event.key === 'ArrowDown') {
+		return { type: 'move', to: 'next' };
 	}
+	if (pressed === PREVIOUS_KEY || event.key === 'ArrowUp') {
+		return { type: 'move', to: 'previous' };
+	}
+	if (event.key === 'Home') return { type: 'move', to: 'first' };
+	if (event.key === 'End') return { type: 'move', to: 'last' };
+	if (pressed === OPEN_KEY) return { type: 'open' };
+	if (pressed === TOGGLE_KEY) return options.mayWrite ? { type: 'toggle' } : null;
+	if (pressed === STATUS_KEY) return options.mayWrite ? { type: 'status' } : null;
+	if (pressed === CREATE_KEY) return options.mayWrite ? { type: 'create' } : null;
+	if (pressed === DISMISS_KEY) return { type: 'dismiss' };
+	return null;
 }
 
 /**
