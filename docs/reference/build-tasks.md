@@ -15,7 +15,8 @@ This page records the mise tasks and `package.json` scripts that build, check, t
 | `build` | `bun run build` | Adapter-node server in `build/` | Declares `src/**`, `static/**`, `drizzle/**`, `package.json`, `bun.lock`, `tsconfig.json`, and `vite.config.ts` as sources, and `build` as the output. |
 | `release` | `bun run release` | Migration report on standard output | Applies pending migrations to the configured database. No server is started. |
 | `exe` | `bun scripts/build-standalone.ts [--target=<target>]` | `dist/funnel`, or `dist/funnel.exe` for a Windows target | Depends on `build` and `intake:exe`. Declares `build/**`, `drizzle/**`, `src/standalone.ts`, `scripts/build-standalone.ts`, `scripts/standalone/**`, `package.json`, and `bun.lock` as sources. The declared output is target-aware. |
-| `verify` | `check`, then `test`, then `intake:check`, then `build`, then `exe` | Diagnostics, test results, `build/`, and the executables | The sequence the release pipeline relies on. |
+| `smoke` | `bun scripts/smoke-standalone.ts` | Smoke-test report on standard output | Depends on `exe` and exercises the built executable end to end. See [Standalone smoke test](#standalone-smoke-test). |
+| `verify` | `check`, then `test`, then `intake:check`, then `build`, then `exe`, then `smoke` | Diagnostics, test results, `build/`, the executables, and the smoke report | The sequence the release pipeline relies on. |
 | `intake:exe` | `bun scripts/build-intake.ts` | `dist/funnel-intake.exe` | Native Windows intake hotkey helper: pure Go, no cgo, GUI subsystem. Declares `tools/funnel-intake/**`, `scripts/build-intake.ts`, `package.json`, and `bun.lock` as sources. |
 | `intake:check` | `go -C tools/funnel-intake vet -unsafeptr=false ./...`, then `go -C tools/funnel-intake test ./...` | Go vet and test output | Requires the pinned Go toolchain. `-unsafeptr=false` suppresses the known false positive on the Win32 clipboard pointers. |
 | `intake:install` | `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/install-intake.ps1` | Installed per-user helper | Windows only; no elevation required. |
@@ -31,6 +32,24 @@ TARGET=bun-linux-x64 mise run exe
 ```
 
 The target selects both the compiled platform and the output name. Targets containing `windows` produce `dist/funnel.exe`; other targets produce `dist/funnel`. The task's declared output includes the target, so changing targets rebuilds rather than reusing another platform's artefact.
+
+## Standalone smoke test
+
+`smoke` runs `scripts/smoke-standalone.ts` against the executable produced by `exe` (`dist/funnel`, or `dist/funnel.exe` on Windows). The task depends on `exe`, so `mise run smoke` builds the executable the first time; if it is still missing the script fails with a message naming `mise run exe` instead of silently rebuilding. `verify` ends with this task, so the local equivalent of the release pipeline boots and probes the same executable it ships.
+
+The script covers the packaged contract that unit tests cannot reach:
+
+- `--version` exits `0` and prints the `package.json` version.
+- `--help` exits `0` and prints a usage line containing the documented flags.
+- An unknown flag is ignored, so `--version --definitely-not-a-flag` still prints the version and exits `0` (the current contract in the [CLI reference](./cli.md#flags)).
+- `--migrate` against a fresh temporary `FUNNEL_DATA_DIR` exits `0`, creates the SQLite database, and applies every committed migration under `drizzle/`. The script compares `__drizzle_migrations` with `countMigrations(drizzle/)`, then reruns `--migrate` and asserts `0 migration(s) applied` with the same total.
+- The executable boots with `HOST=127.0.0.1` on an unused loopback port, and `GET /healthz` and `GET /readyz` both return `200` within a bounded timeout.
+- `--healthcheck` exits `0` against the live instance and `1` after it stops.
+- A termination signal stops the process within a bounded window; on POSIX a clean adapter-node shutdown (exit `0`, or `143` when the runtime handles the signal) is required.
+
+Each run uses its own temporary data directory and removes it, along with any server process, in a `finally` block. No developer environment variables or `.env` file are required: the script supplies `FUNNEL_SECRET`, `FUNNEL_DB`, `FUNNEL_UPLOAD_DIR`, `LOG_LEVEL=silent`, and the port itself.
+
+Windows has no POSIX `SIGTERM`, so the script uses Bun's forced process termination there and only asserts that the process is gone within the shutdown window. The `.exe` path and that signal difference are handled automatically from `process.platform`.
 
 ## Intake helper build
 
