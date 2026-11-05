@@ -91,13 +91,23 @@ export const HYDRATE_QUERY = `query FunnelHydrate($ids: [ID!]!, $since: DateTime
             id
             createdAt
             actor { login avatarUrl ... on User { databaseId } }
-            assignee { login avatarUrl ... on User { databaseId } }
+            assignee {
+              ... on User { databaseId login avatarUrl }
+              ... on Bot { databaseId login avatarUrl }
+              ... on Mannequin { databaseId login avatarUrl }
+              ... on Organization { databaseId login avatarUrl }
+            }
           }
           ... on UnassignedEvent {
             id
             createdAt
             actor { login avatarUrl ... on User { databaseId } }
-            assignee { login avatarUrl ... on User { databaseId } }
+            assignee {
+              ... on User { databaseId login avatarUrl }
+              ... on Bot { databaseId login avatarUrl }
+              ... on Mannequin { databaseId login avatarUrl }
+              ... on Organization { databaseId login avatarUrl }
+            }
           }
           ... on ClosedEvent {
             id
