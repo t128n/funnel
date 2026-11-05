@@ -82,7 +82,28 @@ Invoke-RestMethod https://acme.ghe.com/api/v3/meta
 
 A TLS error here will also fail manifest conversion and sync.
 
-## 5. Caveats and changes
+## 5. Test coverage
+
+Funnel's test suite covers the host plumbing offline. Only the parts that need a real GHES host are manual.
+
+Automated:
+
+- Manifest form action and manifest conversion against a GHE-shaped host.
+- REST endpoint derivation: an installation provider sends requests to `https://acme.ghe.com/api/v3/...`, including the token exchange.
+- GraphQL endpoint derivation: the same provider POSTs to `https://acme.ghe.com/api/graphql` (the `/api/v3` → `/api/graphql` rewrite), while GitHub Cloud stays on `https://api.github.com/graphql`.
+- Link and `html_url` rewriting for a non-github.com host, including the “Not synced, open on GitHub” fallback.
+- Label provisioning and sync: list, create and patch requests go to `https://acme.ghe.com/api/v3/repos/<owner>/<repo>/labels`.
+- Refs and web URLs carry the configured web host.
+
+Manual on a live GHES host:
+
+- Creating and installing the App through the manifest flow, including installation visibility.
+- Certificate trust when GHES uses a private certificate authority.
+- The first sync and issue hydration from GHES.
+- One write path (comment, label or close) through the installation token.
+- Approving permission changes on an existing installation.
+
+## 6. Caveats and changes
 
 - **Both hosts, every time.** If either is wrong, onboarding or sync fails. Correct both, restart, then reset the App and onboard again if credentials were created against the wrong host.
 - **Changing hosts after onboarding does not migrate the App.** The stored App credentials exist on the old host. Correct the environment, restart, open **Settings → GitHub App** as an administrator and select **Reset GitHub App**, then complete onboarding on the new host. Reset leaves the database and mirror in place, but the wizard's repository selection replaces the configured repository list, so re-check **Settings → Repositories** afterwards.
