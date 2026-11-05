@@ -7,6 +7,7 @@ import {
   type SettingsInput,
 } from "#lib/server/settings/store";
 import { TEST_CONFIG } from "#tests/test-config";
+import { captureLog, type LogCapture } from "#tests/log-capture";
 import {
   createSubmission,
   deleteSubmission,
@@ -30,12 +31,16 @@ const BASE_SETTINGS: SettingsInput = {
 };
 
 // All test files share one in-memory DB, so clear the staging table per test.
+let logs: LogCapture;
+
 beforeEach(() => {
   db.delete(stateIntakeSubmission).run();
+  logs = captureLog();
 });
 
 afterEach(() => {
   clearSettings();
+  logs.reset();
 });
 
 describe("intake staging store", () => {
@@ -53,6 +58,16 @@ describe("intake staging store", () => {
       source: "cli",
       createdAt: expect.any(Number),
     });
+    const staged = logs.find("intake", "intake submission staged");
+    expect(staged).toMatchObject({
+      level: "info",
+      component: "intake",
+      id,
+      source: "cli",
+    });
+    // The queue is external-facing: title/body must never reach the sink.
+    expect(staged).not.toHaveProperty("title");
+    expect(staged).not.toHaveProperty("body");
   });
 
   test("defaults body to empty and source to null", () => {

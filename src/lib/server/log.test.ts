@@ -1,6 +1,12 @@
-import { describe, expect, test } from "bun:test";
+import { afterEach, describe, expect, test } from "bun:test";
 import pino from "pino";
-import { loggerOptions } from "./log";
+import {
+  createLogger,
+  errorFields,
+  loggerOptions,
+  resetLogForTests,
+  setLogDestinationForTests,
+} from "./log";
 
 /** A synchronous pino sink that records each parsed JSON log line. */
 function capture() {
@@ -53,5 +59,36 @@ describe("loggerOptions", () => {
     // Secrets are censored before they reach the sink.
     expect(entry.accessToken).toBe("[redacted]");
     expect(JSON.stringify(entry)).not.toContain("ghs_secret");
+  });
+});
+
+describe("test seam", () => {
+  afterEach(() => {
+    resetLogForTests();
+  });
+
+  test("a child created before the swap writes to the test sink", () => {
+    const { entries, stream } = capture();
+    // Module-level callers create their child at import time.
+    const log = createLogger({ component: "sync" });
+
+    setLogDestinationForTests(stream as unknown as pino.DestinationStream);
+    log.info({ repos: 2, durationMs: 4 }, "cycle finished");
+
+    expect(entries).toHaveLength(1);
+    expect(entries[0]).toMatchObject({
+      level: "info",
+      component: "sync",
+      msg: "cycle finished",
+      repos: 2,
+      durationMs: 4,
+    });
+  });
+
+  test("errorFields keeps the error and lifts an upstream status", () => {
+    const error = Object.assign(new Error("Not Found"), { status: 404 });
+
+    expect(errorFields(error)).toEqual({ err: error, status: 404 });
+    expect(errorFields("plain failure")).toEqual({ err: "plain failure" });
   });
 });
