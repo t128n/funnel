@@ -1,5 +1,13 @@
 # funnel
 
+## 0.0.12
+
+### Patch Changes
+
+- b93de89: Fix issue hydration so closed issues are mirrored as closed. `AssignedEvent.assignee` and `UnassignedEvent.assignee` are the `Assignee` union, so selecting `login`/`avatarUrl` directly made GitHub reject the entire timeline hydration query. Every poll then failed before writing the new issue state, leaving closed issues reported as open indefinitely. The query now selects each union member through an inline fragment, with a regression test that pins the union-safe query shape.
+- 96c71e9: Let the onboarding wizard create the App on GitHub Enterprise Server. Enter `github.com` or a host such as `acme.ghe.com`; Funnel derives and stores the web and API hosts with the App credentials and uses them for manifest conversion, REST and GraphQL calls, links, and OAuth endpoints.
+- 96c71e9: Make Funnel polling-only. Remove the inbound GitHub webhook receiver, its manifest hook and event subscriptions, the generated webhook secret, the `state_webhook_delivery` table, and the `FUNNEL_GITHUB_WEBHOOKS` opt-in. Onboarding no longer depends on GitHub being able to reach the server, and polling remains the single sync path.
+
 ## 0.0.11
 
 ### Patch Changes
