@@ -5,6 +5,7 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
+  readFileSync,
   rmSync,
   writeFileSync,
 } from "node:fs";
@@ -305,5 +306,23 @@ describe("bun run release", () => {
     } finally {
       sqlite.close();
     }
+  });
+});
+
+describe("release notes", () => {
+  test("renders Windows executable paths literally", () => {
+    const { version } = JSON.parse(
+      readFileSync(join(ROOT, "package.json"), "utf8"),
+    ) as { version: string };
+    const result = spawnSync(
+      process.execPath,
+      ["scripts/release-notes.ts", `--version=${version}`],
+      { cwd: ROOT, encoding: "utf8" },
+    );
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain(String.raw`.\funnel.exe setup`);
+    // A form feed means the template literal consumed `\f` as an escape.
+    expect(result.stdout).not.toContain("\f");
   });
 });
