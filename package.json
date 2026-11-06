@@ -72,7 +72,6 @@
 		"drizzle-orm": "^1.0.0-rc.4",
 		"echarts": "^5.6.0",
 		"forges": "0.2.0",
-		"lat.md": "^0.13.3",
 		"lowlight": "^3.3.0",
 		"lru-cache": "^11.5.3",
 		"pele": "^1.6.0",
