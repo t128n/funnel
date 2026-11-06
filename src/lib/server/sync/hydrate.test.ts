@@ -260,6 +260,26 @@ describe("normalizeNode", () => {
   });
 });
 
+describe("HYDRATE_QUERY", () => {
+  test("selects the Assignee union only through inline fragments", () => {
+    // `AssignedEvent.assignee` and `UnassignedEvent.assignee` are the
+    // `Assignee` union, not a user object. Selecting `login` directly makes
+    // GitHub reject the whole hydration query, so every poll silently fails
+    // and mirrored issues keep their previous state (including `open` after
+    // they were closed upstream).
+    const blocks = [...HYDRATE_QUERY.matchAll(/\bassignee \{([^}]*)/g)].map(
+      (match) => match[1]?.trim() ?? "",
+    );
+    expect(blocks).toHaveLength(2);
+    for (const block of blocks) {
+      expect(block.startsWith("... on ")).toBe(true);
+    }
+    for (const type of ["User", "Bot", "Mannequin", "Organization"]) {
+      expect(HYDRATE_QUERY).toContain(`... on ${type} { databaseId login avatarUrl }`);
+    }
+  });
+});
+
 describe("chunk", () => {
   test("splits into fixed-size batches", () => {
     expect(chunk([1, 2, 3, 4, 5], 2)).toEqual([[1, 2], [3, 4], [5]]);
