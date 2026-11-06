@@ -7,6 +7,8 @@ import {
   setConfig,
 } from "./config";
 import { TEST_CONFIG } from "#tests/test-config";
+import { seedTestGithubApp } from "#tests/github-app";
+import { saveManifestCredentials } from "#lib/server/github/credentials";
 import {
   clearSettings,
   SettingsError,
@@ -42,9 +44,10 @@ function seed(partial: Partial<SettingsInput>): void {
   writeSettings({ ...BASE, ...partial });
 }
 
-afterEach(() => {
+afterEach(async () => {
   clearSettings();
   resetConfigCache();
+  await seedTestGithubApp();
 });
 
 describe("loadFunnelConfig", () => {
@@ -109,6 +112,30 @@ describe("loadFunnelConfig", () => {
         recheck_cadence_days: 7,
         waiting_days: 7,
       },
+    });
+  });
+
+  test("uses the GitHub host stored with the App", async () => {
+    seed({});
+    saveManifestCredentials({
+      appId: 1,
+      slug: "funnel-ghe",
+      name: "funnel-ghe",
+      ownerLogin: "acme",
+      ownerType: "Organization",
+      htmlUrl: "https://acme.ghe.com/settings/apps/funnel-ghe",
+      baseUrl: "https://funnel.example.com",
+      githubUrl: "https://acme.ghe.com",
+      githubApiUrl: "https://acme.ghe.com/api/v3",
+      clientId: "Iv1.ghe",
+      clientSecret: "s".repeat(40),
+      privateKey: "-----BEGIN RSA PRIVATE KEY-----\nx\n-----END RSA PRIVATE KEY-----",
+    });
+    resetConfigCache();
+
+    expect((await loadFunnelConfig()).github).toEqual({
+      url: "https://acme.ghe.com",
+      api_url: "https://acme.ghe.com/api/v3",
     });
   });
 

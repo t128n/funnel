@@ -361,31 +361,16 @@ The single GitHub App created by the onboarding manifest flow. It is the source 
 | `owner_type` | TEXT | Not null, default `''`; `User` or `Organization`. |
 | `html_url` | TEXT | Not null, default `''`. |
 | `base_url` | TEXT | Not null, default `''`; public origin captured at App creation. |
+| `github_url` | TEXT | Not null, default `''`; GitHub web host selected in onboarding (`github.com` or a GHES host). Empty on rows created before host selection. |
+| `github_api_url` | TEXT | Not null, default `''`; REST base for that host (for example `https://acme.ghe.com/api/v3`). Empty on legacy rows. |
 | `client_id` | TEXT | Not null. |
 | `client_secret_enc` | TEXT | Not null; encrypted with a key derived from `FUNNEL_SECRET`. |
-| `webhook_secret_enc` | TEXT | Nullable; encrypted. |
 | `private_key_enc` | TEXT | Not null; encrypted RSA key. |
 | `installation_id` | INTEGER | Nullable. |
 | `created_at` | INTEGER | Not null, Unix ms. |
 | `updated_at` | INTEGER | Not null, Unix ms. |
 
 Primary key: `id`. Foreign keys: none. Indexes: none.
-
-### `state_webhook_delivery`
-
-Accepted GitHub webhook deliveries, one row per `x-github-delivery`. The row is written only after the delivery's refreshes succeed, so a failed delivery can be retried by GitHub. Duplicate ids are acknowledged without refreshing again, and rows older than seven days are pruned on each accepted delivery.
-
-| Column | Type | Constraints / notes |
-| :--- | :--- | :--- |
-| `id` | TEXT | Primary key; GitHub's `x-github-delivery` UUID. |
-| `event` | TEXT | Not null; `x-github-event`, e.g. `issues` or `pull_request`. |
-| `action` | TEXT | Nullable; payload `action` when present. |
-| `repo` | TEXT | Nullable; `owner/name` when the payload identified a repository. |
-| `received_at` | INTEGER | Not null, Unix ms. |
-
-Primary key: `id`. Foreign keys: none. Indexes:
-
-- `idx_state_webhook_delivery_received` on `(received_at)`.
 
 ### `state_work_note`
 
@@ -872,7 +857,6 @@ Tokenizer: `porter unicode61`. Each `upsertIssues` write replaces the row, `dele
 | Notification | `id` | UUID; scoped to one `auth_user.id` and de-duplicated by `dedupe_key`. |
 | Instance setting | `key` | Dotted path; JSON-encoded `value`. |
 | GitHub App | `id = 'default'` | Singleton row. |
-| Webhook delivery | `id` | GitHub's `x-github-delivery` id; pruned after seven days. |
 
 ## Referential integrity
 

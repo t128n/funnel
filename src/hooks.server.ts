@@ -91,8 +91,6 @@ export const init: ServerInit = async () => {
  * while unconfigured rather than serving the wizard), and the health probes
  * must answer for a process supervisor / load balancer even on a fresh
  * instance (the packaged executable is health-checked before anyone onboards).
- * The webhook receiver answers 503 without a configured secret instead of
- * redirecting GitHub to the wizard.
  */
 function isOnboardingExempt(pathname: string): boolean {
   if (pathname === "/onboarding" || pathname.startsWith("/onboarding/")) {
@@ -103,7 +101,6 @@ function isOnboardingExempt(pathname: string): boolean {
   if (pathname === "/api/auth" || pathname.startsWith("/api/auth/")) {
     return true;
   }
-  if (pathname === "/api/github/webhooks") return true;
   const lastSegment = pathname.slice(pathname.lastIndexOf("/") + 1);
   return lastSegment.includes(".");
 }

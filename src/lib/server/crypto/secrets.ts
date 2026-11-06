@@ -1,11 +1,11 @@
 /**
  * Symmetric encryption for GitHub App secrets at rest (SPEC §8).
  *
- * The App credentials captured by the manifest flow (`client_secret`,
- * `webhook_secret`, the RSA `pem`) are stored in the SQLite `state_github_app`
- * row. They are encrypted with a key derived from `FUNNEL_SECRET` using
- * AES-256-GCM (an AEAD, so the ciphertext is authenticated as well as
- * confidential). The envelope is `iv:tag:ciphertext`, all base64.
+ * The App credentials captured by the manifest flow (`client_secret` and the
+ * RSA `pem`) are stored in the SQLite `state_github_app` row. They are
+ * encrypted with a key derived from `FUNNEL_SECRET` using AES-256-GCM (an
+ * AEAD, so the ciphertext is authenticated as well as confidential). The
+ * envelope is `iv:tag:ciphertext`, all base64.
  *
  * `FUNNEL_SECRET` is mandatory and at least 32 characters (see `src/env.ts`),
  * so a stolen database file alone cannot recover the private key.

@@ -72,7 +72,6 @@ export const variables = defineEnvVars({
       "https://api.github.com",
     ),
   },
-
   FUNNEL_UPLOAD_DIR: {
     description:
       "Directory where issue attachments (the Inspector dropbox) are stored.",

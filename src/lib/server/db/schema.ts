@@ -202,7 +202,7 @@ export const stateSetting = sqliteTable("state_setting", {
 // A single row (id = 'default') holding the App created through GitHub's App
 // Manifest Flow during onboarding. This is the source of truth for the App
 // credentials — there are no credential environment variables. Secrets
-// (`client_secret`, `webhook_secret`, the RSA `pem`) are encrypted with a key
+// (`client_secret` and the RSA `pem`) are encrypted with a key
 // derived from FUNNEL_SECRET before they reach this layer (see
 // `#lib/server/crypto/secrets`); reads decrypt them.
 // ---------------------------------------------------------------------------
@@ -218,37 +218,17 @@ export const stateGithubApp = sqliteTable("state_github_app", {
   htmlUrl: text("html_url").notNull().default(""),
   /** Public origin captured when the App was created (manifest URLs). */
   baseUrl: text("base_url").notNull().default(""),
+  /** GitHub web host the App was created on (github.com or a GHES host). */
+  githubUrl: text("github_url").notNull().default(""),
+  /** REST base for the App's host, e.g. https://acme.ghe.com/api/v3. */
+  githubApiUrl: text("github_api_url").notNull().default(""),
   clientId: text("client_id").notNull(),
   clientSecretEnc: text("client_secret_enc").notNull(),
-  webhookSecretEnc: text("webhook_secret_enc"),
   privateKeyEnc: text("private_key_enc").notNull(),
   installationId: integer("installation_id"),
   createdAt: integer("created_at").notNull(),
   updatedAt: integer("updated_at").notNull(),
 });
-
-// ---------------------------------------------------------------------------
-// State: accepted GitHub webhook deliveries.
-// One row per `x-github-delivery`, inserted only after a delivery has been
-// processed successfully. A duplicate id is acknowledged without refreshing
-// again, and rows older than a week are pruned so the table stays bounded.
-// `repo` is the `owner/name` slug when the payload carried a repository.
-// ---------------------------------------------------------------------------
-export const stateWebhookDelivery = sqliteTable(
-  "state_webhook_delivery",
-  {
-    /** GitHub's `x-github-delivery` id (UUID). */
-    id: text("id").primaryKey(),
-    /** `x-github-event`, e.g. `issues` or `pull_request`. */
-    event: text("event").notNull(),
-    /** Payload `action` when present. */
-    action: text("action"),
-    /** `owner/name` of the repository when the payload identifies one. */
-    repo: text("repo"),
-    receivedAt: integer("received_at").notNull(),
-  },
-  (t) => [index("idx_state_webhook_delivery_received").on(t.receivedAt)],
-);
 
 // ---------------------------------------------------------------------------
 // State: internal work notes (ITSM-style journal).

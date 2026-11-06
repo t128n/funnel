@@ -115,7 +115,7 @@ If the App credentials fail to decrypt or sign-in loops, the most likely cause i
 
 `FUNNEL_SECRET` is not a convenience value. It:
 
-- encrypts the GitHub App's client secret, webhook secret and private key (AES-256-GCM with a key derived by scrypt);
+- encrypts the GitHub App's client secret and private key (AES-256-GCM with a key derived by scrypt);
 - encrypts stored GitHub OAuth access and refresh tokens through Better Auth;
 - signs sessions.
 

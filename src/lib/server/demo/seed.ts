@@ -604,7 +604,6 @@ function ensureDemoApp(): void {
     baseUrl: FUNNEL_URL ?? "http://localhost:5173",
     clientId: "Iv1.demo0000000000000",
     clientSecret: "demo-client-secret-0000000000000000000000",
-    webhookSecret: "demo-webhook-secret-00000000000000000000",
     privateKey,
   });
   setInstallationId(1);

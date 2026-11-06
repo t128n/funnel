@@ -1,4 +1,5 @@
 import { redirect } from "@sveltejs/kit";
+import { resetConfigCache } from "#lib/server/config";
 import { createLogger } from "#lib/server/log";
 import {
   exchangeManifestCode,
@@ -11,6 +12,7 @@ import {
   requireOnboardingAccess,
   resolvePublicOrigin,
 } from "#lib/server/onboarding/access";
+import { unsealManifestState } from "#lib/server/onboarding/manifest-state.server";
 import type { RequestHandler } from "./$types";
 
 const log = createLogger({ component: "onboarding" });
@@ -27,21 +29,33 @@ export const GET: RequestHandler = async (event) => {
 
   const code = event.url.searchParams.get("code");
   const state = event.url.searchParams.get("state");
-  const expected = event.cookies.get(STATE_COOKIE);
+  const pendingCookie = event.cookies.get(STATE_COOKIE);
   event.cookies.delete(STATE_COOKIE, { path: "/" });
+  const pending = pendingCookie ? unsealManifestState(pendingCookie) : null;
 
-  if (!code || !state || !expected || state !== expected) {
+  if (!code || !state || !pending || state !== pending.state) {
     log.warn({ hasCode: Boolean(code), hasState: Boolean(state) }, "bad callback");
     throw redirect(303, "/onboarding?error=state");
   }
 
   try {
-    const conversion = await exchangeManifestCode(code);
+    const conversion = await exchangeManifestCode(
+      code,
+      pending.github.api_url,
+    );
     saveManifestCredentials(
-      toCredentialsInput(conversion, resolvePublicOrigin(event.url)),
+      toCredentialsInput(
+        conversion,
+        resolvePublicOrigin(event.url),
+        pending.github,
+      ),
     );
     log.info(
-      { appId: conversion.id, slug: conversion.slug },
+      {
+        appId: conversion.id,
+        slug: conversion.slug,
+        github: pending.github.url,
+      },
       "github app created",
     );
   } catch (error) {
@@ -49,8 +63,10 @@ export const GET: RequestHandler = async (event) => {
     throw redirect(303, "/onboarding?error=exchange");
   }
 
-  // The App and its OAuth client changed: drop the derived singletons so the
-  // install step and subsequent requests use the new credentials.
+  // The App, its OAuth client, and possibly its GitHub host changed: drop the
+  // derived singletons so the install step and subsequent requests use the new
+  // credentials.
+  resetConfigCache();
   forge.resetCaches();
   resetAuthCache();
 

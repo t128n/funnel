@@ -49,7 +49,6 @@ describe("github app credentials", () => {
       baseUrl: "https://funnel.test",
       clientId: "Iv23.replaced",
       clientSecret: "s".repeat(40),
-      webhookSecret: null,
       privateKey: "-----BEGIN RSA PRIVATE KEY-----\nx\n-----END RSA PRIVATE KEY-----",
     });
     expect(saved.appId).toBe(999);

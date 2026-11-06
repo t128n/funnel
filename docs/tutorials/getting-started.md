@@ -99,7 +99,7 @@ Funnel submits a pre-filled App manifest to GitHub. On GitHub, review the regist
 
 **You should see:** GitHub redirect you back to Funnel at `/onboarding/install`, headed **Install the app**, with the App's name and owner shown.
 
-> Funnel registers a webhook endpoint at `/api/github/webhooks` and subscribes the App to issue, comment, pull-request and check events. GitHub generated a secret during creation, so there is nothing to configure by hand. Polling still runs and repairs anything a missed delivery leaves behind.
+> Funnel polls GitHub for issue, comment, pull-request and check changes, so it works behind a firewall and GitHub never needs an inbound connection to the server.
 
 ## 8. Install the App
 

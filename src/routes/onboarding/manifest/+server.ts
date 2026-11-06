@@ -1,6 +1,10 @@
 import { redirect } from "@sveltejs/kit";
-import { getConfig } from "#lib/server/config";
 import { hasGithubCredentials } from "#lib/server/github/credentials";
+import {
+  GithubHostError,
+  normalizeGithubHost,
+  type GithubHosts,
+} from "#lib/server/github/hosts";
 import {
   buildManifest,
   buildManifestFormHtml,
@@ -10,6 +14,7 @@ import {
   requireOnboardingAccess,
   resolvePublicOrigin,
 } from "#lib/server/onboarding/access";
+import { sealManifestState } from "#lib/server/onboarding/manifest-state.server";
 import type { RequestHandler } from "./$types";
 
 /** Cookie holding the CSRF `state` for the manifest round-trip. */
@@ -28,23 +33,37 @@ export const POST: RequestHandler = async (event) => {
   const name = String(form.get("name") ?? "").trim();
   const account = String(form.get("account") ?? "user");
   const org = String(form.get("org") ?? "").trim();
+  const hostInput = String(form.get("githubHost") ?? "").trim();
 
   if (!name) throw redirect(303, "/onboarding?error=name");
   if (account === "organization" && !org) {
     throw redirect(303, "/onboarding?error=org");
   }
 
+  let hosts: GithubHosts;
+  try {
+    hosts = normalizeGithubHost(hostInput);
+  } catch (error) {
+    if (error instanceof GithubHostError) {
+      throw redirect(303, "/onboarding?error=host");
+    }
+    throw error;
+  }
+
   const state = crypto.randomUUID();
-  event.cookies.set(STATE_COOKIE, state, {
-    path: "/",
-    httpOnly: true,
-    sameSite: "lax",
-    secure: event.url.protocol === "https:",
-    maxAge: 60 * 10,
-  });
+  event.cookies.set(
+    STATE_COOKIE,
+    sealManifestState({ state, github: hosts }),
+    {
+      path: "/",
+      httpOnly: true,
+      sameSite: "lax",
+      secure: event.url.protocol === "https:",
+      maxAge: 60 * 10,
+    },
+  );
 
   const baseUrl = resolvePublicOrigin(event.url);
-  const { github: hosts } = await getConfig();
   const manifest = buildManifest(name, {
     baseUrl,
     callbackUrl: `${baseUrl}/api/auth/callback/github`,

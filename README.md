@@ -48,7 +48,7 @@ Open <http://localhost:5173/onboarding>. A fresh instance redirects every user-f
 
 `FUNNEL_URL` may stay empty in local development: Funnel uses the request origin for the App's callback and setup URLs. Set it to the public origin when the instance is reached through a hostname or proxy.
 
-> The GitHub App is created in-app, not through environment variables. Funnel stores the App ID, client ID and secret, webhook secret, and RSA key in its database, encrypted under `FUNNEL_SECRET`.
+> The GitHub App is created in-app, not through environment variables. Funnel stores the App ID, client ID and secret, and RSA key in its database, encrypted under `FUNNEL_SECRET`.
 
 ## Production
 

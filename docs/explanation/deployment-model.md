@@ -41,7 +41,7 @@ The packaged executable resolves `FUNNEL_DATA_DIR` (default `./data`), creates i
 
 The distinction between durable and disposable tables matters for backup and for repair. `state_*` holds intake submissions, settings, the GitHub App credentials, work notes and attachment metadata. `auth_*` holds Better Auth users, sessions and encrypted OAuth tokens. Both must be preserved. `mirror_*` can be thrown away and rebuilt by sync. Losing the mirror costs sync time; losing `state_*`, `auth_*`, the uploads directory or `FUNNEL_SECRET` costs data or access.
 
-`FUNNEL_SECRET` deserves special mention. It signs sessions and encrypts the GitHub App's client secret, webhook secret and private key, as well as stored OAuth tokens. A database restored without its original secret still contains the rows but cannot decrypt them. Back up the secret with the database, and do not rotate it casually on a live instance.
+`FUNNEL_SECRET` deserves special mention. It signs sessions and encrypts the GitHub App's client secret and private key, as well as stored OAuth tokens. A database restored without its original secret still contains the rows but cannot decrypt them. Back up the secret with the database, and do not rotate it casually on a live instance.
 
 ## Migrations on boot and in a release phase
 

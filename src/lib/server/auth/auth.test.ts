@@ -2,9 +2,12 @@ import { afterEach, describe, expect, test } from "bun:test";
 import { eq } from "drizzle-orm";
 import { symmetricDecrypt, symmetricEncrypt } from "better-auth/crypto";
 import { FUNNEL_SECRET } from "$app/env/private";
+import { resetConfigCache } from "#lib/server/config";
 import { db } from "#lib/server/db/index";
 import { authAccount, authUser } from "#lib/server/db/schema";
-import { getAuth, getUserAccessToken } from "./index";
+import { saveManifestCredentials } from "#lib/server/github/credentials";
+import { seedTestGithubApp } from "#tests/github-app";
+import { getAuth, getUserAccessToken, resetAuthCache } from "./index";
 
 describe("auth smoke", () => {
   test("github provider configured with client id", async () => {
@@ -36,6 +39,39 @@ describe("auth smoke", () => {
   test("session expiry matches 30-day idle default", async () => {
     const auth = await getAuth();
     expect(auth?.options.session?.expiresIn).toBe(60 * 60 * 24 * 30);
+  });
+});
+
+describe("GitHub Enterprise OAuth", () => {
+  afterEach(async () => {
+    await seedTestGithubApp();
+    resetConfigCache();
+    resetAuthCache();
+  });
+
+  test("sign-in uses the GHES authorization endpoint", async () => {
+    saveManifestCredentials({
+      appId: 987,
+      slug: "funnel-ghe",
+      name: "funnel-ghe",
+      ownerLogin: "acme",
+      ownerType: "Organization",
+      htmlUrl: "https://acme.ghe.com/settings/apps/funnel-ghe",
+      baseUrl: "http://localhost:5173",
+      githubUrl: "https://acme.ghe.com",
+      githubApiUrl: "https://acme.ghe.com/api/v3",
+      clientId: "Iv1.ghe",
+      clientSecret: "s".repeat(40),
+      privateKey: "-----BEGIN RSA PRIVATE KEY-----\nx\n-----END RSA PRIVATE KEY-----",
+    });
+    resetConfigCache();
+    resetAuthCache();
+
+    const auth = (await getAuth())!;
+    const res = await auth.api.signInSocial({
+      body: { provider: "github", callbackURL: "/" },
+    });
+    expect(res.url).toContain("https://acme.ghe.com/login/oauth/authorize");
   });
 });
 

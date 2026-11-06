@@ -42,7 +42,6 @@ export async function seedTestGithubApp(installationId: number | null = null) {
     baseUrl: "http://localhost:5173",
     clientId: TEST_GITHUB_APP_CLIENT_ID,
     clientSecret: "0123456789abcdef0123456789abcdef01234567",
-    webhookSecret: "0123456789abcdef0123456789abcdef01234567",
     privateKey,
   });
   if (installationId !== null) {

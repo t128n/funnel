@@ -1,8 +1,10 @@
 import { and, eq } from "drizzle-orm";
 import { betterAuth } from "better-auth";
 import { admin } from "better-auth/plugins";
+import { genericOAuth } from "better-auth/plugins/generic-oauth";
 import { drizzleAdapter } from "@better-auth/drizzle-adapter";
 import { FUNNEL_SECRET, FUNNEL_URL } from "$app/env/private";
+import { getConfig } from "#lib/server/config";
 import { db } from "#lib/server/db/index";
 import {
   authAccount,
@@ -11,9 +13,11 @@ import {
   authVerification,
 } from "#lib/server/db/schema";
 import { getGithubCredentials } from "#lib/server/github/credentials";
+import { isGithubCloud } from "#lib/server/github/hosts";
 import { readSettings } from "#lib/server/settings/store";
 import { isDemoMode } from "#lib/server/demo/mode";
 import { roles } from "./access";
+import { githubEnterpriseOAuth } from "./github-oauth";
 // SPEC section 11: `session.idle_days` (default 30), read from instance
 // settings. Better Auth builds its options once per build, so a change made
 // from the UI applies to sessions created after the auth instance is rebuilt
@@ -68,6 +72,9 @@ async function createAuth() {
   const credentials = getGithubCredentials();
   if (!credentials) return null;
 
+  const { github: hosts } = await getConfig();
+  const cloud = isGithubCloud(hosts);
+
   return betterAuth({
     // Doubles as the secret for signing and for encrypting stored OAuth tokens.
     secret: FUNNEL_SECRET,
@@ -82,14 +89,20 @@ async function createAuth() {
       },
     }),
     socialProviders: {
-      github: {
-        clientId: credentials.clientId,
-        clientSecret: credentials.clientSecret,
-        // `repo` covers issue reads/writes on private repos (SPEC 8:
-        // the installation needs Issues read/write). `read:user` identifies
-        // who signed in. No admin or workflow scopes.
-        scope: ["read:user", "repo"],
-      },
+      // Better Auth's built-in GitHub provider only knows github.com. On a
+      // GHES host the generic plugin below supplies the enterprise endpoints.
+      ...(cloud
+        ? {
+            github: {
+              clientId: credentials.clientId,
+              clientSecret: credentials.clientSecret,
+              // `repo` covers issue reads/writes on private repos (SPEC 8:
+              // the installation needs Issues read/write). `read:user` identifies
+              // who signed in. No admin or workflow scopes.
+              scope: ["read:user", "repo"],
+            },
+          }
+        : {}),
     },
     account: {
       // SPEC 8: user-to-server OAuth tokens and refresh tokens are stored
@@ -109,6 +122,20 @@ async function createAuth() {
     // only `admin` reaches the `/api/auth/admin/*` endpoints (`adminRoles`).
     // The first account is promoted to admin by `promoteFirstAdmin`.
     plugins: [
+      // The plugin is always present so Better Auth keeps a literal plugin
+      // tuple and infers the admin plugin's `role` field on the session. With
+      // Cloud hosts its provider list is empty.
+      genericOAuth({
+        config: cloud
+          ? []
+          : [
+              githubEnterpriseOAuth({
+                hosts,
+                clientId: credentials.clientId,
+                clientSecret: credentials.clientSecret,
+              }),
+            ],
+      }),
       admin({
         defaultRole: "read",
         adminRoles: ["admin"],

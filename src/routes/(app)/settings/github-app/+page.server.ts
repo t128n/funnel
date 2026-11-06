@@ -1,5 +1,6 @@
 import { error, redirect } from "@sveltejs/kit";
 import { canAdmin } from "#lib/roles";
+import { resetConfigCache } from "#lib/server/config";
 import { requireAdmin } from "#lib/server/auth/guard";
 import {
   clearGithubCredentials,
@@ -8,7 +9,6 @@ import {
 import { forge } from "#lib/server/forge/providers.server";
 import { resetAuthCache } from "#lib/server/auth/index";
 import { installationUrl } from "#lib/server/github/manifest-flow.server";
-import { webhookUrl } from "#lib/server/github/manifest";
 import { createLogger } from "#lib/server/log";
 import type { Actions, PageServerLoad } from "./$types";
 
@@ -23,15 +23,11 @@ export const load: PageServerLoad = async ({ locals, url }) => {
       configured: false,
       credentials: null,
       installUrl: null,
-      webhookConfigured: false,
-      webhookUrl: null,
     };
   }
   return {
     configured: true,
     installUrl: await installationUrl(credentials.slug),
-    webhookConfigured: Boolean(credentials.webhookSecret),
-    webhookUrl: webhookUrl(credentials.baseUrl),
     credentials: {
       appId: credentials.appId,
       name: credentials.name,
@@ -40,6 +36,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
       ownerType: credentials.ownerType,
       htmlUrl: credentials.htmlUrl,
       baseUrl: credentials.baseUrl,
+      githubUrl: credentials.githubUrl,
       clientId: credentials.clientId,
       installationId: credentials.installationId,
     },
@@ -58,6 +55,7 @@ export const actions: Actions = {
     }
     log.warn("github app credentials cleared from settings");
     clearGithubCredentials();
+    resetConfigCache();
     forge.resetCaches();
     resetAuthCache();
     throw redirect(303, "/onboarding");
