@@ -1,4 +1,5 @@
 import { redirect } from "@sveltejs/kit";
+import { getConfig } from "#lib/server/config";
 import { hasGithubCredentials } from "#lib/server/github/credentials";
 import {
   GithubHostError,
@@ -41,13 +42,19 @@ export const POST: RequestHandler = async (event) => {
   }
 
   let hosts: GithubHosts;
-  try {
-    hosts = normalizeGithubHost(hostInput);
-  } catch (error) {
-    if (error instanceof GithubHostError) {
-      throw redirect(303, "/onboarding?error=host");
+  if (hostInput) {
+    try {
+      hosts = normalizeGithubHost(hostInput);
+    } catch (error) {
+      if (error instanceof GithubHostError) {
+        throw redirect(303, "/onboarding?error=host");
+      }
+      throw error;
     }
-    throw error;
+  } else {
+    // Older forms and the packaged smoke test submit without the host field;
+    // fall back to the deployment's configured default.
+    hosts = (await getConfig()).github;
   }
 
   const state = crypto.randomUUID();
