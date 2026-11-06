@@ -95,7 +95,7 @@ creates the config from \`.env.example\`, generates \`FUNNEL_SECRET\`, installs 
 systemd or launchd service (or runs a portable process), and opens onboarding.
 
 Windows: extract the archive and double-click \`setup.cmd\` (or run
-\`.\funnel.exe setup\`). The wizard creates the config, installs the Windows
+\`.\\funnel.exe setup\`). The wizard creates the config, installs the Windows
 service or starts a portable copy, and opens onboarding. The executable
 remains available for manual \`funnel\` runs.
 
