@@ -25,21 +25,6 @@ export const MANIFEST_PERMISSIONS = {
   checks: "read",
 } as const;
 
-/**
- * Events the App subscribes to. Label changes arrive as `issues` actions
- * (`labeled` / `unlabeled`), so there is no separate `label` event. Polling
- * remains enabled and repairs anything a missed delivery leaves behind.
- */
-export const MANIFEST_EVENTS: readonly string[] = [
-  "issues",
-  "issue_comment",
-  "pull_request",
-  "pull_request_review",
-  "pull_request_review_comment",
-  "check_run",
-  "check_suite",
-];
-
 export interface ManifestUrls {
   /** Public homepage of the instance, e.g. `https://funnel.example.com`. */
   baseUrl: string;
@@ -59,20 +44,19 @@ export interface GithubAppManifest {
   setup_url: string;
   public: false;
   default_permissions: Record<string, string>;
+  /**
+   * Funnel is polling-only. The manifest deliberately subscribes to no events
+   * and registers no hook, so GitHub never needs an inbound connection to the
+   * server.
+   */
   default_events: string[];
-  hook_attributes: {
-    url: string;
-    active: true;
-  };
-}
-
-/** The inbound webhook receiver, derived from the captured public origin. */
-export function webhookUrl(baseUrl: string): string {
-  return `${baseUrl.replace(/\/$/, "")}/api/github/webhooks`;
 }
 
 /** Build the manifest JSON object for a new App. */
-export function buildManifest(name: string, urls: ManifestUrls): GithubAppManifest {
+export function buildManifest(
+  name: string,
+  urls: ManifestUrls,
+): GithubAppManifest {
   return {
     name,
     url: urls.baseUrl,
@@ -81,11 +65,7 @@ export function buildManifest(name: string, urls: ManifestUrls): GithubAppManife
     setup_url: urls.setupUrl,
     public: false,
     default_permissions: { ...MANIFEST_PERMISSIONS },
-    default_events: [...MANIFEST_EVENTS],
-    hook_attributes: {
-      url: webhookUrl(urls.baseUrl),
-      active: true,
-    },
+    default_events: [],
   };
 }
 

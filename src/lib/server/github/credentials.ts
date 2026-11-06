@@ -4,8 +4,8 @@
  * Funnel's GitHub App is created through GitHub's App Manifest Flow during
  * `/onboarding`; this module is the single source of truth for its credentials.
  * There are no credential environment variables — everything (App id, client
- * id/secret, webhook secret, RSA private key, installation) lives in the
- * `state_github_app` row, with the secrets encrypted at rest.
+ * id/secret, RSA private key, installation) lives in the `state_github_app`
+ * row, with the secrets encrypted at rest.
  *
  * Reads are synchronous (bun:sqlite) and memoized for the process; a write
  * clears the cache so the very next request sees the new credentials. Callers
@@ -16,6 +16,7 @@ import { eq } from "drizzle-orm";
 import { db } from "#lib/server/db/index";
 import { stateGithubApp } from "#lib/server/db/schema";
 import { decryptSecret, encryptSecret } from "#lib/server/crypto/secrets";
+import type { GithubHosts } from "./hosts";
 
 /** The `state_github_app` singleton row key. */
 const SINGLETON_ID = "default";
@@ -30,9 +31,12 @@ export interface GithubAppCredentials {
   htmlUrl: string;
   /** Public origin captured at creation; used for manifest/OAuth URLs. */
   baseUrl: string;
+  /** GitHub web host the App belongs to; empty on legacy rows. */
+  githubUrl: string;
+  /** REST base for that host; empty on legacy rows. */
+  githubApiUrl: string;
   clientId: string;
   clientSecret: string;
-  webhookSecret: string | null;
   /** PEM-encoded RSA private key. */
   privateKey: string;
   installationId: number | null;
@@ -47,9 +51,15 @@ export interface ManifestCredentialsInput {
   ownerType: string;
   htmlUrl: string;
   baseUrl: string;
+  /**
+   * The GitHub host the App was created on. Optional so demo/legacy callers
+   * (and rows created before host selection existed) fall back to the
+   * deployment's `GITHUB_URL` / `GITHUB_API_URL`.
+   */
+  githubUrl?: string;
+  githubApiUrl?: string;
   clientId: string;
   clientSecret: string;
-  webhookSecret: string | null;
   privateKey: string;
 }
 
@@ -82,15 +92,33 @@ export function getGithubCredentials(): GithubAppCredentials | null {
     ownerType: row.ownerType,
     htmlUrl: row.htmlUrl,
     baseUrl: row.baseUrl,
+    githubUrl: row.githubUrl,
+    githubApiUrl: row.githubApiUrl,
     clientId: row.clientId,
     clientSecret: decryptSecret(row.clientSecretEnc),
-    webhookSecret: row.webhookSecretEnc
-      ? decryptSecret(row.webhookSecretEnc)
-      : null,
     privateKey: decryptSecret(row.privateKeyEnc),
     installationId: row.installationId,
   };
   return cached;
+}
+
+/**
+ * The GitHub host the stored App belongs to, or `null` when onboarding has not
+ * run or the row predates host selection. Read without decrypting secrets so a
+ * deployment whose `FUNNEL_SECRET` changed can still see why it cannot decrypt
+ * the App credentials.
+ */
+export function getGithubHosts(): GithubHosts | null {
+  const [row] = db
+    .select({
+      githubUrl: stateGithubApp.githubUrl,
+      githubApiUrl: stateGithubApp.githubApiUrl,
+    })
+    .from(stateGithubApp)
+    .limit(1)
+    .all();
+  if (!row?.githubUrl || !row.githubApiUrl) return null;
+  return { url: row.githubUrl, api_url: row.githubApiUrl };
 }
 
 /** Whether onboarding has produced an App. */
@@ -120,11 +148,10 @@ export function saveManifestCredentials(
     ownerType: input.ownerType,
     htmlUrl: input.htmlUrl,
     baseUrl: input.baseUrl,
+    githubUrl: input.githubUrl ?? "",
+    githubApiUrl: input.githubApiUrl ?? "",
     clientId: input.clientId,
     clientSecretEnc: encryptSecret(input.clientSecret),
-    webhookSecretEnc: input.webhookSecret
-      ? encryptSecret(input.webhookSecret)
-      : null,
     privateKeyEnc: encryptSecret(input.privateKey),
     installationId: null,
     createdAt: now,
@@ -142,9 +169,10 @@ export function saveManifestCredentials(
         ownerType: values.ownerType,
         htmlUrl: values.htmlUrl,
         baseUrl: values.baseUrl,
+        githubUrl: values.githubUrl,
+        githubApiUrl: values.githubApiUrl,
         clientId: values.clientId,
         clientSecretEnc: values.clientSecretEnc,
-        webhookSecretEnc: values.webhookSecretEnc,
         privateKeyEnc: values.privateKeyEnc,
         installationId: null,
         updatedAt: now,

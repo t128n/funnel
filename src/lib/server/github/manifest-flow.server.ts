@@ -9,6 +9,7 @@
 import { getConfig } from "#/lib/server/config";
 import { forge } from "#/lib/server/forge/providers.server";
 import type { ManifestCredentialsInput } from "./credentials";
+import type { GithubHosts } from "./hosts";
 
 /** The subset of the conversion response Funnel stores. */
 export interface ManifestConversion {
@@ -19,7 +20,6 @@ export interface ManifestConversion {
   html_url: string;
   client_id: string;
   client_secret: string;
-  webhook_secret: string | null;
   pem: string;
 }
 
@@ -41,9 +41,11 @@ export class ManifestExchangeError extends Error {
  */
 export async function exchangeManifestCode(
   code: string,
+  /** The host selected in onboarding; defaults to the composed config. */
+  apiUrl?: string,
 ): Promise<ManifestConversion> {
   const { github: hosts } = await getConfig();
-  const base = hosts.api_url.replace(/\/$/, "");
+  const base = (apiUrl ?? hosts.api_url).replace(/\/$/, "");
   const response = await fetch(
     `${base}/app-manifests/${encodeURIComponent(code)}/conversions`,
     {
@@ -68,6 +70,7 @@ export async function exchangeManifestCode(
 export function toCredentialsInput(
   conversion: ManifestConversion,
   baseUrl: string,
+  hosts?: GithubHosts,
 ): ManifestCredentialsInput {
   return {
     appId: conversion.id,
@@ -77,9 +80,11 @@ export function toCredentialsInput(
     ownerType: conversion.owner?.type ?? "",
     htmlUrl: conversion.html_url,
     baseUrl,
+    ...(hosts
+      ? { githubUrl: hosts.url, githubApiUrl: hosts.api_url }
+      : {}),
     clientId: conversion.client_id,
     clientSecret: conversion.client_secret,
-    webhookSecret: conversion.webhook_secret ?? null,
     privateKey: conversion.pem,
   };
 }

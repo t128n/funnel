@@ -12,6 +12,7 @@
 	let account = $state<'user' | 'organization'>('user');
 	let name = $state(untrack(() => data.suggestedName));
 	let org = $state('');
+	let githubHost = $state(untrack(() => data.host.url));
 </script>
 
 <PageHead
@@ -27,7 +28,7 @@
 		<p class="measure text-body-secondary mb-0">
 			{data.locked
 				? 'This instance is protected. Unlock onboarding with the instance token to continue.'
-				: 'Funnel creates and installs a GitHub App for you — no manual copy-pasting of credentials, webhook URLs, or permissions.'}
+				: 'Funnel creates and installs a GitHub App for you — no manual copy-pasting of credentials or permissions.'}
 		</p>
 	</header>
 
@@ -81,6 +82,23 @@
 					</select>
 				</FormGroup>
 
+				<FormGroup>
+					<Label for="githubHost">GitHub host</Label>
+					<Input
+						id="githubHost"
+						name="githubHost"
+						bind:value={githubHost}
+						placeholder="github.com"
+						autocomplete="off"
+						spellcheck="false"
+						required
+					/>
+					<FormText>
+						Use <span class="font-monospace">github.com</span>, or the host of your GitHub
+						Enterprise Server instance such as <span class="font-monospace">acme.ghe.com</span>.
+					</FormText>
+				</FormGroup>
+
 				{#if account === 'organization'}
 					<FormGroup>
 						<Label for="org">Organization</Label>
@@ -114,11 +132,12 @@
 				<dl class="property-list mb-3">
 					<dt>Instance URL</dt>
 					<dd><span class="font-monospace text-break">{data.publicOrigin}</span></dd>
-					<dt>GitHub host</dt>
-					<dd><span class="font-monospace text-break">{data.host.url}</span></dd>
-					<dt>API</dt>
-					<dd><span class="font-monospace text-break">{data.host.api_url}</span></dd>
 				</dl>
+
+				<p class="mb-0 text-body-secondary">
+					Funnel polls GitHub for changes, so the server does not need an inbound
+					connection from GitHub.
+				</p>
 
 				{#if data.error}
 					<InlineStatus tone="error" message={data.error} class="mb-3" />

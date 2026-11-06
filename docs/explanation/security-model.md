@@ -22,7 +22,7 @@ The design consequence is that Funnel's own authorisation for GitHub actions is 
 
 ## GitHub App secrets at rest
 
-The App is created through GitHub's App Manifest Flow during onboarding. The conversion call returns `client_secret`, an optional `webhook_secret`, and an RSA private key (`pem`); Funnel stores all of them in the single `state_github_app` row, encrypted. There are no credential environment variables — the row is the source of truth.
+The App is created through GitHub's App Manifest Flow during onboarding. The conversion call returns `client_secret` and an RSA private key (`pem`); Funnel stores them in the single `state_github_app` row, encrypted, together with the GitHub host selected in the wizard. There are no credential environment variables — the row is the source of truth.
 
 `src/lib/server/crypto/secrets.ts` implements the encryption: **AES-256-GCM**, another AEAD, with a key derived from `FUNNEL_SECRET` via scrypt and a fixed salt. The comment defends the fixed salt explicitly — the secret is high-entropy and this is not password storage — and the algorithm is derived once per process. Each value is wrapped in a self-describing `iv:tag:ciphertext` envelope, all base64, so the ciphertext is authenticated and a tampered envelope fails loudly on decrypt.
 
@@ -51,24 +51,12 @@ Unauthenticated access is limited to a handful of deliberate surfaces:
 - **`/api/auth/*`** — Better Auth's endpoints, including the OAuth callback (`/api/auth/callback/github`); they answer `503` while no App is configured.
 - **`/intake`** — the JavaScript-free submission form once an App exists.
 - **`POST /api/intake`** (and its `OPTIONS` preflight) — the public JSON intake endpoint once an App exists.
-- **`POST /api/github/webhooks`** — the GitHub App webhook receiver. It is unauthenticated by session but authenticated by GitHub's HMAC signature; see below.
 
 `/onboarding` is a special case: reachable while the instance is unconfigured, and optionally token-gated. The first-run gate sends every other non-exempt path there.
 
 The intake endpoint is deliberately **open CORS**: `OPEN_CORS` sets `Access-Control-Allow-Origin: *`, allows `POST`/`OPTIONS` and the `Content-Type` header, and — critically — no credentials, so a browser on another origin can call it but cannot attach Funnel cookies. The comment is candid that CORS is not the security boundary here: "Funnel is expected to sit behind enterprise network segmentation, which is the actual access boundary — CORS here only unblocks the browser preflight." The CORS policy allowlists only the `Content-Type` request header; the handler parses the body with `request.json()` and does not itself reject other media types.
 
 The intake schema bounds what a submission may carry: a title up to 256 characters and a body up to 65,536 characters. The endpoint is unauthenticated and unrate-limited by Funnel itself, which is the main reason the network boundary matters — see *What is not protected* below.
-
-## The webhook receiver
-
-GitHub cannot present a Funnel session, so `POST /api/github/webhooks` derives its authority from the App's webhook secret instead. The handler reads the raw bytes first and verifies `x-hub-signature-256` as an HMAC-SHA-256 over exactly those bytes with `node:crypto` (`createHmac` and `timingSafeEqual`; equal-length buffers are compared, and missing or malformed headers fail closed). Verification happens before JSON parsing, so unauthenticated bodies never reach the parser as trusted input. When the App has no webhook secret — the normal state for Apps created before webhook support — the endpoint returns `503` rather than falling back to an unsigned path.
-
-Two independent bounds keep it cheap and replay-safe:
-
-- **Size.** The body is capped at 5 MiB. A declared `content-length` above the cap is rejected before reading; the streamed byte count is checked as chunks arrive, so a chunked request cannot bypass the limit.
-- **Replay.** Deliveries are keyed by `x-github-delivery` in `state_webhook_delivery`. An already accepted id returns `200` without refreshing. A row is inserted only after the pass succeeds, so a `500` leaves no row and GitHub's retry can do the work; concurrent duplicates may both process, but the database's primary key prevents duplicate rows and the single-issue refresh is idempotent. Rows are pruned after seven days.
-
-The handler refreshes only the repository and issue or pull-request numbers in the payload, caps a delivery at 20 issue refreshes, and isolates each refresh. It never logs the payload body, because private issue text, comments and repository data can appear there. Webhooks are a freshness optimisation on top of polling, not an authorisation or a second source of truth: polling stays enabled and reconciles missed, deleted and unhandled events. The endpoint requires inbound HTTPS from GitHub; installations without it simply never receive deliveries and keep polling.
 
 ## Uploads
 
@@ -114,7 +102,6 @@ Being explicit about the gaps is part of the model:
 - **No per-repository Funnel ACL.** Funnel's membership is instance-wide. Any signed-in user can *read* every mirrored repository's issues, work notes, and attachments, and the mutation guard checks only that a repository is configured, not that the user may touch it. For writes, GitHub's per-repository permissions still apply because the user's own token is used — but reads are not additionally partitioned, and any `write`-role user can attempt a write against any configured repository, relying on GitHub to refuse it.
 - **No authorisation on attachment downloads beyond `read`.** Anyone signed in at the `read` level can fetch any attachment by id; the dropbox is not scoped per repo or per user.
 - **Intake has no authentication, no rate limiting, and no abuse controls** in the application. The only bounds are the title/body length caps and the network boundary itself.
-- **The webhook receiver has no Funnel-side rate limit.** It is bounded by signature verification, the 5 MiB body cap and the 20-refresh cap, and it performs work only after a valid signature, but anyone who can reach the URL can send unsigned requests that are rejected at the door.
 - **The `repo` scope is broad.** Funnel cannot ask for less and still write issues on private repositories; a compromised session token carries that scope until it expires or the user revokes the App.
 - **The first-run wizard is open when `FUNNEL_ONBOARDING_TOKEN` is unset.** On a fresh instance reachable by an untrusted party, anyone could claim the App configuration; the token is the mitigation, and it is optional.
 - **`FUNNEL_SECRET` is the whole ballgame.** It protects App secrets and OAuth tokens; if it leaks alongside the database, every stored secret is recoverable.

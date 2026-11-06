@@ -605,9 +605,9 @@ async function seedRows(sqlite: Database, secret: string): Promise<SeedResult> {
   run(
     `INSERT INTO state_github_app (
        id, app_id, slug, name, owner_login, owner_type, html_url, base_url,
-       client_id, client_secret_enc, webhook_secret_enc, private_key_enc,
+       client_id, client_secret_enc, private_key_enc,
        installation_id, created_at, updated_at
-     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       "default",
       123456,
@@ -619,7 +619,6 @@ async function seedRows(sqlite: Database, secret: string): Promise<SeedResult> {
       "http://127.0.0.1:5199",
       "Iv1.funnel-screenshots",
       encryptSecret("screenshot-client-secret", secret),
-      encryptSecret("screenshot-webhook-secret", secret),
       encryptSecret(privateKey, secret),
       12345,
       now,

@@ -3,10 +3,9 @@
  *
  * Configuration is assembled from two sources and validated as one:
  *
- *  - the GitHub hosts (`github.url` / `github.api_url`) come from the
- *    environment, because they are tied to the deployed GitHub App and its
- *    OAuth wiring (`src/env.ts` reads `GITHUB_URL` /
- *    `GITHUB_API_URL`);
+ *  - the GitHub hosts (`github.url` / `github.api_url`) come from the stored
+ *    App credentials when onboarding selected a host, falling back to the
+ *    `GITHUB_URL` / `GITHUB_API_URL` bootstrap values for a fresh instance;
  *  - everything else (repositories, projects, intake, sync cadence, board, and
  *    session) lives in the SQLite `state_setting` table and is edited from the
  *    `/settings` page via `#lib/server/settings`.
@@ -18,6 +17,7 @@
 import { GITHUB_API_URL, GITHUB_URL } from "$app/env/private";
 import * as v from "valibot";
 import { deriveRepoShortcode } from "#lib/issue-ref";
+import { getGithubHosts } from "#lib/server/github/credentials";
 import {
   attentionInput,
   count,
@@ -229,8 +229,11 @@ export function repoShortcodeMap(
  * Throws a {@link ConfigError} when the merged config is invalid.
  */
 export function validateConfig(settings: SettingsInput): FunnelConfig {
+  // Once onboarding has created an App, the host stored with it wins: the
+  // credentials only exist on that GitHub deployment. A fresh instance (or a
+  // legacy row written before host selection) keeps the environment defaults.
   const merged = {
-    github: { url: GITHUB_URL, api_url: GITHUB_API_URL },
+    github: getGithubHosts() ?? { url: GITHUB_URL, api_url: GITHUB_API_URL },
     ...settings,
   };
 
@@ -249,8 +252,9 @@ export function validateConfig(settings: SettingsInput): FunnelConfig {
 /**
  * Load and validate the instance configuration.
  *
- * The GitHub hosts come from the environment; the rest is read from the
- * `state_setting` table (with per-key defaults). The merged object is validated
+ * The GitHub hosts come from the App credentials (or the environment before
+ * onboarding); the rest is read from the `state_setting` table (with per-key
+ * defaults). The merged object is validated
  * against {@link configSchema}, normalizing list entries and enforcing the
  * cross-field rules.
  *

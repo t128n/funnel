@@ -32,7 +32,6 @@ const CONVERSION: ManifestConversion = {
   html_url: "https://github.com/apps/funnel-acme",
   client_id: "Iv1.abc",
   client_secret: "shhh",
-  webhook_secret: null,
   pem: "-----BEGIN RSA PRIVATE KEY-----\nx\n-----END RSA PRIVATE KEY-----",
 };
 
@@ -48,8 +47,19 @@ describe("toCredentialsInput", () => {
       baseUrl: "https://funnel.test",
       clientId: "Iv1.abc",
       clientSecret: "shhh",
-      webhookSecret: null,
       privateKey: CONVERSION.pem,
+    });
+  });
+
+  test("stores the host selected in onboarding", () => {
+    expect(
+      toCredentialsInput(CONVERSION, "https://funnel.test", {
+        url: "https://acme.ghe.com",
+        api_url: "https://acme.ghe.com/api/v3",
+      }),
+    ).toMatchObject({
+      githubUrl: "https://acme.ghe.com",
+      githubApiUrl: "https://acme.ghe.com/api/v3",
     });
   });
 });

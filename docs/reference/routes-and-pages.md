@@ -14,7 +14,6 @@ Funnel's routes divide into public intake and health endpoints, a first-run onbo
 | `/healthz`, `/readyz` | Process supervisors and load balancers probe a fresh instance. |
 | `/_app` and `/_app/*` | SvelteKit's own bundle. |
 | `/api/auth` and `/api/auth/*` | The auth handler answers `503` while unconfigured instead of serving the wizard. |
-| `/api/github/webhooks` | The receiver answers `503` while no App/webhook secret exists instead of redirecting GitHub to the wizard. |
 | A path whose last segment contains a dot | Asset-looking paths. |
 
 Once an App exists, the gate disappears and the normal route guards apply.
@@ -27,7 +26,7 @@ Once an App exists, the gate disappears and the normal route guards apply.
 - Every `(app)` page load runs the layout guard in `src/routes/(app)/+layout.server.ts`, which calls `requireUser`. The baseline minimum for every cockpit page is therefore `read`; individual layouts add stricter roles.
 - The settings layout enforces the section role. Only `/settings`, `/settings/appearance` and `/settings/features` are personal (`read`); every other `/settings/*` path requires `admin`, including direct URL entry.
 - Form actions re-check the session and role because SvelteKit layout loads do not run for actions. The shared settings action returns `401` without a session and `403` without `admin`.
-- Public routes are `/`, `/intake`, `/login`, `/onboarding/*`, `/healthz`, `/readyz`, `/api/intake`, `/api/github/webhooks` and `/api/auth/*`. Of these, `/healthz`, `/readyz`, `/onboarding/*`, `/api/github/webhooks` and `/api/auth/*` are also first-run-gate exemptions; the others become reachable once an App exists. `/api/github/webhooks` is signature-verified rather than session-authenticated.
+- Public routes are `/`, `/intake`, `/login`, `/onboarding/*`, `/healthz`, `/readyz`, `/api/intake` and `/api/auth/*`. Of these, `/healthz`, `/readyz`, `/onboarding/*` and `/api/auth/*` are also first-run-gate exemptions; the others become reachable once an App exists.
 
 The onboarding wizard is additionally gated by `FUNNEL_ONBOARDING_TOKEN` when that variable is set. The token is supplied as `?token=…`, stored in the HttpOnly `funnel_onboarding_token` cookie for one hour, and required by the manifest, callback, install and installed steps. When the variable is unset the wizard is open to anyone who can reach the fresh instance.
 
@@ -84,7 +83,7 @@ The `C` shortcut and an empty board column's **New Issue** control open an in-ap
 | `/settings/board` | Done window (`done_days`) and per-stage WIP limits. | `admin` | Shared settings `save` action. |
 | `/settings/notifications` | Master switch, browser notifications and new-intake notices. | `admin` | Shared settings `save` action; three boolean switches. |
 | `/settings/people` | Account list and role management. | `admin` | `setRole` action; the last administrator cannot be demoted (`409`). |
-| `/settings/github-app` | Current App metadata, webhook secret state, webhook URL and install URL. | `admin` | `reset` action clears App credentials and returns to `/onboarding`. |
+| `/settings/github-app` | Current App metadata and install URL. | `admin` | `reset` action clears App credentials and returns to `/onboarding`. |
 | `/settings/sync` | History window, active/idle polling intervals, per-repository health, and a manual sync trigger. | `admin` | Shared settings `save` action plus a `sync` action that runs one cycle for every configured repository. |
 | `/settings/session` | Session idle lifetime in days. | `admin` | Shared settings `save` action. |
 | `/settings/planning` | Size-to-time estimates, allocation percentage and the maintainer roster. | `admin` | Shared settings `save` action; `planning` payload with hours converted to minutes. Cycle keys remain in the stored config for compatibility but are not exposed. |
@@ -170,7 +169,6 @@ API routes are not under the `(app)` layout and enforce their own guards. Detail
 | Prefix | Methods | Minimum role | Surface |
 | :--- | :--- | :--- | :--- |
 | `/api/intake` | POST, OPTIONS | None | Public intake staging. |
-| `/api/github/webhooks` | POST | None; HMAC signature required | GitHub App webhook receiver. Refreshes only the affected issue(s); body capped at 5 MiB. |
 | `/api/auth/*` | GET, POST | Better Auth rules | Sign-in, OAuth callback, session, sign-out and admin endpoints. |
 | `/api/events` | GET | `read` | Server-Sent Events stream. |
 | `/api/notifications` | GET, POST | `read` | The viewer's notification feed and read-state updates. |

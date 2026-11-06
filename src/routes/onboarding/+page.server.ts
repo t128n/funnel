@@ -18,6 +18,7 @@ function suggestedName(origin: string): string {
 const ERRORS: Record<string, string> = {
   name: "Enter a name for the GitHub App.",
   org: "Enter the organization that should own the App.",
+  host: "Enter a valid GitHub host, for example github.com or acme.ghe.com.",
   state: "The request could not be verified. Please start again.",
   exchange: "GitHub rejected the manifest conversion. Please try again.",
 };
