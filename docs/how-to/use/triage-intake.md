@@ -2,11 +2,13 @@
 
 This guide explains how submissions reach the Inbox and how to accept, dismiss or duplicate them.
 
+Anyone who can reach the instance can submit intake. Sign in to review the Inbox; decisions require `write` or `admin`. Accepting or duplicating also requires a GitHub user token with permission for the target repository.
+
 ![Demo Inbox showing staged submissions followed by GitHub issues without a status](../../assets/guide/inbox.png)
 
 ## Where submissions come from
 
-Funnel stages every external report before anything reaches GitHub. There are two entry points.
+Funnel stages every external report locally before a triager decides what to do with it. There are two entry points.
 
 | Entry point | Who can use it | Result |
 | :--- | :--- | :--- |
@@ -21,6 +23,10 @@ The `/intake` form accepts:
 
 `GET /intake?title=…&body=…&source=…` renders a prefilled draft, and the page also writes a compact deeplink into the address bar as you type. Both forms are clamped to the limits above. The form needs no JavaScript: it posts as a plain HTML form, and submission failures render inline.
 
+![Intake settings with the default repository, per-minute and per-hour limits, and the honeypot switch](../../assets/screenshots/intake-settings/01-open-page.png)
+
+*Administrators configure the default repository, per-client submission limits and the honeypot in **Settings → Intake**.*
+
 `POST /api/intake` accepts this JSON body:
 
 ```json
@@ -33,7 +39,7 @@ The `/intake` form accepts:
 
 `title` is required and trimmed to 1–256 characters. `body` is optional and capped at 65,536 characters. `source` is optional and trimmed. A successful request returns `201` with an opaque submission id. A malformed body returns `400` with a `message`; a body that fails validation returns `message` plus an `issues` array of human-readable reasons. The endpoint carries open CORS headers for browser callers.
 
-Nothing is created on GitHub until a triager accepts the submission. See [the workflow model](../../explanation/workflow-model.md) for why staging is separate from the GitHub mirror.
+Submitting creates no GitHub issue or comment. Accepting creates a new issue; marking the submission as a duplicate instead posts a comment on an existing issue without creating a new one. Dismissing writes neither. See [the workflow model](../../explanation/workflow-model.md) for why staging is separate from the GitHub mirror.
 
 ## How the Inbox is ordered
 
@@ -41,6 +47,10 @@ The Inbox is a single queue with two parts, always in this order:
 
 1. **Staged** submissions, newest first. Same-millisecond ties are broken deterministically by insertion order.
 2. **Untriaged issues** — open issues with no status label. These are ordered by derived priority (`P1` first, unprioritised last), then by most recently updated.
+
+![Funnel Inbox with four staged submissions above two untriaged GitHub issues](../../assets/screenshots/triage-intake/01-open-triage-intake.png)
+
+*The Inbox queue lists staged submissions before untriaged GitHub issues.*
 
 Search applies to both halves: it matches a submission's title and body, and an issue's title, body and comments. The repo, status, assignee, priority, size and label filters apply only to GitHub issues; the Inbox has no state switch. Pending submissions have no repo or workflow metadata, so they remain visible unless the search term excludes them.
 
@@ -58,9 +68,17 @@ Every Inbox row — a staged submission or an untriaged issue — has a **Snooze
 - **Next week** — 09:00 local time seven days later.
 - **Custom date** — 09:00 local time on the date you pick.
 
+![The Snooze menu open on an Inbox row with Tomorrow, Next week and a custom date](../../assets/screenshots/triage-intake/02-snooze-menu.png)
+
+*The Snooze menu offers Tomorrow, Next week and a custom date.*
+
 A snoozed row leaves the queue immediately and is excluded from the sidebar badge. It returns automatically once its resurface time passes; there is no reminder or notification (those are separate roadmap work). Snoozing never archives a submission, changes a label, or touches the GitHub mirror, so the issue remains visible in All Issues, the board and the matrix.
 
 The **Snoozed** tab on `/inbox` (`/inbox?snoozed=1`) lists deferred items with their resurface date and a **Resurface** action that clears the snooze immediately. The tab shows its own count; the queue badge never includes snoozed rows.
+
+![The Snoozed tab listing a deferred submission with its resurface time and Resurface action](../../assets/screenshots/triage-intake/03-snooze-snoozed.png)
+
+*The Snoozed tab shows when each item will resurface and lets you bring it back immediately.*
 
 Snoozes are stored in `state_snooze`. Issues are keyed by `owner/name` plus issue number rather than a mirror id, so a snooze survives re-sync and mirror pruning; a pruned issue still appears in the Snoozed view so it can be resurfaced. Submissions are keyed by their staged id. The server rejects a resurface date in the past or more than one year away.
 
@@ -173,3 +191,5 @@ An archived submission stays viewable by id and shows its decision (dismiss reas
 - [Roles and permissions](../../reference/roles-and-permissions.md)
 - [Create and edit issues](create-and-edit-issues.md)
 - [Close, reopen and block issues](close-reopen-block.md)
+- [Use the matrix](matrix.md) — assess impact and urgency after acceptance.
+- [Triage a backlog](../../tutorials/triage-a-backlog.md) — follow a complete example.

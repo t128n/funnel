@@ -2,11 +2,17 @@
 
 This guide explains how issues are arranged on the board, how to move them, and how the Done window and WIP limits behave.
 
+Sign in and open **Board**. A `read` account can browse; moving issues requires `write` or `admin` and a GitHub token with permission to edit them.
+
 ![Demo board with Todo, In Progress, In Review and Done lanes](../../assets/guide/board.png)
 
 ## Stages and columns
 
 Funnel's status board has five columns: Backlog, Todo, In Progress, In Review and Done, and the board query returns all five. In the kanban surface, Backlog is rendered as a separate list rather than a lane, so the lanes you see are Todo, In Progress, In Review and Done. The **Board / Backlog** switch in the header opens the Backlog list.
+
+![The board with Todo, In Progress, In Review and Done lanes and issue cards](../../assets/screenshots/board/01-open-board.png)
+
+*The board's four lanes, with each card showing its reference, priority and assignee, plus blocked and planned markers.*
 
 | Stage | Column label | Where it appears |
 | :--- | :--- | :--- |
@@ -92,3 +98,5 @@ The keyboard icon in the board header opens a shortcut legend listing **New issu
 - [Roles and permissions](../../reference/roles-and-permissions.md)
 - [Close, reopen and block issues](close-reopen-block.md)
 - [Keyboard shortcuts](keyboard.md)
+- [Review work needing attention](attention.md)
+- [Plan a week](plan-work.md)

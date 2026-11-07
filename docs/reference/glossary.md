@@ -42,11 +42,11 @@ Definitions of the terms used across Funnel's reference documentation.
 
 **Epic** — An ordinary issue carrying the `epic` label. Its ordered children are a comma-separated `owner/name#number` list in the epic body's `funnel_metadata` envelope (`epic.children`), which makes the relation portable and independent of the mirror. An issue belongs to at most one epic; nested epics are rejected. `/epics` and the Inspector show progress and estimate, actual and delay rollups. See [Manage epics](../how-to/use/epics.md).
 
-**Intake** — Funnel's public submission channel, available as the `/intake` form and `POST /api/intake`. Anonymous submissions are staged locally and nothing reaches GitHub until a triager accepts them. See [HTTP API](./http-api.md#public-surface).
+**Intake** — Funnel's public submission channel, available as the `/intake` form and `POST /api/intake`. Anonymous submissions are staged locally; a triager can accept one as an issue or mark it as a duplicate by commenting on an existing issue. See [HTTP API](./http-api.md#public-surface).
 
-**Staging** — The `state_intake_submission` queue that holds pending intake submissions. Rows are hard-deleted on accept, dismiss or duplicate; there is no trash bin or archive. See [`staging.ts`](../../src/lib/server/intake/staging.ts).
+**Staging** — The `state_intake_submission` store for intake submissions. Pending rows form the queue; decisions archive rows locally, and triage events record the history. See [`staging.ts`](../../src/lib/server/intake/staging.ts).
 
-**Triage** — The decision that clears a staged submission: **accept** creates a GitHub issue with the `backlog` status and a provenance footer, **duplicate** posts the submission text as a comment on a mirrored issue, and **dismiss** deletes the row without contacting GitHub. Accept and duplicate use the signed-in user's GitHub token. See [Routes and pages](./routes-and-pages.md#inbox-triage-actions).
+**Triage** — The decision that clears a staged submission from the pending queue: **accept** creates a GitHub issue with the default `backlog` status and a provenance footer, **duplicate** posts the submission text as a comment on a mirrored issue, and **dismiss** archives it with a reason without contacting GitHub. Accept and duplicate use the signed-in user's GitHub token. See [Triage intake](../how-to/use/triage-intake.md).
 
 **Work note** — An internal ITSM-style journal entry stored in `state_work_note`. A work note is local to Funnel and is not posted to GitHub unless explicitly published; publishing posts it as a comment and deletes the local note. Work notes are keyed by `org/name` plus issue number, so they survive mirror pruning. See [HTTP API](./http-api.md#work-notes).
 

@@ -1,105 +1,35 @@
 # Funnel
 
-Funnel is a self-hosted GitHub issue cockpit: a dense, keyboard-friendly triage desk over the issues in the repositories you choose, with a public intake queue in front of it and a GitHub App created in-app during first-run onboarding.
+Funnel is a self-hosted GitHub issue cockpit with a public intake queue and a local mirror of the repositories you choose. Triage submissions, manage issues and plan work from one place.
 
-## What it does
+## Install on Windows
 
-- **Intake before GitHub.** Anyone who can reach the instance can submit an issue at `/intake` (or through `POST /api/intake`). Submissions are staged in SQLite; nothing is created on GitHub until a triager accepts one. Accept, dismiss, or fold a submission into an existing issue as a duplicate.
-- **One inbox for two queues.** The Inbox combines staged submissions with untriaged open issues — open issues that carry no status label. Setting a status moves an issue out of the queue and into the cockpit.
-- **A local mirror, not a proxy.** Funnel polls the selected repositories in the background and serves every read from its own SQLite mirror, so filters, search, grouping, and the board stay fast and do not spend GitHub API calls on page loads.
-- **Milestones, scoped the way GitHub scopes them.** The Milestones view lists each configured repository's milestones with progress and due dates, and each opens the issues attached to it. Milestones are also a filter and group-by dimension, an issue-row chip, and a set-or-clear picker in the inspector that can create a milestone lazily in that repository.
-- **A milestone Gantt without a second schedule.** `/timeline` plots every open milestone with a due date using Apache ECharts, Bootstrap 5, and Sveltestrap. Bars start at the Monday week its issues were planned for or the moment they first moved into `in-progress`/`in-review`, end at the due date, fill by `closed/total`, and mark open child issues. It is read-only: no drag, no date picker, and undated milestones sit in a separate table rather than getting an invented end.
-- **A workflow vocabulary, not free-form labels.** Reserved labels describe status (`backlog`, `todo`, `in-progress`, `in-review`), impact (`sev`, `mod`, `min`), urgency (`high`, `mid`, `low`), size (`sm`, `md`, `lg`), and the orthogonal `blocked` flag. Funnel keeps at most one label per group and provisions the vocabulary in each configured repository. Priority (P1–P3) is derived from impact × urgency and is never a GitHub label.
-- **Board and Attention.** The board has Todo, In Progress, In Review, and Done lanes, with Backlog as a separate list; cards drag between open lanes and Done closes with a resolution. Blocked issues with a re-check date surface in Attention, bucketed as overdue, due today, and the next seven days.
-- **An inspector that remembers context.** Read and edit an issue, comment, close or reopen with a required note, record a structured blocker, keep internal work notes that stay in Funnel until you publish them, and attach files to a dropbox stored outside the mirror.
-- **Roles that are enforced server-side.** `read` can browse, `write` can mutate issues and triage intake, and `admin` manages instance settings and people. New accounts start as `read`; the first account to sign in becomes `admin`.
-- **GitHub App onboarding in the app.** The App and its credentials are created through GitHub's App Manifest Flow, then installed from GitHub's own installation page. There are no GitHub App client IDs, secrets, or private keys in the environment.
+1. Open the [Funnel releases](https://github.com/t128n/funnel/releases) and download the Windows x64 ZIP for the release you want.
+2. Extract the ZIP on the Windows machine that will run Funnel. Open PowerShell in the extracted folder and run `.\funnel.exe setup`. Alternatively, open `setup.cmd` if the archive contains it.
+3. Follow the setup prompts, then open the onboarding URL printed by the wizard. Create and install the GitHub App, select repositories, and sign in. The first account to sign in becomes an administrator.
+4. Start with [triaging a backlog](docs/tutorials/triage-a-backlog.md) or [creating and editing issues](docs/how-to/use/create-and-edit-issues.md).
 
-## Requirements
+You need a GitHub account with permission to create and install a GitHub App. For requirements, service options, other platforms and troubleshooting, see [Install Funnel](docs/how-to/deploy/install.md). The executable includes its runtime; installing Bun or cloning the repository is not required for this path.
 
-| Requirement | Notes |
-| :--- | :--- |
-| Bun 1.4.3 or newer | The server must run under Bun. The database layer uses `bun:sqlite`, so `node build/index.js` does not work. |
-| A GitHub account | Sign-in uses GitHub OAuth through the App. |
-| Permission to create and install a GitHub App | Either on your personal account or on an organisation you administer. GitHub Enterprise Server is supported through the `GITHUB_URL` / `GITHUB_API_URL` settings. |
+## What Funnel does
 
-SQLite is embedded (through Bun); there is no separate database server to install.
+- **Intake and triage:** Submissions to `/intake` or the intake API are staged in SQLite until a triager accepts, dismisses, or marks them as duplicates. The Inbox combines these submissions with untriaged GitHub issues.
+- **A local issue mirror:** Funnel polls selected repositories and serves reads from SQLite, supporting search, filters, grouping and the board without a GitHub API call for each page load.
+- **A shared workflow:** Reserved labels track status, impact, urgency, size and blocking; priority is derived from impact and urgency. The board organizes work by status, while Attention surfaces work needing review.
+- **Issue details and planning:** Edit issues, comment, record blockers, keep internal work notes and attach files. Plan work by week, browse repository milestones, and view dated milestones on the `/timeline` Gantt.
+- **Access and onboarding:** The first-run wizard creates and installs a GitHub App. Server-enforced `read`, `write` and `admin` roles control access; new accounts start with `read`.
 
-## Quickstart
+## Use and operate Funnel
 
-```sh
-# 1. Install dependencies
-bun install
+- [Triage intake](docs/how-to/use/triage-intake.md), [use the board](docs/how-to/use/board.md), or [plan a week](docs/how-to/use/plan-work.md).
+- [Configure repositories](docs/how-to/configure/repositories.md) and [manage people and roles](docs/how-to/configure/people-and-roles.md).
+- [Back up and restore](docs/how-to/operate/backup-and-restore.md), [upgrade](docs/how-to/operate/upgrade.md), or [troubleshoot](docs/how-to/operate/troubleshoot.md).
+- Install on [Linux with systemd](docs/how-to/deploy/linux-systemd.md), [behind a reverse proxy](docs/how-to/deploy/reverse-proxy.md), or against [GitHub Enterprise Server](docs/how-to/deploy/github-enterprise-server.md).
+- Set up the optional [desktop intake app](docs/how-to/integrate/windows-intake-hotkey.md) on Windows or macOS for hotkey-based submission drafts.
+- Browse the [documentation site](https://t128n.github.io/funnel/) or [GitHub documentation index](docs/README.md).
 
-# 2. Create your local environment file
-cp .env.example .env
+Funnel runs as a single long-lived process with a SQLite database and uploads directory. Do not run multiple instances against the same data directory; see the [deployment model](docs/explanation/deployment-model.md).
 
-# 3. Generate an encryption secret and paste it into .env as FUNNEL_SECRET
-openssl rand -base64 32
+## Contribute
 
-# 4. Apply the committed database schema
-bun run release
-
-# 5. Start the development server
-bun run dev
-```
-
-Open <http://localhost:5173/onboarding>. A fresh instance redirects every user-facing route to the wizard until a GitHub App exists. The wizard creates the App, installs it, lets you choose repositories, and then sends you to sign in. The first account to sign in is promoted to `admin`.
-
-`FUNNEL_URL` may stay empty in local development: Funnel uses the request origin for the App's callback and setup URLs. Set it to the public origin when the instance is reached through a hostname or proxy.
-
-> The GitHub App is created in-app, not through environment variables. Funnel stores the App ID, client ID and secret, and RSA key in its database, encrypted under `FUNNEL_SECRET`.
-
-## Production
-
-Funnel is a single long-lived process that owns a SQLite database and an uploads directory. It must not be scaled horizontally or deployed to a serverless target: the background polling worker, nightly reconciliation, and the SSE stream all depend on the process staying up.
-
-| Delivery path | Build | Notes |
-| :--- | :--- | :--- |
-| Standalone executable | `mise run exe` → `dist/funnel` (or `dist\funnel.exe`) | Self-contained: Bun runtime, server, client assets, migrations, and the native Markdown addon. |
-| Desktop intake app | `mise run intake:exe`, then the installer for Windows or macOS | Optional per-user Rust app (daemon + Rune settings window): a global hotkey opens a prefilled `/intake` draft for the current selection. See [`scripts/README.md`](scripts/README.md). |
-| Native install | Release archive, then `./funnel setup` (Windows: `START-HERE.cmd`) | Cross-platform wizard; installs a systemd, launchd, or WinSW service, or runs a portable process. |
-| Adapter-node build | `bun run build`, then `bun run release` and `bun run start` | `bun ./build/index.js`; still a long-lived process. Run the release step against the same `FUNNEL_DB` first — this path does not migrate on boot. |
-
-On Linux, `packaging/systemd/` adds a checked-in system unit, an environment
-template, and a root-only `install.sh` for bare-metal or configuration-managed
-hosts. The automated `funnel setup` wizard remains the recommended path; see
-[Install Funnel on Linux with systemd](docs/how-to/deploy/linux-systemd.md).
-
-The packaged executable applies pending migrations on boot. Health probes are `/healthz` (liveness) and `/readyz` (readiness; it reports `503` until every committed migration is applied). `funnel --help`, `--version`, `--migrate`, and `--healthcheck` cover the packaged binary's CLI.
-
-If you build with mise, run `mise trust` once per checkout so its tasks load.
-
-The **desktop intake app** is optional and targets Windows and macOS. It runs per user, starts at login, and owns its global hotkey directly. One Rust executable provides both the daemon and a Rune settings/status window:
-
-```powershell
-mise run intake:exe
-powershell -ExecutionPolicy Bypass -File scripts\install-intake.ps1
-```
-
-```sh
-mise run intake:exe
-mise run intake:install:macos
-```
-
-Configuration, the hotkey syntax, and troubleshooting live in [`scripts/README.md`](scripts/README.md); the architecture and URL contract live in [`tools/funnel-intake/README.md`](tools/funnel-intake/README.md) and [`docs/how-to/integrate/windows-intake-hotkey.md`](docs/how-to/integrate/windows-intake-hotkey.md).
-
-## Documentation
-
-Browse the [documentation site](https://t128n.github.io/funnel/) or the [documentation index](docs/README.md), or jump straight in:
-
-| I want to… | Read |
-| :--- | :--- |
-| Install Funnel and reach the cockpit | [Getting started](docs/tutorials/getting-started.md) |
-| Follow a full triage cycle from intake to reopen | [Triage a backlog](docs/tutorials/triage-a-backlog.md) |
-| Deploy, operate, or configure an instance | [How-to guides](docs/README.md#how-to-guides) |
-| Look up environment variables, settings, routes, or the API | [Reference](docs/README.md#reference) |
-| Understand the architecture or workflow model | [Explanation](docs/README.md#explanation) |
-| See the UI design standards | [DESIGN.md](docs/DESIGN.md) |
-
-## Related
-
-- [Documentation index](docs/README.md)
-- [Getting started tutorial](docs/tutorials/getting-started.md)
-- [Triage a backlog tutorial](docs/tutorials/triage-a-backlog.md)
-- [Design standards](docs/DESIGN.md)
+To change Funnel rather than install a release, clone the repository and follow the [development guide](docs/how-to/contribute/development.md) to set up dependencies and run the app. Run the checks in the [testing guide](docs/how-to/contribute/testing.md), then submit your changes as a pull request. See the [release guide](docs/how-to/contribute/release.md) for building release artifacts.

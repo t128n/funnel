@@ -6,14 +6,22 @@ It assumes you have completed [Getting started](getting-started.md), have one re
 
 ## 1. Stage a submission through intake
 
-Open <http://localhost:5173/intake>. This page is public: it does not require a session.
+Open your Funnel address followed by `/intake` (for example <http://127.0.0.1:3000/intake>; the setup wizard prints the exact host and port). This page is public: it does not require a session.
+
+![The public Submit an Issue form with fields for title, description and source](../assets/screenshots/intake/01-open-intake.png)
+
+*The public intake form: title is required, description is optional, and nothing reaches GitHub until a triager accepts it.*
 
 1. Enter a title, for example **Export CSV fails when the filter is empty**.
 2. Add a description describing what happened and what you expected.
 3. Optionally choose a source such as **Email** or **Chat**.
 4. Click **Submit**.
 
-**You should see:** **Thanks — your submission is in.** The page confirms that nothing has been created on GitHub yet. The staged row lives only in Funnel's SQLite database.
+![The intake form filled with the example title and description, before submission](../assets/screenshots/intake/02-fill-draft.png)
+
+*A filled draft; the Copy Draft Link control keeps a shareable version of the text.*
+
+**You should see:** **Thanks — your submission is in.** Submitting has created no GitHub issue or comment; the staged row lives in Funnel's SQLite database. A later duplicate decision can post a comment to an existing issue instead of creating a new issue.
 
 > Tools can stage the same queue through `POST /api/intake` with a JSON body containing `title`, `body`, and `source`. See [Use the intake API](../how-to/integrate/intake-api.md).
 
@@ -21,16 +29,24 @@ Open <http://localhost:5173/intake>. This page is public: it does not require a 
 
 Click **Inbox** in the sidebar.
 
+![The Inbox queue with staged submissions above untriaged GitHub issues](../assets/screenshots/triage-intake/01-open-triage-intake.png)
+
+*The Inbox lists staged submissions first, then open GitHub issues that have no status label.*
+
 **You should see:** your submission in the queue, followed by any open GitHub issues that have no status label. The navigation badge counts both kinds of queue entry.
+
+![The Snooze menu open on an Inbox row with Tomorrow, Next week and a custom date](../assets/screenshots/triage-intake/02-snooze-menu.png)
+
+*Every Inbox row also carries a Snooze menu for deferring it without changing GitHub.*
 
 Select the submission row.
 
-**You should see:** a detail pane headed with an **Intake** marker, the submission title, the source, and its description. The footer offers **Dismiss**, **Duplicate**, and **Accept**, with **Repository**, **Priority**, and **Size** pills above them.
+**You should see:** a detail pane headed with an **Intake** marker, the submission title, the source, and its description. The footer offers **Dismiss**, **Duplicate**, and **Accept**, with repository and issue-property controls above them.
 
 ## 3. Accept the submission into a repository
 
 1. Choose the target repository from the **Repository** pill. It lists the repositories Funnel has mirrored; if the first sync has not populated the picker yet, Funnel uses the configured intake default.
-2. Optionally set **Priority** and **Size**.
+2. Leave the status as **Backlog** for this tutorial. Optionally set **Size**, labels, and assignees. Priority is derived from impact and urgency later in the issue Inspector; it is not set at intake.
 3. Click **Accept**.
 
 **You should see:** the row disappear from the Staged section and the detail pane close. Funnel has created a GitHub issue with:
@@ -74,13 +90,13 @@ Click the card.
 - property pills for **Blocked**, status, impact, urgency, derived priority, size, assignees, and labels;
 - **Activity** for GitHub comments;
 - **Work notes** for Funnel-local notes;
-- **Files** for the attachment dropbox;
+- **Attachments** for the attachment dropbox;
 - an external-link button to open the issue on GitHub.
 
 ## 7. Block it with a re-check date
 
 1. Click the **Blocked** pill.
-2. In the **Block issue** dialog, fill **Blocker** (required), for example **Waiting on the design review**.
+2. In the **Block issue** dialog, choose a reason, then fill **Blocker** (required), for example **Waiting on the design review**.
 3. Fill **Needs to unblock** (required), for example **Sign-off from the design owner**.
 4. Optionally fill **Currently trying**.
 5. Set **Re-check date** to tomorrow: click **Tomorrow**, or pick the date in the date field.
@@ -92,7 +108,7 @@ Click the card.
 
 Click **Attention** in the sidebar.
 
-**You should see:** the issue under **Upcoming**, with a re-check pill reading **in 1d** (or the equivalent for the date you chose) and a **Blocked** marker. Attention lists open, blocked issues, grouped as **Overdue**, **Due Today**, **Upcoming**, and **No re-check date**. The last group holds blocked issues whose date is missing or malformed.
+**You should see:** the issue under **Re-check upcoming**, with a re-check pill reading **in 1d** (or the equivalent for the date you chose) and a **Blocked** marker. Attention groups open, blocked issues as **Re-check overdue**, **Re-check today**, **Re-check upcoming**, and **No re-check date**. The last group holds blocked issues whose date is missing or malformed.
 
 The sidebar badge counts only overdue and due-today items, so a re-check set for tomorrow does not raise the badge, and issues without a date are listed but not counted. Use the row's calendar action to move the re-check date without re-recording the block, or open the row to return to the issue.
 
@@ -104,7 +120,7 @@ Click the issue row in Attention to open it in the Issues view. In the inspector
 
 ## 10. Add an attachment
 
-In the **Files** section of the inspector, drop a small file onto the drop zone or click **browse** and pick one.
+In the **Attachments** section of the inspector, drop a small file onto the drop zone or click **browse** and pick one.
 
 **You should see:** the file listed with its size, uploader, and relative time. Use the download button to fetch it and the trash button to remove it. The bytes are stored under `FUNNEL_UPLOAD_DIR`; the database holds only metadata.
 
@@ -112,7 +128,7 @@ Uploads are capped by `FUNNEL_UPLOAD_MAX_BYTES` (10 MiB by default). A deployed 
 
 ## 11. Publish the note
 
-In the note's action row, click the send icon (its tooltip reads **Publish to GitHub as a comment (removes the note)**).
+In the note's action row, click **Publish** (its tooltip reads **Publish to GitHub as a comment (removes the note)**).
 
 **You should see:** a toast reading **Work note published as a comment**, the note disappear from **Work notes**, and the same text appear in **Activity** (and on GitHub) once the background mirror refresh lands. Publishing is one-way: the local note is deleted and the GitHub comment becomes the durable record.
 
@@ -134,6 +150,10 @@ With the issue still open in the inspector, choose **Todo** from the status pill
 2. Click **Reopen issue**.
 
 **You should see:** the issue reopen, the note appear in Activity, and the status become **Todo** in the same flow. The card returns to the board's Todo lane. If the issue is still flagged `blocked` and its re-check date is still within the next seven days, it also returns to Attention.
+
+## Next
+
+Try [planning and tracking a week](plan-and-track-a-cycle.md), or use the guides below for individual tasks.
 
 ## Related
 

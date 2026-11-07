@@ -12,7 +12,7 @@ Stage an external submission in Funnel's triage queue with `POST /api/intake`, w
 | `body`   | string | no       | ≤65536 characters                   | Defaults to `""` when omitted. Markdown is preserved verbatim.               |
 | `source` | string | no       | trimmed                             | Free-form provenance label (the calling page or CLI). An empty value is stored as `null`. |
 
-Unknown properties are ignored rather than rejected, matching GitHub's leniency for forward compatibility. For example `{ "title": "Extra", "urgent": true, "repo": "evil/repo" }` stages a row with only the title.
+Unknown properties are ignored rather than rejected, except the optional abuse-control honeypot `company_website`. For example `{ "title": "Extra", "urgent": true, "repo": "evil/repo" }` stages a row with only the title. Do not populate `company_website` in an integration.
 
 There is **no authentication**. The endpoint is public regardless of role and is deliberately ungated; the real access boundary is the instance's network segmentation / SSO. Deploy it accordingly.
 
@@ -25,10 +25,14 @@ Every `POST` response carries the open CORS headers plus `Cache-Control: no-stor
 | Status | Body                                                                    | When                                                       |
 | :----- | :---------------------------------------------------------------------- | :--------------------------------------------------------- |
 | `201`  | `{ "id": "<uuid>" }`                                                     | The submission was staged.                                 |
+| `202`  | `{ "message": "Submission received" }`                                  | The enabled honeypot was filled; no submission was staged. |
 | `400`  | `{ "message": "Request body must be valid JSON" }`                       | The request body could not be parsed as JSON.              |
 | `400`  | `{ "message": "Invalid intake submission", "issues": ["…", "…"] }`       | The JSON parsed but failed validation; `issues` is non-empty. |
+| `429`  | `{ "message": "Too many submissions; try again later." }`                 | The per-IP limit was exceeded; `Retry-After` gives the wait in seconds. |
 
-The returned `id` is an **opaque handle for the staged row** (a UUID), not a GitHub issue number. Quote it back when triaging; nothing is created on GitHub until a triager accepts the submission.
+The returned `id` is an **opaque handle for the staged row** (a UUID), not a GitHub issue number. Staging makes no GitHub mutation. A triager can later accept the submission to create an issue, or mark it as a duplicate to post a comment on an existing issue.
+
+The form and API share per-IP fixed-window limits, defaulting to 10 per minute and 60 per hour. Invalid and honeypot requests also count. A limit of `0` disables that window. Counters are per process and reset on restart; configure trusted client addresses behind a proxy. See [Intake lifecycle](../../explanation/intake-lifecycle.md#abuse-controls).
 
 ### CORS
 
@@ -67,9 +71,8 @@ const res = await fetch("https://funnel.example.com/api/intake", {
   }),
 });
 
-if (!res.ok) {
-  // 400 bodies are always JSON: `{ message }` for a parse error, or
-  // `{ message, issues }` for a validation failure.
+if (res.status !== 201) {
+  // 429 includes Retry-After; 202 does not contain a staged id.
   const { message, issues } = await res.json();
   throw new Error([message, ...(issues ?? [])].join(": "));
 }
@@ -83,10 +86,10 @@ console.log("staged as", id);
 A staged submission stays in the local database until a triager decides. The triage actions are in `src/lib/server/intake/actions.ts`:
 
 - **Accept** creates the GitHub issue (default workflow status label `backlog`, target repository from the instance's `intake.default_repo` unless overridden) and appends a provenance footer naming the `source`.
-- **Dismiss** hard-deletes the row with no GitHub mutation.
+- **Dismiss** archives the row with a required reason and no GitHub mutation; the latest dismissal can be undone.
 - **Duplicate** posts the submission text as a comment on an existing mirrored issue.
 
-Every decision hard-deletes the staging row. Accept and Duplicate remove it only after GitHub confirms the write; Dismiss removes it immediately because it makes no upstream change. There is no trash bin or archive; durable history lives on GitHub once accepted.
+Every decision archives the submission locally and records a triage event. Accept and Duplicate archive only after GitHub confirms the write; on failure the submission remains pending. Dismiss archives immediately. See [Triage intake](../use/triage-intake.md) for the queue and undo workflow.
 
 New submissions also emit an `{"type":"intake","action":"created","id"}` event so open Inboxes refresh over SSE.
 

@@ -2,6 +2,8 @@
 
 This guide shows you how to browse and filter mirrored GitHub milestones, read the milestone timeline, and set or create one from an issue.
 
+Sign in with at least `read` and ensure the repository has synced. Setting or creating a milestone requires `write` or `admin` and a GitHub token with permission for the repository.
+
 ## What a milestone is in Funnel
 
 GitHub scopes a milestone to exactly one repository. Funnel preserves that model: a milestone is identified by `owner/name` plus its number, and the same title in two repositories is two milestones, not one cross-repo object.
@@ -12,10 +14,16 @@ The mirror is read-only apart from one lazy-create path. Funnel never renames, c
 
 Select **Milestones** in the sidebar to open `/milestones`.
 
+![The Milestones page grouping demo/funnel and demo/platform milestones with due dates and progress](../../assets/screenshots/milestones/01-open-milestones.png)
+
+*Milestones are grouped by repository, with due date, progress and creator for each entry.*
+
 - Milestones are grouped by repository, with a progress bar showing closed issues against the total (`closedIssues / (openIssues + closedIssues)`).
 - Each entry shows its due date, and a `closed` marker when the milestone is closed.
 - The creator is shown when the mirrored GitHub user can be resolved.
 - Select an entry to open `/milestones/{owner}/{repo}/{number}`, which lists every mirrored issue attached to it — open and closed, triaged or untriaged.
+
+If a milestone is missing, check its repository and the last successful sync. A milestone with no due date is listed separately on the timeline, not in the chart.
 
 The list is built from the local mirror, so it reflects the last successful sync or refresh. If a milestone was created directly on GitHub, it appears after the next repository cycle; a milestone created from the Inspector is refreshed immediately.
 
@@ -45,6 +53,10 @@ The timeline is an Apache ECharts Gantt over open milestones with a due date. It
 - If the only start signal falls after the due date, the row keeps both dates and adds **After due** rather than clamping the bar to fit.
 - Use the repository selector to narrow the chart to one `owner/name`; the URL becomes `/timeline?repo=owner/name`. The selector still lists every repository that has an open milestone.
 
+![The milestone timeline with planned windows, closed-work fill, open-issue ticks and a No start row](../../assets/screenshots/timeline/01-open-timeline.png)
+
+*The timeline plots each open milestone from its first start signal to its due date; the legend names every series.*
+
 The view is read-only. To change what you see, change the inputs: plan the issue, move it through the workflow, or correct the milestone on GitHub.
 
 ## Set or clear an issue's milestone
@@ -52,12 +64,14 @@ The view is read-only. To change what you see, change the inputs: plan the issue
 Open an issue in the Inspector and use the **Milestone** pill.
 
 - Select an existing milestone from the repository's list to attach it.
-- Select **Clear** to remove the milestone.
-- Select **New milestone…** to create one in the issue's repository, then attach it. The form takes a **title** and an optional **due date** (`YYYY-MM-DD`). The title is trimmed, required, and limited to 256 characters.
+- Select **No milestone** to remove the milestone.
+- Select **New milestone…** to create one in the issue's repository, then attach it. Enter a **title** and optional **due date** (`YYYY-MM-DD`), then select **Create**. The title is trimmed, required, and limited to 256 characters.
 
 Creating from the Inspector only creates the milestone in that issue's repository. To make the same milestone span repositories, create or attach it separately in each repository.
 
 Attaching or clearing a milestone requires the `write` role and a GitHub token with permission to edit the issue. GitHub remains the authority; Funnel schedules a single-issue refresh after the write, and the success or failure is reported by the Inspector.
+
+After a successful attachment the picker shows the milestone; after clearing it shows **No milestone**. If creation fails, correct the error in the dialog and retry. Creation and attachment are separate GitHub operations: if creation succeeds but attachment fails, select the existing milestone instead of creating another one.
 
 ## API
 
@@ -84,3 +98,4 @@ Two endpoints cover the write paths.
 - [HTTP API](../../reference/http-api.md#milestones)
 - [Routes and pages](../../reference/routes-and-pages.md)
 - [Database schema](../../reference/database-schema.md#mirror_milestone)
+- [Plan a week](plan-work.md) — commit milestone issues to a week.

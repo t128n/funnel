@@ -2,6 +2,8 @@
 
 This guide explains the guarded close and reopen flows, how to record a blocker, and how blocked issues surface in Attention.
 
+You need a `write` or `admin` account and a GitHub token permitted to edit the issue and post comments. Readers can inspect issues but cannot perform these actions.
+
 ## Close an issue
 
 Closing from the cockpit always records a resolution and a note. You can start the flow from:
@@ -63,11 +65,16 @@ Start it from:
 | Field | Required | Purpose |
 | :--- | :--- | :--- |
 | **Blocker** | Yes | What is blocking the issue |
+| **Reason** | Yes | The structured category for the delay |
 | **Needs to unblock** | Yes | The concrete step that must happen to unblock it |
 | **Currently trying** | No | What is being attempted in the meantime |
 | **Re-check date** | No | A `YYYY-MM-DD` date for the next review |
 
 The block dialog offers quick re-check anchors — **Tomorrow**, **In 3 days**, **Start of next week** and **End of week** — plus a date input for a custom date. Anchors that resolve to the same date on a given day are de-duplicated.
+
+![A blocked issue showing its reason, blocker, needs-to-unblock step, current attempt and re-check date](../../assets/screenshots/blocked/01-open-section.png)
+
+*A blocked issue keeps its workflow status and shows the structured blocker details above the description.*
 
 What Funnel does:
 
@@ -118,9 +125,9 @@ The page groups items into:
 
 | Group | Meaning |
 | :--- | :--- |
-| **Overdue** | Re-check date before today |
-| **Due Today** | Re-check date is today |
-| **Upcoming** | After today, up to and including seven days from today |
+| **Re-check overdue** | Re-check date before today |
+| **Re-check today** | Re-check date is today |
+| **Re-check upcoming** | After today, up to and including seven days from today |
 | **No re-check date** | Blocked, but the date is missing or malformed |
 
 Dates are compared in the browser's local timezone, and the shared clock re-evaluates “today” at midnight. A blocked issue whose re-check date is more than seven days away does not appear in the dated groups; a missing or malformed date appears under **No re-check date**.
@@ -145,3 +152,5 @@ Assignment writes use the shared optimistic overlay for the issue streams, but t
 - [Roles and permissions](../../reference/roles-and-permissions.md)
 - [Use the board](board.md)
 - [Create and edit issues](create-and-edit-issues.md)
+- [Review work needing attention](attention.md)
+- [Track time and delays](track-time-and-delays.md)

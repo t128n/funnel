@@ -17,6 +17,10 @@ See [Roles and permissions](../../reference/roles-and-permissions.md) for the ro
 
 A work note is an internal journal entry. It is never posted to GitHub unless you explicitly publish it.
 
+![The Work notes section in the inspector with one Internal note and its Reply action](../../assets/screenshots/work-notes/01-open-section.png)
+
+*Work notes are listed oldest first with an Internal marker; they stay local to Funnel.*
+
 ### Add a work note
 
 1. Open the issue.
@@ -31,21 +35,21 @@ The body must be non-empty after trimming and may be at most 65,536 characters. 
 ### Edit a work note
 
 1. Find the note in the **Work notes** section.
-2. Select the pencil icon. The controls are shown when you hold the `write` role and your GitHub login matches the note author.
+2. Select **Edit**. The controls are shown when you hold the `write` role and your GitHub login matches the note author.
 3. Update the Markdown in the inline textarea.
 4. Select **Save**, or **Cancel** to discard the edit.
 
-Save is disabled while the draft is empty. The edit updates the local note only; it does not change anything on GitHub.
+Save is disabled while the draft is empty. After saving, the updated note appears locally; it does not change anything on GitHub. If the write fails, check the error and retry.
 
 ### Delete a work note
 
-Select the trash icon on a note you authored. The note is hard-deleted locally with no confirmation dialog and no GitHub change.
+Select **Delete** on a note you authored. On success the note disappears; it is hard-deleted locally with no confirmation dialog and no GitHub change. If the write fails, check the error and retry.
 
 ### Publish a work note to GitHub
 
 Publishing is a one-way move from the internal journal to the public issue timeline.
 
-1. Select the send icon on a note you authored. Its tooltip reads “Publish to GitHub as a comment (removes the note)”.
+1. Select **Publish** on a note you authored. Its tooltip reads “Publish to GitHub as a comment (removes the note)”.
 2. Funnel posts the note body as a GitHub comment using your user token.
 3. On success, Funnel deletes the internal note and shows “Work note published as a comment”.
 
@@ -55,14 +59,16 @@ Work notes that have been published are not retained locally, so later edits in 
 
 ## Attachments
 
-The **Files** section is the issue's dropbox. It stores the file bytes locally and keeps only metadata in the database.
+The **Attachments** section is the issue's dropbox. It stores the file bytes locally and keeps only metadata in the database.
 
 ### Upload a file
 
-1. In the **Files** section, drag files onto the dashed drop zone or select **browse**.
+1. In the **Attachments** section, drag files onto the dashed drop zone or select **browse**.
 2. To upload from the composer instead, use the paperclip button while attachments are enabled.
 
 You can select multiple files. Funnel uploads them one at a time and reports a separate failure for each file that does not upload. The drop-zone button is disabled while uploads are in progress, and the inspector reloads after at least one upload succeeds.
+
+On success, each file appears in the attachment list. If a file fails, check its error and size, then retry that file; contact an administrator if the server's request limit is too small.
 
 An empty file is rejected. A file larger than `FUNNEL_UPLOAD_MAX_BYTES` (default 10 MiB) is rejected with a 413 response and a message naming the byte limit.
 
@@ -74,7 +80,7 @@ The download response carries the original, sanitised filename in `Content-Dispo
 
 ### Delete an attachment
 
-Select the trash icon next to a file. Funnel removes the metadata row and the stored bytes. There is no confirmation dialog and no GitHub change. Deleting requires the `write` role.
+Select the trash icon next to a file. On success the file leaves the list and Funnel removes the metadata row and stored bytes. There is no confirmation dialog and no GitHub change. Deleting requires the `write` role; if it fails, check the displayed error and retry.
 
 ## Size limits, storage and filename handling
 
@@ -102,7 +108,7 @@ The sanitised name is still shown in the UI and echoed on download, where a plai
 The feature flags are managed in **Settings → Features**:
 
 - **Internal work notes** hides the **Work notes** section and the Comment / Note toggle in the composer.
-- **Attachment dropbox** hides the **Files** section and disables the composer's paperclip, which then reads “Attachments coming soon”.
+- **Attachment dropbox** hides the **Attachments** section and disables the composer's **Attach** button, whose tooltip then reads “Attachments are unavailable”.
 
 Hiding a surface does not delete any notes or files. Re-enabling the flag makes the existing data visible again. The flags are per-browser overrides; the instance defaults are both on.
 
@@ -113,3 +119,4 @@ Hiding a surface does not delete any notes or files. Re-enabling the flag makes 
 - [Comments, reactions and mentions](comments.md)
 - [Create and edit issues](create-and-edit-issues.md)
 - [Keyboard shortcuts](keyboard.md)
+- [Read issue history](issue-history.md) — review public activity alongside your internal notes.

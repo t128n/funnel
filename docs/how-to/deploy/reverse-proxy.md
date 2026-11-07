@@ -24,7 +24,7 @@ Direct HTTP instances do not need these headers: the packaged executable derives
 
 Only trust these headers when the proxy is the sole route to Funnel. On a native Windows or Linux install, also set `HOST=127.0.0.1` to bind Funnel to loopback, and let the proxy be the only route to the application port.
 
-If the proxy runs on another host or in another container on a shared network, keep `HOST=0.0.0.0` and restrict the application port to the proxy's address.
+If the proxy runs on another host or in another container on a shared network, keep `HOST=0.0.0.0` and restrict the application port to the proxy's address. Restart Funnel after changing its environment and check its status and local readiness. **Result:** the process is running and `/readyz` returns 200 before proxy configuration.
 
 ## 2. Proxy the application
 
@@ -80,6 +80,8 @@ funnel.example.com {
 }
 ```
 
+Use your proxy’s configuration validation before reloading it (for nginx, `nginx -t` followed by the appropriate reload). **Result:** validation succeeds and the proxy reloads without error; if not, keep the prior working configuration and inspect the reported error.
+
 `header_up Host {host}` is preserved by default in Caddy; add it if your Caddy version or another layer rewrites the host.
 
 ## 3. Disable buffering for SSE
@@ -117,7 +119,7 @@ BODY_SIZE_LIMIT=25M
 client_max_body_size 25m;
 ```
 
-`BODY_SIZE_LIMIT` and the proxy limit must be at least as large as `FUNNEL_UPLOAD_MAX_BYTES`, with room for the multipart envelope. If you do not use attachments, the defaults are adequate.
+`BODY_SIZE_LIMIT` and the proxy limit must be at least as large as `FUNNEL_UPLOAD_MAX_BYTES`, with room for the multipart envelope. Restart Funnel and validate and reload the proxy after changing limits. **Result:** a permitted test upload succeeds; if it returns 413, identify the rejecting layer from the response and logs before changing limits again. If you do not use attachments, the defaults are adequate.
 
 ## 5. Verify
 
@@ -133,9 +135,9 @@ curl -i https://funnel.example.com/readyz
 
 Then:
 
-1. Sign in through GitHub. A `redirect_uri_mismatch` or a login loop usually means `FUNNEL_URL`, the forwarded host, or the scheme does not match the App's registered callback.
+1. Complete [onboarding](../configure/onboard-github-app.md) if needed, then sign in through GitHub. **Result:** the cockpit opens. A `redirect_uri_mismatch` or a login loop usually means `FUNNEL_URL`, the forwarded host, or the scheme does not match the App's registered callback.
 2. Open the cockpit and watch the browser's network panel. `/api/events` should stay `200` with type `text/event-stream` and show heartbeat frames roughly every 12 seconds.
-3. Upload a file to an issue's dropbox. A `413` from the proxy means `client_max_body_size`; a `413` from Funnel means `BODY_SIZE_LIMIT` or `FUNNEL_UPLOAD_MAX_BYTES`.
+3. Upload a non-sensitive test file to an issue's dropbox, then download it. **Result:** the upload and download succeed. A proxy-generated `413` points to its body limit; adapter-node and Funnel also have separate limits. Inspect the response and [troubleshooting guide](../operate/troubleshoot.md#an-upload-fails-with-413).
 
 Common proxy status codes: `502` means the proxy cannot reach Funnel; `504` means a timeout, often on `/api/events`; `413` means a body limit; a login loop means origin or forwarded-header mismatch.
 
@@ -148,7 +150,6 @@ Funnel's default graceful-shutdown window is 30 seconds (`SHUTDOWN_TIMEOUT`). On
 - [Environment variables](../../reference/environment-variables.md) — `PROTOCOL_HEADER`, `HOST_HEADER`, `BODY_SIZE_LIMIT`, `SHUTDOWN_TIMEOUT`.
 - [Command-line interface](../../reference/cli.md) — `--healthcheck` and the release flags.
 - [Deployment model](../../explanation/deployment-model.md) — liveness, readiness and the single instance.
-- [Install Funnel](install.md)
 - [Install Funnel](install.md)
 - [Use GitHub Enterprise Server](github-enterprise-server.md)
 - [Troubleshoot](../operate/troubleshoot.md)

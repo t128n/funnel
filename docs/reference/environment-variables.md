@@ -54,6 +54,7 @@ Attachment uploads are subject to two independent limits. `FUNNEL_UPLOAD_MAX_BYT
 
 ## Related
 
+- [Install Funnel](../how-to/deploy/install.md)
 - [Command-line interface](./cli.md)
 - [Build tasks](./build-tasks.md)
 - [Settings](./settings.md)

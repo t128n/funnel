@@ -46,19 +46,21 @@ sudo install -d -o funnel -g funnel -m 0750 /var/lib/funnel /var/log/funnel
 sudo install -d -o root -g funnel -m 0750 /etc/funnel
 ```
 
-The service runs as `funnel:funnel` and needs write access only to the data and
+**Result:** `id funnel` shows the service account and `ls -ld /var/lib/funnel /var/log/funnel /etc/funnel` shows the directories with the requested ownership. The service runs as `funnel:funnel` and needs write access only to the data and
 log directories. The environment file is readable by the `funnel` group but not
 world-readable.
 
 ## 2. Install the binary
 
-Extract the release archive and place the executable on `PATH`:
+Extract the release archive and place the executable on `PATH`. Replace `<version>` and, if needed, `x64` with the downloaded archive’s values before running these commands:
 
 ```sh
 tar -xzf funnel-<version>-linux-x64.tar.gz
-sudo install -o root -g root -m 0755 funnel /usr/local/bin/funnel
+sudo install -o root -g root -m 0755 funnel-<version>-linux-x64/funnel /usr/local/bin/funnel
 /usr/local/bin/funnel --version
 ```
+
+**Result:** `--version` prints the installed version.
 
 `funnel setup` copies the running binary to the configured install directory.
 The manual template expects it at `/usr/local/bin/funnel`; if you use another
@@ -73,6 +75,8 @@ From a Funnel checkout, with the binary already installed:
 ```sh
 sudo packaging/systemd/install.sh
 ```
+
+**Result:** setup prints `Funnel is running:` and the onboarding URL. Check readiness in [Verify the service](#6-verify-the-service); if startup fails, inspect the logs before retrying.
 
 The helper verifies that it is running as root and that the binary is
 executable, then execs the installer:
@@ -109,24 +113,30 @@ replace it.
 
 ### Manual or config-managed: use the checked-in templates
 
-Install the unit and environment template, then edit the config:
+1. On a fresh installation, install the unit and environment template. These commands overwrite existing files; back up and reconcile any existing configuration first rather than replacing its secret.
 
-```sh
-sudo install -o root -g root -m 0644 packaging/systemd/funnel.service \
-  /etc/systemd/system/funnel.service
-sudo install -o root -g funnel -m 0640 packaging/systemd/funnel.env.example \
-  /etc/funnel/funnel.env
-sudoedit /etc/funnel/funnel.env
-sudo systemctl daemon-reload
-sudo systemctl enable --now funnel
-```
+   ```sh
+   sudo install -o root -g root -m 0644 packaging/systemd/funnel.service \
+     /etc/systemd/system/funnel.service
+   sudo install -o root -g funnel -m 0640 packaging/systemd/funnel.env.example \
+     /etc/funnel/funnel.env
+   ```
 
-At minimum, set `FUNNEL_URL` and `FUNNEL_SECRET` in
-`/etc/funnel/funnel.env`. Generate the secret with:
+   **Result:** both files exist at the paths shown; `ls -l /etc/funnel/funnel.env` shows `root:funnel` and mode `0640`.
 
-```sh
-openssl rand -base64 32
-```
+2. Generate a secret with `openssl rand -base64 32` and securely store it. Edit `/etc/funnel/funnel.env` with `sudoedit`, set `FUNNEL_SECRET` to that value and set `FUNNEL_URL` to the public origin before onboarding (leave it empty for direct local HTTP). Never replace an existing instance's secret as part of an upgrade.
+
+   **Result:** the config has a non-empty secret of at least 32 characters and the intended origin, without exposing the secret in a report.
+
+3. Reload systemd and start the service:
+
+   ```sh
+   sudo systemctl daemon-reload
+   sudo systemctl enable --now funnel
+   sudo systemctl status funnel
+   ```
+
+   **Result:** systemd reports the service active. If it fails, inspect `journalctl -u funnel -n 100 --no-pager` and correct the first error before retrying.
 
 The unit uses `EnvironmentFile=-/etc/funnel/funnel.env` (the leading `-` allows
 the file to be missing) and also sets `FUNNEL_ENV_FILE` and `FUNNEL_DATA_DIR`
@@ -170,7 +180,7 @@ HOST=127.0.0.1
 Configure nginx, Caddy, or another proxy to send `X-Forwarded-Proto` and
 `X-Forwarded-Host`, disable buffering for `GET /api/events`, and raise the body
 limit above `FUNNEL_UPLOAD_MAX_BYTES`. The complete nginx and Caddy examples are
-in [Put Funnel behind a reverse proxy](reverse-proxy.md).
+in [Put Funnel behind a reverse proxy](reverse-proxy.md). Restart Funnel using systemd after changing its environment, validate the proxy configuration, and follow that guide’s HTTPS and SSE checks. **Result:** the public readiness endpoint returns 200 and the authenticated event stream remains open.
 
 In the firewall, expose only the proxy ports, normally `80` and `443`. Keep the
 Funnel port (`3000` by default) on loopback or a private interface:
@@ -197,15 +207,17 @@ curl -i http://127.0.0.1:3000/readyz
   database is unreachable or migrations are pending. A `503` here is not a
   proxy problem.
 
-The installer also provides lifecycle checks:
+**Result:** `systemctl status` reports active, health returns the JSON shown above, and readiness returns 200 with matching counts. If not, inspect the applicable logs and follow [troubleshooting](#9-troubleshooting).
+
+The installer also provides lifecycle checks (only for wizard/helper installs with an install manifest):
 
 ```sh
 sudo funnel status
-sudo funnel logs --follow
 sudo funnel doctor
+sudo funnel logs --follow
 ```
 
-`funnel logs` follows the journal or the configured log files, depending on the
+**Result:** status and doctor show service and health checks; logs display recent output. Exit the follow command with Ctrl+C. `funnel logs` follows the journal or the configured log files, depending on the
 install mode. When the unit logs to journald, `journalctl -u funnel` is
 equivalent. With file logging, check `/var/log/funnel/funnel.log` and
 `/var/log/funnel/funnel-error.log`; `journalctl` then shows only systemd's
@@ -215,15 +227,15 @@ start/stop messages and early failures.
 
 ### Upgrade
 
-Download the new Linux binary, then let the installer replace it:
+First take and verify a backup of the database, uploads, and matching secret as described in [Back up and restore](../operate/backup-and-restore.md). **Warning:** on failure the upgrade command can automatically restart the old binary after the new one has migrated the database; it cannot undo the migration. If that risk is unacceptable, use the controlled manual approach in [Upgrade Funnel](../operate/upgrade.md) instead. Download and extract the new Linux binary, then run the extracted CLI:
 
 ```sh
-sudo funnel upgrade --binary /path/to/funnel
+sudo /path/to/extracted/funnel upgrade --binary /path/to/extracted/funnel
 ```
 
 The command stops the service, keeps a backup of the previous binary, installs
-the new one, starts it, and rolls back if `/healthz` fails. Migrations run on
-boot. Wait for `/readyz` before sending traffic. For a manual template install
+the new one, starts it, and attempts to restore and restart the old binary if `/healthz` fails. Migrations run on
+boot and are not undone by a binary rollback; restore the pre-upgrade data and secret before starting an older binary. Wait for `/readyz` before sending traffic. For a manual template install
 without `install.json`, stop the unit, replace `/usr/local/bin/funnel`, and
 start it again, keeping a copy of the old binary.
 
@@ -231,16 +243,18 @@ See [Upgrade Funnel](../operate/upgrade.md).
 
 ### Back up
 
-Stop the service, then copy the database, uploads, and configuration together:
+Stop the service and confirm it is inactive before copying. Copy the database, uploads, and configuration together; if the archive command fails, investigate before relying on the backup:
 
 ```sh
 sudo systemctl stop funnel
+sudo systemctl is-active funnel  # expect inactive before copying
+sudo mkdir -p /backups
 sudo tar czf "/backups/funnel-$(date +%F).tar.gz" \
   /etc/funnel /var/lib/funnel
 sudo systemctl start funnel
 ```
 
-The config contains `FUNNEL_SECRET`; the archive is as sensitive as the secret.
+**Result:** the service returns to active and the archive exists. List the archive and verify the database, uploads, and config are present before relying on it; include any custom paths separately. The config contains `FUNNEL_SECRET`; the archive is as sensitive as the secret.
 Encrypt it and keep a copy off the host. For an online backup, use SQLite's
 `.backup` instead of copying a running database. See
 [Back up and restore](../operate/backup-and-restore.md).
@@ -253,6 +267,8 @@ With an installer-created manifest:
 sudo funnel uninstall            # stop/remove the unit and binary; keep config, data, logs
 sudo funnel uninstall --purge --yes
 ```
+
+**Result:** the normal command reports that configuration and data were kept; confirm the service is no longer active. Back up and verify recovery before choosing the irreversible purge.
 
 `--purge` also deletes the configuration, database, uploads, and logs. The
 service definition and executable are removed either way. For a manual template
@@ -284,6 +300,8 @@ sudo systemctl edit funnel
 [Service]
 ReadWritePaths=/srv/funnel/data /srv/funnel/logs
 ```
+
+**Result:** after saving, `systemctl cat funnel` shows the drop-in. Restart the service and verify it is active and `/readyz` returns 200.
 
 Also set `FUNNEL_DATA_DIR` and any `FUNNEL_UPLOAD_DIR` or `FUNNEL_DB` overrides
 in the environment file. A path that the service can read but not write
@@ -338,8 +356,7 @@ ADDRESS_HEADER=x-forwarded-for
 XFF_DEPTH=1
 ```
 
-Make sure the proxy overwrites `X-Forwarded-For` (`$proxy_add_x_forwarded_for`
-in nginx), and raise `XFF_DEPTH` only for a chain of trusted proxies. If Funnel
+Make sure the proxy handles `X-Forwarded-For` according to your trusted proxy chain. nginx’s `$proxy_add_x_forwarded_for` appends the peer address; it does not discard an incoming header. Choose `XFF_DEPTH` for the actual trusted chain and prevent direct access to Funnel. If Funnel
 is reachable directly, do not trust a forwarded header: a client could choose
 its own bucket. See
 [the intake lifecycle](../../explanation/intake-lifecycle.md).
@@ -356,8 +373,7 @@ sudo journalctl -u funnel -n 100 --no-pager
 `{"status":"starting","reason":"database not migrated"}` means the database is
 unreachable or has no migrations table.
 `{"status":"starting","reason":"migrations pending","applied":N,"expected":M}`
-means migrations are still pending. Run the migration step with the service
-environment and the same data path:
+means migrations are still pending. Before running a migration, stop the instance, verify it is stopped, and take a backup of its database, uploads and config. Confirm the effective database path; a wrong path can create a new empty database. Then run the migration with the service environment and the same data path:
 
 ```sh
 sudo systemctl stop funnel
@@ -365,6 +381,8 @@ sudo -u funnel env FUNNEL_ENV_FILE=/etc/funnel/funnel.env \
   /usr/local/bin/funnel --migrate
 sudo systemctl start funnel
 ```
+
+**Result:** the migration exits successfully, the service starts, and `/readyz` returns 200. If it fails, inspect the first migration error and do not repeatedly restart.
 
 Check that `/var/lib/funnel` is writable by `funnel` and has free space. Do not
 point `FUNNEL_DB` at a different file from the one the service uses; a relative

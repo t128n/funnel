@@ -12,18 +12,25 @@ The helper is one resident Rust executable (`funnel-intake.exe`) with a daemon a
 
 ## Install
 
-Download and extract `funnel-intake-<version>-windows-x64.zip` from the GitHub release. Open PowerShell in the extracted folder and run:
+1. Open the [releases listing](https://github.com/t128n/funnel/releases) and download the intake ZIP your release lists, plus `SHA256SUMS.txt`. Current packaging publishes a separate `funnel-intake-<version>-windows-x64.zip`; the earlier v0.0.12 release bundled the older helper inside `funnel-0.0.12-windows-x64.zip`.
 
-```powershell
-powershell -ExecutionPolicy Bypass -File .\install-intake.ps1 -Url http://localhost:3000
-```
+2. In PowerShell, from the download directory, check the archive against the matching entry in `SHA256SUMS.txt`:
 
-Replace the URL with your Funnel server address. Alternatively, build and install from a checkout:
+   ```powershell
+   Get-FileHash .\funnel-intake-<version>-windows-x64.zip -Algorithm SHA256
+   ```
 
-```powershell
-mise run intake:exe
-powershell -ExecutionPolicy Bypass -File scripts\install-intake.ps1
-```
+   The displayed hash must match that archive's entry in `SHA256SUMS.txt`; do not install if it differs. For v0.0.12, hash `funnel-0.0.12-windows-x64.zip` instead.
+
+3. Extract the ZIP and open PowerShell in its inner folder. It contains `funnel-intake.exe`, `install-intake.ps1` and `README.txt`. Install for the current user, replacing the URL with your reachable Funnel instance:
+
+   ```powershell
+   powershell -ExecutionPolicy Bypass -File .\install-intake.ps1 -Url http://localhost:3000
+   ```
+
+The installer prints the installed executable, configuration, log, hotkey and URL. It does not require administrator rights. `ExecutionPolicy Bypass` applies to this PowerShell invocation; inspect the downloaded script before running it if required by your security policy.
+
+The current Rust app defaults to `Alt+F`; the older helper in v0.0.12 used `Ctrl+Alt+I`. Use the default reported by your installer, or pass `-Hotkey` explicitly.
 
 The installer:
 
@@ -43,6 +50,8 @@ powershell -ExecutionPolicy Bypass -File .\install-intake.ps1 `
 Get-Process funnel-intake
 ```
 
+The installer reports the new URL and hotkey; `Get-Process` lists `funnel-intake` if it stayed running. Reinstalling without `-Url`, `-Hotkey` or `-Source` restores their installer defaults.
+
 | Option | Default | Purpose |
 | :--- | :--- | :--- |
 | `-Url` | `http://localhost:3000` | Funnel base URL; the helper appends `/intake`. |
@@ -55,9 +64,22 @@ Get-Process funnel-intake
 
 In a checkout, use `scripts\install-intake.ps1` instead, or the equivalent mise tasks `mise run intake:install` and `mise run intake:uninstall`.
 
+### Optional: build from source
+
+On Windows, follow [development setup](../contribute/development.md#get-a-checkout) to clone the repository, trust mise, install the pinned tools and dependencies. From the checkout root run:
+
+```powershell
+mise run intake:exe
+powershell -ExecutionPolicy Bypass -File scripts\install-intake.ps1 -Url http://localhost:3000
+```
+
+The build creates `dist\funnel-intake.exe`; the installer finds it there and reports the installed paths. Replace the URL as above and use `Get-Process funnel-intake` to check that the helper is running.
+
 ## Use
 
 Select text in Teams, Outlook, a browser, or any other app, then press the hotkey. The helper builds:
+
+The default browser opens an editable intake draft; review it before submitting. Do not capture sensitive text unless it is appropriate to expose in the browser URL and history.
 
 | Field | Value |
 | :--- | :--- |
@@ -65,7 +87,7 @@ Select text in Teams, Outlook, a browser, or any other app, then press the hotke
 | `body` | The full selection, max 65 536 characters |
 | `source` | Teams/Slack/Discord → `chat`, Outlook/Thunderbird → `email`, Zoom/Webex → `meeting`, otherwise the process name |
 
-The link is compressed with the same `?d=` deeplink the composer uses, so long selections usually fit. If a selection still exceeds the 8 000-character deeplink limit, the body is trimmed to fit and the trim is logged. With no selection, a blank form opens prefilled with the source only.
+The helper chooses the shorter plain or compressed `?d=` deeplink, so long selections usually fit. If a selection still exceeds the 8 000-character deeplink limit, the body is trimmed to fit and the trim is logged. With no selection, a blank form opens prefilled with the source only.
 
 ## Configure
 
@@ -132,7 +154,7 @@ powershell -ExecutionPolicy Bypass -File .\install-intake.ps1 -Uninstall
 
 In a checkout, use `scripts\install-intake.ps1` instead.
 
-Stops the helper, removes the Startup shortcut, and deletes the install directory. Pass `-KeepConfig` to keep `config.json` and the log.
+The helper stops, the Startup shortcut is removed, and the install directory is deleted. Pass `-KeepConfig` to keep the entire install directory, including the executable, `config.json` and the log.
 
 ## Related
 

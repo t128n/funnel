@@ -10,14 +10,23 @@ You need the `admin` role and at least one configured repository whose assignabl
 
 ## Steps
 
-1. Open **Settings → Planning**.
+1. Open **Settings → Planning**. The current size map, allocation and maintainer roster are displayed.
+
+   ![Planning settings page showing the size map, allocation percentage and maintainer roster](../../assets/screenshots/planning-settings/01-open-planning-settings.png)
+
+   *Check the current size hours, allocation and roster before you edit them.*
+
 2. Set the hours for **Small**, **Medium** and **Large**, or keep the 2h/4h/8h defaults. The size label is the estimate; changing the map re-prices every planned issue.
 3. Set the **Allocation** percentage. It is the share of net weekly hours that commitments may fill; `60` leaves 40% for reviews, unplanned work and slack.
 4. In **Maintainers**, add assignable people and enter each one's **net** weekly hours. Net means contracted hours minus recurring meetings, on-call and other fixed commitments. Funnel plans at most the allocation percentage of this value.
 5. Deactivate or remove a maintainer to take them out of the capacity model.
-6. Select **Save changes**.
+6. Select **Save changes**. Open [Plan a week](../use/plan-work.md) to check the resulting capacity.
 
 Funnel validates and persists the values, drops the cached configuration, and broadcasts a settings event. Open planners re-query with the new estimates and caps; a restart is not needed.
+
+## Troubleshooting
+
+If a person is unavailable in the roster, check that they are assignable in a configured repository. If a plan cannot be scheduled, check the issue's size and the capacity limit in [Plan a week](../use/plan-work.md).
 
 ## What these settings control
 

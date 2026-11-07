@@ -4,33 +4,23 @@ Work from the process and its probes to the specific surface: onboarding, authen
 
 ## First checks
 
-```sh
-curl -fsS http://127.0.0.1:3000/healthz
-curl -i http://127.0.0.1:3000/readyz
-```
+1. On Windows, open PowerShell in the extracted release folder and run:
 
-- `/healthz` returns `200` whenever the process is alive. It does not touch the database or GitHub.
-- `/readyz` returns `200` only when the database is reachable and every committed migration is applied; otherwise `503` with a reason.
+   ```powershell
+   .\funnel.exe status
+   .\funnel.exe doctor
+   .\funnel.exe logs
+   ```
 
-Confirm which instance and version you are looking at:
+   **Result:** status shows the mode, paths, service/process state, health and readiness; doctor identifies failed checks; logs show recent output. With a custom config location, pass `--manifest <path-to-install.json>` to the lifecycle command. On Linux or macOS, use `funnel status`, `funnel doctor`, and `funnel logs` instead.
 
-```sh
-funnel --version
-```
+2. Open `http://127.0.0.1:3000/healthz` and `http://127.0.0.1:3000/readyz` on the host, replacing `3000` with the port from status.
 
-```powershell
-Get-Service Funnel                    # Windows service
-```
+   **Result:** health returns HTTP 200 when the process is alive; readiness returns 200 when the database and migrations are ready, otherwise 503 with a reason. Readiness does not check GitHub. If the browser cannot connect, check the process, port and logs before retrying.
 
-Set `LOG_LEVEL=debug` temporarily if the default `info` logs do not show the failure, restart, reproduce, then set it back. Read logs where the process writes stdout:
+3. If needed, temporarily set `LOG_LEVEL=debug` in the active config and restart with the appropriate service manager; reproduce the issue, then restore the previous level.
 
-For a systemd service, inspect recent logs with `journalctl -u funnel -n 200`.
-
-```powershell
-Get-ChildItem C:\ProgramData\Funnel\*.log | Get-Content -Tail 200
-```
-
-Use the sections below once you know whether the failure is before onboarding, during sign-in, at readiness, during sync, in the browser stream, or at an upload or write boundary.
+   **Result:** logs contain more diagnostic detail. Avoid sharing secrets or tokens when reporting them.
 
 ## `funnel setup` reports `ECONNREFUSED` or the old version keeps running
 
@@ -93,7 +83,7 @@ This is expected while no GitHub App exists: every route except the wizard, heal
 Do not hand-edit the encrypted credential values. Prefer restoring a backup; the targeted row deletion above is a last resort. With the instance stopped and a copy of the database taken, the last-resort reset is:
 
 ```sh
-# Use the path from FUNNEL_DB; on Windows, C:\ProgramData\Funnel\funnel.db.
+# Use the effective database path; default Windows service: C:\ProgramData\Funnel\data\funnel.db.
 sqlite3 /path/to/funnel.db "delete from state_github_app;"
 ```
 
@@ -153,13 +143,14 @@ FUNNEL_DB=/path/to/data/funnel.db mise run release
 
 ```
 
-- On Windows, a manual `funnel.exe --migrate` does not inherit `FUNNEL_DATA_DIR` from `funnel-service.xml`. Set it explicitly, or set `FUNNEL_DB` to the service database:
+- On Windows, stop the service and back up first. Set `FUNNEL_ENV_FILE` to the actual service config and invoke the installed executable by its actual path; it does not inherit the service environment:
 
 ```powershell
-cd C:\ProgramData\Funnel
-$env:FUNNEL_DATA_DIR = "C:\ProgramData\Funnel"
-.\funnel.exe --migrate
+$env:FUNNEL_ENV_FILE = "C:\ProgramData\Funnel\funnel.env"
+& "$env:ProgramFiles\Funnel\funnel.exe" --migrate
 ```
+
+  Confirm the effective database path first to avoid creating a new empty database. Exit code 0 indicates success. Restart the service and check `/readyz` again.
 
 - If the path is correct but the process still exits on boot, fix the first `migration failed` error rather than restarting repeatedly. Back up the database before manual repair.
 - A `503` from `/api/auth/*` while the instance has no App is expected (`Onboarding incomplete: no GitHub App configured`); complete onboarding.
@@ -245,7 +236,7 @@ Three independent limits can reject an upload:
 **Checks**
 
 - Read the response body and headers to see which layer answered. A proxy rejection usually never reaches Funnel's logs.
-- Confirm `BODY_SIZE_LIMIT` is at least `FUNNEL_UPLOAD_MAX_BYTES` plus multipart overhead. The Windows service definition sets `BODY_SIZE_LIMIT=25M`; the native service definition sets `BODY_SIZE_LIMIT=25M`; a manually started process uses adapter-node's `512K` unless you set it.
+- Confirm `BODY_SIZE_LIMIT` is at least `FUNNEL_UPLOAD_MAX_BYTES` plus multipart overhead. The generated Windows service XML passes the config-file and data-directory paths; it does not set `BODY_SIZE_LIMIT`. Check the effective config and service environment. Unless explicitly set, adapter-node defaults to `512K`.
 - Confirm the proxy's body limit is at least as large. nginx defaults to `1m`.
 
 **Fix**
@@ -283,7 +274,7 @@ Identify which layer produced the 403:
 
 Funnel logs structured JSON to stdout in production. Set `LOG_LEVEL` to `fatal`, `error`, `warn`, `info`, `debug`, `trace` or `silent`; the default is `info`. Restart after changing it. `debug` is useful for a single reproduction but verbose for steady state.
 
-- Windows service: WinSW's rolled log files in the install directory (`C:\ProgramData\Funnel` by default), 10 MB per file and eight files kept.
+- Windows service: WinSW's rolled log files in the configured log directory (`C:\ProgramData\Funnel\logs` by default), 10 MB per file and eight files kept.
 - Bare metal or systemd: wherever the process's stdout is captured, for example `journalctl -u <unit>`.
 
 Every request gets a UUID in `event.locals.requestId`. An unexpected 5xx page shows it as **Reference:** `<uuid>`. Search the logs for that id:
@@ -317,7 +308,6 @@ Log fields redact authorisation headers, cookies, tokens, client secrets and pri
 - [Add or remove repositories](../configure/repositories.md)
 - [Configure sync](../configure/sync.md)
 - [Manage people and roles](../configure/people-and-roles.md)
-- [Install Funnel](../deploy/install.md)
 - [Install Funnel](../deploy/install.md)
 - [Put Funnel behind a reverse proxy](../deploy/reverse-proxy.md)
 - [Use GitHub Enterprise Server](../deploy/github-enterprise-server.md)

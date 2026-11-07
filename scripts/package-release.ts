@@ -105,7 +105,7 @@ if (existsSync(notices)) {
 }
 
 const readme = isWindows
-  ? `Funnel ${version} - pre-release
+  ? `Funnel ${version}
 ===============================
 
 Self-contained server. The Bun runtime, SvelteKit server, client assets, native
@@ -139,8 +139,8 @@ Lifecycle:
   .\\funnel.exe logs
   .\\funnel.exe uninstall
 
-The setup command installs the WinSW service, creates the config from
-.env.example with a generated FUNNEL_SECRET, and preserves an existing secret.
+Setup creates the config with a generated FUNNEL_SECRET and preserves an
+existing secret; the Windows service is installed only when selected.
 Uninstall keeps data and configuration unless you add --purge.
 
 The optional per-user intake hotkey helper is a separate download:
@@ -154,22 +154,22 @@ two instances against the same data directory.
 
 Documentation: https://github.com/t128n/funnel/tree/main/docs
 `
-  : `Funnel ${version} - pre-release
+  : `Funnel ${version}
 ===============================
 
 Self-contained server. The Bun runtime, SvelteKit server, client assets, native
 Markdown addon and database migrations are embedded in this executable; no
 Bun, Node.js, or container runtime is required.
 
-Quick start:
+Guided setup (recommended):
 
-  ./funnel --version
-  ./funnel --help
-  ./funnel
+  ./funnel setup
+  ./funnel status
 
-The executable keeps state under ./data by default (funnel.db and uploads/).
-Set FUNNEL_DATA_DIR to use another directory. Copy .env.example to .env, then
-set FUNNEL_SECRET (generate one with \`openssl rand -base64 32\`).
+Choose a system service, user service, or portable process. Setup creates
+configuration with a generated FUNNEL_SECRET and prints the onboarding URL.
+For a manually started process, state defaults to ./data; copy .env.example
+to .env and set FUNNEL_SECRET (generate one with \`openssl rand -base64 32\`).
 
 Health probes: /healthz (liveness) and /readyz (readiness).
 Apply migrations without starting the server: ./funnel --migrate

@@ -2,6 +2,8 @@
 
 This guide shows you how to read the impact × urgency matrix, find work that still needs a rating, and rate both axes.
 
+Sign in to browse mirrored issues. Rating them requires `write` or `admin` and a GitHub token permitted to edit the issue.
+
 ## Open the matrix
 
 Select **Matrix** in the sidebar to open `/matrix`.
@@ -9,6 +11,10 @@ Select **Matrix** in the sidebar to open `/matrix`.
 - The page header carries the scoped issue count, search, **All/Mine** scope, filters, and the **Rating Guide**.
 - The matrix has nine cells: impact rows **Severe**, **Moderate**, **Minor** crossed with urgency columns **High**, **Mid**, **Low**. The order is fixed.
 - The page defaults to open issues and includes triaged and untriaged issues. Every filter dimension still applies.
+
+![The matrix with the assessment summary, nine cells and the selected cell's issue list](../../assets/screenshots/matrix/01-open-matrix.png)
+
+*The matrix page: needs-assessment counts above the nine impact × urgency cells, with a selected cell's issues beside the grid.*
 
 ## Read the assessment summary
 
@@ -41,6 +47,8 @@ Each cell shows the derived priority and the number of matching issues. The issu
 
 Selecting a cell is only navigation; issues move between cells when their ratings change.
 
+If an issue is missing, check the search, scope and filters; an issue without both ratings remains in **Needs assessment** rather than a cell. If a write fails, check the displayed error and retry after correcting it.
+
 ## Open an issue
 
 Select an issue in the selected cell's list. It opens `/matrix/{owner}/{repo}/{number}`, with the standard Inspector docked beside the matrix (or full width on narrow screens).
@@ -50,6 +58,10 @@ Use the **Priority** control in the Inspector to set impact and urgency; priorit
 ## Use Rating Guide
 
 Open **Rating Guide** in the toolbar to see the five criteria for each level of both axes.
+
+![The Rating Guide dialog listing the criteria for Severe, Moderate and Minor impact](../../assets/screenshots/matrix/02-open-guide.png)
+
+*The Rating Guide explains what each impact and urgency level means before you rate an issue.*
 
 - Impact weighs **Reach**, **Data**, **Money**, **Locations** and **Workaround**.
 - Urgency weighs **Harm**, **Exposure**, **Spread**, **Dependencies** and **Deadline**.
@@ -62,3 +74,4 @@ Rate each axis independently: impact from the effect on users and the business, 
 - [Routes and pages](../../reference/routes-and-pages.md)
 - [The workflow model](../../explanation/workflow-model.md)
 - [Create and edit issues](create-and-edit-issues.md)
+- [Plan a week](plan-work.md)

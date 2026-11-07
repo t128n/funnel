@@ -2,11 +2,17 @@
 
 Use **More → Attention** to find blocked work due for a re-check, work waiting on others, and issues that exceed configured attention rules. Select **Mine** to focus on your issues, or **All** to see the whole scope.
 
+Sign in to review the page. Changing an issue requires `write` or `admin`; GitHub-backed actions also require a suitable GitHub token.
+
 ![Demo Attention page grouping blocked issues by re-check date and listing rule breaches](../../assets/guide/attention.png)
 
 ## Review blocked work
 
 Blocked issues with a re-check date appear under **Re-check overdue**, **Re-check today**, or **Re-check upcoming**. Open an issue to inspect its blocker. The row actions allow writers to reschedule the re-check, assign the issue to themselves, or start the close flow. A re-check date does not automatically unblock or close the issue.
+
+![The Attention page showing re-check overdue, today and upcoming groups with rule breaches below](../../assets/screenshots/attention/01-open-attention.png)
+
+*Attention groups blocked issues by re-check date and lists configured rule breaches below them.*
 
 Blocked-date groups use the browser's local timezone; upcoming covers the next seven days. A blocked issue without a re-check date is not in those date groups. See [Close, reopen and block issues](close-reopen-block.md) to record or clear a blocker.
 
@@ -15,3 +21,7 @@ Blocked-date groups use the browser's local timezone; upcoming covers the next s
 Waiting is separate from blocking: it records that a response or external action is needed. The Waiting section includes issues without a re-check date; clear waiting when the dependency has been resolved. See [Mark an issue as waiting](triage-intake.md#mark-an-issue-as-waiting).
 
 Rule breaches show issues past the enabled first-response, stale-open, waiting or re-check thresholds. Administrators configure these thresholds in **Settings → Attention**. Unlike blocked-date groups, rules use server UTC dates. See [Attention rules](../../reference/attention-rules.md) for exact thresholds, clock boundaries and notification behavior.
+
+## Next
+
+Open an issue to act on a breach, or [track its delays](track-time-and-delays.md). If an expected item is missing, check **All/Mine**, its re-check date and the configured rules; a date beyond the next seven days is not in the upcoming group.

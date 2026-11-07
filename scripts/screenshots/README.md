@@ -1,5 +1,11 @@
 # Screenshot harness
 
+For new committed documentation guide screenshots, use the separate
+[`docs/screenshots` workflow](../../docs/screenshots/README.md). It uses
+`agent-browser`, a fresh demo seed, a capture manifest and guide-reference
+checks. The Playwright gallery harness described below is historical and does
+not regenerate those guide assets.
+
 Reproducible 1440×900 captures of the cockpit views, in light and dark, against
 a throwaway database. Used for the before/after design gallery.
 

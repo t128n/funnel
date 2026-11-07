@@ -2,6 +2,8 @@
 
 This guide shows you how to commit work to a week and read the resulting capacity. Planning is a property of an issue, not a separate mode: you commit one open, sized issue to one Monday week from the issue's **Properties** panel, and `/plan` shows the capacity and the work committed to that week. It assumes planning is already configured; see [Configure estimates and weekly plans](../configure/planning.md) for the one-off setup.
 
+Sign in with at least `read` to inspect the plan. Scheduling, moving or removing work requires `write` or `admin`. To schedule an issue it must be open, sized and assigned to an active configured maintainer.
+
 ![The week planner](../../assets/screenshots/plan-week.png)
 
 ![The Planned picker in the issue Properties panel](../../assets/screenshots/issue-planned.png)
@@ -16,6 +18,10 @@ Open **Plan** in the navigation bar. The page opens on the current week and read
 4. issues that need attention because they are unestimated or unassigned.
 
 Use **Previous week** and **Next week** beside the heading to move through weeks. **This week** returns to the current week. The URL carries the week (`/plan?week=YYYY-MM-DD`), so it can be bookmarked or shared.
+
+![The week planner with the capacity table, scheduled issues and unestimated work](../../assets/screenshots/plan/01-open-plan.png)
+
+*The week planner shows capacity, the scheduled issues, and the work that still needs an estimate.*
 
 ## Schedule an issue
 
@@ -53,6 +59,8 @@ Capacity is `floor(net weekly minutes × allocation percent / 100)`. With the de
 - To remove it, set **Planned** to **Not planned**, or use **Remove** in the scheduled-issues table on `/plan`.
 - Removing is idempotent.
 
+After a successful move, check the destination week for the issue and its updated capacity. After removal, the issue is no longer committed to that week. If **Remove** fails on the planner, check the error and select **Retry**.
+
 ## Handle the cap
 
 If a write would exceed a maintainer's cap, Funnel rejects it with `409` and names the maintainer, the cap, the projected committed minutes and the excess. The same check runs through the API, so a direct call cannot bypass it. The error appears beside the **Planned** picker; move the issue, shrink it, or remove something else.
@@ -74,3 +82,4 @@ The cap applies to plan mutations only. If a later GitHub edit — a new assigne
 - [Planning and time reference](../../reference/planning-and-time.md) — formulas, periods, statuses and APIs.
 - [Why planning and actuals work this way](../../explanation/planning-and-actuals.md) — the rationale and trade-offs.
 - [Plan and track a week](../../tutorials/plan-and-track-a-cycle.md) — a guided first run.
+- [Track time and delays](track-time-and-delays.md) — compare planned estimates with observed work.

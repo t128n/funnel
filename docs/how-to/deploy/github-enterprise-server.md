@@ -18,7 +18,7 @@ Open the wizard and enter `acme.ghe.com` (or `https://acme.ghe.com`) in **GitHub
 - the web host, `https://acme.ghe.com`, for the manifest form, the App installation URL, outbound issue and profile links, and OAuth;
 - the REST base, `https://acme.ghe.com/api/v3`, for App authentication, REST calls, label provisioning and the manifest conversion. Funnel derives GraphQL as `https://acme.ghe.com/api/graphql`.
 
-Both are stored with the App credentials during onboarding, so later requests keep using GHES even if the environment changes. Do not enter `https://api.acme.ghe.com`; that is not the GHES API shape. Omit trailing slashes.
+**Result:** the wizard shows the GHES host you entered; proceed to [onboarding](#3-run-onboarding-against-ghes). Both are stored with the App credentials during onboarding, so later requests keep using GHES even if the environment changes. Do not enter `https://api.acme.ghe.com`; that is not the GHES API shape. Omit trailing slashes.
 
 ### Optional: change the wizard default with environment variables
 
@@ -32,8 +32,11 @@ FUNNEL_URL=https://funnel.acme.com
 
 Setting only one leaves the other pointing at Cloud, so the pre-filled API base would be wrong. Apply the change the same way you manage the deployment:
 
-- Windows service: edit `C:\ProgramData\Funnel\.env`, then run `C:\ProgramData\Funnel\funnel-service.exe restart`.
+- Windows service: edit the config shown by `funnel.exe status` (default `C:\ProgramData\Funnel\funnel.env`), then run `Restart-Service Funnel` in an elevated PowerShell.
+- Linux systemd: edit the active config and run `sudo systemctl restart funnel`; for launchd or a portable process use its appropriate manager.
 - PaaS: change the service variables and redeploy.
+
+**Result:** the service is running again, and before an App exists the onboarding wizard suggests the configured host. Verify readiness before continuing.
 
 These hosts are read at boot. The host entered in the wizard is stored in the database and takes precedence once onboarding completes.
 
@@ -44,6 +47,8 @@ If GHES uses a certificate from a private certificate authority, the Funnel host
 ```powershell
 Import-Certificate -FilePath acme-ca.cer -CertStoreLocation Cert:\LocalMachine\Root
 ```
+
+**Result:** `Import-Certificate` reports the imported certificate. Import only a verified CA under your organisation’s trust policy. Check the GHES API connection from the Funnel host in [Verify](#4-verify); host trust-store behavior can differ by runtime.
 
 A TLS failure during the manifest exchange or the first sync is the usual symptom of a missing CA.
 
@@ -58,9 +63,9 @@ Open `https://funnel.acme.com/`; the first-run gate sends you to `/onboarding`.
 3. Enter an App name. It must be unique on the GHES host. The suggested name is derived from the Funnel hostname.
 4. Select **Create GitHub App**. The browser posts the manifest to `https://acme.ghe.com/settings/apps/new` or `https://acme.ghe.com/organizations/<org>/settings/apps/new`, and GitHub shows a pre-filled registration page.
 5. Confirm the App on GHES. The manifest requests Issues write, Metadata read, Contents read, Pull requests read and Checks read. It registers no hook and subscribes to no events.
-6. GHES redirects back to `/onboarding/callback`, where Funnel exchanges the one-time code and stores the credentials encrypted in the database, together with the GHES host.
-7. On the installation page, install the App on the organisation or account that owns the repositories. Choose all repositories or the specific ones you intend to mirror. Creating an App grants no repository access until it is installed.
-8. Back in Funnel, select the repositories to configure and save. You are sent to `/login`; sign in with GitHub. Funnel uses the GHES OAuth endpoints stored during onboarding.
+6. GHES redirects back to `/onboarding/callback`, where Funnel exchanges the one-time code and stores the credentials encrypted in the database, together with the GHES host. **Result:** Funnel displays **Install the GitHub App**.
+7. On the installation page, install the App on the organisation or account that owns the repositories. Choose all repositories or the specific ones you intend to mirror. Creating an App grants no repository access until it is installed. **Result:** Funnel returns to **Funnel Is Ready**.
+8. Back in Funnel, select the repositories in the **Repositories** section and select **Save and Continue**. You are sent to `/login`; sign in with GitHub. Funnel uses the GHES OAuth endpoints stored during onboarding. **Result:** the cockpit opens and the first account is an administrator. Continue with the checks below.
 
 ## 4. Verify
 
@@ -83,7 +88,7 @@ On Windows PowerShell:
 Invoke-RestMethod https://acme.ghe.com/api/v3/meta
 ```
 
-A TLS error here will also fail manifest conversion and sync.
+**Result:** the endpoint returns a successful response containing GHES metadata. A TLS error indicates a trust or connectivity issue to resolve before retrying; a successful host-level check alone does not prove the Funnel runtime trusts the same CA.
 
 ## 5. Test coverage
 
@@ -121,7 +126,6 @@ Manual on a live GHES host:
 - [Deployment model](../../explanation/deployment-model.md) — the single-instance deployment and onboarding gate.
 - [Onboard the GitHub App](../configure/onboard-github-app.md) — the full manifest flow.
 - [Add or remove repositories](../configure/repositories.md)
-- [Install Funnel](install.md)
 - [Install Funnel](install.md)
 - [Put Funnel behind a reverse proxy](reverse-proxy.md)
 - [Troubleshoot](../operate/troubleshoot.md)

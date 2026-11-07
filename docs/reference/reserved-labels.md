@@ -124,7 +124,7 @@ For each repository, the provisioner lists all labels, matches existing labels c
 
 Only the fifteen names in the configured vocabulary are ever created or patched. Every other label, including `bug`, `frontend`, domain tags, and old reserved names from before a prefix change, is preserved untouched. Failures are isolated per repository: one repository that cannot be provisioned is recorded and skipped while the remaining repositories still reconcile.
 
-Writes run through the shared installation Octokit. The provisioning code expects Octokit's throttling to keep these writes to roughly one per second, so a repository missing all fifteen labels takes roughly fifteen seconds to converge; a converged repository returns immediately.
+Writes use the GitHub App installation provider. Provisioning checks the labels in sequence, creating missing labels and updating those whose colour or description has drifted; a converged repository needs no writes.
 
 ## Related
 

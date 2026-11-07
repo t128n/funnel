@@ -19,7 +19,7 @@ This also has a deployment consequence that is easy to miss: a rolling upgrade t
 
 ## One artefact, one installer
 
-The executable is the only artefact. `mise run exe` compiles the adapter-node output, the Bun runtime, client assets, committed migrations and the native Markdown addon into one file (`dist/funnel` or `dist/funnel.exe`). The host needs no Node, no Bun and no container runtime.
+The server is a self-contained executable. `mise run exe` compiles the adapter-node output, the Bun runtime, client assets, committed migrations and the native Markdown addon into one file (`dist/funnel` or `dist/funnel.exe`). The host needs no Node, no Bun and no container runtime. Release archives also contain setup files; Windows service installation uses the packaged WinSW executable.
 
 The same executable is also the installer. `funnel setup` creates the config from `.env.example`, generates `FUNNEL_SECRET`, writes a manifest and installs a native service:
 

@@ -4,6 +4,10 @@ Set how long completed work stays in Done and add optional Work-in-Progress caps
 
 Only an administrator can open **Settings → Board**; other roles receive a 403 on a direct URL, and the save action checks the role again server-side.
 
+## Before you start
+
+Sign in with an administrator account. Configure and sync a repository first if you want to check the effect on existing issues; see [Add or remove repositories](repositories.md).
+
 ## Fields
 
 - **Done retention (days)** — the window for closed, completed issues shown in the Done column. Default `14`.
@@ -13,10 +17,19 @@ The Done window and each cap accept whole numbers of zero or more. Done is not a
 
 ## Steps
 
-1. Open **Settings → Board**.
-2. Set the Done retention window.
-3. Enter caps for the stages you want to limit, or clear a field to remove its cap.
-4. Select **Save changes**.
+1. Open **Settings → Board**. The retention and WIP fields show the current values.
+
+   ![Board settings page showing Done retention and the WIP limit fields for each open stage](../../assets/screenshots/board-settings/01-open-board-settings.png)
+
+   *Check the retention window and caps currently in effect.*
+
+2. Set the Done retention window to the number of days of completed issues you want displayed.
+3. Enter caps for the stages you want to limit, or clear a field to remove its cap. Blank fields have no limit.
+4. Select **Save changes**, then open the board to check the Done column and limited column headers.
+
+## Troubleshooting
+
+If saving fails, check that retention and nonblank caps are whole numbers of zero or more. If older completed issues are missing, check the sync history window below.
 
 ## What the Done window changes
 
@@ -43,6 +56,7 @@ Funnel validates and persists the values, drops the cached configuration, and br
 ## Related
 
 - [Configure sync](sync.md)
+- [Use the board](../use/board.md)
 - [Map labels to projects](projects.md)
 - [Settings reference](../../reference/settings.md)
 - [Reserved labels](../../reference/reserved-labels.md)

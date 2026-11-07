@@ -4,9 +4,9 @@ Funnel lets anonymous submitters file work without touching GitHub, and holds ev
 
 ## Funnel-first intake
 
-The default path by which work enters Funnel is not GitHub at all. A third-party page, a CLI, or a plain HTML form posts a title, a body, and an optional provenance string to Funnel; the submission is staged locally and **nothing reaches GitHub until a triager accepts it**. The endpoint's own comment states the invariant: "Nothing reaches GitHub until a triager accepts it."
+The default path by which work enters Funnel is not GitHub at all. A third-party page, a CLI, or a plain HTML form posts a title, a body, and an optional provenance string to Funnel; staging writes locally, not to GitHub. A triager may later accept it as an issue or duplicate it as a comment on an existing issue.
 
-This is the front door precisely because the people who report problems are often not the people with GitHub access, and because an open intake endpoint must never be a way to create issues in repositories directly. Intake decouples *capture* from *filing*: anyone can capture, and a triager decides what becomes durable.
+This is the front door precisely because the people who report problems are often not the people with GitHub access, and because an open intake endpoint must never be a way to create issues in repositories directly. Intake decouples *capture* from *filing*: anyone can capture, and a triager decides what reaches GitHub.
 
 ## Two ways in: the public API and the form
 
@@ -21,7 +21,7 @@ The schema lives in its own module rather than in the route because SvelteKit's 
 
 Because both entry points are anonymous, each one passes through the same three gates before a row is staged:
 
-1. **Per-IP rate limit.** `src/lib/server/intake/rate-limit.ts` keeps fixed minute and hour counters keyed by client address. Both windows are incremented before the decision, so probing with malformed JSON, invalid fields or honeypot hits burns the same budget as real work. When a cap is exceeded the caller gets `429` (or a form `fail(429, …)` that keeps the draft) with `Retry-After` set to the longer remaining wait. The caps default to 10 per minute and 60 per hour; `0` disables a window.
+1. **Per-IP rate limit.** `src/lib/server/intake/rate-limit.ts` keeps fixed minute and hour counters keyed by client address. Both windows are incremented before the decision, so probing with malformed JSON, invalid fields or honeypot hits burns the same budget as real work. When a cap is exceeded, the API returns `429` with `Retry-After` set to the longer remaining wait; the form returns `fail(429, …)` with the wait and draft fields. The caps default to 10 per minute and 60 per hour; `0` disables a window.
 2. **Honeypot.** The form carries a visually hidden `company_website` field that a real user never fills. The handlers read it from the raw form/JSON before schema validation, so it stays out of the published OpenAPI schema. A filled field produces the normal accepted-looking response but calls neither `createSubmission` nor `publish`.
 3. **Validation and staging.** Only a request that clears both gates reaches the existing title/body checks and `createSubmission`.
 
@@ -38,17 +38,17 @@ When a submission later becomes a GitHub issue or a comment, Funnel appends a pl
 - `_Submitted via Funnel intake (source: …)_` when a source was given;
 - `_Submitted via Funnel intake_` otherwise.
 
-`composeBody` joins the submission body and the footer with a blank line, skipping empty segments, so a bodyless submission still carries the provenance. This is the one trace of the intake origin that survives onto GitHub; the staging row itself does not.
+`composeBody` joins the submission body and the footer with a blank line, skipping empty segments, so a bodyless submission still carries the provenance. The submission row also remains in the local archive.
 
-## The queue is ephemeral
+## The queue and archive
 
-Every triage decision **hard-deletes** the staging row. There is no status column, no soft delete, no archive. `deleteSubmission` issues a real `DELETE` and reports whether a row changed. The module comment is unambiguous: "every decision hard-deletes the row. There is no trash bin and no archive; durable history lives on GitHub once accepted."
+Every successful triage decision archives the staging row by setting `archived_at` and appends a `state_triage_event`. The pending queue excludes archived rows. Dismissal records a reason, duplication records its target, and the event history records the actor and decision.
 
-The queue is therefore best understood as a to-do list, not a log. It exists only to hold undecided work; the moment a decision is made, the row is gone. Submissions are also the first thing in the Inbox stream, ahead of untriaged issues, because they have no repository, status, or assignee to filter on and so are always shown (only the search term narrows them).
+The pending queue is a to-do list, not the decision log. Submissions appear ahead of untriaged issues in the Inbox stream; the archive and event history retain decided work locally.
 
 ## Triage decisions
 
-The three decisions are pure, transport-agnostic actions in `src/lib/server/intake/actions.ts`. Each takes a user-token Octokit, keeping session and token handling out of the module so the logic is directly unit-testable.
+The three decisions are transport-agnostic actions in `src/lib/server/intake/actions.ts`. Accept and duplicate take a user-token provider; dismissal does not need GitHub access.
 
 ### Accept
 
@@ -63,7 +63,7 @@ The default status is why an accepted issue lands *triaged*: it skips the Inbox'
 
 ### Dismiss
 
-`dismissSubmission` deletes the row and touches nothing on GitHub. A missing row returns `404`. Dismissal is the only decision with no upstream effect, and the only way a submission vanishes without a trace.
+`dismissSubmission` archives the row with a required reason and touches nothing on GitHub. A missing or already archived row returns `404`. Undoing the latest dismissal restores the submission to the queue and appends an `undone` event; the original decision remains in history.
 
 ### Duplicate
 
@@ -71,9 +71,9 @@ The default status is why an accepted issue lands *triaged*: it skips the Inbox'
 
 ## Pessimistic decisions and the crash window
 
-Every decision that writes to GitHub is **pessimistic**: the staging row is deleted only *after* GitHub confirms the write. `acceptSubmission` awaits the create, deletes the row, then publishes the event. `duplicateSubmission` does the same around the comment. On any failure the row is retained so the triager can retry, and the failure is returned as `{ ok: false, status, message }` via the shared `Outcome` envelope rather than thrown.
+Every decision that writes to GitHub is **pessimistic**: the staging row is archived only *after* GitHub confirms the write. `acceptSubmission` awaits the create, archives the row, records the decision, then publishes the event. `duplicateSubmission` does the same around the comment. On failure the row remains pending so the triager can retry.
 
-The code names the cost of this ordering explicitly. A crash *between* GitHub's success and the local delete leaves the row staged. Retrying the accept would create a **second** GitHub issue; the comment calls this out and says the pessimistic model accepts it. The alternative — deleting first, then writing — would risk losing submitted text on a GitHub failure, which is worse for a human-submitted report than a rare duplicate. Funnel chooses to prefer a possible duplicate over a possible loss, and flags the trade so an operator reading the log understands it.
+The code names the cost of this ordering explicitly. A crash *between* GitHub's success and the local archive leaves the row staged. Retrying the accept could create a **second** GitHub issue. Archiving first would instead risk removing pending work on a GitHub failure.
 
 ## Realtime signalling
 
@@ -81,9 +81,9 @@ Each staging and triage step publishes an in-process SSE event on the bus in `sr
 
 - `intake` / `staged` from the form action;
 - `intake` / `created` from the public API;
-- `intake` / `accepted` (with repo and issue number), `dismissed`, and `duplicated` from the triage actions.
+- `intake` / `accepted` (with repo and issue number), `dismissed`, `duplicated`, and `undone` from the triage actions.
 
-Open cockpits subscribe over `/api/events` and refetch the Inbox, so a submission appears and disappears in other browser tabs without a reload. The transient queue and the SSE-driven refresh are two halves of the same idea: the queue is not durable, and the UI learns about it in real time rather than polling.
+Open cockpits subscribe over `/api/events` and refetch the Inbox, so changes to the pending queue appear in other browser tabs without a reload.
 
 ## Why nothing reaches GitHub until triage
 
@@ -101,10 +101,6 @@ Intake divides cleanly along the public/private line:
 - **Submitting is public.** `/intake` and `POST /api/intake` are exempt from the authenticated cockpit, alongside `/login`. No session and no role are required to stage a submission.
 - **Triaging requires `write`.** The Inbox is inside the authenticated app, and the triage routes enforce the `write` role server-side (see `#lib/server/http/session.ts` and the [security model](security-model.md)). A `read` user can see the queue but cannot decide anything.
 - **Writes run as the triager.** Accept and duplicate execute with the signed-in user's GitHub token, so GitHub enforces that user's real repository permissions natively, on top of Funnel's own configured-repository check. There is no privileged intake token.
-
-## No archive, no trash
-
-Dismissed and duplicated submissions are gone; there is no archive to browse, no "recently deleted", and no way to recover the text from Funnel. Once accepted, the durable copy lives on GitHub and Funnel simply mirrors it back. This keeps the staging table tiny and the privacy story simple — the queue holds only undecided work — at the cost of unrecoverable dismissal, which is exactly the point: a dismiss is a decision, not a soft hide.
 
 ## Related
 

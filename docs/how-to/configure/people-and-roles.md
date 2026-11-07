@@ -4,6 +4,10 @@ Assign instance-wide roles so each person can view, edit, or administer Funnel.
 
 **Settings → People** is administrator-only. The page load and the role-change action both enforce the `admin` role server-side; a direct URL from another role returns a 403, and the section is filtered out of the settings navigation.
 
+## Before you start
+
+Sign in as an administrator and ask the person to sign in once with GitHub so their account appears in the list.
+
 ## Roles
 
 Funnel has three roles, ranked `read` < `write` < `admin`:
@@ -22,7 +26,12 @@ The full capability matrix is in [Roles and permissions](../../reference/roles-a
 
 ## Change a role
 
-1. Open **Settings → People**.
+1. Open **Settings → People**. Signed-in accounts appear with their current roles.
+
+   ![People settings page showing signed-in accounts and their role selectors](../../assets/screenshots/people/01-open-page.png)
+
+   *Check the person and their current role before changing it.*
+
 2. Find the person. Your own row is marked **(you)**.
 3. Choose **Read**, **Write**, or **Admin** in their role selector.
 4. Select **Save**. A success toast confirms the change.
@@ -49,5 +58,6 @@ The list always shows each account's name and avatar, and then either their `@lo
 ## Related
 
 - [Roles and permissions](../../reference/roles-and-permissions.md)
+- [Triage intake](../use/triage-intake.md) — a task available to writers.
 - [Onboard the GitHub App](onboard-github-app.md)
 - [Settings reference](../../reference/settings.md)

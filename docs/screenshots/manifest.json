@@ -1,0 +1,798 @@
+[
+  {
+    "id": "triage-intake",
+    "guides": [
+      "docs/how-to/use/triage-intake.md",
+      "docs/tutorials/triage-a-backlog.md"
+    ],
+    "steps": [
+      {
+        "action": "open",
+        "path": "/inbox"
+      },
+      {
+        "action": "wait",
+        "selector": "table tbody tr"
+      },
+      {
+        "action": "capture",
+        "file": "triage-intake/01-open-triage-intake.png",
+        "state": "Seeded Inbox queue"
+      },
+      {
+        "action": "click-expanded",
+        "selector": "button[aria-label='Snooze submission Link intake submissions to existing issues']"
+      },
+      {
+        "action": "wait-text",
+        "text": "Tomorrow"
+      },
+      {
+        "action": "capture",
+        "file": "triage-intake/02-snooze-menu.png",
+        "state": "Snooze menu"
+      },
+      {
+        "action": "click-text",
+        "text": "Tomorrow"
+      },
+      {
+        "action": "open",
+        "path": "/inbox?snoozed=1"
+      },
+      {
+        "action": "wait-text",
+        "text": "Link intake submissions to existing issues"
+      },
+      {
+        "action": "wait-text",
+        "text": "Resurface"
+      },
+      {
+        "action": "capture",
+        "file": "triage-intake/03-snooze-snoozed.png",
+        "state": "Snoozed queue"
+      }
+    ]
+  },
+  {
+    "id": "intake",
+    "guides": [
+      "docs/tutorials/triage-a-backlog.md"
+    ],
+    "steps": [
+      {
+        "action": "open",
+        "path": "/intake"
+      },
+      {
+        "action": "wait",
+        "selector": "form"
+      },
+      {
+        "action": "capture",
+        "file": "intake/01-open-intake.png",
+        "state": "Public intake form"
+      },
+      {
+        "action": "fill",
+        "selector": "[name=\"title\"]",
+        "value": "Export CSV fails when the filter is empty"
+      },
+      {
+        "action": "fill",
+        "selector": "[name=\"body\"]",
+        "value": "Filtering before export produces an empty file."
+      },
+      {
+        "action": "capture",
+        "file": "intake/02-fill-draft.png",
+        "state": "Intake draft with fictional report"
+      }
+    ]
+  },
+  {
+    "id": "issues",
+    "guides": [
+      "docs/how-to/use/create-and-edit-issues.md"
+    ],
+    "steps": [
+      {
+        "action": "open",
+        "path": "/issues"
+      },
+      {
+        "action": "wait",
+        "selector": ".table-responsive tbody tr"
+      },
+      {
+        "action": "capture",
+        "file": "issues/01-open-issues.png",
+        "state": "Issues list"
+      }
+    ]
+  },
+  {
+    "id": "board",
+    "guides": [
+      "docs/how-to/use/board.md"
+    ],
+    "steps": [
+      {
+        "action": "open",
+        "path": "/board"
+      },
+      {
+        "action": "wait",
+        "selector": "[data-board-card] h3"
+      },
+      {
+        "action": "capture",
+        "file": "board/01-open-board.png",
+        "state": "Board with seeded issues"
+      }
+    ]
+  },
+  {
+    "id": "matrix",
+    "guides": [
+      "docs/how-to/use/matrix.md"
+    ],
+    "steps": [
+      {
+        "action": "open",
+        "path": "/matrix"
+      },
+      {
+        "action": "wait",
+        "selector": "[data-testid=\"matrix-grid\"]"
+      },
+      {
+        "action": "capture",
+        "file": "matrix/01-open-matrix.png",
+        "state": "Priority matrix"
+      },
+      {
+        "action": "click-text-until",
+        "text": "Rating Guide",
+        "selector": ".modal"
+      },
+      {
+        "action": "wait",
+        "selector": ".modal"
+      },
+      {
+        "action": "wait-fn",
+        "value": "(() => { const e = document.querySelector(\".modal\"); return e && getComputedStyle(e).display !== \"none\" && Number(getComputedStyle(e).opacity) > 0.99; })()"
+      },
+      {
+        "action": "capture",
+        "file": "matrix/02-open-guide.png",
+        "state": "Rating Guide dialog"
+      }
+    ]
+  },
+  {
+    "id": "plan",
+    "guides": [
+      "docs/how-to/use/plan-work.md",
+      "docs/tutorials/plan-and-track-a-cycle.md"
+    ],
+    "steps": [
+      {
+        "action": "open",
+        "path": "/issues/demo/funnel/4"
+      },
+      {
+        "action": "wait",
+        "selector": "#issue-size"
+      },
+      {
+        "action": "select",
+        "selector": "#issue-size",
+        "value": "sm"
+      },
+      {
+        "action": "wait-fn",
+        "value": "(() => {const e = document.querySelector(\"#issue-size\"); return e && !e.disabled && e.value === \"sm\";})()"
+      },
+      {
+        "action": "open",
+        "path": "/plan"
+      },
+      {
+        "action": "wait",
+        "selector": "table tbody tr"
+      },
+      {
+        "action": "wait-text",
+        "text": "Cockpit time panel double-counts review time in the actual total"
+      },
+      {
+        "action": "wait-fn",
+        "value": "!document.body.innerText.includes(\"No sized issues are scheduled to a maintainer this week.\")"
+      },
+      {
+        "action": "capture",
+        "file": "plan/01-open-plan.png",
+        "state": "Current week plan with a sized scheduled issue"
+      }
+    ]
+  },
+  {
+    "id": "milestones",
+    "guides": [
+      "docs/how-to/use/milestones.md"
+    ],
+    "steps": [
+      {
+        "action": "open",
+        "path": "/milestones"
+      },
+      {
+        "action": "wait",
+        "selector": "a[href^=\"/milestones/\"]"
+      },
+      {
+        "action": "capture",
+        "file": "milestones/01-open-milestones.png",
+        "state": "Milestones list"
+      }
+    ]
+  },
+  {
+    "id": "timeline",
+    "guides": [
+      "docs/how-to/use/milestones.md"
+    ],
+    "steps": [
+      {
+        "action": "open",
+        "path": "/timeline"
+      },
+      {
+        "action": "wait",
+        "selector": "[data-testid=\"timeline-chart\"]"
+      },
+      {
+        "action": "wait-fn",
+        "value": "(() => { const c = document.querySelector(\"[data-testid=timeline-chart] canvas\"); if (!c || !c.width || !c.height) return false; const d = c.getContext(\"2d\").getImageData(0, 0, c.width, c.height).data; let n = 0; for (let i = 3; i < d.length; i += 4) if (d[i] && ++n > 1000) return true; return false; })()"
+      },
+      {
+        "action": "capture",
+        "file": "timeline/01-open-timeline.png",
+        "state": "Milestone timeline"
+      }
+    ]
+  },
+  {
+    "id": "epics",
+    "guides": [
+      "docs/how-to/use/epics.md"
+    ],
+    "steps": [
+      {
+        "action": "open",
+        "path": "/epics"
+      },
+      {
+        "action": "wait",
+        "selector": "a[href^=\"/epics/\"]"
+      },
+      {
+        "action": "capture",
+        "file": "epics/01-open-epics.png",
+        "state": "Epics list"
+      }
+    ]
+  },
+  {
+    "id": "attention",
+    "guides": [
+      "docs/how-to/use/attention.md"
+    ],
+    "steps": [
+      {
+        "action": "open",
+        "path": "/attention"
+      },
+      {
+        "action": "wait",
+        "selector": "a[href^=\"/issues/demo/\"]"
+      },
+      {
+        "action": "capture",
+        "file": "attention/01-open-attention.png",
+        "state": "Attention list"
+      }
+    ]
+  },
+  {
+    "id": "notifications",
+    "guides": [
+      "docs/how-to/use/notifications.md"
+    ],
+    "steps": [
+      {
+        "action": "open",
+        "path": "/notifications"
+      },
+      {
+        "action": "wait",
+        "selector": "h1"
+      },
+      {
+        "action": "capture",
+        "file": "notifications/01-open-notifications.png",
+        "state": "Notification center"
+      }
+    ]
+  },
+  {
+    "id": "planning-settings",
+    "guides": [
+      "docs/how-to/configure/planning.md"
+    ],
+    "steps": [
+      {
+        "action": "open",
+        "path": "/settings/planning"
+      },
+      {
+        "action": "wait",
+        "selector": "h1"
+      },
+      {
+        "action": "capture",
+        "file": "planning-settings/01-open-planning-settings.png",
+        "state": "Planning settings"
+      }
+    ]
+  },
+  {
+    "id": "board-settings",
+    "guides": [
+      "docs/how-to/configure/board.md"
+    ],
+    "steps": [
+      {
+        "action": "open",
+        "path": "/settings/board"
+      },
+      {
+        "action": "wait",
+        "selector": "h1"
+      },
+      {
+        "action": "capture",
+        "file": "board-settings/01-open-board-settings.png",
+        "state": "Board settings"
+      }
+    ]
+  },
+  {
+    "id": "repositories",
+    "guides": [
+      "docs/how-to/configure/repositories.md"
+    ],
+    "steps": [
+      {
+        "action": "open",
+        "path": "/settings/repositories"
+      },
+      {
+        "action": "wait",
+        "selector": "h1"
+      },
+      {
+        "action": "capture",
+        "file": "repositories/01-open-repositories.png",
+        "state": "Repository settings"
+      }
+    ]
+  },
+  {
+    "id": "issue",
+    "guides": [
+      "docs/how-to/use/create-and-edit-issues.md"
+    ],
+    "steps": [
+      {
+        "action": "open",
+        "path": "/issues/demo/funnel/1"
+      },
+      {
+        "action": "wait",
+        "selector": "[aria-label=\"Issue\"] h1"
+      },
+      {
+        "action": "capture",
+        "file": "issue/01-open-inspector.png",
+        "state": "Seeded issue inspector"
+      }
+    ]
+  },
+  {
+    "id": "insights",
+    "guides": [
+      "docs/how-to/use/insights.md"
+    ],
+    "steps": [
+      {
+        "action": "open",
+        "path": "/insights"
+      },
+      {
+        "action": "wait",
+        "selector": "h1"
+      },
+      {
+        "action": "capture",
+        "file": "insights/01-open-insights.png",
+        "state": "Insights snapshot metrics and backlog aging"
+      }
+    ]
+  },
+  {
+    "id": "keyboard",
+    "guides": [
+      "docs/how-to/use/keyboard.md"
+    ],
+    "steps": [
+      {
+        "action": "open",
+        "path": "/issues"
+      },
+      {
+        "action": "wait",
+        "selector": "button[aria-label='Search issues']"
+      },
+      {
+        "action": "click",
+        "selector": "button[aria-label='Search issues']"
+      },
+      {
+        "action": "wait",
+        "selector": "input[aria-label='Search issues or commands by title, body, comments, or name']"
+      },
+      {
+        "action": "capture",
+        "file": "keyboard/01-open-command-palette.png",
+        "state": "Command palette open over the Issues list"
+      }
+    ]
+  },
+  {
+    "id": "onboarding",
+    "mode": "fresh",
+    "guides": [
+      "docs/tutorials/getting-started.md",
+      "docs/how-to/configure/onboard-github-app.md"
+    ],
+    "steps": [
+      {
+        "action": "open",
+        "path": "/onboarding"
+      },
+      {
+        "action": "wait-text",
+        "text": "Create the GitHub App"
+      },
+      {
+        "action": "fill",
+        "selector": "input[name=\"githubHost\"]",
+        "value": "https://github.com"
+      },
+      {
+        "action": "capture",
+        "file": "onboarding/01-open-setup.png",
+        "state": "Fresh instance onboarding before GitHub app creation"
+      }
+    ]
+  },
+  {
+    "id": "features",
+    "guides": [
+      "docs/how-to/configure/features.md"
+    ],
+    "steps": [
+      {
+        "action": "open",
+        "path": "/settings/features"
+      },
+      {
+        "action": "wait",
+        "selector": "h1"
+      },
+      {
+        "action": "capture",
+        "file": "features/01-open-page.png",
+        "state": "features page"
+      }
+    ]
+  },
+  {
+    "id": "projects",
+    "guides": [
+      "docs/how-to/configure/projects.md"
+    ],
+    "steps": [
+      {
+        "action": "open",
+        "path": "/settings/projects"
+      },
+      {
+        "action": "wait",
+        "selector": "h1"
+      },
+      {
+        "action": "capture",
+        "file": "projects/01-open-page.png",
+        "state": "projects page"
+      }
+    ]
+  },
+  {
+    "id": "people",
+    "guides": [
+      "docs/how-to/configure/people-and-roles.md"
+    ],
+    "steps": [
+      {
+        "action": "open",
+        "path": "/settings/people"
+      },
+      {
+        "action": "wait",
+        "selector": "h1"
+      },
+      {
+        "action": "capture",
+        "file": "people/01-open-page.png",
+        "state": "people page"
+      }
+    ]
+  },
+  {
+    "id": "sync",
+    "guides": [
+      "docs/how-to/configure/sync.md"
+    ],
+    "steps": [
+      {
+        "action": "open",
+        "path": "/settings/sync"
+      },
+      {
+        "action": "wait",
+        "selector": "h1"
+      },
+      {
+        "action": "capture",
+        "file": "sync/01-open-page.png",
+        "state": "sync page"
+      }
+    ]
+  },
+  {
+    "id": "github-app",
+    "guides": [
+      "docs/how-to/configure/onboard-github-app.md"
+    ],
+    "steps": [
+      {
+        "action": "open",
+        "path": "/settings/github-app"
+      },
+      {
+        "action": "wait",
+        "selector": "h1"
+      },
+      {
+        "action": "capture",
+        "file": "github-app/01-open-page.png",
+        "state": "github app page"
+      }
+    ]
+  },
+  {
+    "id": "intake-settings",
+    "guides": [
+      "docs/how-to/use/triage-intake.md"
+    ],
+    "steps": [
+      {
+        "action": "open",
+        "path": "/settings/intake"
+      },
+      {
+        "action": "wait",
+        "selector": "h1"
+      },
+      {
+        "action": "capture",
+        "file": "intake-settings/01-open-page.png",
+        "state": "intake settings page"
+      }
+    ]
+  },
+  {
+    "id": "comments",
+    "guides": [
+      "docs/how-to/use/comments.md"
+    ],
+    "steps": [
+      {
+        "action": "open",
+        "path": "/issues/demo/funnel/1"
+      },
+      {
+        "action": "wait",
+        "selector": "section[aria-label=\"Activity\"]"
+      },
+      {
+        "action": "wait-text",
+        "text": "I can reproduce this reliably"
+      },
+      {
+        "action": "wait-text",
+        "text": "Add a comment"
+      },
+      {
+        "action": "scroll-to-selector",
+        "selector": "section[aria-label=\"Activity\"]"
+      },
+      {
+        "action": "capture",
+        "file": "comments/01-open-section.png",
+        "state": "comments section"
+      }
+    ]
+  },
+  {
+    "id": "work-notes",
+    "guides": [
+      "docs/how-to/use/work-notes-and-attachments.md"
+    ],
+    "steps": [
+      {
+        "action": "open",
+        "path": "/issues/demo/funnel/4"
+      },
+      {
+        "action": "wait",
+        "selector": "section[aria-label=\"Work notes\"]"
+      },
+      {
+        "action": "wait-text",
+        "text": "Pairing with Mira tomorrow"
+      },
+      {
+        "action": "scroll-to-selector",
+        "selector": "section[aria-label=\"Work notes\"]"
+      },
+      {
+        "action": "capture",
+        "file": "work-notes/01-open-section.png",
+        "state": "work notes section"
+      }
+    ]
+  },
+  {
+    "id": "time-delays",
+    "guides": [
+      "docs/how-to/use/track-time-and-delays.md"
+    ],
+    "steps": [
+      {
+        "action": "open",
+        "path": "/issues/demo/funnel/4"
+      },
+      {
+        "action": "wait",
+        "selector": "section[aria-label=\"Time\"]"
+      },
+      {
+        "action": "wait",
+        "selector": "section[aria-label=\"Time\"] dd"
+      },
+      {
+        "action": "scroll-to-selector",
+        "selector": "section[aria-label=\"Time\"]"
+      },
+      {
+        "action": "capture",
+        "file": "time-delays/01-open-section.png",
+        "state": "time delays section"
+      }
+    ]
+  },
+  {
+    "id": "blocked",
+    "guides": [
+      "docs/how-to/use/close-reopen-block.md"
+    ],
+    "steps": [
+      {
+        "action": "open",
+        "path": "/issues/demo/funnel/7"
+      },
+      {
+        "action": "wait",
+        "selector": "section[aria-label=\"Blocker\"]"
+      },
+      {
+        "action": "scroll",
+        "selector": "section[aria-label=\"Blocker\"]"
+      },
+      {
+        "action": "capture",
+        "file": "blocked/01-open-section.png",
+        "state": "blocked section"
+      }
+    ]
+  },
+  {
+    "id": "history",
+    "guides": [
+      "docs/how-to/use/issue-history.md"
+    ],
+    "steps": [
+      {
+        "action": "open",
+        "path": "/issues/demo/funnel/4"
+      },
+      {
+        "action": "wait",
+        "selector": "section[aria-label=\"Activity\"]"
+      },
+      {
+        "action": "click-text-until",
+        "text": "History",
+        "selector": "[aria-label=\"Activity filter\"] button[aria-pressed=\"true\"]:last-child"
+      },
+      {
+        "action": "wait-text",
+        "text": "Status recorded as in-progress"
+      },
+      {
+        "action": "scroll-to-selector",
+        "selector": "section[aria-label=\"Activity\"]"
+      },
+      {
+        "action": "capture",
+        "file": "history/01-filter-history.png",
+        "state": "Issue history activity filter"
+      }
+    ]
+  },
+  {
+    "id": "saved-views",
+    "guides": [
+      "docs/how-to/use/saved-views.md"
+    ],
+    "steps": [
+      {
+        "action": "open",
+        "path": "/issues"
+      },
+      {
+        "action": "wait",
+        "selector": "button[aria-label^=\"Saved views\"]"
+      },
+      {
+        "action": "click-expanded",
+        "selector": "button[aria-label^=\"Saved views\"]"
+      },
+      {
+        "action": "wait-text",
+        "text": "No saved views yet."
+      },
+      {
+        "action": "capture",
+        "file": "saved-views/01-open-menu.png",
+        "state": "Saved views menu"
+      }
+    ]
+  }
+]
