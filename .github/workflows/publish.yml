@@ -259,11 +259,37 @@ jobs:
           --version=${{ needs.validate.outputs.version }}
           --platform=${{ matrix.platform }}
 
+      - name: Verify Windows release archives
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $version = "${{ needs.validate.outputs.version }}"
+          $server = "funnel-$version-windows-x64"
+          $intake = "funnel-intake-$version-windows-x64"
+          Expand-Archive "release/$server.zip" -DestinationPath "$env:RUNNER_TEMP/packages"
+          Expand-Archive "release/$intake.zip" -DestinationPath "$env:RUNNER_TEMP/packages"
+          $expected = @{
+            $server = @('START-HERE.cmd', 'funnel.exe', 'funnel-service.exe', '.env.example', 'README.txt', 'THIRD_PARTY_NOTICES.md')
+            $intake = @('funnel-intake.exe', 'install-intake.ps1', 'README.txt', 'THIRD_PARTY_NOTICES.md')
+          }
+          foreach ($name in @($server, $intake)) {
+            $actual = @(Get-ChildItem -Force "$env:RUNNER_TEMP/packages/$name" | Select-Object -ExpandProperty Name | Sort-Object)
+            $difference = Compare-Object ($expected[$name] | Sort-Object) $actual
+            if ($difference) { throw "Unexpected contents in ${name}: $difference" }
+            $hash = (Get-FileHash "release/$name.zip" -Algorithm SHA256).Hash.ToLowerInvariant()
+            if ((Get-Content "release/$name.zip.sha256" -Raw).Trim() -ne "$hash  $name.zip") {
+              throw "Checksum mismatch for $name.zip"
+            }
+          }
+
       - name: Upload release artifact
         uses: actions/upload-artifact@v4
         with:
           name: funnel-${{ matrix.platform }}
-          path: release/funnel-${{ needs.validate.outputs.version }}-${{ matrix.platform }}.*
+          path: |
+            release/funnel-${{ needs.validate.outputs.version }}-${{ matrix.platform }}.*
+            release/funnel-intake-${{ needs.validate.outputs.version }}-${{ matrix.platform }}.*
           if-no-files-found: error
           retention-days: 7
 

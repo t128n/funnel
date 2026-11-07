@@ -157,7 +157,7 @@ Two workflows split versioning from artifact publishing:
      embedded assets.
   5. **Package** — `bun run package:release` (`scripts/package-release.ts`) writes
      `funnel-<version>-<platform>.tar.gz` (`.zip` on Windows), including
-     `.env.example`, plus a per-asset `.sha256`.
+     `.env.example`, plus a per-asset `.sha256`. On Windows, the optional intake helper is packaged separately as `funnel-intake-<version>-windows-x64.zip`, with its own checksum.
   6. **Publish** — merges the checksums into `SHA256SUMS.txt` and creates or
      updates a GitHub release. The body comes from the Changesets
      `CHANGELOG.md` entry (`scripts/release-notes.ts`), with

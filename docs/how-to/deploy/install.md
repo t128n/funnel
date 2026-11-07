@@ -30,7 +30,7 @@ run:
 ./funnel setup
 ```
 
-On Windows, double-click `setup.cmd` or run:
+On Windows, double-click `START-HERE.cmd` or run:
 
 ```powershell
 .\funnel.exe setup

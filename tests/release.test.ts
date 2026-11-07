@@ -322,6 +322,9 @@ describe("release notes", () => {
 
     expect(result.status).toBe(0);
     expect(result.stdout).toContain(String.raw`.\funnel.exe setup`);
+    expect(result.stdout).toContain(`funnel-intake-${version}-windows-x64.zip`);
+    expect(result.stdout).toContain("START-HERE.cmd");
+    expect(result.stdout).not.toContain("PowerShell service and intake installers");
     // A form feed means the template literal consumed `\f` as an escape.
     expect(result.stdout).not.toContain("\f");
   });
