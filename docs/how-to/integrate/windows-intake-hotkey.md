@@ -28,9 +28,9 @@ powershell -ExecutionPolicy Bypass -File scripts\install-intake.ps1
 The installer:
 
 1. Copies the bundled or built `funnel-intake.exe` to `%LOCALAPPDATA%\Funnel\Intake\funnel-intake.exe`.
-2. Writes `%LOCALAPPDATA%\Funnel\Intake\config.json` (default `http://localhost:3000`, `Ctrl+Alt+I`).
+2. Writes `%LOCALAPPDATA%\Funnel\Intake\config.json` (default `http://localhost:3000`, `Alt+F`).
 3. Creates `…\Startup\Funnel Intake.lnk` so the helper starts at login.
-4. Removes the legacy `Funnel Intake.lnk` from the Start Menu or Desktop. That shortcut owned `Ctrl+Alt+I`; leaving it in place makes Windows refuse to register the new hotkey.
+4. Removes the legacy `Funnel Intake.lnk` from the Start Menu or Desktop. That shortcut owned `Ctrl+Alt+I` and can conflict if that hotkey is configured again.
 5. Starts the helper (unless `-NoStart` is passed).
 
 From the extracted release folder, point it at a different instance or hotkey, then verify the process is running:
@@ -45,7 +45,7 @@ Get-Process funnel-intake
 | Option | Default | Purpose |
 | :--- | :--- | :--- |
 | `-Url` | `http://localhost:3000` | Funnel base URL; the helper appends `/intake`. |
-| `-Hotkey` | `Ctrl+Alt+I` | Any combo supported by the parser (at least one modifier). |
+| `-Hotkey` | `Alt+F` | Any combo supported by the parser (at least one modifier). |
 | `-Source` | auto-detect | Fixed source label; disables foreground-app detection. |
 | `-ExePath` | `funnel-intake.exe` beside the script, or `dist\funnel-intake.exe` in a checkout | Binary to install. |
 | `-NoStart` | off | Install without launching the helper. |
@@ -73,7 +73,7 @@ The link is compressed with the same `?d=` deeplink the composer uses, so long s
 ```json
 {
   "url": "http://localhost:3000",
-  "hotkey": "Ctrl+Alt+I",
+  "hotkey": "Alt+F",
   "source": "self-service",
   "sourceMap": { "ms-teams": "chat", "outlook": "email" }
 }

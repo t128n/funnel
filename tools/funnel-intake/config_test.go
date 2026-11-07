@@ -22,8 +22,8 @@ func TestDefaultConfig(t *testing.T) {
 	if cfg.BaseURL != DefaultBaseURL {
 		t.Errorf("BaseURL = %q, want %q", cfg.BaseURL, DefaultBaseURL)
 	}
-	if cfg.Hotkey != DefaultHotkey {
-		t.Errorf("Hotkey = %q, want %q", cfg.Hotkey, DefaultHotkey)
+	if cfg.Hotkey != "Alt+F" {
+		t.Errorf("Hotkey = %q, want Alt+F", cfg.Hotkey)
 	}
 	if cfg.SourceMap == nil {
 		t.Error("SourceMap is nil, want an initialized map")

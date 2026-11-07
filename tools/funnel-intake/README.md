@@ -22,7 +22,7 @@ The root package is importable if you want to embed the listener:
 ```go
 cfg := intake.DefaultConfig()
 cfg.BaseURL = "https://funnel.example.com"
-cfg.Hotkey = "Ctrl+Alt+I"
+cfg.Hotkey = "Alt+F"
 cfg.Logger = logger
 
 if err := intake.Run(ctx, cfg); err != nil {
@@ -49,7 +49,7 @@ Default location: `%LOCALAPPDATA%\Funnel\Intake\config.json`.
 ```json
 {
   "url": "http://localhost:3000",
-  "hotkey": "Ctrl+Alt+I",
+  "hotkey": "Alt+F",
   "source": "self-service",
   "sourceMap": {
     "ms-teams": "chat",

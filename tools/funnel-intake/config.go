@@ -14,8 +14,8 @@ const (
 	// checkouts override it with -url or FUNNEL_URL=http://localhost:5173.
 	DefaultBaseURL = "http://localhost:3000"
 
-	// DefaultHotkey is the same combo the old .lnk shortcut used.
-	DefaultHotkey = "Ctrl+Alt+I"
+	// DefaultHotkey opens an intake from the selected text.
+	DefaultHotkey = "Alt+F"
 )
 
 var builtinSourceMap = map[string]string{

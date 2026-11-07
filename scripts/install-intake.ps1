@@ -27,7 +27,7 @@
 [CmdletBinding()]
 param(
   [string]$Url = "http://localhost:3000",
-  [string]$Hotkey = "Ctrl+Alt+I",
+  [string]$Hotkey = "Alt+F",
   [string]$Source = "",
   [string]$ExePath,
   [switch]$Uninstall,

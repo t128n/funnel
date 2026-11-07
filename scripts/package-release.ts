@@ -237,7 +237,7 @@ Extract this archive, open PowerShell in this folder, and run:
   powershell -ExecutionPolicy Bypass -File .\\install-intake.ps1 -Url http://localhost:3000
 
 Replace the URL with your Funnel server address. No administrator rights are needed.
-Select text in Teams, Outlook, or a browser and press Ctrl+Alt+I to open an intake draft.
+Select text in Teams, Outlook, or a browser and press Alt+F to open an intake draft.
 
 To uninstall, run:
   powershell -ExecutionPolicy Bypass -File .\\install-intake.ps1 -Uninstall

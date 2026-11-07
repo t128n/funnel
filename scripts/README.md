@@ -27,7 +27,7 @@ selection. Implementation and library docs live in
 # build -> dist\funnel-intake.exe
 mise run intake:exe
 
-# install for the current user (default Ctrl+Alt+I, http://localhost:3000)
+# install for the current user (default Alt+F, http://localhost:3000)
 powershell -ExecutionPolicy Bypass -File scripts\install-intake.ps1
 
 # a different instance and combo
@@ -40,8 +40,8 @@ powershell -ExecutionPolicy Bypass -File scripts\install-intake.ps1 -Uninstall
 
 The installer copies the binary to `%LOCALAPPDATA%\Funnel\Intake\`, writes
 `config.json`, creates a Startup shortcut, and starts the helper. It also
-removes the legacy Start Menu `.lnk` that owned `Ctrl+Alt+I` — otherwise Windows
-would refuse to register the combo. Run it again after a rebuild to upgrade.
+removes the legacy Start Menu `.lnk` that owned `Ctrl+Alt+I`, which can conflict
+if that hotkey is configured. Run it again after a rebuild to upgrade.
 
 You can also use the mise tasks: `mise run intake:install` and
 `mise run intake:uninstall`.
@@ -60,7 +60,7 @@ You can also use the mise tasks: `mise run intake:install` and
 ```json
 {
   "url": "http://localhost:3000",
-  "hotkey": "Ctrl+Alt+I",
+  "hotkey": "Alt+F",
   "sourceMap": { "ms-teams": "chat", "outlook": "email" }
 }
 ```
