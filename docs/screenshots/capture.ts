@@ -2,6 +2,7 @@
 import { spawn, spawnSync } from 'node:child_process';
 import { mkdtemp, mkdir, rm, copyFile, access, readFile, readdir, writeFile } from 'node:fs/promises';
 import { constants } from 'node:fs';
+import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -65,7 +66,7 @@ async function capture(id: string, replace: boolean) {
   for (const item of captures) {
     if (!replace && await exists(path.join(assets, item.file!))) throw new Error(`Refusing to overwrite ${item.file}; use --replace after review`);
   }
-  const temp = await mkdtemp('/tmp/opencode/funnel-guide-shots-');
+  const temp = await mkdtemp(path.join(tmpdir(), 'funnel-guide-shots-'));
   await writeFile(path.join(temp, 'browser-config.json'), '{}');
   const session = `funnel-shots-${crypto.randomUUID()}`;
   const port = '5198';
