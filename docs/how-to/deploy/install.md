@@ -4,10 +4,12 @@ Funnel ships as one self-contained executable per platform. The same binary is
 the server and the installer: run `funnel setup` to create the configuration,
 install the native service, and open the first-run wizard.
 
-![Funnel setup terminal preview](../../assets/setup/funnel-setup.png)
+![Illustrative Funnel setup prompt flow; current prompts vary by platform and version](../../assets/setup/funnel-setup.png)
 
-The [animated preview](../../assets/setup/funnel-setup.gif) shows the full
-prompt flow.
+The [animated preview](../../assets/setup/funnel-setup.gif) illustrates the
+prompt flow. It was recorded from an earlier build, so treat it as an
+illustration rather than a verification of the current release; the text
+above is authoritative.
 
 ## Requirements
 
