@@ -14,7 +14,7 @@ Build and ship Funnel's artefacts — the adapter-node server and the self-conta
 
 | Task                | Runs                              | Produces |
 | :------------------ | :-------------------------------- | :------- |
-| `mise run verify`   | `check` → `test` → `intake:check` → `build` → `exe` | Everything the release pipeline relies on. |
+| `mise run verify`   | `check` → `test` → `intake:check` → `build` → `exe` → `smoke` | Local verification, including a standalone smoke test. |
 | `mise run check`    | `bun run check`                   | Type-check. |
 | `mise run test`     | `bun run test`                    | The test suite (see [testing.md](./testing.md)). |
 | `mise run intake:check` | `go vet` → `go test`          | The intake helper's Go vet and test results. |
@@ -116,16 +116,16 @@ applies versions and changelogs locally; CI normally does this in a version PR.
 
 ## Release procedure
 
-1. Add a changeset to the pull request (`bun run changeset`) and merge the PR to `main`.
-2. `.github/workflows/changesets.yml` opens or updates a **`chore: version packages`** pull request. Review the version and `CHANGELOG.md` entry.
+1. Add a changeset to the pull request (`bun run changeset`) and merge the PR to `main`. The generated `.changeset/` file is included in the merged change.
+2. `.github/workflows/changesets.yml` opens or updates a **`chore: version packages`** pull request. Review the version and `CHANGELOG.md` entry; they should reflect the pending changesets.
 3. Merge the version PR. The same workflow then:
    - runs `changeset publish` in tag-only mode, which creates the `v<version>` tag, and
-   - calls the publish workflow for that tag.
-4. The publish workflow verifies, builds, packages, and creates the GitHub release. Releases in the `0.0.x` line are marked **pre-release**; `0.1.0` is the first normal release, and later versions are normal unless they carry an explicit suffix such as `-rc.1`.
-5. If the schema changed, make sure the new `drizzle/<timestamp>_<name>/` directory was committed with the change (`bun run db:generate`).
+   - calls the publish workflow for that tag. The tag should match `v<version>` in `package.json`.
+4. The publish workflow verifies, builds, packages, and creates the GitHub release. Confirm the workflow succeeds and the release contains platform archives and `SHA256SUMS.txt`. Releases in the `0.0.x` line are marked **pre-release**; `0.1.0` is the first normal release, and later versions are normal unless they carry an explicit suffix such as `-rc.1`.
+5. If the schema changed, confirm the new `drizzle/<timestamp>_<name>/` directory was committed with the change (`bun run db:generate`); the release must contain the migration before deployment.
 6. Deploy the executable or image:
-   - **Windows:** stop the service, replace `funnel.exe`, start it — migrations run automatically on boot.
-7. Confirm `/healthz` (liveness) and `/readyz` (readiness, `503` until migrations are applied) after the rollout.
+   - **Windows:** stop the service, replace `funnel.exe`, start it — migrations run automatically on boot. The service should return to a running state.
+7. Confirm `/healthz` (liveness) and `/readyz` (readiness, `503` until migrations are applied) after the rollout; both should return a successful response.
 
 You can still build artifacts locally before merging: `mise run verify`,
 `mise run build` and `mise run exe`.
@@ -152,12 +152,12 @@ Two workflows split versioning from artifact publishing:
   3. **Build** — native executables for Linux x64, Linux arm64, macOS Apple
      silicon, macOS Intel, and Windows x64. Linux arm64 is cross-compiled on the
      x64 runner after installing that target's `satteri` optional package.
-  4. **Smoke test** — runs `--version` and `--migrate`, and requests the
-     onboarding page plus its stylesheet from the executable to catch missing
-     embedded assets.
+   4. **Smoke test** — runs `--version` and `--migrate` on native targets; on
+      Unix native targets it also requests the onboarding page and stylesheet.
+      Linux arm64 is checked as an ARM executable instead of being run.
   5. **Package** — `bun run package:release` (`scripts/package-release.ts`) writes
      `funnel-<version>-<platform>.tar.gz` (`.zip` on Windows), including
-     `.env.example`, plus a per-asset `.sha256`. On Windows, the optional intake helper is packaged separately as `funnel-intake-<version>-windows-x64.zip`, with its own checksum.
+     `.env.example`, plus a per-asset `.sha256`. The current packaging code creates a separate `funnel-intake-<version>-windows-x64.zip` with its own checksum for a future Windows release. The already published v0.0.12 instead includes the helper and installer inside `funnel-0.0.12-windows-x64.zip`; see [Windows intake installation](../integrate/windows-intake-hotkey.md).
   6. **Publish** — merges the checksums into `SHA256SUMS.txt` and creates or
      updates a GitHub release. The body comes from the Changesets
      `CHANGELOG.md` entry (`scripts/release-notes.ts`), with

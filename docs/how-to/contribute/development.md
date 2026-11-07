@@ -2,65 +2,81 @@
 
 Set up a Funnel checkout, run the dev server, and find where to add routes and server modules.
 
-## Prerequisites
+## Get a checkout
 
-- **Bun 1.4.3.** `package.json` pins `packageManager: "bun@1.4.3"` and requires `bun >=1.4.3`.
-- **mise (optional).** `mise.toml` pins `bun = "1.4.3"` and defines the build tasks. If you use it, run `mise trust` once per checkout so the tasks load. Without mise, the plain `bun run …` scripts in `package.json` work the same.
-- **No Node runtime for the server.** The database layer uses `bun:sqlite`, so the server must run under Bun; `node build/index.js` will not work.
-
-## Install
+For an installed instance rather than source development, use the [installation guide](../deploy/install.md). For development, install Git and [mise](https://mise.jdx.dev), then clone the public repository:
 
 ```sh
-bun install
+git clone https://github.com/t128n/funnel.git
+cd funnel
 ```
 
-With mise, `mise run bun:install` runs `bun install --frozen-lockfile` instead. The `prepare` script runs `svelte-kit sync` after install.
+The checkout contains `package.json`, `mise.toml`, `src/` and `drizzle/`. If you will contribute from a fork, add your fork as a remote and push your branch there.
 
-## Environment
-
-Deploy-time values come from the environment. Copy `.env.example` to `.env` and set at least:
-
-| Variable         | Default            | Purpose                                                        |
-| :--------------- | :----------------- | :------------------------------------------------------------- |
-| `FUNNEL_SECRET`  | —                  | **Required.** Encryption secret, at least 32 characters.       |
-| `FUNNEL_URL`     | —                  | Public origin, e.g. `https://funnel.example.com`.              |
-| `FUNNEL_DB`      | `./data/funnel.db` | SQLite database file.                                          |
-| `FUNNEL_UPLOAD_DIR` | `./data/uploads` | Where uploaded attachments are stored.                         |
-| `LOG_LEVEL`      | `info`             | `fatal` … `silent`.                                            |
-| `GITHUB_URL` / `GITHUB_API_URL` | `https://github.com` / `https://api.github.com` | GitHub host; set both for GitHub Enterprise Server. |
-
-The GitHub App is **not** configured through the environment. A fresh install gates every route to `/onboarding`, which walks through GitHub's App Manifest Flow; credentials are stored (encrypted under `FUNNEL_SECRET`) in the `state_github_app` table and managed afterwards in **Settings → GitHub App**.
-
-## Dev server
+Trust the project configuration and install its pinned tools:
 
 ```sh
-bun run dev        # bun --bun vite dev, serves on http://localhost:5173
+mise trust
+mise install
+bun --version
 ```
 
-Instance configuration (repositories, projects, the intake default, sync cadence, board behaviour, session lifetime) lives in the SQLite database and is edited from **Settings** after signing in — not in the environment.
+`bun --version` should print `1.4.3`; `mise.toml` also pins Go and Node for the build tooling. The server itself must run under Bun because it uses `bun:sqlite`.
 
-## Demo mode
+Install the locked dependencies:
 
-`bun run dev:demo` is the supported way to explore Funnel without a GitHub App. It runs `scripts/dev.ts --demo`, which sets `FUNNEL_DEMO=1`, defaults `FUNNEL_DB` to `./data/demo.db`, `FUNNEL_UPLOAD_DIR` to `./data/demo-uploads`, and `FUNNEL_SECRET` to a clearly-labelled dev-only placeholder when they are unset or blank (so a plain `cp .env.example .env` works), then starts Vite normally. Extra arguments are passed through to Vite (for example `bun run dev:demo --port 5174`).
+```sh
+mise run bun:install
+```
 
-The first run applies migrations and seeds the database once. Later runs reuse it, so edits survive a dev-server restart. The seed creates:
+This runs `bun install --frozen-lockfile`; it should finish without errors and create `node_modules/`. The install's `prepare` script synchronises SvelteKit. Without mise, use Bun 1.4.3 and run `bun install --frozen-lockfile` directly.
 
-- a signed-in admin (`Riley Demo`, role `admin`) and a fake GitHub App, so onboarding never appears;
-- the repositories `demo/funnel` (`FUN`) and `demo/platform` (`PLT`), five people, labels and milestones;
-- over twenty issues across untriaged, backlog, todo, in-progress, in-review and closed, including three blocked issues with overdue/today/upcoming recheck dates and an epic with children;
-- pending intake submissions, unread notifications, work notes, current and next-week plan items, delay history and work hours.
+## Run with demo data
 
-Every view — board, inbox, issue list and inspector, planning, notifications, epics and actual-time cards — renders from that data. Issue writes (labels, comments, create, close, milestones) are emulated in the same SQLite tables; nothing calls GitHub. The request session is always the seeded admin, so signing out cannot end the demo session.
+For an offline development instance, start the demo from the checkout root:
 
-To reset, stop the server and delete the demo database (its WAL and SHM files included); the next run re-seeds:
+```sh
+bun run dev:demo
+```
+
+Vite prints a local URL, normally <http://localhost:5173/>. Open it to see a signed-in demo admin and seeded issues, without GitHub App onboarding. The first run migrates and seeds the demo database; later runs retain edits. Stop the server with Ctrl+C.
+
+The launcher defaults to `data/demo.db`, `data/demo-uploads`, and a development-only secret **only when the corresponding environment variables are unset or blank**. Check `FUNNEL_DB`, `FUNNEL_UPLOAD_DIR`, and `FUNNEL_SECRET` in your shell and `.env` before starting: do not point demo mode at real data or reuse its secret for a real instance. Demo mode is ignored by production builds and is not a packaged executable option.
+
+To reset the default demo database, stop the server and delete only its database and SQLite sidecar files:
 
 ```sh
 rm -f data/demo.db data/demo.db-shm data/demo.db-wal
 ```
 
-`bun run dev` remains the real-integration path: no seed, no fake session, and the normal GitHub App onboarding flow.
+The next demo run recreates and seeds it. If you configured another demo database path, inspect that path before deleting anything.
 
-> Demo mode is development-only. `FUNNEL_DEMO` is ignored by production builds, and there is no `--demo` flag on the packaged executable. Do not use the demo secret or database for a real instance.
+## Run with a real GitHub App
+
+Use a separate local database and a GitHub account permitted to create and install an App. If `.env` already exists, retain it rather than overwriting it. Otherwise, from the checkout root, create an environment file and generate a secret:
+
+```sh
+cp .env.example .env
+openssl rand -base64 32
+```
+
+The copy creates `.env`; OpenSSL prints a secret. Put that value in `.env` as `FUNNEL_SECRET` (at least 32 characters) and keep the file and secret private. Leave `FUNNEL_URL` empty for localhost; set it to the public origin for a non-local host. If others can reach a fresh instance, set `FUNNEL_ONBOARDING_TOKEN` to protect onboarding. GitHub App credentials are created through the wizard and encrypted in the database, not set in `.env`.
+
+Apply the committed migrations:
+
+```sh
+bun run release
+```
+
+The `[release]` report identifies the database and number of migrations applied; the default is `./data/funnel.db`. Then start the server:
+
+```sh
+bun run dev
+```
+
+Vite prints a local URL, normally <http://localhost:5173/>. Open `/onboarding` and follow [GitHub App onboarding](../configure/onboard-github-app.md); a fresh instance shows the setup wizard, then lets you sign in after the App is installed. Stop the server with Ctrl+C. For GitHub Enterprise Server, set both `GITHUB_URL` and `GITHUB_API_URL` first; see the [environment reference](../../reference/environment-variables.md).
+
+Instance configuration such as repositories and sync cadence is edited in **Settings** after sign-in.
 
 ## Type-check
 
@@ -69,7 +85,7 @@ bun run check          # svelte-kit sync && svelte-check --tsconfig ./tsconfig.j
 bun run check:watch    # same, in watch mode
 ```
 
-With mise: `mise run check`.
+A successful run exits with no type errors. With mise: `mise run check`.
 
 ## Tests
 
@@ -77,7 +93,7 @@ With mise: `mise run check`.
 bun run test           # bun test --preload ./tests/setup.ts --max-concurrency 1 --coverage src tests
 ```
 
-With mise: `mise run test`. See [testing.md](./testing.md) for what the suite covers and how to add a route test.
+A successful run exits zero after the coverage gate. With mise: `mise run test`. See [testing.md](./testing.md) for what the suite covers and how to add a route test.
 
 ## Database commands
 
@@ -121,6 +137,16 @@ Path aliases (from `tsconfig.json` and `package.json` `imports`): `#/*` → `src
 > SvelteKit's build-time export check rejects non-endpoint exports from `+server.ts`. Put schemas and helpers in their own module — `src/lib/server/intake/schema.ts` exists precisely so both the handler and `tests/openapi.test.ts` can import the schema.
 
 **A new server module:** place it under the matching `src/lib/server/<area>/` directory and import it with `#lib/server/<area>/<module>`. Keep database access and secrets server-only; keep browser-only code under `src/lib/client/`.
+
+## Submit a change
+
+1. Create a branch, for example `git switch -c fix/short-description`, and make a focused change. `git status --short` shows the changed files; include any generated migration with its schema change.
+2. Run `bun run check` and `bun run test`; both should exit successfully. For documentation changes, run `bun run docs:build` to build the site and check links. See [testing](./testing.md) for more targeted tests.
+3. For a user-facing change, run `bun run changeset`, choose `patch` while the project is on the `0.0.x` line, and write a user-facing summary. A new file appears under `.changeset/`; include it in the change. Tooling-only changes may omit a changeset; see [release](./release.md#changesets) for the empty changeset and versioning rules. Do not edit the package version or changelog by hand.
+4. Review `git diff`, commit your branch, and push it to a repository you can write to. Your branch should appear on GitHub; never include `.env`, credentials, or local database files.
+5. Open a pull request against `t128n/funnel`'s `main` branch. Describe the change, why it is needed, and the checks run (including failures or checks not run). The pull request is ready for review; respond to feedback and update the branch as needed.
+
+Next, use the [testing guide](./testing.md) to extend coverage, or the [release guide](./release.md) to understand how a merged change is versioned.
 
 ## Related
 

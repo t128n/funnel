@@ -1,6 +1,6 @@
 # Testing
 
-Run and extend Funnel's Bun test suite, which exercises the routes, server modules, and shared helpers against one in-memory database.
+Run and extend Funnel's Bun test suite, which exercises the routes, server modules, and shared helpers against one in-memory database. First complete the [checkout and dependency setup](./development.md#get-a-checkout); run the commands below from the repository root.
 
 ## Running the suite
 
@@ -14,7 +14,15 @@ That expands to:
 bun test --preload ./tests/setup.ts --max-concurrency 1 --coverage src tests && bun scripts/check-coverage.ts
 ```
 
-With mise: `mise run test`.
+With mise: `mise run test`. A successful run reports the tests and coverage totals, then exits zero after the coverage gate. A test failure or insufficient coverage exits non-zero; inspect the reported failure before submitting a change.
+
+To iterate on one route test without running the full coverage gate, for example:
+
+```sh
+bun test --preload ./tests/setup.ts --max-concurrency 1 tests/intake.test.ts
+```
+
+Bun reports the selected file's passing and failing tests. Replace the path with your test file; run the full suite afterwards because this command does not enforce the coverage gate or expose all cross-file interactions.
 
 | Flag                          | Why                                                                                          |
 | :---------------------------- | :------------------------------------------------------------------------------------------- |
@@ -77,14 +85,17 @@ Other suites cover feature flags (`tests/flags.test.ts`, `src/lib/features.test.
 
 Route tests import the handler directly and call it with a fake SvelteKit event, stubbing the network at the `fetch` boundary.
 
-1. **Import the handler** by alias, e.g. `import { POST } from "#/routes/api/intake/+server";`.
-2. **Call it with an event-shaped object** cast `as never`. Suites pass only the fields the handler reads, e.g. `POST({ request, params, url, locals } as never)`.
-3. **Stub `globalThis.fetch`** to intercept the GitHub API; save and restore the real `fetch` in `beforeEach`/`afterEach`.
-4. **Seed configuration** with `setConfig(TEST_CONFIG)` from `tests/test-config.ts` in `beforeEach` (use `GHE_CONFIG` to exercise a GitHub Enterprise host). Reset caches such as `resetAppCache()` and `clearPassthroughCache()`.
-5. **Seed mirror state** with `upsertRepo` / `upsertIssue` from `#lib/server/sync/mirror` and clear it with `clearMirror()` from `tests/mirror-helpers.ts`.
-6. **Supply a session** by passing `locals: { user: { id, role }, session: null }` — read routes need a `read` session, write routes a `write` or `admin` one.
+1. **Import the handler** by alias, e.g. `import { POST } from "#/routes/api/intake/+server";`. The test can invoke the endpoint without starting a server.
+2. **Call it with an event-shaped object** cast `as never`. Pass the fields the handler reads, e.g. `POST({ request, params, url, locals } as never)`, and assert the response status and body for the case under test.
+3. **Stub `globalThis.fetch`** when the handler calls GitHub; save and restore the real `fetch` in `beforeEach`/`afterEach`. The test should exercise the intended response without making a live GitHub request.
+4. **Seed configuration** when needed with `setConfig(TEST_CONFIG)` from `tests/test-config.ts` in `beforeEach` (use `GHE_CONFIG` to exercise a GitHub Enterprise host). Reset caches such as `resetAppCache()` and `clearPassthroughCache()`; each case should start with the intended configuration.
+5. **Seed mirror state** when needed with `upsertRepo` / `upsertIssue` from `#lib/server/sync/mirror` and clear it with `clearMirror()` from `tests/mirror-helpers.ts`. Assertions should see the seeded rows without leaving them for later cases.
+6. **Supply a session** when required by passing `locals: { user: { id, role }, session: null }` — read routes need a `read` session, write routes a `write` or `admin` one. Assert both the permitted result and the appropriate denial for insufficient access.
+7. **Run the selected test and then the full suite** using the commands above. Both should pass, including the full suite's coverage gate; fix failures before opening a pull request.
 
 A GitHub App is always available because `tests/setup.ts` seeds one; use `tests/github-app.ts` when a test needs to seed or re-seed it explicitly.
+
+Next, return to [submit a change](./development.md#submit-a-change) and report the checks you ran, including any failures or checks you could not run.
 
 ## Related
 
