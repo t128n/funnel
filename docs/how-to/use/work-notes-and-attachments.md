@@ -17,6 +17,10 @@ See [Roles and permissions](../../reference/roles-and-permissions.md) for the ro
 
 A work note is an internal journal entry. It is never posted to GitHub unless you explicitly publish it.
 
+![The Work notes section in the inspector with one Internal note and its Reply action](../../assets/screenshots/work-notes/01-open-section.png)
+
+*Work notes are listed oldest first with an Internal marker; they stay local to Funnel.*
+
 ### Add a work note
 
 1. Open the issue.

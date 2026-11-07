@@ -18,6 +18,11 @@ While no App credentials exist, every route redirects to `/onboarding`. The exce
 ## Create and install the App
 
 1. Open the instance. The first-run gate sends you to **Create the GitHub App** at `/onboarding`.
+
+   ![Onboarding wizard headed Create the GitHub App with the account, GitHub host and App name fields](../../assets/screenshots/onboarding/01-open-setup.png)
+
+   *Check that the wizard loaded with the App details form before you create the App.*
+
 2. If the page is locked, enter the value of `FUNNEL_ONBOARDING_TOKEN`. Funnel keeps the accepted token in an `HttpOnly` cookie for one hour; reopen the wizard with it if the cookie expires.
 3. Under **Account**, choose **My personal account** or **An organization**.
    - For an organisation, enter its GitHub login. You must be allowed to create Apps for that organisation.
@@ -57,6 +62,10 @@ Enter the GHES web host in the wizard's **GitHub host** field (`acme.ghe.com` or
 ## Manage or reset the App
 
 Administrators can open **Settings → GitHub App**. The page shows the App name, owner, GitHub host, App ID, slug, client ID, installation id, and a link to the App on GitHub. Secrets are not displayed. The action button opens GitHub's installation page, where you can install the App or change which repositories it can access.
+
+![Settings → GitHub App showing the stored App identity and the link to the App on GitHub](../../assets/screenshots/github-app/01-open-page.png)
+
+*Check the App name, owner, host and installation id before managing access or resetting.*
 
 **Reset GitHub App** forgets the stored credentials and resets the cached GitHub and authentication clients. This returns the whole instance to onboarding: every route is gated again until a new App is created, and repository access needs the new App to be installed. The App itself is **not** deleted on GitHub, and existing settings and mirrored issues are left in the database, but you will need to create and install an App again. The wizard's repository step replaces the configured repository list, so re-check **Settings → Repositories** afterwards. If you want to reuse the old name, delete the old App on GitHub first.
 

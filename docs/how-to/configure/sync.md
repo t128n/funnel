@@ -39,6 +39,11 @@ The request waits for the cycle to finish before it returns. On a large first ba
 ## Steps
 
 1. Open **Settings → Sync** to see the current settings and repository health.
+
+   ![Sync settings page showing the history window, poll intervals and repository health table](../../assets/screenshots/sync/01-open-page.png)
+
+   *Check the current intervals and repository states before saving.*
+
 2. Adjust the history window and the two poll intervals to the desired values.
 3. Select **Save changes**. The scheduler re-reads the settings without a restart; check the health table after a poll or select **Sync now**.
 

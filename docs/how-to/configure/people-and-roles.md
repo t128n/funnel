@@ -27,6 +27,11 @@ The full capability matrix is in [Roles and permissions](../../reference/roles-a
 ## Change a role
 
 1. Open **Settings → People**. Signed-in accounts appear with their current roles.
+
+   ![People settings page showing signed-in accounts and their role selectors](../../assets/screenshots/people/01-open-page.png)
+
+   *Check the person and their current role before changing it.*
+
 2. Find the person. Your own row is marked **(you)**.
 3. Choose **Read**, **Write**, or **Admin** in their role selector.
 4. Select **Save**. A success toast confirms the change.

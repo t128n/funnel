@@ -6,6 +6,10 @@ This guide shows you how to manage the public conversation on an issue: edit or 
 
 Comments appear in the **Activity** section of an issue, oldest first. Funnel mirrors them from GitHub and renders the Markdown as sanitized HTML.
 
+![The Activity section with three comments and the Add a comment composer](../../assets/screenshots/comments/01-open-section.png)
+
+*Comments appear oldest first in Activity, with reaction controls and the Add a comment composer below.*
+
 - Reading comments requires the `read` role.
 - Editing, deleting and reacting require the `write` role.
 - **GitHub decides who may write.** Funnel offers Edit on your own comments and Delete on your own comments, plus Delete on any comment for Funnel admins. The server still forwards the request with your GitHub token, so GitHub rejects an edit or delete you are not allowed to make even when the button was visible.

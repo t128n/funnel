@@ -12,6 +12,10 @@ Select **Matrix** in the sidebar to open `/matrix`.
 - The matrix has nine cells: impact rows **Severe**, **Moderate**, **Minor** crossed with urgency columns **High**, **Mid**, **Low**. The order is fixed.
 - The page defaults to open issues and includes triaged and untriaged issues. Every filter dimension still applies.
 
+![The matrix with the assessment summary, nine cells and the selected cell's issue list](../../assets/screenshots/matrix/01-open-matrix.png)
+
+*The matrix page: needs-assessment counts above the nine impact × urgency cells, with a selected cell's issues beside the grid.*
+
 ## Read the assessment summary
 
 The summary sits directly below the toolbar and above the matrix.
@@ -54,6 +58,10 @@ Use the **Priority** control in the Inspector to set impact and urgency; priorit
 ## Use Rating Guide
 
 Open **Rating Guide** in the toolbar to see the five criteria for each level of both axes.
+
+![The Rating Guide dialog listing the criteria for Severe, Moderate and Minor impact](../../assets/screenshots/matrix/02-open-guide.png)
+
+*The Rating Guide explains what each impact and urgency level means before you rate an issue.*
 
 - Impact weighs **Reach**, **Data**, **Money**, **Locations** and **Workaround**.
 - Urgency weighs **Harm**, **Exposure**, **Spread**, **Dependencies** and **Deadline**.

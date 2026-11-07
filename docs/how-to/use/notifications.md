@@ -27,6 +27,10 @@ Issue-change notifications are created only when a change is detected against an
 
 Sign in and select **Notifications** in the sidebar to open `/notifications`. The item carries the unread count and updates live while the page is open.
 
+![The Notifications page with four unread rows and the Enable browser notifications banner](../../assets/screenshots/notifications/01-open-notifications.png)
+
+*The notification center lists unread rows first, each with its actor, destination and relative time.*
+
 - Unread rows appear before read rows; each group is newest first.
 - A row shows the actor's avatar and login, the destination (`owner/name#7` or an intake submission), a relative time, and a short excerpt for comments and mentions.
 - Opening an unread row marks it read and takes you to the issue or submission. Modified clicks (for example Ctrl-click) keep the browser's new-tab behaviour and do not mark the row read.

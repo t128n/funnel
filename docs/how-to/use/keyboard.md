@@ -31,6 +31,10 @@ The search trigger shows a `Mod` + `K` hint while the modifier is held. The boar
 
 The palette is the same surface as issue search, so it never opens a second overlay.
 
+![The command palette over the Issues list with Navigate commands, Create issue and recent issues](../../assets/screenshots/keyboard/01-open-command-palette.png)
+
+*The command palette combines navigation commands, **Create issue** and issue search in one overlay.*
+
 | Key | Action |
 | :--- | :--- |
 | `Mod` + `K` | Open the palette |

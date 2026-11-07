@@ -10,6 +10,10 @@ Sign in to review the page. Changing an issue requires `write` or `admin`; GitHu
 
 Blocked issues with a re-check date appear under **Re-check overdue**, **Re-check today**, or **Re-check upcoming**. Open an issue to inspect its blocker. The row actions allow writers to reschedule the re-check, assign the issue to themselves, or start the close flow. A re-check date does not automatically unblock or close the issue.
 
+![The Attention page showing re-check overdue, today and upcoming groups with rule breaches below](../../assets/screenshots/attention/01-open-attention.png)
+
+*Attention groups blocked issues by re-check date and lists configured rule breaches below them.*
+
 Blocked-date groups use the browser's local timezone; upcoming covers the next seven days. A blocked issue without a re-check date is not in those date groups. See [Close, reopen and block issues](close-reopen-block.md) to record or clear a blocker.
 
 ## Review waiting work and rule breaches

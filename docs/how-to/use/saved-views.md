@@ -11,6 +11,10 @@ Sign in and open **Issues** or **Inbox**. Opening views requires `read`; creatin
 3. Enter a name and, if other people should use it, tick **Share with everyone on this instance**.
 4. Select **Save view**.
 
+![The Views menu open over the Issues list with Save current view at the bottom](../../assets/screenshots/saved-views/01-open-menu.png)
+
+*The Views menu offers **Save current view…**; saved presets appear here once you create them.*
+
 The view remembers the current query string, sort direction and grouping. The URL is still the live source of truth: after you save, changing a filter affects only the current page until you save or refresh a view again.
 
 Open **Views** again to find the saved preset. If save controls are missing, check your role; if a shared view cannot be edited, ask its owner or an administrator.

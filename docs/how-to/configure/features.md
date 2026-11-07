@@ -28,6 +28,11 @@ These flags control visibility, not access control. Server-side role checks and 
 ## Steps
 
 1. Open **Settings → Features**. The toggles show the effective values for this browser.
+
+   ![Features settings page showing a toggle for each personal flag](../../assets/screenshots/features/01-open-page.png)
+
+   *Check each toggle reflects this browser's effective value before changing it.*
+
 2. Toggle the flag. There is no Save button; the choice is written to the cookie immediately and the server re-evaluates it.
 3. Reload another open tab if it was rendered before the change.
 

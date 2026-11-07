@@ -72,6 +72,10 @@ Start it from:
 
 The block dialog offers quick re-check anchors — **Tomorrow**, **In 3 days**, **Start of next week** and **End of week** — plus a date input for a custom date. Anchors that resolve to the same date on a given day are de-duplicated.
 
+![A blocked issue showing its reason, blocker, needs-to-unblock step, current attempt and re-check date](../../assets/screenshots/blocked/01-open-section.png)
+
+*A blocked issue keeps its workflow status and shows the structured blocker details above the description.*
+
 What Funnel does:
 
 1. Posts a structured blocker summary as a comment. It includes the blocker and the “needs to unblock” step, plus the optional “currently trying” text and re-check date.

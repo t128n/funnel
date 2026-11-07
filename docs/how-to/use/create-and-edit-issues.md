@@ -106,6 +106,10 @@ The inspector uses the same rule when you change a status, impact, urgency or si
 
 Open an issue from Issues, the Inbox, or the board. The inspector pane is the editor. Every control below requires the `write` role; `read` users see the same content with the controls disabled.
 
+![The Issues list grouped by status with priority, planned week and assignee columns](../../assets/screenshots/issues/01-open-issues.png)
+
+*The Issues list is the entry point to an issue; status grouping, priority and planned week are visible before you open it.*
+
 | Field | Control | Behaviour |
 | :--- | :--- | :--- |
 | Title | Inline title input | Press Enter or move focus away to save, or use the **Save** button that appears while the title is dirty. The title is trimmed; it must be non-empty and at most 256 characters. |
@@ -119,6 +123,10 @@ Open an issue from Issues, the Inbox, or the board. The inspector pane is the ed
 | Blocked | **Blocked** pill | Opens the block or unblock dialog. See [Close, reopen and block issues](close-reopen-block.md). |
 
 The description editor hides the trailing `funnel_metadata` envelope used for blocker state and re-attaches it verbatim when you save, so editing prose cannot silently drop structured metadata. If the body has just been saved and the mirror has not delivered a fresh render yet, the pane shows the plain text until the refresh arrives.
+
+![An issue in the Inspector with its description, Activity timeline and Properties card](../../assets/screenshots/issue/01-open-inspector.png)
+
+*The Inspector is the editor: the description and Activity sit beside the Properties card for status, priority, assignee, milestone and plan.*
 
 Setting the first status on an issue opened from the Inbox moves it out of the queue immediately and shows a “Triaged · moved to Issues” toast with an **Undo** action.
 

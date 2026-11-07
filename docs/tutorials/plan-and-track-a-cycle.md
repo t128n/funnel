@@ -44,6 +44,10 @@ The capacity table shows each maintainer's net hours, planning capacity, schedul
 
 Use **Previous week** and **Next week** beside the heading to move through weeks. **This week** returns to the current week.
 
+![The week planner with capacity, scheduled issues and unestimated work for the current week](../assets/screenshots/plan/01-open-plan.png)
+
+*The current week's capacity and scheduled work; the counts change when you move to another week.*
+
 ## 4. Commit an issue to the week
 
 Open an issue from **Issues**, then set **Planned** in its **Properties** panel to **This week** (or another nearby week).

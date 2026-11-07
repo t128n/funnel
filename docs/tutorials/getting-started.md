@@ -60,6 +60,10 @@ Open the onboarding URL printed by setup (normally <http://127.0.0.1:3000/onboar
 
 **You should see:** a page headed **Create the GitHub App**, with the steps **Create app**, **Install**, and **Ready**, and an **App details** form.
 
+![Onboarding wizard headed Create the GitHub App with the App details form and Create GitHub App button](../assets/screenshots/onboarding/01-open-setup.png)
+
+*Check the wizard loaded before you create the App.*
+
 1. Leave **Account** set to **My personal account**.
 2. Leave **GitHub host** as `github.com`, unless you use GitHub Enterprise Server.
 3. Keep the suggested **App name**, or change it. It must be unique across GitHub and may contain only letters, numbers, and hyphens (maximum 34 characters).

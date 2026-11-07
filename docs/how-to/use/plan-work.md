@@ -19,6 +19,10 @@ Open **Plan** in the navigation bar. The page opens on the current week and read
 
 Use **Previous week** and **Next week** beside the heading to move through weeks. **This week** returns to the current week. The URL carries the week (`/plan?week=YYYY-MM-DD`), so it can be bookmarked or shared.
 
+![The week planner with the capacity table, scheduled issues and unestimated work](../../assets/screenshots/plan/01-open-plan.png)
+
+*The week planner shows capacity, the scheduled issues, and the work that still needs an estimate.*
+
 ## Schedule an issue
 
 1. Open the issue from **Issues**, **Board**, **Inbox** or any other view.

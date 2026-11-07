@@ -14,6 +14,10 @@ The mirror is read-only apart from one lazy-create path. Funnel never renames, c
 
 Select **Milestones** in the sidebar to open `/milestones`.
 
+![The Milestones page grouping demo/funnel and demo/platform milestones with due dates and progress](../../assets/screenshots/milestones/01-open-milestones.png)
+
+*Milestones are grouped by repository, with due date, progress and creator for each entry.*
+
 - Milestones are grouped by repository, with a progress bar showing closed issues against the total (`closedIssues / (openIssues + closedIssues)`).
 - Each entry shows its due date, and a `closed` marker when the milestone is closed.
 - The creator is shown when the mirrored GitHub user can be resolved.
@@ -48,6 +52,10 @@ The timeline is an Apache ECharts Gantt over open milestones with a due date. It
 - A milestone with no due date is not given a guessed end. It is listed in the **No due date** table below the chart with its progress and start, and stays out of the Gantt.
 - If the only start signal falls after the due date, the row keeps both dates and adds **After due** rather than clamping the bar to fit.
 - Use the repository selector to narrow the chart to one `owner/name`; the URL becomes `/timeline?repo=owner/name`. The selector still lists every repository that has an open milestone.
+
+![The milestone timeline with planned windows, closed-work fill, open-issue ticks and a No start row](../../assets/screenshots/timeline/01-open-timeline.png)
+
+*The timeline plots each open milestone from its first start signal to its due date; the legend names every series.*
 
 The view is read-only. To change what you see, change the inputs: plan the issue, move it through the workflow, or correct the milestone on GitHub.
 

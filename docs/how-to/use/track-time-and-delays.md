@@ -34,6 +34,10 @@ Open an issue's Inspector to see its time block:
 
 The issue detail payload exposes the same values as `time`, and epic rollups sum them across children.
 
+![The Inspector's Time card and Delays list below the waiting controls](../../assets/screenshots/time-delays/01-open-section.png)
+
+*The Time card shows estimate, actual, delay and variance; the Delays list below it records individual waits.*
+
 ## Automatic delays
 
 A delay is a time interval with a reason, an optional note and a source of `blocked` or `manual`.

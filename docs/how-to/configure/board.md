@@ -18,6 +18,11 @@ The Done window and each cap accept whole numbers of zero or more. Done is not a
 ## Steps
 
 1. Open **Settings → Board**. The retention and WIP fields show the current values.
+
+   ![Board settings page showing Done retention and the WIP limit fields for each open stage](../../assets/screenshots/board-settings/01-open-board-settings.png)
+
+   *Check the retention window and caps currently in effect.*
+
 2. Set the Done retention window to the number of days of completed issues you want displayed.
 3. Enter caps for the stages you want to limit, or clear a field to remove its cap. Blank fields have no limit.
 4. Select **Save changes**, then open the board to check the Done column and limited column headers.

@@ -11,6 +11,11 @@ Sign in as an administrator. Have a configured repository with GitHub labels app
 ## Add a project
 
 1. Open **Settings → Projects** to see the current mappings.
+
+   ![Projects settings page showing the configured label mappings and the Add project action](../../assets/screenshots/projects/01-open-page.png)
+
+   *Check the existing label mappings before adding one.*
+
 2. Select **Add project** to create a mapping row.
 3. Enter the exact GitHub label that marks membership, for example `project1`.
 4. Optionally enter a display name, for example `Project One`. Leave it blank to use the label itself.

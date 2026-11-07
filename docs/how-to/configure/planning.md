@@ -11,6 +11,11 @@ You need the `admin` role and at least one configured repository whose assignabl
 ## Steps
 
 1. Open **Settings → Planning**. The current size map, allocation and maintainer roster are displayed.
+
+   ![Planning settings page showing the size map, allocation percentage and maintainer roster](../../assets/screenshots/planning-settings/01-open-planning-settings.png)
+
+   *Check the current size hours, allocation and roster before you edit them.*
+
 2. Set the hours for **Small**, **Medium** and **Large**, or keep the 2h/4h/8h defaults. The size label is the estimate; changing the map re-prices every planned issue.
 3. Set the **Allocation** percentage. It is the share of net weekly hours that commitments may fill; `60` leaves 40% for reviews, unplanned work and slack.
 4. In **Maintainers**, add assignable people and enter each one's **net** weekly hours. Net means contracted hours minus recurring meetings, on-call and other fixed commitments. Funnel plans at most the allocation percentage of this value.

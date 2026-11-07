@@ -13,6 +13,11 @@ Only an administrator can open **Settings → Repositories**; other roles receiv
 ## Add a repository
 
 1. Open **Settings → Repositories** to see the current list.
+
+   ![Repository settings page showing the read-only GitHub host and the configured repository rows](../../assets/screenshots/repositories/01-open-repositories.png)
+
+   *Check the listed repositories and shortcodes before adding a row.*
+
 2. Select **Add repository** and enter the repository in `owner/name` form; a new row holds its configuration.
 3. Optionally enter a **Shortcode** of up to six characters.
 4. Repeat for any further repositories and select **Save changes**. Check **Settings → Sync** for the first poll and repository health.

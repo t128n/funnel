@@ -23,6 +23,10 @@ The `/intake` form accepts:
 
 `GET /intake?title=…&body=…&source=…` renders a prefilled draft, and the page also writes a compact deeplink into the address bar as you type. Both forms are clamped to the limits above. The form needs no JavaScript: it posts as a plain HTML form, and submission failures render inline.
 
+![Intake settings with the default repository, per-minute and per-hour limits, and the honeypot switch](../../assets/screenshots/intake-settings/01-open-page.png)
+
+*Administrators configure the default repository, per-client submission limits and the honeypot in **Settings → Intake**.*
+
 `POST /api/intake` accepts this JSON body:
 
 ```json
@@ -44,6 +48,10 @@ The Inbox is a single queue with two parts, always in this order:
 1. **Staged** submissions, newest first. Same-millisecond ties are broken deterministically by insertion order.
 2. **Untriaged issues** — open issues with no status label. These are ordered by derived priority (`P1` first, unprioritised last), then by most recently updated.
 
+![Funnel Inbox with four staged submissions above two untriaged GitHub issues](../../assets/screenshots/triage-intake/01-open-triage-intake.png)
+
+*The Inbox queue lists staged submissions before untriaged GitHub issues.*
+
 Search applies to both halves: it matches a submission's title and body, and an issue's title, body and comments. The repo, status, assignee, priority, size and label filters apply only to GitHub issues; the Inbox has no state switch. Pending submissions have no repo or workflow metadata, so they remain visible unless the search term excludes them.
 
 The Inbox badge in the sidebar counts pending submissions plus untriaged open issues. A `read` user can browse the queue; only a `write` user can make a triage decision. See [roles and permissions](../../reference/roles-and-permissions.md).
@@ -60,9 +68,17 @@ Every Inbox row — a staged submission or an untriaged issue — has a **Snooze
 - **Next week** — 09:00 local time seven days later.
 - **Custom date** — 09:00 local time on the date you pick.
 
+![The Snooze menu open on an Inbox row with Tomorrow, Next week and a custom date](../../assets/screenshots/triage-intake/02-snooze-menu.png)
+
+*The Snooze menu offers Tomorrow, Next week and a custom date.*
+
 A snoozed row leaves the queue immediately and is excluded from the sidebar badge. It returns automatically once its resurface time passes; there is no reminder or notification (those are separate roadmap work). Snoozing never archives a submission, changes a label, or touches the GitHub mirror, so the issue remains visible in All Issues, the board and the matrix.
 
 The **Snoozed** tab on `/inbox` (`/inbox?snoozed=1`) lists deferred items with their resurface date and a **Resurface** action that clears the snooze immediately. The tab shows its own count; the queue badge never includes snoozed rows.
+
+![The Snoozed tab listing a deferred submission with its resurface time and Resurface action](../../assets/screenshots/triage-intake/03-snooze-snoozed.png)
+
+*The Snoozed tab shows when each item will resurface and lets you bring it back immediately.*
 
 Snoozes are stored in `state_snooze`. Issues are keyed by `owner/name` plus issue number rather than a mirror id, so a snooze survives re-sync and mirror pruning; a pruned issue still appears in the Snoozed view so it can be resurfaced. Submissions are keyed by their staged id. The server rejects a resurface date in the past or more than one year away.
 

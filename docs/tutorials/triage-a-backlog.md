@@ -8,10 +8,18 @@ It assumes you have completed [Getting started](getting-started.md), have one re
 
 Open your Funnel address followed by `/intake` (for example <http://127.0.0.1:3000/intake>; the setup wizard prints the exact host and port). This page is public: it does not require a session.
 
+![The public Submit an Issue form with fields for title, description and source](../assets/screenshots/intake/01-open-intake.png)
+
+*The public intake form: title is required, description is optional, and nothing reaches GitHub until a triager accepts it.*
+
 1. Enter a title, for example **Export CSV fails when the filter is empty**.
 2. Add a description describing what happened and what you expected.
 3. Optionally choose a source such as **Email** or **Chat**.
 4. Click **Submit**.
+
+![The intake form filled with the example title and description, before submission](../assets/screenshots/intake/02-fill-draft.png)
+
+*A filled draft; the Copy Draft Link control keeps a shareable version of the text.*
 
 **You should see:** **Thanks — your submission is in.** Submitting has created no GitHub issue or comment; the staged row lives in Funnel's SQLite database. A later duplicate decision can post a comment to an existing issue instead of creating a new issue.
 
@@ -21,7 +29,15 @@ Open your Funnel address followed by `/intake` (for example <http://127.0.0.1:30
 
 Click **Inbox** in the sidebar.
 
+![The Inbox queue with staged submissions above untriaged GitHub issues](../assets/screenshots/triage-intake/01-open-triage-intake.png)
+
+*The Inbox lists staged submissions first, then open GitHub issues that have no status label.*
+
 **You should see:** your submission in the queue, followed by any open GitHub issues that have no status label. The navigation badge counts both kinds of queue entry.
+
+![The Snooze menu open on an Inbox row with Tomorrow, Next week and a custom date](../assets/screenshots/triage-intake/02-snooze-menu.png)
+
+*Every Inbox row also carries a Snooze menu for deferring it without changing GitHub.*
 
 Select the submission row.
 
