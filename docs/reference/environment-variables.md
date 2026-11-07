@@ -29,7 +29,7 @@ Application variables are declared and validated in `src/env.ts` using valibot. 
 
 ## Intake helper variables
 
-The optional Windows intake helper (`tools/funnel-intake`) reads the same `FUNNEL_URL` as the server, plus `FUNNEL_HOTKEY` and `FUNNEL_SOURCE`. These override its JSON config file; command-line flags override both. See [Windows intake hotkey](../how-to/integrate/windows-intake-hotkey.md).
+The optional Windows/macOS intake app (`tools/funnel-intake`) reads the same `FUNNEL_URL` as the server, plus `FUNNEL_HOTKEY` and `FUNNEL_SOURCE`. These override its JSON config file; command-line flags override both. See [Windows intake hotkey](../how-to/integrate/windows-intake-hotkey.md).
 
 ## Loading and precedence
 

@@ -1,8 +1,8 @@
-# Funnel Intake hotkey — development notes
+# Funnel Intake app — development notes
 
-> Status: implemented as a native Go helper. The previous PowerShell script is
-> gone. User-facing usage lives in [`README.md`](./README.md); the library and
-> URL contract live in [`tools/funnel-intake/README.md`](../tools/funnel-intake/README.md).
+> Status: one Rust app (daemon + Rune settings window). The previous helper implementations are gone. User-facing usage lives in
+> [`README.md`](./README.md); the architecture and URL contract live in
+> [`tools/funnel-intake/README.md`](../tools/funnel-intake/README.md).
 
 ## Goal
 
@@ -13,102 +13,87 @@ browser — without leaving the app.
 ## Architecture
 
 ```
-Startup .lnk (no shortcut key)
-  └─ funnel-intake.exe        GUI subsystem, single instance, started at login
-       └─ RegisterHotKey      hotkey parsed from config/env/flags
-            └─ WM_HOTKEY      message loop on a locked OS thread
-                 └─ capture  foreground process → wait for modifiers →
-                             seed clipboard → SendInput Ctrl+C → poll →
-                             restore clipboard
-                      └─ build `title`/`body`/`source`
-                           └─ ShellExecute  {url}/intake?… or ?d=…
+Startup shortcut / LaunchAgent
+  └─ funnel-intake daemon       single instance, started at login
+       ├─ global-hotkey         hotkey parsed from config/env/flags
+       │    └─ hotkey event
+       ├─ capture               foreground process → wait for modifiers →
+       │                        seed clipboard → Ctrl/Cmd+C → poll →
+       │                        restore clipboard
+       ├─ build `title`/`body`/`source`
+       ├─ build /intake URL
+       └─ ShellExecute / open   browser opens after capture and encoding
+
+funnel-intake settings          Rune window: status, URL, shortcut,
+                                source, source map; writes the same config
 ```
 
-Because the listener is already resident, the hotkey path pays no process
-startup. `-H=windowsgui` suppresses the console.
+The daemon polls the config file and re-registers the shortcut when it changes.
+A `daemon.heartbeat` file lets the settings window show running/stopped.
 
 ## Files
 
 | File | Purpose |
 | :--- | :--- |
-| `tools/funnel-intake/intake.go` | `Config`, `Run` (platform dispatcher), `ErrUnsupported`. |
-| `tools/funnel-intake/config.go` | JSON + env loading, defaults, validation. |
-| `tools/funnel-intake/hotkey.go` | Portable hotkey parser. |
-| `tools/funnel-intake/prefill.go` | title/body/source mapping, UTF-16 clamping, source map. |
-| `tools/funnel-intake/deeplink.go` | Plain/`d=` query encoding, trim-to-fit, URL building. |
-| `tools/funnel-intake/run_windows.go` | Windows `run`, `Preview`, hotkey handler. |
-| `tools/funnel-intake/hotkey_windows.go` | `RegisterHotKey` + message loop. |
-| `tools/funnel-intake/capture_windows.go` | Clipboard capture/restore + sentinel. |
-| `tools/funnel-intake/win32_windows.go` | Win32 procs, clipboard, foreground app, ShellExecute. |
-| `tools/funnel-intake/input_windows_{64,32}.go` | `SendInput` (64-bit) / `keybd_event` (32-bit). |
-| `tools/funnel-intake/cmd/funnel-intake` | CLI: flags, logging, single instance, dialogs. |
-| `tools/funnel-intake/*_test.go` | Parser, prefill, deeplink, config, struct sizes. |
-| `scripts/build-intake.ts` | Cross-builds the GUI exe into `dist/`. |
-| `scripts/install-intake.ps1` | Install/uninstall + legacy shortcut cleanup. |
+| `tools/funnel-intake/rust/src/config.rs` | JSON + env loading, defaults, validation, save. |
+| `tools/funnel-intake/rust/src/hotkey.rs` | Portable hotkey parser and aliases. |
+| `tools/funnel-intake/rust/src/prefill.rs` | title/body/source mapping, UTF-16 clamping, source map. |
+| `tools/funnel-intake/rust/src/deeplink.rs` | Plain/`d=` query encoding, trim-to-fit, URL building. |
+| `tools/funnel-intake/rust/src/pipeline.rs` | Capture → prefill → URL → launcher traits and tests. |
+| `tools/funnel-intake/rust/src/daemon.rs` | Hotkey loop, config reload, heartbeat, logging. |
+| `tools/funnel-intake/rust/src/settings.rs` | Rune settings/status window and validation. |
+| `tools/funnel-intake/rust/src/platform/windows.rs` | Win32 clipboard, foreground app, ShellExecute, tray, autostart. |
+| `tools/funnel-intake/rust/src/platform/macos.rs` | Cmd+C, pbpaste/pbcopy, open, Accessibility, LaunchAgent. |
+| `tools/funnel-intake/rust/src/platform/hotkey_runtime.rs` | `global-hotkey` mapping and event pump. |
+| `scripts/build-intake.ts` | Release build into `dist/`. |
+| `scripts/install-intake.ps1` / `.sh` | Install/uninstall on Windows/macOS. |
 
 ## Build, test, verify
 
 ```sh
-mise run intake:exe     # dist/funnel-intake.exe (windows/amd64, no cgo)
-mise run intake:check   # go vet + go test
-go -C tools/funnel-intake test ./...
+mise run intake:exe     # dist/funnel-intake[.exe]
+mise run intake:check   # cargo fmt, clippy, test
 ```
 
-`mise run exe` builds both `funnel.exe` and `funnel-intake.exe`; `mise run
-verify` runs the Go checks too. `go vet` needs `-unsafeptr=false` because the
-clipboard code converts Win32 `GlobalLock` pointers, a known false positive.
+From the crate directory: `cargo build --locked`, `cargo test --locked`,
+`cargo clippy --locked --all-targets -- -D warnings`, `cargo fmt --check`.
+`mise run verify` also runs the intake checks.
 
 ## Debugging checklist
 
-Start with `%LOCALAPPDATA%\Funnel\Intake\intake.log`. No new lines between
-two runs ⇒ the hotkey never fired.
+Start with `intake.log` beside the config. No new lines between two runs ⇒ the
+hotkey never fired.
 
-- [ ] Is the helper running? `Get-Process funnel-intake`.
+- [ ] Is the daemon running? Windows: `Get-Process funnel-intake`; macOS:
+      `pgrep -fl funnel-intake`.
 - [ ] Does the log show `starting: hotkey=… url=…`? If not, the config is bad
-      (`-check`) or `RegisterHotKey` failed ("already registered").
+      (`funnel-intake check`) or hotkey registration failed.
 - [ ] Another app or the legacy `.lnk` owns the combo? Run the installer to
-      remove the legacy shortcut, or pick another `-Hotkey`.
+      remove the legacy shortcut, or pick another `-hotkey`.
 - [ ] Does the log show `no selection captured`? Capture problem — the target
-      window must be focused and must respond to synthetic `Ctrl+C`.
+      window must be focused and must respond to synthetic copy. On macOS,
+      grant Accessibility permission.
 - [ ] Does it show `capture failed`? Clipboard contention or a protected target.
-- [ ] Does it show `open browser`? ShellExecute failed (no default browser).
+- [ ] Does it show `open browser`? ShellExecute/`open` failed (no handler).
 
 Useful commands:
 
-```powershell
-# validate config
-& "$env:LOCALAPPDATA\Funnel\Intake\funnel-intake.exe" -check
-
-# capture once from a console build and print the result
-go -C tools/funnel-intake run ./cmd/funnel-intake -test -debug
-
-# listen and log the prefill without opening a browser
-& "$env:LOCALAPPDATA\Funnel\Intake\funnel-intake.exe" -dry-run
+```sh
+funnel-intake check
+funnel-intake test                 # capture once, no browser
+funnel-intake daemon --dry-run     # log what a hotkey would open
+funnel-intake daemon --simulate "Hello world"
 ```
 
-To exercise the whole hotkey path without a browser, run `-dry-run` with a free
-combo and send it synthetically:
-
-```powershell
-# terminal A
-mise run intake:exe
-.\dist\funnel-intake.exe -dry-run -hotkey "Ctrl+Alt+Shift+F24"
-
-# terminal B (keybd_event for Ctrl+Alt+Shift+F24); read the log afterwards
-```
-
-Expected log line: `dry-run: would open intake (app=… source=… title=… body=…)`.
+Expected dry-run log line: `dry-run: would open intake URL (… bytes)`.
 
 ## Known limitations / ideas
 
 - Only plain-text clipboard contents are restored; images/files are replaced.
-- Synthetic keystrokes cannot reach elevated apps (Windows UIPI).
-- No tray icon: stop the helper with the uninstaller, Task Manager, or logout.
-  A tray icon with Open/Reload/Quit is a possible follow-up.
-- Config is read at startup; changing it requires a restart.
+- Synthetic keystrokes cannot reach elevated apps on Windows (UIPI).
+- macOS requires Accessibility permission.
 - The URL carries the selection into browser history.
-- Could add a compressed deeplink cap warning dialog, or keep trimming silent
-  except in the log (current behaviour).
+- Code signing/notarisation is not configured.
 
 ## Repo references
 

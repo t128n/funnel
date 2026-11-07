@@ -1,9 +1,12 @@
-name: Intake Rust prototype
+name: Intake app
 
 on:
   pull_request:
     paths:
-      - 'tools/funnel-intake/rust/**'
+      - 'tools/funnel-intake/**'
+      - 'scripts/build-intake.ts'
+      - 'scripts/install-intake.*'
+      - 'scripts/package-release.ts'
       - '.github/workflows/intake-rust.yml'
   workflow_dispatch:
 

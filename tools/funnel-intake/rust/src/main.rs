@@ -27,7 +27,7 @@ fn run() -> Result<ExitCode, String> {
             Ok(ExitCode::SUCCESS)
         }
         Command::Version => {
-            println!("{}", env!("CARGO_PKG_VERSION"));
+            println!("{}", funnel_intake::VERSION);
             Ok(ExitCode::SUCCESS)
         }
         Command::Check => check(&options),

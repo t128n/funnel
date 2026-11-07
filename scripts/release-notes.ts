@@ -76,12 +76,14 @@ ${entry}
 | macOS Apple silicon | \`funnel-${version}-darwin-arm64.tar.gz\` |
 | macOS Intel | \`funnel-${version}-darwin-x64.tar.gz\` |
 | Windows x64 server | \`funnel-${version}-windows-x64.zip\` |
-| Windows x64 optional intake hotkey | \`funnel-intake-${version}-windows-x64.zip\` |
+| Windows x64 optional intake app | \`funnel-intake-${version}-windows-x64.zip\` |
+| macOS Apple silicon optional intake app | \`funnel-intake-${version}-darwin-arm64.zip\` |
+| macOS Intel optional intake app | \`funnel-intake-${version}-darwin-x64.zip\` |
 
 Each Linux and macOS archive contains the self-contained \`funnel\` executable
 and \`.env.example\`. The Windows server archive includes the setup launcher and
-service wrapper. The optional intake download installs a per-user hotkey helper;
-it requires a reachable Funnel server. The server executable embeds Bun, the
+service wrapper. The optional intake download installs a per-user daemon plus
+settings window; it requires a reachable Funnel server. The server executable embeds Bun, the
 server, client assets, the native Markdown addon, and the database migrations.
 ${preReleaseNote}
 ## Verify

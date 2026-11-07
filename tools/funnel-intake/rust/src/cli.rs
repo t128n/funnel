@@ -157,7 +157,7 @@ Options:\n\
   -dry-run               Log what would open instead of launching a browser\n\
   -simulate TEXT         Inject a fake hotkey + selection and print the URL\n\
   -debug                 Also write logs to stderr\n",
-        env!("CARGO_PKG_VERSION"),
+        crate::VERSION,
         default_config_path().display()
     )
 }

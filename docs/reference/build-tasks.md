@@ -2,7 +2,7 @@
 
 This page records the mise tasks and `package.json` scripts that build, check, test, package, and install Funnel.
 
-`mise.toml` is the single source of truth for the build, and pins Bun `1.4.3` and Go `1.27`. `.github/workflows/verify.yml` runs on every push to `main` and every pull request and installs the pinned tools with `jdx/mise-action`. On `ubuntu-latest` it runs `mise run bun:install` and then the full `mise run verify` gate. On `windows-latest` it runs `mise run bun:install`, `mise run exe`, and `mise run smoke`, then checks that `dist\funnel.exe` exists and prints its `--version`. The full unit suite on Windows is tracked separately because the current baseline has Windows-specific failures. No build flags are duplicated in the workflow. `mise run` with no task name runs the `default` task, which lists the available tasks.
+`mise.toml` is the single source of truth for the build, and pins Bun `1.4.3` and Rust `1.99.1`. `.github/workflows/verify.yml` runs on every push to `main` and every pull request and installs the pinned tools with `jdx/mise-action`. On `ubuntu-latest` it runs `mise run bun:install` and then the full `mise run verify` gate. On `windows-latest` it runs `mise run bun:install`, `mise run exe`, and `mise run smoke`, then checks that `dist\funnel.exe` exists and prints its `--version`. The full unit suite on Windows is tracked separately because the current baseline has Windows-specific failures. No build flags are duplicated in the workflow. `mise run` with no task name runs the `default` task, which lists the available tasks.
 
 ## Mise tasks
 
@@ -17,10 +17,12 @@ This page records the mise tasks and `package.json` scripts that build, check, t
 | `exe` | `bun scripts/build-standalone.ts [--target=<target>]` | `dist/funnel`, or `dist/funnel.exe` for a Windows target | Depends on `build` and `intake:exe`. Declares `build/**`, `drizzle/**`, `src/standalone.ts`, `scripts/build-standalone.ts`, `scripts/standalone/**`, `package.json`, and `bun.lock` as sources. The declared output is target-aware. |
 | `smoke` | `bun scripts/smoke-standalone.ts` | Smoke-test report on standard output | Depends on `exe` and exercises the built executable end to end. See [Standalone smoke test](#standalone-smoke-test). |
 | `verify` | `check`, then `test`, then `intake:check`, then `build`, then `exe`, then `smoke` | Diagnostics, test results, `build/`, the executables, and the smoke report | The sequence the release pipeline relies on. |
-| `intake:exe` | `bun scripts/build-intake.ts` | `dist/funnel-intake.exe` | Native Windows intake hotkey helper: pure Go, no cgo, GUI subsystem. Declares `tools/funnel-intake/**`, `scripts/build-intake.ts`, `package.json`, and `bun.lock` as sources. |
-| `intake:check` | `go -C tools/funnel-intake vet -unsafeptr=false ./...`, then `go -C tools/funnel-intake test ./...` | Go vet and test output | Requires the pinned Go toolchain. `-unsafeptr=false` suppresses the known false positive on the Win32 clipboard pointers. |
-| `intake:install` | `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/install-intake.ps1` | Installed per-user helper | Windows only; no elevation required. |
-| `intake:uninstall` | `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/install-intake.ps1 -Uninstall` | Removed helper | Windows only. |
+| `intake:exe` | `bun scripts/build-intake.ts` | `dist/funnel-intake.exe` (Windows) or `dist/funnel-intake` (macOS) | One Rust app: daemon plus Rune settings window. Declares `tools/funnel-intake/rust/**`, `scripts/build-intake.ts`, `package.json`, and `bun.lock` as sources. |
+| `intake:check` | `cargo fmt --check`, `cargo clippy -- -D warnings`, `cargo test` via `--manifest-path tools/funnel-intake/rust/Cargo.toml` | Cargo diagnostics and test results | Requires the pinned Rust toolchain. |
+| `intake:install` | `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/install-intake.ps1` | Installed per-user app | Windows only; no elevation required. |
+| `intake:uninstall` | `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/install-intake.ps1 -Uninstall` | Removed app | Windows only. |
+| `intake:install:macos` | `bash scripts/install-intake.sh` | Installed per-user app | macOS only. |
+| `intake:uninstall:macos` | `bash scripts/install-intake.sh --uninstall` | Removed app | macOS only. |
 
 ## Target and version overrides
 
@@ -53,9 +55,9 @@ Windows has no POSIX `SIGTERM`, so the script uses Bun's forced process terminat
 
 ## Intake helper build
 
-`intake:exe` runs `scripts/build-intake.ts`, which cross-compiles the Go module in `tools/funnel-intake` with `CGO_ENABLED=0`, `GOOS=windows`, and `GOARCH=amd64` by default, and injects the `package.json` version through `-X main.version`. The result is a GUI-subsystem executable, so no console window flashes when the hotkey fires. The script accepts `--target=windows/<arch>` and `--outdir`/`--outfile`; the mise task always writes `dist/funnel-intake.exe`.
+`intake:exe` runs `scripts/build-intake.ts`, which builds the Rust crate in `tools/funnel-intake/rust` for the host platform (or `--platform`) with `cargo build --release` and injects the `package.json` version through `FUNNEL_INTAKE_VERSION`. Release Windows builds use the GUI subsystem, so no console window flashes when the hotkey fires. The script accepts `--platform=windows-x64|darwin-arm64|darwin-x64` and `--outdir`/`--outfile`.
 
-The helper is also the source of the `intake:check` task. Its pure logic is platform-independent and tested on every OS; the Windows-only files carry `//go:build windows` constraints.
+The same crate is the source of the `intake:check` task. Hotkey parsing, config, URL encoding and the simulated pipeline are platform-independent and tested on every OS; native hotkey/capture code is compiled only on its target.
 
 ## Satteri native-addon caveat
 
@@ -84,7 +86,7 @@ The addon comes from the optional package `@bruits/satteri-<suffix>`. `bun insta
 | `start` | `bun ./build/index.js` | Runs the built adapter-node server under Bun. Does not run migrations or parse CLI flags. The server cannot run under Node because the database layer uses `bun:sqlite`. |
 | `release` | `bun scripts/release.ts` | Applies pending migrations and prints `[release] <n> migration(s) applied — db=<path> migrations=<path> total=<n>`. |
 | `build:standalone` | `bun scripts/build-standalone.ts` | Compiles the executable into `dist/`. Requires `build/index.js` to exist; accepts `--target`, `--outdir`, and `--outfile`. The default target is the host and the default output directory is `dist/`. |
-| `package:release` | `bun scripts/package-release.ts --version=<version> --platform=<os>-<arch>` | Writes `release/funnel-<version>-<platform>.tar.gz` (`.zip` for Windows) plus a `<archive>.sha256`, containing the executable, `.env.example`, and on Windows the setup launcher and pinned WinSW. Windows also gets a separate `funnel-intake-<version>-windows-x64.zip` and checksum for the optional intake helper. Accepts `--bin` and `--outdir` (default `release/`). |
+| `package:release` | `bun scripts/package-release.ts --version=<version> --platform=<os>-<arch>` | Writes `release/funnel-<version>-<platform>.tar.gz` (`.zip` for Windows) plus a `<archive>.sha256`, containing the executable, `.env.example`, and on Windows the setup launcher and pinned WinSW. Windows and macOS also get a separate `funnel-intake-<version>-<platform>.zip` and checksum for the optional intake app. Accepts `--bin` and `--outdir` (default `release/`). |
 | `fetch-winsw` | `bun scripts/fetch-winsw.ts` | Downloads the pinned WinSW 2.12.0 `WinSW.NET461.exe`, verifies SHA-256, and writes `vendor/winsw/`. Required before packaging Windows. |
 | `changeset` | `changeset` | Adds a changeset for the current change. |
 | `changeset:status` | `changeset status` | Shows the pending changesets and the version bump they produce. |

@@ -1,11 +1,11 @@
 <#
 .SYNOPSIS
-  Installs (or removes) the Funnel intake hotkey helper for the current user.
+  Installs (or removes) the Funnel intake app for the current user.
 
 .DESCRIPTION
   Copies the native `funnel-intake.exe` into %LOCALAPPDATA%\Funnel\Intake,
-  writes its JSON config, and registers a Startup shortcut. The binary owns the
-  global hotkey itself, so the shortcut carries no "Shortcut key".
+  writes its JSON config, and registers a Startup shortcut. The executable owns
+  the global hotkey itself, so the shortcut carries no "Shortcut key".
 
   The installer also removes the legacy `Funnel Intake.lnk` hotkey shortcut that
   the old PowerShell helper left in the Start Menu; otherwise Windows would
@@ -22,6 +22,11 @@
     -Url https://funnel.example.com -Hotkey "Ctrl+Shift+I"
 
 .EXAMPLE
+  # open the settings window after installing
+  & "$env:LOCALAPPDATA\Funnel\Intake\funnel-intake.exe" settings
+
+.EXAMPLE
+  # remove it
   powershell -ExecutionPolicy Bypass -File scripts\install-intake.ps1 -Uninstall
 #>
 [CmdletBinding()]
@@ -125,19 +130,19 @@ if ([string]::IsNullOrWhiteSpace($Source)) {
 }
 
 $json = $config | ConvertTo-Json -Depth 6
-# Windows PowerShell's -Encoding UTF8 writes a BOM; Go's JSON decoder rejects
-# it, so write UTF-8 without one.
+# Windows PowerShell's -Encoding UTF8 writes a BOM; write plain UTF-8.
 [System.IO.File]::WriteAllText($configPath, $json, (New-Object System.Text.UTF8Encoding($false)))
 
 $shell = New-Object -ComObject WScript.Shell
 $shortcut = $shell.CreateShortcut($startupShortcut)
 $shortcut.TargetPath = $installedExe
+$shortcut.Arguments = "daemon"
 $shortcut.WorkingDirectory = $installDir
 $shortcut.Description = "Funnel intake hotkey helper"
 $shortcut.Save()
 
 if (-not $NoStart) {
-  Start-Process -FilePath $installedExe -WorkingDirectory $installDir | Out-Null
+  Start-Process -FilePath $installedExe -ArgumentList "daemon" -WorkingDirectory $installDir | Out-Null
   Start-Sleep -Milliseconds 1200
 
   $process = Get-Process -Name "funnel-intake" -ErrorAction SilentlyContinue
@@ -160,4 +165,5 @@ Write-Host "  Hotkey : $Hotkey"
 Write-Host "  URL    : $Url"
 Write-Host ""
 Write-Host "Select text in Teams/Outlook and press $Hotkey."
+Write-Host "Open the settings window with: & `"$installedExe`" settings"
 Write-Host "Remove it again with: powershell -ExecutionPolicy Bypass -File scripts\install-intake.ps1 -Uninstall"
