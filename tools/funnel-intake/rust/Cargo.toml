@@ -1,8 +1,29 @@
 [package]
-name = "funnel-intake-rust"
+name = "funnel-intake"
 version = "0.1.0"
 edition = "2024"
 publish = false
 
 [dependencies]
+base64 = "0.22"
+flate2 = "1"
 rune = { git = "https://github.com/anomalyco/rune", rev = "f3d04f3f2069d177d04c963b0ba9f6b2065e46eb" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+url = "2"
+
+[target.'cfg(any(target_os = "windows", target_os = "macos"))'.dependencies]
+global-hotkey = "0.9"
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.59", features = [
+  "Win32_Foundation",
+  "Win32_System_DataExchange",
+  "Win32_System_LibraryLoader",
+  "Win32_System_Memory",
+  "Win32_System_Registry",
+  "Win32_System_Threading",
+  "Win32_UI_Input_KeyboardAndMouse",
+  "Win32_UI_Shell",
+  "Win32_UI_WindowsAndMessaging",
+] }
