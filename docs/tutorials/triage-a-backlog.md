@@ -21,7 +21,7 @@ Open <http://localhost:5173/intake>. This page is public: it does not require a 
 
 Click **Inbox** in the sidebar.
 
-**You should see:** a **Staged** section at the top of the queue containing your submission, followed by any open GitHub issues that have no status label. The sidebar badge counts both kinds of queue entry.
+**You should see:** your submission in the queue, followed by any open GitHub issues that have no status label. The navigation badge counts both kinds of queue entry.
 
 Select the submission row.
 

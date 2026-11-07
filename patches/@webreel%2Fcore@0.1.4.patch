@@ -1,0 +1,12 @@
+diff --git a/dist/chrome.js b/dist/chrome.js
+index a28c10cdd8e1161485b78725614823c40e959f15..ae62d68559e4003a6961809e5beab3a26a969bcf 100644
+--- a/dist/chrome.js
++++ b/dist/chrome.js
+@@ -169,7 +169,6 @@ export async function launchChrome(options) {
+                 `--user-data-dir=${userDataDir}`,
+                 "--no-sandbox",
+                 "--hide-scrollbars",
+-                "--enable-begin-frame-control",
+                 "--run-all-compositor-stages-before-draw",
+                 "--disable-threaded-animation",
+                 "--disable-threaded-scrolling",

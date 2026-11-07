@@ -1,0 +1,19 @@
+{
+  "$schema": "https://webreel.dev/schema/v1.json",
+  "baseUrl": "http://127.0.0.1:5188",
+  "outDir": "assets/guide",
+  "viewport": "laptop",
+  "videos": {
+    "cockpit-tour": {
+      "url": "/inbox",
+      "waitFor": "main",
+      "fps": 30,
+      "thumbnail": { "enabled": false },
+      "steps": [
+        { "action": "pause", "ms": 1200 },
+        { "action": "click", "selector": "button[aria-label='Snooze submission Link intake submissions to existing issues']", "delay": 1500 },
+        { "action": "click", "text": "Tomorrow", "delay": 1500 }
+      ]
+    }
+  }
+}

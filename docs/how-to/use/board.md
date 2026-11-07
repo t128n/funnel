@@ -2,6 +2,8 @@
 
 This guide explains how issues are arranged on the board, how to move them, and how the Done window and WIP limits behave.
 
+![Demo board with Todo, In Progress, In Review and Done lanes](../../assets/guide/board.png)
+
 ## Stages and columns
 
 Funnel's status board has five columns: Backlog, Todo, In Progress, In Review and Done, and the board query returns all five. In the kanban surface, Backlog is rendered as a separate list rather than a lane, so the lanes you see are Todo, In Progress, In Review and Done. The **Board / Backlog** switch in the header opens the Backlog list.

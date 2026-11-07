@@ -2,6 +2,8 @@
 
 This guide explains how submissions reach the Inbox and how to accept, dismiss or duplicate them.
 
+![Demo Inbox showing staged submissions followed by GitHub issues without a status](../../assets/guide/inbox.png)
+
 ## Where submissions come from
 
 Funnel stages every external report before anything reaches GitHub. There are two entry points.
@@ -40,8 +42,6 @@ The Inbox is a single queue with two parts, always in this order:
 1. **Staged** submissions, newest first. Same-millisecond ties are broken deterministically by insertion order.
 2. **Untriaged issues** — open issues with no status label. These are ordered by derived priority (`P1` first, unprioritised last), then by most recently updated.
 
-The **Staged** group can be collapsed. The issue half can be grouped with the group-by control, like the other issue streams.
-
 Search applies to both halves: it matches a submission's title and body, and an issue's title, body and comments. The repo, status, assignee, priority, size and label filters apply only to GitHub issues; the Inbox has no state switch. Pending submissions have no repo or workflow metadata, so they remain visible unless the search term excludes them.
 
 The Inbox badge in the sidebar counts pending submissions plus untriaged open issues. A `read` user can browse the queue; only a `write` user can make a triage decision. See [roles and permissions](../../reference/roles-and-permissions.md).
@@ -49,6 +49,10 @@ The Inbox badge in the sidebar counts pending submissions plus untriaged open is
 ## Snooze an Inbox item
 
 Every Inbox row — a staged submission or an untriaged issue — has a **Snooze** control with three choices:
+
+<video controls preload="metadata" src="../../assets/guide/cockpit-tour.mp4" aria-label="Snoozing a demo submission until tomorrow"></video>
+
+[Watch or download the snooze walkthrough](../../assets/guide/cockpit-tour.mp4). The silent video shows a demo submission's **Snooze** menu opening, **Tomorrow** being selected, and the submission leaving the queue. The steps and alternatives follow below.
 
 - **Tomorrow** — 09:00 local time the next day.
 - **Next week** — 09:00 local time seven days later.
@@ -67,7 +71,7 @@ Triage clears the snooze: accepting, dismissing or duplicating a submission remo
 Writers can select several staged submissions and untriaged issues at once:
 
 - Use the checkbox on each row, press Space on a focused checkbox, or press `x` while focus is anywhere in the row.
-- The header checkbox selects every loaded row in the current window. Collapsed Staged or issue groups are still part of that window.
+- The header checkbox selects every loaded row in the current window.
 - The compact bulk bar shows how many rows are selected and splits them into issues and submissions.
 
 From the Inbox bulk bar:

@@ -9,6 +9,14 @@ node_modules
 /.svelte-kit
 /build
 /dist
+/docs/dist
+/docs/.astro
+/docs/docs/.astro
+/docs/src/content/docs
+/docs/public/assets
+/docs/public/favicon.svg
+/.webreel
+/docs/.webreel
 # Release archives assembled by scripts/package-release.ts
 /release
 

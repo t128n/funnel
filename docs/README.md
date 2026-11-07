@@ -1,5 +1,17 @@
 # Funnel documentation
 
+The published site is available at <https://t128n.github.io/funnel/>. The Markdown files in this directory remain the source of truth and can also be read on GitHub.
+
+## Working on the site
+
+From the repository root, install the runtimes pinned in `mise.toml`, run `bun install --frozen-lockfile`, then `mise run docs:dev` or `mise run docs:build`. Astro runs on Node as well as using Bun for dependency management. The build recreates the generated `docs/src/content/docs/` and `docs/public/assets/` directories from the existing Markdown and referenced assets; do not store hand-written files there. Edit the original files instead. Restart the development server after changing Markdown so the generated content is refreshed. The generated directories and `docs/dist/` are ignored by Git.
+
+The site uses the `/funnel/` base path for GitHub Pages. Pull requests build the site; pushes to `main` deploy it through `.github/workflows/docs.yml` when GitHub Pages is configured to use GitHub Actions. Check links and examples against the implementation before publishing changes. Never use real credentials, private issue data, or production databases in documentation or recordings.
+
+For a reproducible demo tour, start an isolated `bun run dev:demo` instance on port 5188 with `FUNNEL_DB`, `FUNNEL_UPLOAD_DIR`, and `FUNNEL_SECRET` explicitly set to disposable values, then run `bunx webreel validate -c docs/webreel.config.json` and `bunx webreel record -c docs/webreel.config.json cockpit-tour`. The recording is written to `docs/assets/guide/`. The tour snoozes a seeded submission, so use a fresh demo database for each recording. Demo mode inherits nonempty environment values, so check the paths before starting it; never point the recording at a production instance. Webreel requires its browser and FFmpeg dependencies. Review recordings for sensitive data before sharing them, and keep the written guides usable independently of video.
+
+The pinned webreel dependency has a small Bun patch that disables Chrome's begin-frame-control flag, which stalled frame capture in our environment. Reassess the patch when upgrading webreel. Set `FFMPEG_PATH` to a compatible FFmpeg if webreel cannot download one automatically.
+
 This index is the entry point to Funnel's documentation, which follows the four Diátaxis modes: tutorials for learning, how-to guides for doing, reference for looking up, and explanation for understanding.
 
 ## The four sections
@@ -52,6 +64,7 @@ Learning-oriented, with one path and expected results.
 - [Back up and restore](how-to/operate/backup-and-restore.md) — protect the SQLite database, uploads, and `.env` together.
 - [Upgrade Funnel](how-to/operate/upgrade.md) — replace the executable or image, apply migrations, and gate traffic on readiness.
 - [Troubleshoot](how-to/operate/troubleshoot.md) — work through startup, sync, sign-in, and upload failures.
+- [Prepare an instance for operation](how-to/operate/production-checklist.md) — review deployment, security, health and recovery before inviting users.
 
 ### Configure
 
@@ -81,6 +94,9 @@ Learning-oriented, with one path and expected results.
 - [Read issue history](how-to/use/issue-history.md) — filter an issue's activity between comments and the unified status, label, assignee and GitHub event history.
 - [Work notes and attachments](how-to/use/work-notes-and-attachments.md) — keep internal notes, publish them, and manage the file dropbox.
 - [Keyboard shortcuts](how-to/use/keyboard.md) — the global and board bindings, plus arrow-key navigation.
+- [Notifications](how-to/use/notifications.md) — follow updates and manage the notification feed.
+- [Read insights](how-to/use/insights.md) — scope and interpret the triage dashboard.
+- [Review work needing attention](how-to/use/attention.md) — review blockers, waiting work and rule breaches.
 
 ### Integrate
 

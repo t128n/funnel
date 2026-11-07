@@ -15,6 +15,7 @@
 [tools]
 bun = "1.4.3"
 go = "1.27"
+node = "24.22.0"
 
 [tasks.default]
 description = "List the available tasks"
@@ -45,6 +46,14 @@ sources = [
 ]
 outputs = ["build"]
 run = "bun run build"
+
+[tasks."docs:dev"]
+description = "Run the documentation site locally"
+run = "bun run docs:dev"
+
+[tasks."docs:build"]
+description = "Build the documentation site"
+run = "bun run docs:build"
 
 [tasks.release]
 description = "Apply pending database migrations (the release phase)"
