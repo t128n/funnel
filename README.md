@@ -58,7 +58,7 @@ Funnel is a single long-lived process that owns a SQLite database and an uploads
 | :--- | :--- | :--- |
 | Standalone executable | `mise run exe` → `dist/funnel` (or `dist\funnel.exe`) | Self-contained: Bun runtime, server, client assets, migrations, and the native Markdown addon. |
 | Desktop intake helper | `mise run intake:exe`, then `scripts\install-intake.ps1` | Optional per-user Windows helper: a global hotkey opens a prefilled `/intake` draft for the current selection. See [`scripts/README.md`](scripts/README.md). |
-| Native install | Release archive, then `./funnel setup` (Windows: `setup.cmd`) | Cross-platform wizard; installs a systemd, launchd, or WinSW service, or runs a portable process. |
+| Native install | Release archive, then `./funnel setup` (Windows: `START-HERE.cmd`) | Cross-platform wizard; installs a systemd, launchd, or WinSW service, or runs a portable process. |
 | Adapter-node build | `bun run build`, then `bun run release` and `bun run start` | `bun ./build/index.js`; still a long-lived process. Run the release step against the same `FUNNEL_DB` first — this path does not migrate on boot. |
 
 On Linux, `packaging/systemd/` adds a checked-in system unit, an environment
