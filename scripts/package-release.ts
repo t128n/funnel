@@ -1,15 +1,14 @@
 /**
- * Assemble one platform's GitHub release archive.
+ * Assemble one platform's GitHub release archives.
  *
  * Usage:
  *   bun scripts/package-release.ts --version=0.0.1 --platform=linux-x64
  *                                   [--bin=dist/funnel] [--outdir=release]
  *
- * The archive contains the self-contained `funnel` executable. The Windows
- * archive also contains the optional intake hotkey helper and the PowerShell
- * installers, so a release download is enough to install either delivery path.
+ * The server archive contains the self-contained `funnel` executable. Windows
+ * also gets a separate archive for the optional per-user intake hotkey helper.
  *
- * Each run writes `<archive>` and `<archive>.sha256`; the release workflow
+ * Each archive has a corresponding `.sha256`; the release workflow
  * merges the per-platform checksum files into a single `SHA256SUMS.txt`.
  */
 import {
@@ -86,19 +85,8 @@ if (!isWindows) chmodSync(join(stageDir, binaryName), 0o755);
 stageFile(".env.example", ".env.example");
 
 if (isWindows) {
-  const intakePath = join(projectRoot, "dist", "funnel-intake.exe");
-  if (!existsSync(intakePath)) {
-    fail(
-      "dist/funnel-intake.exe is missing; run `bun scripts/build-intake.ts` " +
-        "before packaging the Windows archive.",
-    );
-  }
-  copyFileSync(intakePath, join(stageDir, "funnel-intake.exe"));
-
-  // `funnel.exe setup` owns service configuration. WinSW is shipped as a
-  // sibling so the installer can materialize it without a runtime download.
-  stageFile("packaging/windows/setup.cmd", "setup.cmd");
-  stageFile("scripts/install-intake.ps1", "install-intake.ps1");
+  // WinSW must remain a sibling of funnel.exe for service installation.
+  stageFile("packaging/windows/setup.cmd", "START-HERE.cmd");
 
   const winsw = join(projectRoot, "vendor", "winsw", "WinSW.NET461.exe");
   if (existsSync(winsw)) {
@@ -125,7 +113,7 @@ Node.js, or container runtime is required.
 
 Guided setup (recommended):
 
-  Double-click setup.cmd, or run:
+  Double-click START-HERE.cmd, or run:
   .\\funnel.exe setup
 
 The wizard creates the config from .env.example, lets you choose the Windows
@@ -154,11 +142,8 @@ The setup command installs the WinSW service, creates the config from
 .env.example with a generated FUNNEL_SECRET, and preserves an existing secret.
 Uninstall keeps data and configuration unless you add --purge.
 
-Optional intake hotkey helper (per user, no elevation):
-
-  powershell -ExecutionPolicy Bypass -File .\\install-intake.ps1 -Url http://localhost:3000
-
-Then select text in Teams, Outlook, or a browser and press Ctrl+Alt+I.
+The optional per-user intake hotkey helper is a separate download:
+funnel-intake-${version}-${platform}.zip.
 
 Health probes: /healthz (liveness) and /readyz (readiness).
 Apply migrations without starting the server: .\\funnel.exe --migrate
@@ -201,40 +186,65 @@ function psLiteral(value: string): string {
   return `'${value.replaceAll("'", "''")}'`;
 }
 
-// Packaging runs natively on each platform: gzipped tar on macOS/Linux and
-// Compress-Archive on Windows. Both archives contain the same top-level folder.
-const archive = isWindows
-  ? Bun.spawnSync({
-      cmd: [
-        "powershell",
-        "-NoProfile",
-        "-NonInteractive",
-        "-Command",
-        `Compress-Archive -LiteralPath ${psLiteral(stageDir)} -DestinationPath ${psLiteral(archivePath)} -Force`,
-      ],
-      stdout: "inherit",
-      stderr: "inherit",
-    })
-  : Bun.spawnSync({
-      cmd: ["tar", "-czf", archivePath, "-C", stageRoot, archiveName],
-      stdout: "inherit",
-      stderr: "inherit",
-    });
+// Packaging runs natively: gzipped tar on macOS/Linux and ZIP on Windows.
+function packageArchive(name: string, dir: string, extension: string): void {
+  const path = join(outDir, `${name}.${extension}`);
+  rmSync(path, { force: true });
+  const archive = isWindows
+    ? Bun.spawnSync({
+        cmd: [
+          "powershell", "-NoProfile", "-NonInteractive", "-Command",
+          `Compress-Archive -LiteralPath ${psLiteral(dir)} -DestinationPath ${psLiteral(path)} -Force`,
+        ],
+        stdout: "inherit",
+        stderr: "inherit",
+      })
+    : Bun.spawnSync({
+        cmd: ["tar", "-czf", path, "-C", stageRoot, name],
+        stdout: "inherit",
+        stderr: "inherit",
+      });
 
-if ((archive.exitCode ?? 1) !== 0) {
-  fail(`archive command failed with exit code ${archive.exitCode}`);
+  if ((archive.exitCode ?? 1) !== 0) {
+    fail(`archive command failed with exit code ${archive.exitCode}`);
+  }
+
+  const digest = new Bun.CryptoHasher("sha256").update(readFileSync(path)).digest("hex");
+  writeFileSync(`${path}.sha256`, `${digest}  ${basename(path)}\n`);
+  console.log(`[package] ${path} (${(statSync(path).size / 1024 / 1024).toFixed(1)} MiB)`);
+  console.log(`[package] sha256 ${digest}`);
 }
 
-const bytes = readFileSync(archivePath);
-const digest = new Bun.CryptoHasher("sha256").update(bytes).digest("hex");
-writeFileSync(
-  `${archivePath}.sha256`,
-  `${digest}  ${basename(archivePath)}\n`,
-);
+packageArchive(archiveName, stageDir, archiveExtension);
+
+if (isWindows) {
+  const intakePath = join(projectRoot, "dist", "funnel-intake.exe");
+  if (!existsSync(intakePath)) {
+    fail("dist/funnel-intake.exe is missing; run `bun scripts/build-intake.ts` before packaging the Windows archives.");
+  }
+  const intakeName = `funnel-intake-${version}-${platform}`;
+  const intakeDir = join(stageRoot, intakeName);
+  mkdirSync(intakeDir, { recursive: true });
+  copyFileSync(intakePath, join(intakeDir, "funnel-intake.exe"));
+  copyFileSync(join(projectRoot, "scripts", "install-intake.ps1"), join(intakeDir, "install-intake.ps1"));
+  if (existsSync(notices)) copyFileSync(notices, join(intakeDir, "THIRD_PARTY_NOTICES.md"));
+  writeFileSync(join(intakeDir, "README.txt"), `Funnel Intake ${version}
+====================
+
+Optional per-user Windows hotkey helper. Requires a reachable Funnel server.
+Extract this archive, open PowerShell in this folder, and run:
+
+  powershell -ExecutionPolicy Bypass -File .\\install-intake.ps1 -Url http://localhost:3000
+
+Replace the URL with your Funnel server address. No administrator rights are needed.
+Select text in Teams, Outlook, or a browser and press Ctrl+Alt+I to open an intake draft.
+
+To uninstall, run:
+  powershell -ExecutionPolicy Bypass -File .\\install-intake.ps1 -Uninstall
+
+Documentation: https://github.com/t128n/funnel/blob/main/docs/how-to/integrate/windows-intake-hotkey.md
+`);
+  packageArchive(intakeName, intakeDir, "zip");
+}
 
 rmSync(stageRoot, { recursive: true, force: true });
-
-console.log(
-  `[package] ${archivePath} (${(statSync(archivePath).size / 1024 / 1024).toFixed(1)} MiB)`,
-);
-console.log(`[package] sha256 ${digest}`);

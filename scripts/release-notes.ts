@@ -75,11 +75,13 @@ ${entry}
 | Linux arm64 (glibc) | \`funnel-${version}-linux-arm64.tar.gz\` |
 | macOS Apple silicon | \`funnel-${version}-darwin-arm64.tar.gz\` |
 | macOS Intel | \`funnel-${version}-darwin-x64.tar.gz\` |
-| Windows x64 | \`funnel-${version}-windows-x64.zip\` |
+| Windows x64 server | \`funnel-${version}-windows-x64.zip\` |
+| Windows x64 optional intake hotkey | \`funnel-intake-${version}-windows-x64.zip\` |
 
 Each Linux and macOS archive contains the self-contained \`funnel\` executable
-and \`.env.example\`. The Windows archive also contains \`funnel-intake.exe\` and
-the PowerShell service and intake installers. The executable embeds Bun, the
+and \`.env.example\`. The Windows server archive includes the setup launcher and
+service wrapper. The optional intake download installs a per-user hotkey helper;
+it requires a reachable Funnel server. The server executable embeds Bun, the
 server, client assets, the native Markdown addon, and the database migrations.
 ${preReleaseNote}
 ## Verify
@@ -94,10 +96,11 @@ Linux and macOS: extract the archive and run \`./funnel setup\`. The wizard
 creates the config from \`.env.example\`, generates \`FUNNEL_SECRET\`, installs a
 systemd or launchd service (or runs a portable process), and opens onboarding.
 
-Windows: extract the archive and double-click \`setup.cmd\` (or run
+Windows: extract the archive and double-click \`START-HERE.cmd\` (or run
 \`.\\funnel.exe setup\`). The wizard creates the config, installs the Windows
 service or starts a portable copy, and opens onboarding. The executable
-remains available for manual \`funnel\` runs.
+remains available for manual \`funnel\` runs. For the optional hotkey helper,
+download the separate intake archive and follow its README.
 
 See the [getting started guide](https://github.com/t128n/funnel/blob/main/docs/tutorials/getting-started.md)
 for the GitHub App onboarding flow and the [deployment guides](https://github.com/t128n/funnel/blob/main/docs/README.md#how-to-guides)

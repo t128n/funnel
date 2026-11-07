@@ -12,6 +12,14 @@ The helper is a small resident Go executable (`funnel-intake.exe`). It registers
 
 ## Install
 
+Download and extract `funnel-intake-<version>-windows-x64.zip` from the GitHub release. Open PowerShell in the extracted folder and run:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\install-intake.ps1 -Url http://localhost:3000
+```
+
+Replace the URL with your Funnel server address. Alternatively, build and install from a checkout:
+
 ```powershell
 mise run intake:exe
 powershell -ExecutionPolicy Bypass -File scripts\install-intake.ps1
@@ -19,16 +27,16 @@ powershell -ExecutionPolicy Bypass -File scripts\install-intake.ps1
 
 The installer:
 
-1. Copies `dist\funnel-intake.exe` to `%LOCALAPPDATA%\Funnel\Intake\funnel-intake.exe`.
+1. Copies the bundled or built `funnel-intake.exe` to `%LOCALAPPDATA%\Funnel\Intake\funnel-intake.exe`.
 2. Writes `%LOCALAPPDATA%\Funnel\Intake\config.json` (default `http://localhost:3000`, `Ctrl+Alt+I`).
 3. Creates `…\Startup\Funnel Intake.lnk` so the helper starts at login.
 4. Removes the legacy `Funnel Intake.lnk` from the Start Menu or Desktop. That shortcut owned `Ctrl+Alt+I`; leaving it in place makes Windows refuse to register the new hotkey.
 5. Starts the helper (unless `-NoStart` is passed).
 
-Point it at a different instance or hotkey, then verify the process is running:
+From the extracted release folder, point it at a different instance or hotkey, then verify the process is running:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File scripts\install-intake.ps1 `
+powershell -ExecutionPolicy Bypass -File .\install-intake.ps1 `
   -Url https://funnel.example.com -Hotkey "Ctrl+Shift+I"
 
 Get-Process funnel-intake
@@ -39,12 +47,12 @@ Get-Process funnel-intake
 | `-Url` | `http://localhost:3000` | Funnel base URL; the helper appends `/intake`. |
 | `-Hotkey` | `Ctrl+Alt+I` | Any combo supported by the parser (at least one modifier). |
 | `-Source` | auto-detect | Fixed source label; disables foreground-app detection. |
-| `-ExePath` | `dist\funnel-intake.exe` | Binary to install. |
+| `-ExePath` | `funnel-intake.exe` beside the script, or `dist\funnel-intake.exe` in a checkout | Binary to install. |
 | `-NoStart` | off | Install without launching the helper. |
 | `-KeepConfig` | off | With `-Uninstall`, keep `config.json` and the log. |
 | `-Uninstall` | — | Stop the helper and remove the shortcut and install directory. |
 
-The equivalent mise tasks are `mise run intake:install` and `mise run intake:uninstall`.
+In a checkout, use `scripts\install-intake.ps1` instead, or the equivalent mise tasks `mise run intake:install` and `mise run intake:uninstall`.
 
 ## Use
 
@@ -111,9 +119,13 @@ Known limitations: only plain-text clipboard contents are restored (images and f
 
 ## Uninstall
 
+From the extracted release folder, run:
+
 ```powershell
-powershell -ExecutionPolicy Bypass -File scripts\install-intake.ps1 -Uninstall
+powershell -ExecutionPolicy Bypass -File .\install-intake.ps1 -Uninstall
 ```
+
+In a checkout, use `scripts\install-intake.ps1` instead.
 
 Stops the helper, removes the Startup shortcut, and deletes the install directory. Pass `-KeepConfig` to keep `config.json` and the log.
 
