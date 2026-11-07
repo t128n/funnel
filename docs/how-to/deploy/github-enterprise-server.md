@@ -63,9 +63,9 @@ Open `https://funnel.acme.com/`; the first-run gate sends you to `/onboarding`.
 3. Enter an App name. It must be unique on the GHES host. The suggested name is derived from the Funnel hostname.
 4. Select **Create GitHub App**. The browser posts the manifest to `https://acme.ghe.com/settings/apps/new` or `https://acme.ghe.com/organizations/<org>/settings/apps/new`, and GitHub shows a pre-filled registration page.
 5. Confirm the App on GHES. The manifest requests Issues write, Metadata read, Contents read, Pull requests read and Checks read. It registers no hook and subscribes to no events.
-6. GHES redirects back to `/onboarding/callback`, where Funnel exchanges the one-time code and stores the credentials encrypted in the database, together with the GHES host. **Result:** Funnel displays **Install the app**.
-7. On the installation page, install the App on the organisation or account that owns the repositories. Choose all repositories or the specific ones you intend to mirror. Creating an App grants no repository access until it is installed. **Result:** Funnel returns to **Choose repositories**.
-8. Back in Funnel, select the repositories to configure and save. You are sent to `/login`; sign in with GitHub. Funnel uses the GHES OAuth endpoints stored during onboarding. **Result:** the cockpit opens and the first account is an administrator. Continue with the checks below.
+6. GHES redirects back to `/onboarding/callback`, where Funnel exchanges the one-time code and stores the credentials encrypted in the database, together with the GHES host. **Result:** Funnel displays **Install the GitHub App**.
+7. On the installation page, install the App on the organisation or account that owns the repositories. Choose all repositories or the specific ones you intend to mirror. Creating an App grants no repository access until it is installed. **Result:** Funnel returns to **Funnel Is Ready**.
+8. Back in Funnel, select the repositories in the **Repositories** section and select **Save and Continue**. You are sent to `/login`; sign in with GitHub. Funnel uses the GHES OAuth endpoints stored during onboarding. **Result:** the cockpit opens and the first account is an administrator. Continue with the checks below.
 
 ## 4. Verify
 

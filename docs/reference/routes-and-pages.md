@@ -211,7 +211,7 @@ API routes are not under the `(app)` layout and enforce their own guards. Detail
 | `/onboarding/manifest` | Hand the manifest to GitHub. | Onboarding access |
 | `/onboarding/callback` | Exchange the manifest code. | Onboarding access |
 | `/onboarding/install` | Install the App. | Onboarding access |
-| `/onboarding/installed` | Choose repositories. | Onboarding access |
+| `/onboarding/installed` | Funnel Is Ready: choose repositories. | Onboarding access |
 | `/healthz` | Liveness. | None |
 | `/readyz` | Readiness. | None |
 | `/inbox` | Submissions and untriaged issues. | `read` |
