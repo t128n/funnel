@@ -2,6 +2,8 @@
 
 This guide shows you how to read an issue's activity history, separate it from the public comment thread, and understand why a change does or does not appear.
 
+Sign in with at least the `read` role and open a mirrored issue. Reading or filtering its history does not require write access.
+
 ## What the Activity section shows
 
 The **Activity** section of an issue merges three kinds of entry in chronological order:
@@ -46,3 +48,7 @@ GitHub timeline history is imported for the same window as the issue mirror, set
 - A comment is shown once as a comment, not again in history.
 
 If history stays empty for an issue you know changed, confirm that sync is healthy under **Settings → Sync**, then let one poll or a manual sync complete.
+
+## Next
+
+[Comment on the issue](comments.md) to continue the public conversation, or [review work needing attention](attention.md).

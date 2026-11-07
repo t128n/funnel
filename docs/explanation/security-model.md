@@ -111,7 +111,7 @@ Being explicit about the gaps is part of the model:
 The model optimises for a self-hosted, single-organisation deployment and accepts several explicit compromises:
 
 - **Delegating to GitHub keeps Funnel simple.** Using the user's token means GitHub enforces repository permissions natively and Funnel never invents its own per-repo ACL. The cost is that Funnel's read side is coarser than its write side.
-- **Open CORS plus open intake is convenient and blunt.** It makes browser-based reporting from any origin trivial, at the price of relying entirely on network placement — no application-layer defence in depth for the public surface.
+- **Open CORS plus open intake is convenient and blunt.** It makes browser-based reporting from any origin possible; rate limiting and the honeypot reduce some abuse but do not replace network placement as the access boundary.
 - **One secret, two ciphers.** A single `FUNNEL_SECRET` underlies both AES-256-GCM (App secrets) and Better Auth's XChaCha20-Poly1305 (OAuth tokens). One thing to protect, and one thing whose loss is catastrophic.
 - **Encryption at rest only.** Secrets are protected against a stolen database file, not against a compromised process or host; the token is decrypted for every write.
 - **No indexing, not no exposure.** `noindex` keeps Funnel out of search engines; it does nothing to stop someone who knows the URL. It is a default-private posture, not an access control.

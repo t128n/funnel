@@ -4,6 +4,10 @@ Set how much closed-issue history Funnel keeps and how often it polls GitHub for
 
 Only an administrator can open **Settings → Sync**; other roles receive a 403 on a direct URL, and the save action checks the role again server-side.
 
+## Before you start
+
+Sign in as an administrator and [configure at least one repository](repositories.md) to observe sync health or run a useful manual sync.
+
 ## Fields
 
 - **History window (days)** — how far back closed issues are mirrored. Open issues are always included. Default `90`.
@@ -34,9 +38,13 @@ The request waits for the cycle to finish before it returns. On a large first ba
 
 ## Steps
 
-1. Open **Settings → Sync**.
-2. Adjust the history window and the two poll intervals.
-3. Select **Save changes**.
+1. Open **Settings → Sync** to see the current settings and repository health.
+2. Adjust the history window and the two poll intervals to the desired values.
+3. Select **Save changes**. The scheduler re-reads the settings without a restart; check the health table after a poll or select **Sync now**.
+
+## Troubleshooting
+
+If a repository is degraded, inspect the server log for `repo poll failed` and check the App's repository access. If a repository is awaiting its first sync, check its configuration and installation; see [Add or remove repositories](repositories.md). Empty or negative settings fail validation.
 
 ## How the worker schedules polls
 
@@ -87,7 +95,7 @@ The timer re-arms itself after each run.
 - The cost scales with the number of repositories and the poll interval: with the active interval at 30 seconds, each repository is checked every 30 seconds.
 - Changes cost GraphQL queries, one per 100 issues. A newly added repository may hydrate a large backfill on its first cycle.
 - Reconciliation is heavier because it lists and hydrates the full window for every repository; it is deliberately scheduled outside working hours.
-- Reserved-label writes are expected to be throttled by the GitHub client to roughly one write per second, so a repository missing many labels converges over several seconds.
+- Reserved-label provisioning makes additional GitHub writes for missing or changed labels; a converged repository needs none.
 - Avoid setting an interval to `0`: it is accepted, but effectively means “every scheduler tick” (about five seconds), which multiplies requests for every configured repository.
 
 ## After saving
@@ -100,5 +108,6 @@ Session idle days is the exception: `session.idle_days` is captured when the Bet
 
 - [Add or remove repositories](repositories.md)
 - [Configure the board](board.md)
+- [Use the board](../use/board.md)
 - [Settings reference](../../reference/settings.md)
 - [Roles and permissions](../../reference/roles-and-permissions.md)

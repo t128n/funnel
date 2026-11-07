@@ -71,6 +71,7 @@ A breach that persists across days may notify again the next UTC day; the dedupe
 
 ## Related
 
+- [Use Attention](../how-to/use/attention.md)
 - [Settings](./settings.md)
 - [Routes and pages](./routes-and-pages.md)
 - [Insights](./insights.md)

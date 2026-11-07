@@ -156,6 +156,8 @@ It reads `FUNNEL_URL`, `FUNNEL_HOTKEY`, and `FUNNEL_SOURCE`, logs to `%LOCALAPPD
 ## Related
 
 - [Environment variables](./environment-variables.md)
+- [Install Funnel](../how-to/deploy/install.md)
+- [Upgrade Funnel](../how-to/operate/upgrade.md)
 - [Build tasks](./build-tasks.md)
 - [Settings](./settings.md)
 - [Roles and permissions](./roles-and-permissions.md)

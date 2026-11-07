@@ -1,6 +1,6 @@
 # Plan and track a week
 
-In this tutorial we will configure estimates and net capacity, commit an issue to a week, block an issue, and read the epic rollup. Everything happens in Funnel; nothing is written to GitHub except the `epic` label and the issue body metadata.
+In this tutorial you will configure estimates and net capacity, commit an issue to a week, block an issue, and read the epic rollup. Planning is stored in Funnel. Blocking also posts a GitHub comment and changes the issue body and label; epic membership changes the body and marking an epic changes its label.
 
 The screenshots use a small demo instance with three maintainers and a handful of issues. Your names and numbers will differ.
 
@@ -10,7 +10,9 @@ You need:
 
 - an admin account, to configure estimates and maintainers;
 - at least one configured repository with mirrored issues;
-- a `write` account, to plan issues, block them and edit epics.
+- a `write` account, to plan issues, block them and edit epics;
+- a GitHub user token with permission to edit the issues, for blocking and epic changes;
+- an open issue with a size label and an assignee who is an active configured maintainer, plus another eligible open issue for the epic.
 
 If the planner is already configured, skip to [step 3](#3-open-the-week).
 
@@ -30,6 +32,8 @@ Notice the hint under the roster. Keep the roster to people who are actually ass
 
 Select **Save changes**. Funnel validates the values and broadcasts a settings event, so open planners pick up the new map without a restart.
 
+**You should see:** the saved maintainer roster and estimate values. If validation fails, correct the indicated values and save again.
+
 ## 3. Open the week
 
 Open **Plan** in the navigation bar. The page opens on the current week.
@@ -44,6 +48,8 @@ Use **Previous week** and **Next week** beside the heading to move through weeks
 
 Open an issue from **Issues**, then set **Planned** in its **Properties** panel to **This week** (or another nearby week).
 
+**You should see:** the selected week in the picker and the issue in that week's scheduled-issues table, with capacity updated.
+
 If the issue would push a maintainer over the 60% cap, Funnel rejects the write with a message naming the maintainer, the cap and the excess. Move the issue to another week or unschedule something first. The picker explains the other blockers: a closed issue, an issue without a size, or an issue with no active maintainer assignee.
 
 Notice that planning changes only the commitment. The issue keeps its GitHub assignees, size and milestone.
@@ -56,6 +62,8 @@ With the issue open, choose **Block issue** in **Properties**. Choose a structur
 
 Blocking opens an automatic delay. The delay row is read-only because it follows the `blocked` flag; unblocking closes it. A manual delay is for waits that are not represented by that flag.
 
+**You should see:** the blocked indicator and a delay in the issue Inspector. If the action fails, inspect the error and follow the recovery guidance in [Close, reopen and block issues](../how-to/use/close-reopen-block.md#block-an-issue).
+
 The time card shows estimate, actual time, delay and variance. Actual time counts both `in-progress` and `in-review`.
 
 ## 6. Create an epic and add children
@@ -66,14 +74,14 @@ Open **Epics** from the navigation menu.
 
 ![The epics list with progress, estimate, actual and delay rollups](../assets/screenshots/epics-list.png)
 
-Select the epic, then **Add child** and choose open issues. The children are recorded in the epic issue's `funnel_metadata`:
+Select the epic, then **Add child**, choose an eligible open issue, and confirm **Add child**. Repeat for other children. If no issue is available, create one or remove it from another epic first. The children are recorded in the epic issue's `funnel_metadata`:
 
 ```yaml
 epic:
   children: "acme/widgets#1,acme/widgets#2,acme/widgets#3"
 ```
 
-The epic page resolves the children and sums their estimate, actual and delay time.
+**You should see:** the child in the epic's table. The epic page resolves the children and sums their estimate, actual and delay time. If the write fails, the dialog shows the error; correct it and retry.
 
 ![The epic detail page with rollup cards and the child table](../assets/screenshots/epic-detail.png)
 
@@ -90,4 +98,3 @@ From here:
 - [Track time and delays](../how-to/use/track-time-and-delays.md) for the delay rules.
 - [Manage epics](../how-to/use/epics.md) for the child-list workflow.
 - [Planning and time reference](../reference/planning-and-time.md) for exact values and contracts.
-- [Why planning and actuals work this way](../explanation/planning-and-actuals.md) for the design trade-offs.

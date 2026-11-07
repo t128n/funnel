@@ -4,13 +4,17 @@ Turn GitHub labels into named project sections in the Issues and Inbox feeds.
 
 Only an administrator can open **Settings → Projects**; other roles receive a 403 on a direct URL, and the save action checks the role again server-side.
 
+## Before you start
+
+Sign in as an administrator. Have a configured repository with GitHub labels applied to issues you want grouped; Funnel does not create those labels.
+
 ## Add a project
 
-1. Open **Settings → Projects**.
-2. Select **Add project**.
+1. Open **Settings → Projects** to see the current mappings.
+2. Select **Add project** to create a mapping row.
 3. Enter the exact GitHub label that marks membership, for example `project1`.
 4. Optionally enter a display name, for example `Project One`. Leave it blank to use the label itself.
-5. Repeat for further projects and select **Save changes**.
+5. Repeat for further projects and select **Save changes**. In Issues or Inbox, group by **Project** to check the resulting sections.
 
 Removing a row and saving deletes the mapping. It does not remove the label from GitHub or change any issue.
 
@@ -31,6 +35,8 @@ The mapping is available in the **Issues** and **Inbox** feeds. It does not chan
 - The display name is optional and is trimmed. An empty name means “use the label”.
 - Duplicate labels are ignored case-insensitively: the first configuration wins and the save still succeeds. Duplicates are not reported as errors.
 
+If a section is empty, check that the label is applied to mirrored issues. If **Project** is missing from group-by, save at least one mapping.
+
 ## After saving
 
 Funnel writes the mapping into the instance settings and broadcasts a `settings` event, so open feeds re-group without a reload or restart. Changing only a display name changes the section headings; changing a label changes which issues are grouped.
@@ -39,6 +45,7 @@ Funnel writes the mapping into the instance settings and broadcasts a `settings`
 
 - [Add or remove repositories](repositories.md)
 - [Configure the board](board.md)
+- [Create and edit issues](../use/create-and-edit-issues.md)
 - [Settings reference](../../reference/settings.md)
 - [Reserved labels](../../reference/reserved-labels.md)
 - [Roles and permissions](../../reference/roles-and-permissions.md)

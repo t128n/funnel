@@ -64,6 +64,8 @@ A row that is absent, cannot be parsed as JSON, or fails its key schema is logge
 ## Related
 
 - [Environment variables](./environment-variables.md)
+- [Configure repositories](../how-to/configure/repositories.md)
+- [Configure sync](../how-to/configure/sync.md)
 - [Reserved labels](./reserved-labels.md)
 - [Roles and permissions](./roles-and-permissions.md)
 - [Build tasks](./build-tasks.md)

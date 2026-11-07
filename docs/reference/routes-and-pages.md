@@ -134,11 +134,11 @@ The submission detail route defines three SvelteKit form actions:
 
 | Action | Effect | Token |
 | :--- | :--- | :--- |
-| `accept` | Creates a GitHub issue in the selected repo (or `intake.default_repo`), with the default `backlog` status and a provenance footer, then deletes the staged row. | Signed-in user's GitHub token. |
-| `dismiss` | Hard-deletes the staged row without contacting GitHub. | None; a `write` session is sufficient. |
-| `duplicate` | Posts the submission text as a comment on a mirrored issue, then deletes the staged row. | Signed-in user's GitHub token. |
+| `accept` | Creates a GitHub issue in the selected repo (or `intake.default_repo`), with the default `backlog` status and a provenance footer, then archives the staged row. | Signed-in user's GitHub token. |
+| `dismiss` | Archives the staged row with a required reason without contacting GitHub. | None; a `write` session is sufficient. |
+| `duplicate` | Posts the submission text as a comment on a mirrored issue, then archives the staged row. | Signed-in user's GitHub token. |
 
-All three require `write`. Accept and duplicate fail with `401` when no user token can be resolved; missing or invalid form fields return `400`; a missing submission or mirror target returns `404`; GitHub failures use the mutation layer's status.
+All three require `write` and record a triage event. Accept and duplicate archive only after GitHub confirms the write. The latest dismissal can be undone, restoring the pending submission and appending an event. Accept and duplicate fail with `401` when no user token can be resolved; missing or invalid form fields return `400`; a missing submission or mirror target returns `404`; GitHub failures use the mutation layer's status. See [Triage intake](../how-to/use/triage-intake.md).
 
 ### Settings actions
 

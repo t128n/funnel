@@ -41,7 +41,7 @@ Add children from the epic page, not from the child issue:
 2. Select the epic, or open `/epics/{owner}/{repo}/{number}`.
 3. Choose **Add child**.
 4. Search the open issues that are not already in another epic.
-5. Select one. Funnel sends the complete ordered list, so the new child joins the existing ones.
+5. Select one and confirm **Add child**. The child appears in the table; Funnel sends the complete ordered list, so it joins the existing children. If the dialog reports a failure, correct the error and retry. If no candidate is available, create an issue or remove it from another epic first.
 
 Remove a child from the epic page's child table. Removal sends the list without that issue, which edits the epic body. The child itself is unchanged; only its membership is removed.
 

@@ -4,6 +4,10 @@ Turn optional cockpit surfaces on or off in your own browser without changing an
 
 **Settings → Features** is a personal section: every signed-in role (`read`, `write`, and `admin`) can open it. Changes affect only the browser that made them; an administrator toggling a flag here does not change the instance default for other people.
 
+## Before you start
+
+Sign in to Funnel in the browser where you want the override. Changing the deployment default additionally requires access to the server environment.
+
 ## How the value is resolved
 
 For each flag, the effective value is:
@@ -23,9 +27,13 @@ These flags control visibility, not access control. Server-side role checks and 
 
 ## Steps
 
-1. Open **Settings → Features**.
+1. Open **Settings → Features**. The toggles show the effective values for this browser.
 2. Toggle the flag. There is no Save button; the choice is written to the cookie immediately and the server re-evaluates it.
 3. Reload another open tab if it was rendered before the change.
+
+## Troubleshooting
+
+If another browser does not reflect the change, set its override separately. If an override does not persist, check whether the browser allows site cookies; clearing site data also removes the override.
 
 ## Change the instance default for comments
 
@@ -42,6 +50,7 @@ The cookie is written with a one-year lifetime for the site, then the layout dat
 ## Related
 
 - [Feature flags reference](../../reference/feature-flags.md)
+- [Use work notes and attachments](../use/work-notes-and-attachments.md)
 - [Settings reference](../../reference/settings.md)
 - [Roles and permissions](../../reference/roles-and-permissions.md)
 - [Onboard the GitHub App](onboard-github-app.md)

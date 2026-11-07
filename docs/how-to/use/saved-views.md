@@ -2,6 +2,8 @@
 
 This guide shows you how to save the current Issues or Inbox filters as a named view, share it with the instance, and manage it later.
 
+Sign in and open **Issues** or **Inbox**. Opening views requires `read`; creating or managing them requires `write` or `admin` and the permissions described below.
+
 ## Save the current view
 
 1. On `/issues` or `/inbox`, set the filters, search, sort and grouping you want to keep.
@@ -10,6 +12,8 @@ This guide shows you how to save the current Issues or Inbox filters as a named 
 4. Select **Save view**.
 
 The view remembers the current query string, sort direction and grouping. The URL is still the live source of truth: after you save, changing a filter affects only the current page until you save or refresh a view again.
+
+Open **Views** again to find the saved preset. If save controls are missing, check your role; if a shared view cannot be edited, ask its owner or an administrator.
 
 ## Open a view
 
@@ -48,3 +52,5 @@ Open **Views → Manage**. You see controls only for views you may manage.
 - [Routes and pages](../../reference/routes-and-pages.md)
 - [HTTP API](../../reference/http-api.md)
 - [Database schema](../../reference/database-schema.md)
+- [Triage intake submissions](triage-intake.md)
+- [Create and edit issues](create-and-edit-issues.md)

@@ -2,6 +2,8 @@
 
 This guide explains how issues are arranged on the board, how to move them, and how the Done window and WIP limits behave.
 
+Sign in and open **Board**. A `read` account can browse; moving issues requires `write` or `admin` and a GitHub token with permission to edit them.
+
 ![Demo board with Todo, In Progress, In Review and Done lanes](../../assets/guide/board.png)
 
 ## Stages and columns
@@ -92,3 +94,5 @@ The keyboard icon in the board header opens a shortcut legend listing **New issu
 - [Roles and permissions](../../reference/roles-and-permissions.md)
 - [Close, reopen and block issues](close-reopen-block.md)
 - [Keyboard shortcuts](keyboard.md)
+- [Review work needing attention](attention.md)
+- [Plan a week](plan-work.md)

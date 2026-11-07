@@ -4,6 +4,8 @@ Funnel observes how long issues actually spend in flight and why work waits. Thi
 
 Actual time and delays are Funnel-owned: they are never written to GitHub. Every signed-in user can read them; recording or editing a delay requires the `write` role.
 
+Open a mirrored issue in the Inspector. Blocking an issue also requires permission to make the corresponding GitHub changes; manual delays do not.
+
 ## Where actual time comes from
 
 Funnel keeps a durable event log of the workflow transitions it observes during sync: status changes, open/closed changes and blocked-flag changes. Actual time is the union of intervals where an issue is **open** and its status is `in-progress` or `in-review`.
@@ -61,9 +63,11 @@ Manual delays cover waits that are not represented by the `blocked` flag. They a
 2. In the delay list, select **Record delay**.
 3. Choose a **Reason** from the table above.
 4. Optionally adjust the start and end times and add a note.
-5. Save.
+5. Select **Record delay**.
 
-A manual delay left open keeps accruing until you close it. Use the row's controls to close or edit it, or delete it. Only manual rows can be edited or deleted; blocked rows are automatic.
+The dialog closes and the new **Manual** row appears in **Delays**. If the button is disabled, choose a reason and a valid start time, and ensure the end is not before the start. If a request fails, correct the displayed error or check the connection and retry.
+
+A manual delay left open keeps accruing until you select **Close** on its row. You can also select **Delete** to remove a manual row. The Inspector does not offer editing an existing row; manual delays can be edited through the API. Blocked rows are automatic and cannot be changed through these controls. A successful close shows an end time; a successful delete removes the row. If either action fails, check the displayed error and retry.
 
 A manual delay may overlap a blocked delay. Total delay time is the union of the intervals, so the overlapping minutes are counted once.
 
@@ -86,3 +90,4 @@ A successful write publishes an `issues` event so open Inspectors refresh.
 - [HTTP API](../../reference/http-api.md#epics-and-delays) — the delay endpoints.
 - [The workflow model](../../explanation/workflow-model.md#actual-time-is-observed-not-reconstructed) — where this sits next to labels.
 - [Glossary](../../reference/glossary.md) — actual time and delay.
+- [Review work needing attention](attention.md) — follow up on blocked or waiting issues.

@@ -54,6 +54,8 @@ The comment composer autocompletes `@logins` from the repository's assignable us
 
 The inserted text is the plain `@login` token. Funnel preserves mention text when rendering Markdown; it does not rewrite it into a link, so the comment matches what GitHub receives. The same autocomplete is available for internal work notes.
 
+To notify someone in the public conversation, keep **Comment** selected and submit the draft. The comment appears in **Activity** after a successful write. If a suggestion is missing, you can type the login directly; if posting fails, check the inline error and your GitHub permissions before retrying.
+
 Typing an email address such as `me@example.com` does not open the menu, because the `@` is not at the start of a word.
 
 ### Still supported in the composer
@@ -75,3 +77,5 @@ Comment mutations use their own in-flight identity (`comment:<id>`), separate fr
 - [Keyboard shortcuts](keyboard.md) — global and board bindings.
 - [HTTP API](../../reference/http-api.md#comments) — the comment and reaction endpoints.
 - [Roles and permissions](../../reference/roles-and-permissions.md)
+- [Read issue history](issue-history.md) — review the changes around the conversation.
+- [Use notifications](notifications.md) — follow mentions and watched issues.

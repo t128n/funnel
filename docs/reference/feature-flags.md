@@ -74,6 +74,7 @@ Flags are presentation controls only. They do not gate authorisation or the API:
 
 ## Related
 
+- [Set feature flags for this browser](../how-to/configure/features.md)
 - [Routes and pages](./routes-and-pages.md)
 - [HTTP API](./http-api.md)
 - [Glossary](./glossary.md)

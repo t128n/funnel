@@ -6,15 +6,16 @@ Only an administrator can open **Settings → Repositories**; other roles receiv
 
 ## Before you start
 
+- Sign in as an administrator.
 - The GitHub App must be installed on the repository. An installation can grant access to all repositories or a selected subset; check it with **Settings → GitHub App → Manage installation**.
 - Adding a repository does not contact GitHub immediately. A correctly formatted `owner/name` is accepted even if Funnel cannot reach it, so a typo shows up as a failed sync rather than a save error.
 
 ## Add a repository
 
-1. Open **Settings → Repositories**.
-2. Select **Add repository** and enter the repository in `owner/name` form.
+1. Open **Settings → Repositories** to see the current list.
+2. Select **Add repository** and enter the repository in `owner/name` form; a new row holds its configuration.
 3. Optionally enter a **Shortcode** of up to six characters.
-4. Repeat for any further repositories and select **Save changes**.
+4. Repeat for any further repositories and select **Save changes**. Check **Settings → Sync** for the first poll and repository health.
 
 The GitHub host shown at the top of the page is read-only. Change `GITHUB_URL` / `GITHUB_API_URL` and restart to move the instance to another host.
 

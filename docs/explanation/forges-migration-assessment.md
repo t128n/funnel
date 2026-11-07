@@ -1,6 +1,6 @@
 # Moving Funnel off Octokit with `forges`
 
-Status: research note. No code changed.
+Status: historical research note written before the transport migration. Its inventory, estimates and proposed stages describe the assessment at that time, not necessarily the current implementation; consult the source for current behavior.
 
 Question: can Funnel replace `octokit` with [`forges`](https://forges.link) so it stops depending on GitHub, and what would that take?
 

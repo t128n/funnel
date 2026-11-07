@@ -40,7 +40,7 @@ The `C` shortcut, the board control, and the dialog itself are limited to `write
 3. Enter a **Description**. Markdown is supported and the body is limited to 65,536 characters.
 4. Optionally choose a source (Email, Chat, Meeting, Walk-in, Self-Service) or leave it blank. The form submits with `⌘`/`Ctrl` + Enter.
 5. Submit. The draft is staged, not created on GitHub.
-6. A triager accepts it from the Inbox, choosing the repository and any size. Acceptance applies the default `backlog` status. See [Triage intake submissions](triage-intake.md).
+6. A triager accepts it from the Inbox, choosing the repository, status and any size. The default status is `backlog`. See [Triage intake submissions](triage-intake.md).
 
 The form keeps a shareable deeplink in the address bar as you type and shows a character counter near the title limit. A failed submission keeps your text and shows the validation error inline.
 

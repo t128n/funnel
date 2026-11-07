@@ -35,7 +35,7 @@ Request body:
 | `body` | string | no | At most 65,536 characters. Defaults to `""`. |
 | `source` | string | no | Free-form provenance label, trimmed. Defaults to `""`. |
 
-Unknown properties are ignored. A submission is stored in `state_intake_submission`; nothing is created on GitHub until a triager accepts it.
+Unknown properties are ignored except for the optional honeypot checked before validation. A submission is stored in `state_intake_submission`; staging does not write to GitHub. Later, a triager can accept it as an issue or duplicate it as a comment. See [Use the intake API](../how-to/integrate/intake-api.md).
 
 Abuse controls (issue #42) apply before validation:
 

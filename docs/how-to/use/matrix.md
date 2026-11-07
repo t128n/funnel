@@ -2,6 +2,8 @@
 
 This guide shows you how to read the impact × urgency matrix, find work that still needs a rating, and rate both axes.
 
+Sign in to browse mirrored issues. Rating them requires `write` or `admin` and a GitHub token permitted to edit the issue.
+
 ## Open the matrix
 
 Select **Matrix** in the sidebar to open `/matrix`.
@@ -41,6 +43,8 @@ Each cell shows the derived priority and the number of matching issues. The issu
 
 Selecting a cell is only navigation; issues move between cells when their ratings change.
 
+If an issue is missing, check the search, scope and filters; an issue without both ratings remains in **Needs assessment** rather than a cell. If a write fails, check the displayed error and retry after correcting it.
+
 ## Open an issue
 
 Select an issue in the selected cell's list. It opens `/matrix/{owner}/{repo}/{number}`, with the standard Inspector docked beside the matrix (or full width on narrow screens).
@@ -62,3 +66,4 @@ Rate each axis independently: impact from the effect on users and the business, 
 - [Routes and pages](../../reference/routes-and-pages.md)
 - [The workflow model](../../explanation/workflow-model.md)
 - [Create and edit issues](create-and-edit-issues.md)
+- [Plan a week](plan-work.md)

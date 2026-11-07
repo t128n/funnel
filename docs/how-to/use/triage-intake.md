@@ -2,11 +2,13 @@
 
 This guide explains how submissions reach the Inbox and how to accept, dismiss or duplicate them.
 
+Anyone who can reach the instance can submit intake. Sign in to review the Inbox; decisions require `write` or `admin`. Accepting or duplicating also requires a GitHub user token with permission for the target repository.
+
 ![Demo Inbox showing staged submissions followed by GitHub issues without a status](../../assets/guide/inbox.png)
 
 ## Where submissions come from
 
-Funnel stages every external report before anything reaches GitHub. There are two entry points.
+Funnel stages every external report locally before a triager decides what to do with it. There are two entry points.
 
 | Entry point | Who can use it | Result |
 | :--- | :--- | :--- |
@@ -33,7 +35,7 @@ The `/intake` form accepts:
 
 `title` is required and trimmed to 1–256 characters. `body` is optional and capped at 65,536 characters. `source` is optional and trimmed. A successful request returns `201` with an opaque submission id. A malformed body returns `400` with a `message`; a body that fails validation returns `message` plus an `issues` array of human-readable reasons. The endpoint carries open CORS headers for browser callers.
 
-Nothing is created on GitHub until a triager accepts the submission. See [the workflow model](../../explanation/workflow-model.md) for why staging is separate from the GitHub mirror.
+Submitting creates no GitHub issue or comment. Accepting creates a new issue; marking the submission as a duplicate instead posts a comment on an existing issue without creating a new one. Dismissing writes neither. See [the workflow model](../../explanation/workflow-model.md) for why staging is separate from the GitHub mirror.
 
 ## How the Inbox is ordered
 
@@ -173,3 +175,5 @@ An archived submission stays viewable by id and shows its decision (dismiss reas
 - [Roles and permissions](../../reference/roles-and-permissions.md)
 - [Create and edit issues](create-and-edit-issues.md)
 - [Close, reopen and block issues](close-reopen-block.md)
+- [Use the matrix](matrix.md) — assess impact and urgency after acceptance.
+- [Triage a backlog](../../tutorials/triage-a-backlog.md) — follow a complete example.

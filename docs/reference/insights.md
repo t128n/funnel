@@ -195,6 +195,7 @@ timestamps:
 
 ## Related
 
+- [Use Insights](../how-to/use/insights.md)
 - [Database schema](database-schema.md) — `state_intake_submission`,
   `state_triage_event`, `state_issue_waiting`, `mirror_thread`, `mirror_repo`.
 - [Routes and pages](routes-and-pages.md) — the `/insights` route entry.

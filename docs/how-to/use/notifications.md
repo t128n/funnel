@@ -15,22 +15,24 @@ Funnel records a notification for a signed-in Funnel user when one of these even
 | A watched issue's derived priority changes (P1, P2, P3). | Every watcher. | The issue Inspector. |
 | A watched issue is opened or closed. | Every watcher. | The issue Inspector. |
 | A public intake submission is staged. | Every administrator with a linked GitHub account, unless the master switch or new-intake notices are off. | `/inbox/submission/{id}`. |
+| An enabled attention rule is breached. | Linked Funnel users assigned to the issue, at most once per issue, rule and UTC day. | The issue Inspector. |
 
 Only people with a Funnel account linked to their GitHub identity receive notifications. A mention of an unlinked GitHub login is ignored, and the change still reaches other eligible recipients.
 
-A mention wins over a plain watched-comment notice for the same person and comment, so you get one notification rather than two. You are never notified about a change you made yourself, including a comment you wrote on an issue you watch.
+A mention wins over a plain watched-comment notice for the same person and comment, so you get one notification rather than two. For issue-change notices, Funnel suppresses notifications to the actor when the actor is known, and suppresses notices for comments you authored. Attention-rule notices have no actor and can still notify an assignee.
 
-Notifications are created only when a change is detected against an issue Funnel already knows. The first sync of a repository is silent: existing issues, comments and assignments do not produce a backlog of notices. Repeated polling and the refresh after a Funnel write reuse the same event key, so each event is delivered once.
+Issue-change notifications are created only when a change is detected against an issue Funnel already knows. The first sync of a repository is silent: existing issues, comments and assignments do not produce a backlog of issue-change notices. Attention-rule notices follow their separate daily cadence; see [Attention rules](../../reference/attention-rules.md).
 
 ## Open the notification center
 
-Select **Notifications** in the sidebar to open `/notifications`. The item carries the unread count and updates live while the page is open.
+Sign in and select **Notifications** in the sidebar to open `/notifications`. The item carries the unread count and updates live while the page is open.
 
 - Unread rows appear before read rows; each group is newest first.
 - A row shows the actor's avatar and login, the destination (`owner/name#7` or an intake submission), a relative time, and a short excerpt for comments and mentions.
 - Opening an unread row marks it read and takes you to the issue or submission. Modified clicks (for example Ctrl-click) keep the browser's new-tab behaviour and do not mark the row read.
 - **Mark read** clears one row; **Mark all read** clears every unread row for you.
 - Read state is stored per user. Another signed-in person never sees or changes your rows, and your unread count survives a reload.
+- If marking read fails, use **Retry** in the error message. Use **Load older** when there are more rows than the current window displays.
 
 ## Watch an issue
 
@@ -43,7 +45,7 @@ Open an issue in the Inspector and use the **Watch** / **Watching** toggle in th
 
 ## Browser notifications
 
-Browser notifications are optional and disabled per browser until you opt in. On `/notifications`, select **Enable** and grant the browser's permission prompt. The choice is remembered in that browser's local storage.
+Browser notifications are optional and disabled per browser until you opt in. On `/notifications`, select **Enable browser notifications** and grant the browser's permission prompt. The choice is remembered in that browser's local storage.
 
 Limits to keep in mind:
 
@@ -58,7 +60,7 @@ Administrators control three instance-wide switches at `/settings/notifications`
 
 | Setting | Default | Effect |
 | :--- | :--- | :--- |
-| **Notifications** | On | Master switch for all new notification rows: assignments, mentions, watched comments and status/priority/open-closed changes, and new-intake notices. When off, sync diffs and intake staging create nothing. Existing rows, read state and watches are kept, so turning it back on resumes delivery without a backfill. |
+| **Notifications** | On | Master switch for new notification rows, including issue changes, attention-rule breaches and intake notices. When off, these sources create nothing. Existing rows, read state and watches are kept. |
 | **Browser notifications** | On | Whether the Notifications page offers the browser opt-in and open tabs start the native listener. In-app notifications are unaffected. |
 | **New intake submissions** | On | Whether staging a public submission notifies every administrator. It matters only while **Notifications** is on; the submission itself is still staged when either switch is off. |
 
@@ -73,3 +75,4 @@ Funnel mirrors the first page of comments per issue (up to 100). Comments, and t
 - [Settings](../../reference/settings.md)
 - [Database schema](../../reference/database-schema.md#state_notification)
 - [Glossary](../../reference/glossary.md#terms)
+- [Review work needing attention](attention.md)

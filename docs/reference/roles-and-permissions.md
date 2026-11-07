@@ -64,7 +64,7 @@ The `read` and `write` roles are distinguished by `hasRole()` against the numeri
 | :--- | :--- | :--- |
 | `/login` | Unauthenticated | Once an App exists, renders the GitHub sign-in page. An authenticated visitor is redirected to a same-origin `redirectTo` target, or to `/inbox`. |
 | `/intake` | Unauthenticated | Once an App exists, a JavaScript-free HTML intake form that stages a submission. |
-| `POST /api/intake` and its `OPTIONS` preflight | Unauthenticated | Once an App exists, accepts a JSON submission and returns `201 { id }`; CORS is open. Nothing reaches GitHub until a triager accepts it. |
+| `POST /api/intake` and its `OPTIONS` preflight | Unauthenticated | Once an App exists, accepts a JSON submission and returns `201 { id }`; CORS is open. Staging does not write to GitHub; a triager may later accept it as an issue or duplicate it as a comment. |
 | `/healthz` | Unauthenticated | Liveness response with no database or network access. |
 | `/readyz` | Unauthenticated | Readiness response; `503` until the database is reachable and, when the migrations folder can be located, every committed migration is applied. |
 | `/onboarding` and its sub-routes | Unauthenticated, optionally token-gated | First-run wizard. `/onboarding` itself redirects to `/login` once an App exists, while the install and installed steps stay reachable so the App can be installed. When `FUNNEL_ONBOARDING_TOKEN` is set, a matching token is required; when unset, the wizard is open on a fresh instance. |
@@ -76,6 +76,7 @@ Session expiry follows `session.idle_days` (default `30`). If the settings table
 
 ## Related
 
+- [Manage people and roles](../how-to/configure/people-and-roles.md)
 - [Settings](./settings.md)
 - [Reserved labels](./reserved-labels.md)
 - [Environment variables](./environment-variables.md)

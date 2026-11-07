@@ -102,7 +102,7 @@ The Drizzle Kit scripts read `FUNNEL_DB`, defaulting to `./data/funnel.db` throu
 
 ## Changesets
 
-Versions and changelogs are managed by [Changesets v3](https://changesets.dev). `.changeset/config.json` keeps `privatePackages.version` and `privatePackages.tag` enabled so the private application is versioned and tagged without publishing to npm. Add a changeset with `bun run changeset`; the Changesets GitHub Action opens the version PR and creates the `v<version>` tag after it merges. See [Release](../how-to/contribute/release.md#changesets) for the full flow.
+Versions and changelogs are managed by [Changesets v3](https://changesets.dev). The package is marked `private` in `package.json` (it is not published to npm); `.changeset/config.json` enables versioning and tagging for it. This package setting does not imply that GitHub releases are private. Add a changeset with `bun run changeset`; the Changesets GitHub Action opens the version PR and creates the `v<version>` tag after it merges. See [Release](../how-to/contribute/release.md#changesets) for the full flow.
 
 ## Embedded client assets
 
@@ -110,6 +110,7 @@ Bun's compiled filesystem exposes embedded files through `node:fs` (`existsSync`
 
 ## Related
 
+- [Release Funnel](../how-to/contribute/release.md)
 - [Command-line interface](./cli.md)
 - [Environment variables](./environment-variables.md)
 - [Settings](./settings.md)
