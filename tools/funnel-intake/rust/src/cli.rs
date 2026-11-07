@@ -54,6 +54,24 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Options, String> 
 
     while let Some(arg) = args.next() {
         if !arg.starts_with('-') && !command_seen {
+            if arg == "settings" {
+                // Rune parses its own tooling flags (--snap, --tree, ...) from the
+                // process arguments, so leave the rest untouched.
+                options.command = Command::Settings;
+                let rest: Vec<String> = args.collect();
+                if let Some(position) = rest
+                    .iter()
+                    .position(|arg| arg == "--config" || arg == "-config")
+                    && let Some(value) = rest.get(position + 1)
+                {
+                    options.config_path = PathBuf::from(value);
+                }
+                if let Some(value) = rest.iter().find_map(|arg| arg.strip_prefix("--config=")) {
+                    options.config_path = PathBuf::from(value);
+                }
+                options.args = rest;
+                break;
+            }
             options.command = match arg.as_str() {
                 "daemon" => Command::Daemon,
                 "settings" => Command::Settings,

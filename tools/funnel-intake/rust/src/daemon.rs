@@ -7,6 +7,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::time::{Duration, Instant};
 
 use crate::cli::Options;
 use crate::config::{Config, load_config, load_config_with_env};
@@ -97,6 +98,40 @@ impl DaemonCore {
     }
 }
 
+/// The daemon writes this file on a timer so the settings window can show
+/// whether it is running without relying on process names.
+pub fn heartbeat_path(config_path: &Path) -> PathBuf {
+    config_path
+        .parent()
+        .unwrap_or_else(|| Path::new("."))
+        .join("daemon.heartbeat")
+}
+
+pub const DAEMON_STALE_AFTER: Duration = Duration::from_secs(6);
+
+pub fn daemon_running(config_path: &Path) -> bool {
+    let path = heartbeat_path(config_path);
+    fs::metadata(&path)
+        .and_then(|meta| meta.modified())
+        .ok()
+        .and_then(|modified| modified.elapsed().ok())
+        .is_some_and(|age| age < DAEMON_STALE_AFTER)
+}
+
+fn write_heartbeat(config_path: &Path) {
+    let _ = fs::write(
+        heartbeat_path(config_path),
+        format!("{} {}\n", std::process::id(), now_seconds()),
+    );
+}
+
+fn now_seconds() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|duration| duration.as_secs())
+        .unwrap_or_default()
+}
+
 fn file_signature(path: &Path) -> u64 {
     let mut hasher = DefaultHasher::new();
     match fs::read(path) {
@@ -151,6 +186,8 @@ fn run_loop(mut core: DaemonCore, dry_run: bool) -> Result<(), String> {
         return Ok(());
     }
 
+    write_heartbeat(&core.path);
+    let mut last_heartbeat = Instant::now();
     let mut runtime = platform::hotkey_runtime()?;
     let mut active = core.active_hotkey();
     runtime.register(&active)?;
@@ -173,6 +210,10 @@ fn run_loop(mut core: DaemonCore, dry_run: bool) -> Result<(), String> {
 
     while !quit.load(Ordering::SeqCst) {
         runtime.pump();
+        if last_heartbeat.elapsed() >= Duration::from_secs(1) {
+            write_heartbeat(&core.path);
+            last_heartbeat = Instant::now();
+        }
         while runtime.take_press() {
             if busy
                 .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
@@ -215,6 +256,7 @@ fn run_loop(mut core: DaemonCore, dry_run: bool) -> Result<(), String> {
     }
 
     let _ = runtime.unregister(&active);
+    let _ = fs::remove_file(heartbeat_path(&core.path));
     logging::log("stopped");
     Ok(())
 }

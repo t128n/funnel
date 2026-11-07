@@ -63,13 +63,15 @@ jobs:
           wait "$pid" || true
       - if: runner.os == 'Linux'
         run: |
-          cargo run --locked -- --snap /tmp/intake.png --tree /tmp/intake.json
+          cargo run --locked -- settings --snap /tmp/intake.png --tree /tmp/intake.json
           test -s /tmp/intake.png
-          grep -q 'Settings are not available yet' /tmp/intake.json
+          grep -q 'Funnel Intake' /tmp/intake.json
+          grep -q 'Daemon stopped' /tmp/intake.json
+          grep -q 'Shortcut' /tmp/intake.json
       - if: runner.os == 'Linux'
         uses: actions/upload-artifact@v4
         with:
-          name: intake-rune-placeholder
+          name: intake-rune-settings
           path: |
             /tmp/intake.png
             /tmp/intake.json
