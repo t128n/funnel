@@ -10,7 +10,7 @@ Capture the SQLite database, its WAL sidecars, the uploads directory and the dep
 | WAL and shared-memory files | `funnel.db-wal`, `funnel.db-shm` next to the database | Present while the database is open in write-ahead log (WAL) mode. They can hold committed transactions not yet checkpointed into `funnel.db`. |
 | Attachment bytes | `<data-dir>/uploads/` | Server-generated paths under `<yyyy>/<mm>/<uuid>`. Override with `FUNNEL_UPLOAD_DIR`. Metadata lives in the database. |
 | Environment | The config file written by `funnel setup` (`FUNNEL_ENV_FILE`) | Must preserve `FUNNEL_SECRET`; also `FUNNEL_URL`, the GitHub hosts, and any path overrides. |
-| Service definition (optional) | `C:\ProgramData\Funnel\funnel-service.xml` | Port, data directory, `LOG_LEVEL` and `BODY_SIZE_LIMIT` for the Windows service. |
+| Service definition (optional) | `C:\Program Files\Funnel\funnel-service.xml` | The generated Windows service XML passes `FUNNEL_ENV_FILE` and `FUNNEL_DATA_DIR`; other settings come from the environment file. |
 
 The data directory defaults to `./data` relative to the process working directory. The native installer sets platform defaults (`C:\ProgramData\Funnel\data` on Windows, `/var/lib/funnel` on Linux system installs, and the chosen macOS path). Use the paths recorded in `funnel status`.
 
@@ -24,12 +24,11 @@ The simplest consistent backup is taken with the process stopped:
 
 ```powershell
 # Windows service
-cd C:\ProgramData\Funnel
-.\funnel-service.exe stop
+Stop-Service Funnel
 Get-Service Funnel
 ```
 
-For a native service, stop it with the service manager (`systemctl stop funnel`, `launchctl bootout`, or `funnel-service.exe stop`). For a bare-metal process, stop it with whatever supervises it.
+**Result:** `Get-Service` reports `Stopped`. Run PowerShell as administrator if needed. For a native service, stop it with the service manager (`systemctl stop funnel`, `launchctl bootout`, or `funnel-service.exe stop`). For a bare-metal process, stop it with whatever supervises it.
 
 Stopping matters because:
 
@@ -55,7 +54,7 @@ Compress-Archive -Path C:\ProgramData\Funnel\* `
   -DestinationPath "C:\Backups\Funnel-$stamp.zip"
 ```
 
-This includes `funnel.db`, its sidecars, `uploads\`, `.env`, the service definition and the executable. If you use a custom data directory, archive that instead and keep the XML separately.
+With default Windows service paths this includes `data\funnel.db`, any sidecars, `data\uploads\`, and `funnel.env`. The service XML and executable are under `C:\Program Files\Funnel` and are not included. **Result:** the ZIP exists under `C:\Backups`; inspect its contents in step 3. If paths were customised or `FUNNEL_DB` or `FUNNEL_UPLOAD_DIR` overrides them, separately copy those locations and the config file.
 
 ### Linux or macOS
 
@@ -90,11 +89,11 @@ Test a restore periodically, not only when you need one. See [Test the restore](
 Restore in this order:
 
 1. **Stop the target instance.** Do not copy a database over a running process.
-2. **Move the current data aside.** Rename the data directory (or, at minimum, the database, sidecars and uploads) so you can roll back. On a default Windows service install the data directory is also the install directory: rename it, then restore the replacement at the original path so the registered service path still resolves.
+2. **Move the current data aside.** Rename the data directory (or, at minimum, the database, sidecars and uploads) so you can roll back. On a default Windows service install the data directory is `C:\ProgramData\Funnel\data`; the installed binary is separate under `C:\Program Files\Funnel`.
 
 ```powershell
-Set-Location C:\ProgramData
-Rename-Item .\Funnel .\Funnel.before-restore
+Set-Location C:\ProgramData\Funnel
+Rename-Item .\data .\data.before-restore
 ```
 
 ```sh
@@ -131,13 +130,27 @@ Store the secret in a password manager or secret manager, and keep the backup ar
 
 ## 6. Test the restore
 
-Restore into a separate instance, never over production:
+A restored database contains the production GitHub App credentials and configured repositories. A separate data directory or port does **not** prevent background sync or label provisioning from contacting production GitHub. Never start the copy with network access to production GitHub or GHES.
 
-1. Use a different data directory and a different `PORT`.
-2. Use the same `FUNNEL_SECRET` as the backup.
-3. Start the instance and check `/readyz`, the issue list, and an attachment download.
-4. Sign-in may fail on a test host because `FUNNEL_URL` does not match the GitHub App's registered callback. That is expected; use the test to validate the database and uploads, or register a test callback URL temporarily.
-5. Record how long the restore took and any manual fixes, and keep the procedure with the backups.
+1. Prepare a separate test machine or isolated VM with network egress blocked by the host or network firewall **before** starting Funnel. Deny outbound access to GitHub or GHES, including API hosts and any HTTP proxy that could reach them; an isolated network with no external route is preferable. Allow only the local access needed to inspect the test. Do not rely on changing `GITHUB_URL`: the restored App host is stored in the database.
+
+   **Result:** from the test environment, attempts to reach the production GitHub web and API hosts fail. Confirm the firewall or network policy covers the actual route and proxy settings; do not proceed if isolation cannot be established. A failed connectivity test alone does not prove all routes are blocked.
+
+2. Restore the backup to a separate data directory and configure a different port, the same `FUNNEL_SECRET`, and paths that cannot point to production files. Protect the test copy and secret as production-sensitive data.
+
+   **Result:** the restored database, uploads and config are present in the isolated location, and no process is using the production data directory.
+
+3. Start the test instance while isolation remains in force, then check its local `/readyz`.
+
+   **Result:** readiness returns HTTP 200 with matching migration counts. GitHub sync or authentication errors are expected while access is blocked; readiness does not prove GitHub connectivity.
+
+4. Verify the database and attachment files against the backup using local inspection. Browser sign-in and authenticated attachment download may be unavailable without GitHub OAuth; do not change the production App callback or reconnect the copied production credentials just to complete this test. For end-to-end sign-in, sync, or download testing, use a separately provisioned test instance and test GitHub App with non-production repositories and credentials.
+
+   **Result:** record what was verified offline and any checks deferred to the separate test instance. Do not claim an authenticated download succeeded unless it actually did.
+
+5. Stop the test instance before changing isolation or removing the test copy. Record the Funnel version, restore outcome, duration and any manual fixes with the backup procedure.
+
+   **Result:** the copied instance is no longer running and cannot contact production GitHub after isolation is lifted.
 
 ## Related
 
@@ -146,7 +159,6 @@ Restore into a separate instance, never over production:
 - [Database schema](../../reference/database-schema.md) — which tables are durable and which are rebuildable.
 - [Deployment model](../../explanation/deployment-model.md) — the data directory and the secret.
 - [Security model](../../explanation/security-model.md) — what `FUNNEL_SECRET` protects.
-- [Install Funnel](../deploy/install.md)
 - [Install Funnel](../deploy/install.md)
 - [Upgrade Funnel](upgrade.md)
 - [Troubleshoot](troubleshoot.md)

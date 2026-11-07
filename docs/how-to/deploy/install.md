@@ -23,29 +23,45 @@ directory. Do not run two instances against the same data directory.
 
 ## Install
 
-Download the archive for your platform from the GitHub release, extract it, and
-run:
+1. Download the matching archive and `SHA256SUMS.txt` from the [GitHub releases listing](https://github.com/t128n/funnel/releases); select a suitable release, including a prerelease if appropriate. The published 0.0.12 prerelease includes `funnel-0.0.12-windows-x64.zip` and `SHA256SUMS.txt`.
 
-```sh
-./funnel setup
-```
+   **Result:** both files are in your downloads folder.
 
-On Windows, double-click `START-HERE.cmd` or run:
+2. Verify the archive before running it. On Windows, in PowerShell from the download folder:
 
-```powershell
-.\funnel.exe setup
-```
+   ```powershell
+   Get-FileHash .\funnel-<version>-windows-x64.zip -Algorithm SHA256
+   ```
 
-The wizard asks how Funnel should run:
+   **Result:** the displayed hash matches the archive's line in `SHA256SUMS.txt`. On Linux, run `sha256sum -c --ignore-missing SHA256SUMS.txt`; on macOS, compare `shasum -a 256 <archive>` with the same line. If the hash differs, delete the download and download it again; do not run it.
 
-- **System service** — starts at boot. Needs administrator/sudo; setup
-  auto-elevates.
-- **User service** — starts at login (Linux/macOS only). No admin required.
-- **Portable process** — runs now with no service; useful for a quick trial.
+3. Extract the archive completely.
 
-It then asks for the install, config, data, and log paths, the port, an optional
-public URL, and an optional onboarding token. Every path has a platform default
-and can be changed during setup or with flags.
+   **Result:** the extracted folder contains the executable and `.env.example`; the Windows ZIP also contains `funnel-service.exe` and a launcher (`setup.cmd` in 0.0.12; current packaging uses `START-HERE.cmd`).
+
+4. On Linux or macOS, open a terminal in the extracted folder and run:
+
+   ```sh
+   ./funnel setup
+   ```
+
+   On Windows, open PowerShell in the extracted folder and run:
+
+   ```powershell
+   .\funnel.exe setup
+   ```
+
+   Alternatively, double-click the launcher included in your ZIP (`setup.cmd` or `START-HERE.cmd`). **Result:** the setup prompts appear.
+
+5. Choose **Windows service** on Windows, or **System service** on Linux/macOS (starts at boot and needs administrator/sudo), **User service** (Linux/macOS only), or **Portable process** (no service). Choose the paths, port, optional public URL, and optional onboarding token. Defaults are available for each path.
+
+   **Result:** setup prints `Funnel is running:` and the onboarding URL, and attempts to open it. A readiness warning means you should check again before proceeding.
+
+6. Run `funnel status` (Windows: `.\funnel.exe status` from the extracted folder).
+
+   **Result:** the service or process is running and health and readiness checks are OK. For custom configuration paths, supply `--manifest <path-to-install.json>`. Continue with [GitHub App onboarding](../configure/onboard-github-app.md); if checks fail, see [troubleshooting](../operate/troubleshoot.md).
+
+For automation on Linux, for example:
 
 ```sh
 funnel setup --yes \
@@ -110,18 +126,9 @@ funnel uninstall --purge --yes
 
 ### Upgrade
 
-The repository is private, so automatic release lookup is not the default.
-Download the new platform binary from the GitHub release and run:
+Download and extract the new platform archive from the [releases listing](https://github.com/t128n/funnel/releases). Back up the database, uploads, and secret first. The upgrade command needs a local binary; `--check` reports the current version but does not look up releases (its private-repository message is outdated).
 
-```sh
-funnel upgrade --binary /path/to/funnel
-```
-
-The command stops the service, keeps a backup of the previous binary, replaces
-it, starts the service, and rolls back if the health check fails. The config,
-`FUNNEL_SECRET`, database, and uploads are untouched.
-
-Check the current version with `funnel status` or `funnel upgrade --check`.
+**Warning:** on failure, upgrade may automatically restart the previous binary even after the new binary has migrated the database. This is not a safe database rollback. For the separate-CLI invocation, recovery procedure, and an alternative when automatic restart is unacceptable, see [Upgrade Funnel](../operate/upgrade.md).
 
 ## Platform notes
 

@@ -1,125 +1,95 @@
 # Getting started
 
-This tutorial installs Funnel on your machine, creates its GitHub App through the in-app onboarding wizard, and leaves you signed in to the cockpit.
+Install Funnel on a Windows x64 machine from a release ZIP, create a GitHub App, and sign in to the cockpit. The standalone executable includes its runtime; Bun, Node.js, Docker, and a source checkout are not required.
 
-You will need a GitHub account and permission to create and install a GitHub App on that account. The whole path uses one personal account; organisation-owned Apps and GitHub Enterprise Server are noted at the end.
+You need Windows 10 1903+, Windows 11, or Windows Server 2016+, a GitHub account allowed to create and install an App, and outbound HTTPS access to GitHub. A Windows service requires administrator approval and .NET Framework 4.6.1 or newer. This tutorial uses a personal GitHub account. For Linux, macOS, custom paths, or a service deployment, see [Install Funnel](../how-to/deploy/install.md).
 
-## 1. Install Bun
+## 1. Download and extract the release
 
-Funnel requires Bun 1.4.3 or newer. Install it with the Bun installer:
+1. Open the [GitHub Releases page](https://github.com/t128n/funnel/releases) and download `funnel-<version>-windows-x64.zip` from the release assets. For example, the published 0.0.12 prerelease contains `funnel-0.0.12-windows-x64.zip` and `SHA256SUMS.txt`. Select a suitable release from the listing. The 0.0.12 server ZIP also bundles the optional intake helper; current packaging creates a separate helper ZIP for future releases, if published.
 
-```sh
-curl -fsSL https://bun.sh/install | bash
-```
+   **You should see:** a ZIP whose name starts with `funnel-` and ends in `-windows-x64.zip`.
 
-Open a new terminal (or source your shell profile) so `bun` is on `PATH`, then verify the version:
+2. Download `SHA256SUMS.txt` from the same release, then in PowerShell from your downloads folder verify the ZIP:
 
-```sh
-bun --version
-```
+   ```powershell
+   Get-FileHash .\funnel-<version>-windows-x64.zip -Algorithm SHA256
+   ```
 
-**You should see:** a version number of `1.4.3` or higher.
+   **You should see:** a hash matching the ZIP's line in `SHA256SUMS.txt`. If it differs, download the ZIP again.
 
-> The repository's `mise.toml` pins Bun 1.4.3 for its build tasks. If you use mise, `mise install` installs the same version, and `mise trust` once per checkout lets the pinned `bun` resolve.
+3. Extract the entire ZIP to a folder and open that folder. Keep the files together; do not run the executable inside the ZIP.
 
-## 2. Clone or open the repository
+   **You should see:** `funnel.exe`, `funnel-service.exe`, `.env.example`, `README.txt`, and a launcher (`setup.cmd` in 0.0.12; current packaging uses `START-HERE.cmd`). Windows may hide file extensions.
 
-Clone the repository, then enter its root:
+## 2. Run setup
 
-```sh
-git clone <repository-url> funnel
-cd funnel
-```
+1. Open PowerShell in the extracted folder and run:
 
-If you already have a checkout, open a terminal in that directory instead.
+   ```powershell
+   .\funnel.exe setup
+   ```
 
-**You should see:** `package.json`, `mise.toml`, `src/`, and `drizzle/` in the current directory.
+   Alternatively, double-click the launcher included in your ZIP (`setup.cmd` or `START-HERE.cmd`).
 
-## 3. Install dependencies
+   **You should see:** the Funnel setup prompts. If Windows asks for administrator approval, approve it only if you chose the Windows service.
 
-```sh
-bun install
-```
+2. Choose **Windows service** to start at boot, or **Portable process** for a trial without a service. Accept the default paths and port, or choose your own. Leave the public URL empty for a local trial; if others can reach the fresh instance, protect onboarding with a token and keep it safe.
 
-**You should see:** Bun resolve the lockfile and finish without errors. A `node_modules/` directory now exists.
+   **You should see:** setup write or keep the configuration, start Funnel, and print `Funnel is running:` followed by an onboarding URL. It attempts to open that URL in your browser. If readiness is not yet ready, setup prints a warning; check it in the next step.
 
-## 4. Create `.env` and generate a secret
+   A service listens on all interfaces by default and setup adds an inbound firewall rule. Restrict network access as appropriate; see the [production checklist](../how-to/operate/production-checklist.md). For a public hostname or proxy, set the exact public URL before onboarding.
 
-Copy the example environment file:
+## 3. Verify the installation
 
-```sh
-cp .env.example .env
-```
+1. In PowerShell in the extracted folder, run:
 
-Generate a secret:
+   ```powershell
+   .\funnel.exe status
+   ```
 
-```sh
-openssl rand -base64 32
-```
+   **You should see:** service/process, health, and readiness checks, followed by version, mode, paths, and URL. Confirm the service or process is running and both health and readiness are OK. With a custom config path, use `--manifest <path-to-install.json>`.
 
-Open `.env` and paste the output after `FUNNEL_SECRET=`. The value must be at least 32 characters; the generated one is 44.
+2. If setup did not open the browser, open the printed onboarding URL. Use the port you selected, rather than assuming port 3000.
 
-```dotenv
-FUNNEL_SECRET=the-value-you-just-generated
-```
+   **You should see:** **Create the GitHub App**, or **Token Required** if you protected onboarding. If setup or status fails, run `.\funnel.exe doctor` and `.\funnel.exe logs`, then consult [Troubleshoot Funnel](../how-to/operate/troubleshoot.md).
 
-Leave `FUNNEL_URL` empty. In development Funnel derives the public origin from the request, which is what GitHub's callback and setup URLs need on `localhost`. `LOG_LEVEL=info` from the example is fine.
+## 4. Open onboarding and create the GitHub App
 
-**You should see:** a `.env` file with a non-empty `FUNNEL_SECRET` and no quotes around it.
+Open the onboarding URL printed by setup (normally <http://127.0.0.1:3000/onboarding>).
 
-## 5. Apply the database schema
-
-A fresh checkout has no database tables yet, so apply the committed migrations once:
-
-```sh
-bun run release
-```
-
-**You should see:** a line beginning `[release]`, reporting how many migrations were applied and naming the database path (`./data/funnel.db` by default).
-
-## 6. Start the development server
-
-```sh
-bun run dev
-```
-
-**You should see:** Vite report that it is ready and print a local URL, normally `http://localhost:5173/`. Leave this terminal running.
-
-## 7. Open onboarding and create the GitHub App
-
-Open <http://localhost:5173/onboarding>.
-
-**You should see:** a page headed **Set up Funnel**, with the steps **Create app**, **Install**, and **Repositories**, and a **Create the GitHub App** card.
+**You should see:** a page headed **Create the GitHub App**, with the steps **Create app**, **Install**, and **Ready**, and an **App details** form.
 
 1. Leave **Account** set to **My personal account**.
-2. Keep the suggested **App name**, or change it. It must be unique across GitHub and may contain only letters, numbers, and hyphens (maximum 34 characters).
-3. Click **Create GitHub App**.
+2. Leave **GitHub host** as `github.com`, unless you use GitHub Enterprise Server.
+3. Keep the suggested **App name**, or change it. It must be unique across GitHub and may contain only letters, numbers, and hyphens (maximum 34 characters).
+4. Click **Create GitHub App**.
 
 Funnel submits a pre-filled App manifest to GitHub. On GitHub, review the registration page and click **Create GitHub App**.
 
-**You should see:** GitHub redirect you back to Funnel at `/onboarding/install`, headed **Install the app**, with the App's name and owner shown.
+**You should see:** GitHub redirect you back to Funnel at `/onboarding/install`, headed **Install the GitHub App**, with the App's name and owner shown.
 
 > Funnel polls GitHub for issue, comment, pull-request and check changes, so it works behind a firewall and GitHub never needs an inbound connection to the server.
 
-## 8. Install the App
+## 5. Install the App
 
-On the **Install the app** page, click **Install on GitHub**.
+On the **Install the GitHub App** page, click **Install on GitHub**.
 
 On GitHub's installation page, choose **Only select repositories**, select the repository you want to use, and click **Install**.
 
-**You should see:** GitHub return you to Funnel at `/onboarding/installed`, headed **Choose repositories**, with a checkbox list containing that repository.
+**You should see:** GitHub return you to Funnel at `/onboarding/installed`, headed **Funnel Is Ready**, with a **Repositories** checkbox list containing that repository.
 
 If GitHub shows an authorisation prompt first, approve it and continue to the installation page.
 
-## 9. Choose a repository
+## 6. Choose a repository
 
-Tick one repository, then click **Save and continue**.
+Tick one repository, then click **Save and Continue**.
 
-**You should see:** Funnel redirect to `/login`, headed **Welcome to Funnel** with a **Continue with GitHub** button.
+**You should see:** Funnel redirect to `/login`, headed **Sign In**, with a **Continue with GitHub** button.
 
 > The checkbox list only contains repositories the installation can access. If it is empty, the App was installed with no repositories; return to GitHub and add one to the installation.
 
-## 10. Sign in
+## 7. Sign in
 
 Click **Continue with GitHub** and authorise the App's OAuth client if GitHub asks.
 
@@ -127,7 +97,7 @@ Click **Continue with GitHub** and authorise the App's OAuth client if GitHub as
 
 The Inbox may initially read **Inbox zero. Nothing staged or untriaged.** Funnel has started its first sync; existing issues appear in the Inbox (untriaged) and Issues views as the sync completes.
 
-## 11. Check the cockpit
+## 8. Check the cockpit
 
 Use the sidebar to confirm the main views load:
 
@@ -145,8 +115,8 @@ Click **Settings** at the bottom of the sidebar (or press `Mod+,`) and confirm t
 
 ## Notes
 
-- **Organisation-owned App.** At step 7, choose **An organization** and enter the organisation login instead of using your personal account. You must have permission to create Apps in that organisation.
-- **GitHub Enterprise Server.** Set `GITHUB_URL` and `GITHUB_API_URL` in `.env` before starting the dev server (for example `https://acme.ghe.com` and `https://acme.ghe.com/api/v3`). Onboarding then targets that host.
+- **Organisation-owned App.** At step 4, choose **An organization** and enter the organisation login instead of using your personal account. You must have permission to create Apps in that organisation.
+- **GitHub Enterprise Server.** Enter the Enterprise host in the onboarding wizard. See [GitHub Enterprise Server](../how-to/deploy/github-enterprise-server.md).
 - **A non-local hostname.** Set `FUNNEL_URL` to the public origin before onboarding, so GitHub redirects back to the address users actually reach.
 - **Gating a fresh instance.** Set `FUNNEL_ONBOARDING_TOKEN` before first start if the instance is reachable by others; the wizard then asks for that token.
 
