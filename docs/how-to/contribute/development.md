@@ -39,7 +39,7 @@ For an offline development instance, start the demo from the checkout root:
 bun run dev:demo
 ```
 
-Vite prints a local URL, normally <http://localhost:5173/>. Open it to see a signed-in demo admin and seeded issues, without GitHub App onboarding. The first run migrates and seeds the demo database; later runs retain edits. Stop the server with Ctrl+C.
+This runs `scripts/dev.ts --demo`, which sets the demo flag and starts Vite normally. Vite prints a local URL, normally <http://localhost:5173/>. Open it to see a signed-in demo admin and seeded issues, without GitHub App onboarding. The first run migrates and seeds the demo database; later runs retain edits. Stop the server with Ctrl+C.
 
 The launcher defaults to `data/demo.db`, `data/demo-uploads`, and a development-only secret **only when the corresponding environment variables are unset or blank**. Check `FUNNEL_DB`, `FUNNEL_UPLOAD_DIR`, and `FUNNEL_SECRET` in your shell and `.env` before starting: do not point demo mode at real data or reuse its secret for a real instance. Demo mode is ignored by production builds and is not a packaged executable option.
 
