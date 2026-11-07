@@ -1,11 +1,13 @@
 import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
+import { starlightPele } from 'starlight-pele';
 
 export default defineConfig({
   site: 'https://t128n.github.io',
   base: '/funnel',
   integrations: [starlight({
     title: 'Funnel',
+    plugins: [starlightPele()],
     social: [{ icon: 'github', label: 'GitHub', href: 'https://github.com/t128n/funnel' }],
     sidebar: [
       { label: 'Tutorials', collapsed: true, items: [{ autogenerate: { directory: 'tutorials' } }] },

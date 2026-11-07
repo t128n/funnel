@@ -14,31 +14,35 @@ That choice follows from three things in the code:
 
 A separate cache or queue would add operational surface without removing any of these constraints. The mirror already is the cache, and the cursor plus nightly sweep already provide the durability that a queue would otherwise supply. The price is that Funnel cannot be scaled horizontally. That trade is made explicitly and is discussed in [Deployment model](./deployment-model.md).
 
-```text
-                            ┌──────────────────────────────────────┐
-                            │ Browser                              │
-                            │ SvelteKit UI · keyboard · EventSource│
-                            └───────────────┬──────────┬───────────┘
-                                            │ HTTP     │ /api/events (SSE)
-                                            ▼          ▼
-┌─────────────────────────────────────────────────────────────────────────┐
-│ Funnel process (Bun + adapter-node)                                     │
-│                                                                         │
-│  hooks.server.ts ── request id · session · first-run gate               │
-│                                                                         │
-│  read path ──────── queries.ts ───────────────────► SQLite (funnel.db)  │
-│                                                       ▲                 │
-│  write path ── user token ──► GitHub REST             │ upserts         │
-│                                                       │                 │
-│  sync worker ── installation token ──► GitHub REST/GraphQL ─────────────┘
-│       │                                                                 │
-│       └── publish ──► in-process SSE bus ──► open cockpits              │
-│                                                                         │
-│  reconciliation timer (03:00 local) · label provisioning on boot        │
-└─────────────────────────────────────────────────────────────────────────┘
-        ▲                                        ▲
-        │ environment: FUNNEL_*, GITHUB_*         │ state_setting: repos, cadence, board
-        └────────────────────────────────────────┘
+```mermaid
+flowchart LR
+  browser["Browser: SvelteKit UI and EventSource"]
+  github["GitHub REST and GraphQL"]
+  env["Environment: FUNNEL_* and GITHUB_*"]
+
+  subgraph funnel["Funnel process: Bun + adapter-node"]
+    hooks["Request hooks: ID, session, first-run gate"]
+    read["Read path: queries.ts"]
+    write["Write path: user token"]
+    worker["Sync worker: installation token"]
+    bus["In-process SSE bus"]
+    db[("SQLite: funnel.db and state_setting")]
+    timer["Reconciliation timer: 03:00 local"]
+    labels["Label provisioning on boot"]
+  end
+
+  browser -->|HTTP| hooks
+  hooks --> read
+  hooks --> write
+  read --> db
+  write -->|REST| github
+  worker -->|REST and GraphQL| github
+  github -->|Sync data| worker
+  worker -->|Upserts| db
+  worker -->|Publish| bus
+  bus -->|SSE: /api/events| browser
+  env --> hooks
+  db -->|Settings| worker
 ```
 
 ## The read path is local
