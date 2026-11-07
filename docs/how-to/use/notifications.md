@@ -12,7 +12,7 @@ Funnel records a notification for a signed-in Funnel user when one of these even
 | A comment mentions you with `@login`. | The mentioned user, even without watching. | The issue Inspector. |
 | Someone comments on an issue you watch. | Every watcher except the comment author. | The issue Inspector. |
 | A watched issue's status label changes (`backlog`, `todo`, `in-progress`, `in-review`). | Every watcher. | The issue Inspector. |
-| A watched issue's priority label changes (`p1`, `p2`, `p3`). | Every watcher. | The issue Inspector. |
+| A watched issue's derived priority changes (P1, P2, P3). | Every watcher. | The issue Inspector. |
 | A watched issue is opened or closed. | Every watcher. | The issue Inspector. |
 | A public intake submission is staged. | Every administrator with a linked GitHub account, unless the master switch or new-intake notices are off. | `/inbox/submission/{id}`. |
 

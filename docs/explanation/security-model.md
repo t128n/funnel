@@ -56,7 +56,7 @@ Unauthenticated access is limited to a handful of deliberate surfaces:
 
 The intake endpoint is deliberately **open CORS**: `OPEN_CORS` sets `Access-Control-Allow-Origin: *`, allows `POST`/`OPTIONS` and the `Content-Type` header, and — critically — no credentials, so a browser on another origin can call it but cannot attach Funnel cookies. The comment is candid that CORS is not the security boundary here: "Funnel is expected to sit behind enterprise network segmentation, which is the actual access boundary — CORS here only unblocks the browser preflight." The CORS policy allowlists only the `Content-Type` request header; the handler parses the body with `request.json()` and does not itself reject other media types.
 
-The intake schema bounds what a submission may carry: a title up to 256 characters and a body up to 65,536 characters. The endpoint is unauthenticated and unrate-limited by Funnel itself, which is the main reason the network boundary matters — see *What is not protected* below.
+The intake schema bounds what a submission may carry: a title up to 256 characters and a body up to 65,536 characters. Intake is unauthenticated. Funnel applies configurable per-client-IP rate limits and a honeypot, but these controls do not replace a network boundary. Behind a proxy, configure the trusted client-address header correctly; see the [HTTP API reference](../reference/http-api.md#intake).
 
 ## Uploads
 
@@ -101,7 +101,7 @@ Being explicit about the gaps is part of the model:
 
 - **No per-repository Funnel ACL.** Funnel's membership is instance-wide. Any signed-in user can *read* every mirrored repository's issues, work notes, and attachments, and the mutation guard checks only that a repository is configured, not that the user may touch it. For writes, GitHub's per-repository permissions still apply because the user's own token is used — but reads are not additionally partitioned, and any `write`-role user can attempt a write against any configured repository, relying on GitHub to refuse it.
 - **No authorisation on attachment downloads beyond `read`.** Anyone signed in at the `read` level can fetch any attachment by id; the dropbox is not scoped per repo or per user.
-- **Intake has no authentication, no rate limiting, and no abuse controls** in the application. The only bounds are the title/body length caps and the network boundary itself.
+- **Intake has no authentication.** Configurable IP limits and a honeypot reduce abuse, but do not prevent distributed or content-based abuse and depend on correct client-address handling behind a proxy. Use an appropriate network boundary.
 - **The `repo` scope is broad.** Funnel cannot ask for less and still write issues on private repositories; a compromised session token carries that scope until it expires or the user revokes the App.
 - **The first-run wizard is open when `FUNNEL_ONBOARDING_TOKEN` is unset.** On a fresh instance reachable by an untrusted party, anyone could claim the App configuration; the token is the mitigation, and it is optional.
 - **`FUNNEL_SECRET` is the whole ballgame.** It protects App secrets and OAuth tokens; if it leaks alongside the database, every stored secret is recoverable.

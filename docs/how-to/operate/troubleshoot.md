@@ -24,8 +24,7 @@ Get-Service Funnel                    # Windows service
 
 Set `LOG_LEVEL=debug` temporarily if the default `info` logs do not show the failure, restart, reproduce, then set it back. Read logs where the process writes stdout:
 
-```sh
-```
+For a systemd service, inspect recent logs with `journalctl -u funnel -n 200`.
 
 ```powershell
 Get-ChildItem C:\ProgramData\Funnel\*.log | Get-Content -Tail 200

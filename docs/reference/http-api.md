@@ -2,6 +2,8 @@
 
 Funnel exposes a public intake and health surface, a session-gated cockpit read surface, a per-user notification feed and watch API, GitHub-backed issue writes executed with the signed-in user's token, and Funnel-local work-note, attachment, plan, epic-membership and delay endpoints.
 
+The session-gated endpoints described below support Funnel's own interface. Their behavior is documented for inspection, not as a stable or supported third-party integration contract; they can change without compatibility guarantees. For external submissions, use the public intake contract.
+
 ## Conventions
 
 - Responses are JSON unless a route explicitly streams bytes, HTML or SSE.

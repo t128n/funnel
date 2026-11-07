@@ -83,4 +83,4 @@ Two endpoints cover the write paths.
 - [The workflow model](../../explanation/workflow-model.md)
 - [HTTP API](../../reference/http-api.md#milestones)
 - [Routes and pages](../../reference/routes-and-pages.md)
-- [Database schema](../../reference/database-schema.md#mirror_github_milestone)
+- [Database schema](../../reference/database-schema.md#mirror_milestone)

@@ -81,7 +81,7 @@ Configuration, the hotkey syntax, and troubleshooting live in [`scripts/README.m
 
 ## Documentation
 
-Start at the [documentation index](docs/README.md), or jump straight in:
+Browse the [documentation site](https://t128n.github.io/funnel/) or the [documentation index](docs/README.md), or jump straight in:
 
 | I want to… | Read |
 | :--- | :--- |
