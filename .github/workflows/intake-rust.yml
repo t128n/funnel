@@ -1,0 +1,43 @@
+name: Intake Rust prototype
+
+on:
+  pull_request:
+    paths:
+      - 'tools/funnel-intake/rust/**'
+      - '.github/workflows/intake-rust.yml'
+  workflow_dispatch:
+
+jobs:
+  check:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: tools/funnel-intake/rust
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: '1.99.1'
+          components: rustfmt, clippy
+      - if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libxkbcommon-dev libwayland-dev mesa-vulkan-drivers
+      - run: cargo fmt --check
+      - run: cargo clippy --locked --all-targets -- -D warnings
+      - run: cargo build --locked
+      - run: cargo test --locked
+      - if: runner.os == 'Linux'
+        run: |
+          cargo run --locked -- --snap /tmp/intake.png --tree /tmp/intake.json
+          test -s /tmp/intake.png
+          grep -q 'Settings are not available yet' /tmp/intake.json
+      - if: runner.os == 'Linux'
+        uses: actions/upload-artifact@v4
+        with:
+          name: intake-rune-placeholder
+          path: |
+            /tmp/intake.png
+            /tmp/intake.json
