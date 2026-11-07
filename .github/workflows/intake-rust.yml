@@ -45,6 +45,22 @@ jobs:
           Start-Sleep -Seconds 2
           if ($daemon.HasExited) { throw "daemon exited with code $($daemon.ExitCode)" }
           Stop-Process -Id $daemon.Id -Force
+      - if: runner.os == 'macOS'
+        run: |
+          config="$RUNNER_TEMP/intake-config.json"
+          out="$(cargo run --locked -- daemon --simulate 'Hello world' --config "$config")"
+          test "$out" = "url=http://localhost:3000/intake?body=Hello+world&source=simulated-app&title=Hello+world"
+          cargo run --locked -- check --config "$config"
+          cargo run --locked -- autostart status
+          target/debug/funnel-intake daemon --debug --config "$config" > "$RUNNER_TEMP/daemon.log" 2>&1 &
+          pid=$!
+          sleep 2
+          if ! kill -0 "$pid"; then
+            cat "$RUNNER_TEMP/daemon.log"
+            exit 1
+          fi
+          kill "$pid"
+          wait "$pid" || true
       - if: runner.os == 'Linux'
         run: |
           cargo run --locked -- --snap /tmp/intake.png --tree /tmp/intake.json

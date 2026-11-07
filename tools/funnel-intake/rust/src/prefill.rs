@@ -108,12 +108,16 @@ fn builtin_source_map() -> BTreeMap<&'static str, &'static str> {
         ("ms-teams", "chat"),
         ("teams", "chat"),
         ("msteams", "chat"),
+        ("microsoft teams", "chat"),
         ("slack", "chat"),
         ("discord", "chat"),
         ("outlook", "email"),
+        ("microsoft outlook", "email"),
         ("thunderbird", "email"),
         ("zoom", "meeting"),
+        ("zoom.us", "meeting"),
         ("webex", "meeting"),
+        ("cisco webex", "meeting"),
     ])
 }
 
