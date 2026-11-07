@@ -1,5 +1,7 @@
 //! One executable: `funnel-intake daemon` and `funnel-intake settings`.
 
+#![cfg_attr(all(windows, not(debug_assertions)), windows_subsystem = "windows")]
+
 use std::process::ExitCode;
 
 use funnel_intake::cli::{self, Command, Options};

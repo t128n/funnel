@@ -1,20 +1,57 @@
 //! Fallback for platforms that have no native hotkey integration.
 
-use std::path::Path;
+use std::any::Any;
+use std::sync::Arc;
+use std::sync::atomic::AtomicBool;
 
-use crate::config::Config;
-use crate::pipeline::IntakeOutcome;
+use crate::pipeline::{BrowserLauncher, SelectionCapture};
 
 const UNSUPPORTED: &str = "the intake daemon is supported on Windows and macOS only";
 
-pub fn run_daemon(_path: &Path, _config: &Config, _dry_run: bool) -> Result<(), String> {
+pub fn hotkey_runtime() -> Result<Box<dyn super::HotkeyRuntime>, String> {
     Err(UNSUPPORTED.to_owned())
 }
 
-pub fn preview(_config: &Config) -> Result<IntakeOutcome, String> {
-    Err(UNSUPPORTED.to_owned())
+struct ErrorCapture;
+impl SelectionCapture for ErrorCapture {
+    fn foreground_process(&mut self) -> Result<String, String> {
+        Err(UNSUPPORTED.to_owned())
+    }
+    fn capture(&mut self) -> Result<String, String> {
+        Err(UNSUPPORTED.to_owned())
+    }
+}
+
+struct ErrorLauncher;
+impl BrowserLauncher for ErrorLauncher {
+    fn open(&mut self, _url: &str) -> Result<(), String> {
+        Err(UNSUPPORTED.to_owned())
+    }
+}
+
+pub fn capture() -> Box<dyn SelectionCapture> {
+    Box::new(ErrorCapture)
+}
+
+pub fn launcher() -> Box<dyn BrowserLauncher> {
+    Box::new(ErrorLauncher)
+}
+
+pub fn acquire_single_instance() -> Result<bool, String> {
+    Ok(true)
+}
+
+pub fn tray(
+    _open_settings: Box<dyn Fn() + Send + Sync>,
+    _quit: Arc<AtomicBool>,
+) -> Option<Box<dyn Any>> {
+    None
 }
 
 pub fn autostart(_action: &str) -> Result<String, String> {
     Err(UNSUPPORTED.to_owned())
+}
+
+pub fn show_error(title: &str, message: &str) {
+    eprintln!("{title}: {message}");
 }

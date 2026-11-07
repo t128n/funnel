@@ -5,6 +5,7 @@ pub mod config;
 pub mod daemon;
 pub mod deeplink;
 pub mod hotkey;
+pub mod logging;
 pub mod pipeline;
 pub mod platform;
 pub mod prefill;
