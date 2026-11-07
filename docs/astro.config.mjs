@@ -1,5 +1,6 @@
 import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
+import { starlightPele } from 'starlight-pele';
 
 export default defineConfig({
   site: 'https://t128n.github.io',
@@ -8,6 +9,7 @@ export default defineConfig({
     title: 'Funnel',
     disable404Route: true,
     expressiveCode: { shiki: { langAlias: { caddyfile: 'text' } } },
+    plugins: [starlightPele()],
     social: [{ icon: 'github', label: 'GitHub', href: 'https://github.com/t128n/funnel' }],
     sidebar: [
       { label: 'For end users', items: [

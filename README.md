@@ -25,6 +25,7 @@ You need a GitHub account with permission to create and install a GitHub App. Fo
 - [Configure repositories](docs/how-to/configure/repositories.md) and [manage people and roles](docs/how-to/configure/people-and-roles.md).
 - [Back up and restore](docs/how-to/operate/backup-and-restore.md), [upgrade](docs/how-to/operate/upgrade.md), or [troubleshoot](docs/how-to/operate/troubleshoot.md).
 - Install on [Linux with systemd](docs/how-to/deploy/linux-systemd.md), [behind a reverse proxy](docs/how-to/deploy/reverse-proxy.md), or against [GitHub Enterprise Server](docs/how-to/deploy/github-enterprise-server.md).
+- Set up the optional [desktop intake app](docs/how-to/integrate/windows-intake-hotkey.md) on Windows or macOS for hotkey-based submission drafts.
 - Browse the [documentation site](https://t128n.github.io/funnel/) or [GitHub documentation index](docs/README.md).
 
 Funnel runs as a single long-lived process with a SQLite database and uploads directory. Do not run multiple instances against the same data directory; see the [deployment model](docs/explanation/deployment-model.md).

@@ -2,26 +2,27 @@
 
 Capture the text currently selected in a Windows app and open a prefilled Funnel intake draft with a single global hotkey, without leaving the app or switching windows.
 
-The helper is a small resident Go executable (`funnel-intake.exe`). It registers the hotkey itself, captures the selection through the clipboard, and opens `{FUNNEL_URL}/intake?…` in the default browser. Nothing is submitted: the form opens as an editable draft.
+The helper is one resident Rust executable (`funnel-intake.exe`) with a daemon and a Rune settings window. It registers the hotkey itself, captures the selection through the clipboard, and opens `{FUNNEL_URL}/intake?…` in the default browser. Nothing is submitted: the form opens as an editable draft.
 
 ## Prerequisites
 
 - Windows 10 or 11.
 - A reachable Funnel instance. The dev server (`bun run dev`) listens on `http://localhost:5173`; the packaged service listens on `http://localhost:3000`.
+- To build from a checkout: [mise](https://mise.jdx.dev) with `mise trust` run once, plus the Rust toolchain that `mise.toml` pins.
 
 ## Install
 
-1. Download `funnel-0.0.12-windows-x64.zip` and `SHA256SUMS.txt` from [release v0.0.12](https://github.com/t128n/funnel/releases/tag/v0.0.12). Both files should appear in your downloads; the Windows server archive also contains the helper.
+1. Open the [releases listing](https://github.com/t128n/funnel/releases) and download the intake ZIP your release lists, plus `SHA256SUMS.txt`. Current packaging publishes a separate `funnel-intake-<version>-windows-x64.zip`; the earlier v0.0.12 release bundled the older helper inside `funnel-0.0.12-windows-x64.zip`.
 
 2. In PowerShell, from the download directory, check the archive against the matching entry in `SHA256SUMS.txt`:
 
    ```powershell
-   Get-FileHash .\funnel-0.0.12-windows-x64.zip -Algorithm SHA256
+   Get-FileHash .\funnel-intake-<version>-windows-x64.zip -Algorithm SHA256
    ```
 
-   The displayed hash must match the `funnel-0.0.12-windows-x64.zip` entry in `SHA256SUMS.txt`; do not install if it differs.
+   The displayed hash must match that archive's entry in `SHA256SUMS.txt`; do not install if it differs. For v0.0.12, hash `funnel-0.0.12-windows-x64.zip` instead.
 
-3. Extract the ZIP and open PowerShell in its inner `funnel-0.0.12-windows-x64` folder. It contains `funnel-intake.exe`, `install-intake.ps1` and `README.txt`. Install for the current user, replacing the URL with your reachable Funnel instance:
+3. Extract the ZIP and open PowerShell in its inner folder. It contains `funnel-intake.exe`, `install-intake.ps1` and `README.txt`. Install for the current user, replacing the URL with your reachable Funnel instance:
 
    ```powershell
    powershell -ExecutionPolicy Bypass -File .\install-intake.ps1 -Url http://localhost:3000
@@ -29,15 +30,16 @@ The helper is a small resident Go executable (`funnel-intake.exe`). It registers
 
 The installer prints the installed executable, configuration, log, hotkey and URL. It does not require administrator rights. `ExecutionPolicy Bypass` applies to this PowerShell invocation; inspect the downloaded script before running it if required by your security policy.
 
-Current packaging code creates a separate `funnel-intake-<version>-windows-x64.zip` for future releases, but v0.0.12 does not provide it. If a later [release](https://github.com/t128n/funnel/releases) lists that asset, verify its checksum and extract it instead; its installer and helper are together in the extracted folder and use the same command.
+The current Rust app defaults to `Alt+F`; the older helper in v0.0.12 used `Ctrl+Alt+I`. Use the default reported by your installer, or pass `-Hotkey` explicitly.
 
 The installer:
 
 1. Copies the bundled or built `funnel-intake.exe` to `%LOCALAPPDATA%\Funnel\Intake\funnel-intake.exe`.
-2. Writes `%LOCALAPPDATA%\Funnel\Intake\config.json` (default `http://localhost:3000`, `Ctrl+Alt+I`).
-3. Creates `…\Startup\Funnel Intake.lnk` so the helper starts at login.
-4. Removes the legacy `Funnel Intake.lnk` from the Start Menu or Desktop. That shortcut owned `Ctrl+Alt+I`; leaving it in place makes Windows refuse to register the new hotkey.
-5. Starts the helper (unless `-NoStart` is passed).
+2. Writes `%LOCALAPPDATA%\Funnel\Intake\config.json` (default `http://localhost:3000`, `Alt+F`).
+3. Creates `…\Startup\Funnel Intake.lnk` so the daemon starts at login.
+4. Removes the legacy `Funnel Intake.lnk` from the Start Menu or Desktop. That shortcut owned `Ctrl+Alt+I` and can conflict if that hotkey is configured again.
+5. Starts the daemon (unless `-NoStart` is passed).
+6. Opens the same config from `funnel-intake.exe settings` (a tray entry also opens it).
 
 From the extracted release folder, point it at a different instance or hotkey, then verify the process is running:
 
@@ -53,7 +55,7 @@ The installer reports the new URL and hotkey; `Get-Process` lists `funnel-intake
 | Option | Default | Purpose |
 | :--- | :--- | :--- |
 | `-Url` | `http://localhost:3000` | Funnel base URL; the helper appends `/intake`. |
-| `-Hotkey` | `Ctrl+Alt+I` | Any combo supported by the parser (at least one modifier). |
+| `-Hotkey` | `Alt+F` | Any combo supported by the parser (at least one modifier; `Alt`/`Opt`/`Option` are aliases). |
 | `-Source` | auto-detect | Fixed source label; disables foreground-app detection. |
 | `-ExePath` | `funnel-intake.exe` beside the script, or `dist\funnel-intake.exe` in a checkout | Binary to install. |
 | `-NoStart` | off | Install without launching the helper. |
@@ -94,7 +96,7 @@ The helper chooses the shorter plain or compressed `?d=` deeplink, so long selec
 ```json
 {
   "url": "http://localhost:3000",
-  "hotkey": "Ctrl+Alt+I",
+  "hotkey": "Alt+F",
   "source": "self-service",
   "sourceMap": { "ms-teams": "chat", "outlook": "email" }
 }
@@ -136,7 +138,11 @@ Read `%LOCALAPPDATA%\Funnel\Intake\intake.log` first. Useful checks:
 - **An elevated app is not captured.** Windows UIPI blocks synthetic input from reaching higher-integrity processes unless the helper also runs elevated.
 - **The browser does not open.** Check the log for an `open browser:` error (usually no default browser handler).
 
-Known limitations: only plain-text clipboard contents are restored (images and files are replaced); the captured text becomes part of the browser URL and history; the configuration is read at startup, so edits require a restart.
+Known limitations: only plain-text clipboard contents are restored (images and files are replaced); the captured text becomes part of the browser URL and history.
+
+## macOS
+
+macOS uses the same app with `Option+F` by default. Download `funnel-intake-<version>-darwin-<arch>.zip`, run `./install-intake.sh --url http://localhost:3000`, and grant Accessibility permission on the first capture. The daemon reloads config changes without a restart. See `tools/funnel-intake/README.md` for details.
 
 ## Uninstall
 
@@ -154,5 +160,5 @@ The helper stops, the Startup shortcut is removed, and the install directory is 
 
 - [Intake API](./intake-api.md) — the JSON endpoint the composer posts to.
 - [`scripts/README.md`](../../../scripts/README.md) — install and configuration reference.
-- [`tools/funnel-intake/README.md`](../../../tools/funnel-intake/README.md) — the Go library and URL contract.
+- [`tools/funnel-intake/README.md`](../../../tools/funnel-intake/README.md) — the Rust app, config and URL contract.
 - [`scripts/DEVELOPMENT.md`](../../../scripts/DEVELOPMENT.md) — build, test, and debugging notes.

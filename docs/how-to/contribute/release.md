@@ -6,7 +6,7 @@ Build and ship Funnel's artefacts — the adapter-node server and the self-conta
 
 - **mise**, trusted once per checkout (`mise trust`) so its tasks load. If you do not use mise, the underlying `bun run` scripts in `package.json` are equivalent.
 - **Bun 1.4.3** (pinned by `mise.toml`).
-- **Go 1.27** for the optional Windows intake helper (also pinned by `mise.toml`).
+- **Rust 1.99.1** for the optional Windows/macOS intake app (also pinned by `mise.toml`).
 
 ## Tasks
 
@@ -17,10 +17,10 @@ Build and ship Funnel's artefacts — the adapter-node server and the self-conta
 | `mise run verify`   | `check` → `test` → `intake:check` → `build` → `exe` → `smoke` | Local verification, including a standalone smoke test. |
 | `mise run check`    | `bun run check`                   | Type-check. |
 | `mise run test`     | `bun run test`                    | The test suite (see [testing.md](./testing.md)). |
-| `mise run intake:check` | `go vet` → `go test`          | The intake helper's Go vet and test results. |
+| `mise run intake:check` | `cargo fmt` → `cargo clippy` → `cargo test` | The intake app's Rust checks and test results. |
 | `mise run build`    | `bun run build`                   | Production SvelteKit build in `build/`. |
-| `mise run exe`      | `bun scripts/build-standalone.ts`, plus `intake:exe` | Self-contained executable in `dist/`, and `dist\funnel-intake.exe`; depends on `build`. |
-| `mise run intake:exe` | `bun scripts/build-intake.ts`   | Native Windows intake helper in `dist\funnel-intake.exe`. |
+| `mise run exe`      | `bun scripts/build-standalone.ts`, plus `intake:exe` | Self-contained executable in `dist/`, and the platform intake binary; depends on `build`. |
+| `mise run intake:exe` | `bun scripts/build-intake.ts`   | Native intake app in `dist/funnel-intake[.exe]`. |
 | `mise run release`  | `bun run release`                 | Applies pending migrations (the release phase). |
 
 Overrides documented in `mise.toml`:
@@ -75,7 +75,7 @@ The executable also handles `--migrate`, `--healthcheck` (probes `/healthz`), `-
 | :-------------------- | :------------------------------------ | :---- |
 | adapter-node server   | `build/`                              | Run with `bun ./build/index.js` (`bun run start`); client assets in `build/client`. |
 | Standalone executable | `dist/funnel` (Linux/macOS), `dist/funnel.exe` (Windows) | One file: Bun runtime, adapter-node output, dependencies, client assets, and `drizzle/` migrations embedded. |
-| Intake helper         | `dist\funnel-intake.exe` (Windows)    | Optional per-user hotkey helper; pure Go, no cgo. Built by `intake:exe`, which `exe` also runs. |
+| Intake app            | `dist/funnel-intake.exe` (Windows), `dist/funnel-intake` (macOS) | Optional per-user daemon + Rune settings window. Built by `intake:exe`, which `exe` also runs. |
 
 `scripts/build-standalone.ts` accepts `--target=<bun-target>`, `--outdir=<dir>` (default `dist`), and `--outfile=<name>` (default `funnel`, or `funnel.exe` for a Windows target). Cross-target builds need that platform's `satteri` package installed, so building natively per OS is the reliable path.
 
@@ -147,8 +147,8 @@ Two workflows split versioning from artifact publishing:
 - **`.github/workflows/publish.yml`** accepts that tag, or a manually pushed
   `v*` tag, and runs:
   1. **Validate** — rejects a tag that does not match the `version` in `package.json`.
-  2. **Verify** — `bun run check`, `bun run test`, and the intake helper's `go vet`
-     and `go test`.
+  2. **Verify** — `bun run check`, `bun run test`, and the intake app's
+     `cargo fmt`, `cargo clippy`, and `cargo test`.
   3. **Build** — native executables for Linux x64, Linux arm64, macOS Apple
      silicon, macOS Intel, and Windows x64. Linux arm64 is cross-compiled on the
      x64 runner after installing that target's `satteri` optional package.
@@ -157,7 +157,7 @@ Two workflows split versioning from artifact publishing:
       Linux arm64 is checked as an ARM executable instead of being run.
   5. **Package** — `bun run package:release` (`scripts/package-release.ts`) writes
      `funnel-<version>-<platform>.tar.gz` (`.zip` on Windows), including
-     `.env.example`, plus a per-asset `.sha256`. The current packaging code creates a separate `funnel-intake-<version>-windows-x64.zip` with its own checksum for a future Windows release. The already published v0.0.12 instead includes the helper and installer inside `funnel-0.0.12-windows-x64.zip`; see [Windows intake installation](../integrate/windows-intake-hotkey.md).
+     `.env.example`, plus a per-asset `.sha256`. On Windows and macOS, the optional intake app is packaged separately as `funnel-intake-<version>-<platform>.zip`, with its own checksum. The earlier v0.0.12 release instead bundled the older Windows helper inside `funnel-0.0.12-windows-x64.zip`; see [Windows intake installation](../integrate/windows-intake-hotkey.md).
   6. **Publish** — merges the checksums into `SHA256SUMS.txt` and creates or
      updates a GitHub release. The body comes from the Changesets
      `CHANGELOG.md` entry (`scripts/release-notes.ts`), with
