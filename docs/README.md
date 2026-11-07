@@ -2,6 +2,12 @@
 
 The published site is available at <https://t128n.github.io/funnel/>. The Markdown files in this directory remain the source of truth and can also be read on GitHub.
 
+## Start here
+
+- **Install on Windows:** Download the Windows ZIP from [GitHub releases](https://github.com/t128n/funnel/releases), extract it, and run `.\funnel.exe setup` in PowerShell from the extracted folder. Alternatively, open `setup.cmd` if present. Follow [Install Funnel](how-to/deploy/install.md) through setup and GitHub App onboarding, then [triage a backlog](tutorials/triage-a-backlog.md).
+- **Use Funnel:** [Create and edit issues](how-to/use/create-and-edit-issues.md), [triage intake](how-to/use/triage-intake.md), or [use the board](how-to/use/board.md).
+- **Contribute:** Clone the repository, follow the [development guide](how-to/contribute/development.md), run the [tests](how-to/contribute/testing.md), and submit a pull request.
+
 ## Working on the site
 
 From the repository root, install the runtimes pinned in `mise.toml`, run `bun install --frozen-lockfile`, then `mise run docs:dev` or `mise run docs:build`. Astro runs on Node as well as using Bun for dependency management. The build recreates the generated `docs/src/content/docs/` and `docs/public/assets/` directories from the existing Markdown and referenced assets; do not store hand-written files there. Edit the original files instead. Restart the development server after changing Markdown so the generated content is refreshed. The generated directories and `docs/dist/` are ignored by Git.
@@ -27,7 +33,7 @@ This index is the entry point to Funnel's documentation, which follows the four 
 
 | Goal | Start here |
 | :--- | :--- |
-| Install Funnel and sign in for the first time | [Getting started](tutorials/getting-started.md) |
+| Install Funnel and sign in for the first time | [Install Funnel](how-to/deploy/install.md) |
 | Run a submission from intake through triage, blocking, notes, and close/reopen | [Triage a backlog](tutorials/triage-a-backlog.md) |
 | Configure estimates, plan a week, block work, and read an epic | [Plan and track a week](tutorials/plan-and-track-a-cycle.md) |
 | Put Funnel into production | [Install Funnel](how-to/deploy/install.md), [reverse proxy](how-to/deploy/reverse-proxy.md), or [GitHub Enterprise Server](how-to/deploy/github-enterprise-server.md) |
@@ -46,7 +52,7 @@ This index is the entry point to Funnel's documentation, which follows the four 
 
 Learning-oriented, with one path and expected results.
 
-- [Getting started](tutorials/getting-started.md) — install Bun, run Funnel locally, create and install the GitHub App through onboarding, and reach the cockpit.
+- [Getting started](tutorials/getting-started.md) — install the Windows release, create and install the GitHub App through onboarding, and reach the cockpit.
 - [Triage a backlog](tutorials/triage-a-backlog.md) — stage an intake submission, accept it into a repository, triage an issue, move a board card, block it, add and publish a work note, attach a file, then close and reopen.
 - [Plan and track a week](tutorials/plan-and-track-a-cycle.md) — configure estimates and net hours, plan a week, block an issue with a structured reason, create an epic, and read the rollups.
 
@@ -144,10 +150,11 @@ Learning-oriented, with one path and expected results.
 - [Design system baseline](plans/2026-10-25-design-system-baseline.md) — the cross-app principles, roles, typography, surface, accessibility and governance rules.
 - [DESIGN.md](DESIGN.md) — Funnel’s application profile of the baseline: records, status mapping, tokens, views and interaction details.
 - [scripts/README.md](../scripts/README.md) — the Windows intake helpers, icon generator, and their current status.
+- [Guide screenshot automation](screenshots/README.md) — the manifest, capture command, checking rules and non-browser exceptions for documentation images.
 
 ## Conventions
 
-Run commands from the repository root unless a document says otherwise. Paths in code fences are relative to that root. Environment variables are written in `UPPER_SNAKE_CASE`; settings keys use dotted names such as `sync.history_days`.
+For source checkout and documentation development, run commands from the repository root unless a document says otherwise; paths in those code fences are relative to that root. Release installation commands instead run from the extracted archive or the location specified in the guide. Environment variables are written in `UPPER_SNAKE_CASE`; settings keys use dotted names such as `sync.history_days`.
 
 ## Related
 
