@@ -75,11 +75,14 @@ jobs:
         with:
           bun-version: 1.4.3
 
-      - name: Setup Go
-        uses: actions/setup-go@v5
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@master
         with:
-          go-version-file: tools/funnel-intake/go.mod
-          cache-dependency-path: tools/funnel-intake/go.sum
+          toolchain: '1.99.1'
+          components: rustfmt, clippy
+
+      - name: Install Linux GUI build dependencies
+        run: sudo apt-get update && sudo apt-get install -y libxkbcommon-dev libwayland-dev
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
@@ -90,11 +93,12 @@ jobs:
       - name: Test
         run: bun run test
 
-      - name: Vet intake helper
-        run: go -C tools/funnel-intake vet -unsafeptr=false ./...
-
-      - name: Test intake helper
-        run: go -C tools/funnel-intake test ./...
+      - name: Test intake app
+        working-directory: tools/funnel-intake/rust
+        run: |
+          cargo fmt --check
+          cargo clippy --locked --all-targets -- -D warnings
+          cargo test --locked
 
   build:
     name: Build ${{ matrix.platform }}
@@ -117,10 +121,12 @@ jobs:
             target: bun-darwin-arm64
             platform: darwin-arm64
             outfile: funnel
+            build_intake: true
           - os: macos-15-intel
             target: bun-darwin-x64
             platform: darwin-x64
             outfile: funnel
+            build_intake: true
           - os: windows-latest
             target: bun-windows-x64
             platform: windows-x64
@@ -154,19 +160,18 @@ jobs:
           --outdir=dist
           --outfile=${{ matrix.outfile }}
 
-      - name: Setup Go
+      - name: Setup Rust
         if: matrix.build_intake
-        uses: actions/setup-go@v5
+        uses: dtolnay/rust-toolchain@master
         with:
-          go-version-file: tools/funnel-intake/go.mod
-          cache-dependency-path: tools/funnel-intake/go.sum
+          toolchain: '1.99.1'
 
-      - name: Build Windows intake helper
+      - name: Build intake app
         if: matrix.build_intake
-        run: bun scripts/build-intake.ts
+        run: bun scripts/build-intake.ts --platform=${{ matrix.platform }}
 
       - name: Fetch pinned WinSW
-        if: matrix.build_intake
+        if: matrix.platform == 'windows-x64'
         run: bun scripts/fetch-winsw.ts
 
       - name: Smoke test (Unix)
@@ -282,6 +287,28 @@ jobs:
               throw "Checksum mismatch for $name.zip"
             }
           }
+
+      - name: Verify macOS intake archive
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="${{ needs.validate.outputs.version }}"
+          platform="${{ matrix.platform }}"
+          name="funnel-intake-$version-$platform"
+          actual="$(unzip -Z1 "release/$name.zip" | sed 's#/$##' | sort)"
+          expected="$(printf '%s\n' "$name" "$name/README.txt" "$name/THIRD_PARTY_NOTICES.md" "$name/funnel-intake" "$name/install-intake.sh" | sort)"
+          if [ "$actual" != "$expected" ]; then
+            echo "::error::Unexpected contents in $name.zip"
+            echo "$actual"
+            exit 1
+          fi
+          hash="$(shasum -a 256 "release/$name.zip" | cut -d' ' -f1)"
+          expected_hash="$(cut -d' ' -f1 "release/$name.zip.sha256")"
+          if [ "$hash" != "$expected_hash" ]; then
+            echo "::error::Checksum mismatch for $name.zip"
+            exit 1
+          fi
 
       - name: Upload release artifact
         uses: actions/upload-artifact@v4

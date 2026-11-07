@@ -53,6 +53,7 @@ if (!/^[a-z0-9]+-[a-z0-9]+$/.test(platform)) {
 }
 
 const isWindows = platform.startsWith("windows-");
+const isMac = platform.startsWith("darwin-");
 const binaryName = isWindows ? "funnel.exe" : "funnel";
 const archiveExtension = isWindows ? "zip" : "tar.gz";
 
@@ -187,18 +188,26 @@ function psLiteral(value: string): string {
 }
 
 // Packaging runs natively: gzipped tar on macOS/Linux and ZIP on Windows.
+// ZIP is also used for the macOS intake archive, so pick by extension.
 function packageArchive(name: string, dir: string, extension: string): void {
   const path = join(outDir, `${name}.${extension}`);
   rmSync(path, { force: true });
-  const archive = isWindows
-    ? Bun.spawnSync({
-        cmd: [
-          "powershell", "-NoProfile", "-NonInteractive", "-Command",
-          `Compress-Archive -LiteralPath ${psLiteral(dir)} -DestinationPath ${psLiteral(path)} -Force`,
-        ],
-        stdout: "inherit",
-        stderr: "inherit",
-      })
+  const archive = extension === "zip"
+    ? isWindows
+      ? Bun.spawnSync({
+          cmd: [
+            "powershell", "-NoProfile", "-NonInteractive", "-Command",
+            `Compress-Archive -LiteralPath ${psLiteral(dir)} -DestinationPath ${psLiteral(path)} -Force`,
+          ],
+          stdout: "inherit",
+          stderr: "inherit",
+        })
+      : Bun.spawnSync({
+          cmd: ["zip", "-qr", path, name],
+          cwd: stageRoot,
+          stdout: "inherit",
+          stderr: "inherit",
+        })
     : Bun.spawnSync({
         cmd: ["tar", "-czf", path, "-C", stageRoot, name],
         stdout: "inherit",
@@ -217,32 +226,46 @@ function packageArchive(name: string, dir: string, extension: string): void {
 
 packageArchive(archiveName, stageDir, archiveExtension);
 
-if (isWindows) {
-  const intakePath = join(projectRoot, "dist", "funnel-intake.exe");
+if (isWindows || isMac) {
+  const intakeBinary = isWindows ? "funnel-intake.exe" : "funnel-intake";
+  const intakePath = join(projectRoot, "dist", intakeBinary);
   if (!existsSync(intakePath)) {
-    fail("dist/funnel-intake.exe is missing; run `bun scripts/build-intake.ts` before packaging the Windows archives.");
+    fail(
+      `dist/${intakeBinary} is missing; run \`bun scripts/build-intake.ts --platform=${platform}\` before packaging the archives.`,
+    );
   }
   const intakeName = `funnel-intake-${version}-${platform}`;
   const intakeDir = join(stageRoot, intakeName);
   mkdirSync(intakeDir, { recursive: true });
-  copyFileSync(intakePath, join(intakeDir, "funnel-intake.exe"));
-  copyFileSync(join(projectRoot, "scripts", "install-intake.ps1"), join(intakeDir, "install-intake.ps1"));
+  copyFileSync(intakePath, join(intakeDir, intakeBinary));
+  if (!isWindows) chmodSync(join(intakeDir, intakeBinary), 0o755);
+  copyFileSync(
+    join(projectRoot, "scripts", isWindows ? "install-intake.ps1" : "install-intake.sh"),
+    join(intakeDir, isWindows ? "install-intake.ps1" : "install-intake.sh"),
+  );
   if (existsSync(notices)) copyFileSync(notices, join(intakeDir, "THIRD_PARTY_NOTICES.md"));
+  const installLine = isWindows
+    ? "  powershell -ExecutionPolicy Bypass -File .\\install-intake.ps1 -Url http://localhost:3000"
+    : "  ./install-intake.sh --url http://localhost:3000";
+  const uninstallLine = isWindows
+    ? "  powershell -ExecutionPolicy Bypass -File .\\install-intake.ps1 -Uninstall"
+    : "  ./install-intake.sh --uninstall";
+  const defaultShortcut = isWindows ? "Alt+F" : "Option+F";
   writeFileSync(join(intakeDir, "README.txt"), `Funnel Intake ${version}
 ====================
 
-Optional per-user Windows hotkey helper. Requires a reachable Funnel server.
-Extract this archive, open PowerShell in this folder, and run:
+Optional per-user ${isWindows ? "Windows" : "macOS"} hotkey helper. Requires a reachable Funnel server.
+Extract this archive and run:
 
-  powershell -ExecutionPolicy Bypass -File .\\install-intake.ps1 -Url http://localhost:3000
+${installLine}
 
-Replace the URL with your Funnel server address. No administrator rights are needed.
-Select text in Teams, Outlook, or a browser and press Ctrl+Alt+I to open an intake draft.
+Replace the URL with your Funnel server address. ${isWindows ? "No administrator rights are needed." : "macOS asks for Accessibility permission on the first capture."}
+Select text in Teams, Outlook, or a browser and press ${defaultShortcut} to open an intake draft.
 
 To uninstall, run:
-  powershell -ExecutionPolicy Bypass -File .\\install-intake.ps1 -Uninstall
+${uninstallLine}
 
-Documentation: https://github.com/t128n/funnel/blob/main/docs/how-to/integrate/windows-intake-hotkey.md
+Documentation: https://github.com/t128n/funnel/blob/main/tools/funnel-intake/README.md
 `);
   packageArchive(intakeName, intakeDir, "zip");
 }
